@@ -53,3 +53,6 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/Radiationsafety/bssunfold"
 Issues = "https://github.com/Radiationsafety/bssunfold/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
