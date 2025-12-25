@@ -47,6 +47,7 @@ dev = [
     "pip>=24.0",
     "troml>=0.4.1",
     "directory-tree>=1.0.0",
+    "marimo>=0.18.4",
 ]
 
 [project.urls]

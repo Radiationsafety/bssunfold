@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from unittest.mock import patch, MagicMock
-from bssunfold import Detector
+from ..src.bssunfold import Detector
 
 
 @pytest.fixture
