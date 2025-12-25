@@ -12,16 +12,18 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-license = "GNU"
+
 license-files = ["LICENSE"]
 
 
 dependencies = [
     "cvxpy[cbc,cvxopt,ecos,glop,glpk]>=1.7.5",
     "matplotlib>=3.10.8",
-    "numpy>=2.4.0",
+    "numpy>=2.3.4",
     "pandas>=2.3.3",
+    "pip>=25.3",
     "scipy>=1.16.3",
+    "twine>=6.2.0",
     "uv-build>=0.9.18",
 ]
 
@@ -29,7 +31,7 @@ dependencies = [
 bssunfold = "bssunfold:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
