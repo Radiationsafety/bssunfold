@@ -16,7 +16,7 @@
   - Combined approach for improved accuracy
 
 - **Radiation Dose Calculations**:
-  - ICRP-116 conversion coefficients for effective dose
+  - INTERNATIONAL COMMISSION ON RADIOLOGICAL PROTECTION (ICRP), publication 116: conversion coefficients for effective dose
 
 - **Comprehensive Data Management**:
   - Automatic response function processing
@@ -250,15 +250,34 @@ percentile_95 = result['spectrum_uncert_percentile_95']
 
 ```
 bssunfold/
+├── CHANGELOG.md
+├── CONTRIBUTING.md
 ├── data/
-│   ├── response_functions/     # Detector response functions
-│   ├── conversion_coefficients/ # ICRP-116 and other coefficients
-│   └── reference_spectra/      # Reference spectra for comparison
+│   └── response_functions/
+│       └── rf_GSF.csv
 ├── docs/
-│   ├── user_guide.md          # User manual
-│   ├── examples/              # Usage examples
-│   └── api_reference/         # API documentation
-└── tests/                     # Unit tests
+│   ├── conf.py
+│   ├── makefile
+│   ├── requirements.txt
+│   └── source/
+│       ├── conf.py
+│       ├── detector.rst
+│       ├── examples.rst
+│       └── index.rst
+├── example/
+│   └── 01-basic-example.ipynb
+├── favicon.ico
+├── LICENSE
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+├── src/
+│   └── bssunfold/
+│       ├── __init__.py
+│       ├── constants.py
+│       └── detector.py
+├── tests/
+│   └── test_detector.py
 ```
 
 ## Technical Requirements
@@ -309,11 +328,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## Documentation
 
-Full documentation is available in  /docs folder
-
-- API reference
-- Tutorials and examples
-- Theory and methodology
+Documentation and API reference is available in /docs folder. Theory and methodology in the research paper, example of usage in /examples folder.
 
 ## License
 
@@ -328,9 +343,17 @@ For questions, bug reports, or feature requests:
 
 ## Acknowledgments
 
-- ICRP for conversion coefficient data
+- ICRP and IAEA for data
 - Contributors and testers
-- Research institutions providing validation data
+- Joint institure for Nuclear Research
+
+## References
+1. Compendium of neutron spectra and detector responses for radiation protection purposes: supplement to technical reports series no. 318. — Vienna: International Atomic Energy Agency, 2001. — Technical reports series no. 403. — STI/DOC/010/403. — ISBN 92-0-102201-8.
+2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials // Phys. Part. Nucl. — 2024. — V. 55. — P. 532–534. — DOI: https://doi.org/10.1134/S1063779624030298
+3. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X
+4. Chizhov K., Chizhov A. Optimization approach to neutron spectra unfolding with Bonner multi-sphere spectrometer // Math. Model. — 2024. — V. 7. — P. 89–90.
+5. Чижов А. В., Чижов К. А. Восстановление спектров опорных нейтронных полей на Фазотроне (ОИЯИ) на основе показаний многошарового спектрометра Боннера методом усеченного сингулярного разложения Тезисы Трудов LXI Всероссийской конференции по физике РУДН 19 - 23 мая 2025.
+6. Chizhov, K., Chizhov, A., TSVD-based neutron spectra unfolding by Bonner multi-sphere spectrometer readings with iteration procedure, proceedings of the International Conference "Distributed Computing and Grid-technologies in Science and Education".
 
 ---
 
