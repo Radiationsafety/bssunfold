@@ -169,8 +169,7 @@ class TestUnfoldingMethods:
                 sample_readings, 
                 initial_spectrum=initial_spectrum
             )
-
-    
+  
     def test_clear_results(self, detector, sample_readings):
         """Тест очистки результатов."""
         # Добавляем результаты
@@ -183,7 +182,6 @@ class TestUnfoldingMethods:
         # Проверяем
         assert len(detector.results_history) == 0
         assert detector.current_result is None
-
 
 class TestDoseRateCalculation:
     """Тесты расчета мощности дозы."""
