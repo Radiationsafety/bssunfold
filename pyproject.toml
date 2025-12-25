@@ -6,25 +6,27 @@ readme = "README.md"
 authors = [
     { name = "Konstantin Chizhov", email = "kchizhov@jinr.ru" }
 ]
+keywords = [ "unfolding", "BSS" ]
+
 requires-python = ">=3.12"
 
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
-]
 
+]
+license ="GPL-3.0-only"
 license-files = ["LICENSE"]
 
-
 dependencies = [
-    "cvxpy[cbc,cvxopt,ecos,glop,glpk]>=1.7.5",
+    "cvxpy[cvxopt,ecos]>=1.1",
     "matplotlib>=3.10.8",
-    "numpy>=2.3.4",
+    "numpy>=2.0",
     "pandas>=2.3.3",
-    "pip>=25.3",
     "scipy>=1.16.3",
-    "twine>=6.2.0",
-    "uv-build>=0.9.18",
 ]
 
 [project.scripts]
@@ -40,6 +42,10 @@ dev = [
     "pydata-sphinx-theme>=0.16.1",
     "pytest>=9.0.2",
     "sphinx>=9.0.4",
+    "twine>=6.2.0",
+    "uv-build>=0.9.18",
+    "pip>=24.0",
+    "troml>=0.4.1",
 ]
 
 [project.urls]

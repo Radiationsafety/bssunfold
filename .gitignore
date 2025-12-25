@@ -184,3 +184,4 @@ CONTRIBUTING.pdf
 .flake8
 uv.lock
 .pypirc
+.config
