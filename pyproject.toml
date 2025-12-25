@@ -1,0 +1,30 @@
+[project]
+name = "bssunfold"
+version = "0.1.0"
+description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
+readme = "README.md"
+authors = [
+    { name = "KonstantinJINR", email = "kchizhov@jinr.ru" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "cvxpy[cbc,cvxopt,ecos,glop,glpk]>=1.7.5",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.0",
+    "pandas>=2.3.3",
+    "scipy>=1.16.3",
+]
+
+[project.scripts]
+bssunfold = "bssunfold:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "flake8>=7.3.0",
+    "pydata-sphinx-theme>=0.16.1",
+    "sphinx>=9.0.4",
+]
