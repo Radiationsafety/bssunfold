@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Documentation](https://img.shields.io/badge/docs-sphinx-blue)](https://bssunfold.readthedocs.io/)
-
+[![DOI](https://zenodo.org/badge/1122800086.svg)](https://doi.org/10.5281/zenodo.18056376)
 ## Overview
 
 **BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities.
@@ -136,46 +136,13 @@ result = detector.unfold_landweber(
 )
 ```
 
-## Visualization Examples
-
-### Spectrum Plotting
-```python
-# Basic spectrum plot
-detector.plot_spectrum()
-
-# With uncertainty bands
-detector.plot_spectrum(
-    uncertainty=True,
-    log_scale=True,
-    save_path='spectrum.png'
-)
-
-```
-
-### Readings Comparison
-```python
-# Compare original vs effective readings
-detector.plot_readings_comparison(
-    bar_width=0.35,
-    title='Detector Readings Comparison',
-    save_path='readings_comparison.png'
-)
-```
-
-### Dose Rate Analysis
-```python
-# Visualize dose rates by geometry
-detector.plot_doserates()
-```
-
 ## Output Data
 
 The package provides comprehensive output in standardized formats:
 
 ### Spectrum Results
 - Energy grid in MeV
-- Unfolded flux spectrum
-- Absolute spectrum values
+- Unfolded neutron spectrum for the grid of energy bins
 - Uncertainty estimates (if calculated)
 
 ### Dose Calculations
