@@ -60,7 +60,8 @@ class Detector:
         Parameters
         ----------
         response_functions_df : pd.DataFrame
-            DataFrame containing response functions with 'E_MeV' as first column
+            DataFrame containing response functions with 'E_MeV'
+            as first column
             and detector names as subsequent columns.
 
         Raises
@@ -69,7 +70,9 @@ class Detector:
             If E_MeV is not a 1D array or has less than 2 energy points
         """
         Amat, E_MeV, detector_names, log_steps = (
-            self._convert_rf_to_matrix_variable_step(response_functions_df, Emin=1e-9)
+            self._convert_rf_to_matrix_variable_step(
+                response_functions_df, Emin=1e-9
+            )
         )
 
         self.Amat = Amat
@@ -117,9 +120,7 @@ class Detector:
         str
             String that can be used to recreate the object
         """
-        return (
-            f"Detector(E_MeV={self.E_MeV.tolist()}, sensitivities={self.sensitivities})"
-        )
+        return f"Detector(E_MeV={self.E_MeV.tolist()}, sensitivities={self.sensitivities})"
 
     @property
     def n_detectors(self) -> int:
@@ -206,7 +207,9 @@ class Detector:
         self.current_result = None
         print("All results cleared.")
 
-    def _validate_readings(self, readings: Dict[str, float]) -> Dict[str, float]:
+    def _validate_readings(
+        self, readings: Dict[str, float]
+    ) -> Dict[str, float]:
         """
         Validate detector readings.
 
@@ -256,7 +259,9 @@ class Detector:
         """
         selected = [name for name in self.detector_names if name in readings]
         b = np.array([readings[name] for name in selected], dtype=float)
-        A = np.array([self.sensitivities[name] for name in selected], dtype=float)
+        A = np.array(
+            [self.sensitivities[name] for name in selected], dtype=float
+        )
         return A, b, selected
 
     def _standardize_output(
@@ -302,7 +307,8 @@ class Detector:
             "spectrum": spectrum_nonneg.copy(),
             "spectrum_absolute": spectrum_nonneg.copy(),
             "effective_readings": {
-                name: float(val) for name, val in zip(selected, computed_readings)
+                name: float(val)
+                for name, val in zip(selected, computed_readings)
             },
             "residual": residual.copy(),
             "residual_norm": float(np.linalg.norm(residual)),
@@ -445,7 +451,9 @@ class Detector:
         ) -> np.ndarray:
             """Solve optimization problem."""
             x = cp.Variable(A.shape[1], nonneg=True)
-            objective = cp.Minimize(cp.norm(A @ x - b, 2) + alpha * cp.norm(x, norm))
+            objective = cp.Minimize(
+                cp.norm(A @ x - b, 2) + alpha * cp.norm(x, norm)
+            )
             problem = cp.Problem(objective)
 
             if use_solver == "ECOS":
@@ -571,7 +579,11 @@ class Detector:
         """
 
         def _landweber_iteration(
-            A: np.ndarray, b: np.ndarray, x0: np.ndarray, max_iter: int, tol: float
+            A: np.ndarray,
+            b: np.ndarray,
+            x0: np.ndarray,
+            max_iter: int,
+            tol: float,
         ) -> Tuple[np.ndarray, int, bool]:
             """Core Landweber iteration implementation."""
             # n = A.shape[1]
@@ -644,13 +656,17 @@ class Detector:
 
         # Monte-Carlo uncertainty estimation
         if calculate_errors:
-            print(f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples...")
+            print(
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+            )
 
             spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
 
             for i in range(n_montecarlo):
                 # Add noise to readings
-                noisy_readings = self._add_noise(validated_readings, noise_level)
+                noisy_readings = self._add_noise(
+                    validated_readings, noise_level
+                )
 
                 # Rebuild system with noisy readings
                 A_noisy, b_noisy, _ = self._build_system(noisy_readings)
@@ -668,7 +684,9 @@ class Detector:
                     "spectrum_uncert_std": np.std(spectra_samples, axis=0),
                     "spectrum_uncert_min": np.min(spectra_samples, axis=0),
                     "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                    "spectrum_uncert_median": np.median(spectra_samples, axis=0),
+                    "spectrum_uncert_median": np.median(
+                        spectra_samples, axis=0
+                    ),
                     "spectrum_uncert_percentile_5": np.percentile(
                         spectra_samples, 5, axis=0
                     ),
@@ -711,7 +729,9 @@ class Detector:
             Values are in pico-Sievert per second (pSv/s)
         """
         if not self.cc_icrp116:
-            return {geom: 0.0 for geom in ["AP", "PA", "LLAT", "RLAT", "ISO", "ROT"]}
+            return {
+                geom: 0.0 for geom in ["AP", "PA", "LLAT", "RLAT", "ISO", "ROT"]
+            }
 
         doserates = {}
         for geom, k in self.cc_icrp116.items():

@@ -185,3 +185,4 @@ CONTRIBUTING.pdf
 uv.lock
 .pypirc
 .config
+.DS_Store

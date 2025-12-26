@@ -48,6 +48,7 @@ dev = [
     "troml>=0.4.1",
     "directory-tree>=1.0.0",
     "marimo>=0.18.4",
+    "ruff>=0.14.10",
 ]
 
 [project.urls]
@@ -56,3 +57,38 @@ Issues = "https://github.com/Radiationsafety/bssunfold/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 80
+indent-width = 4
