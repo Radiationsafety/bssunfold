@@ -9,6 +9,8 @@
 
 **BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities.
 
+![logo](docs/images/bssunfold_logo.png)
+
 ## Features
 
 - **Multiple Unfolding Algorithms**:
