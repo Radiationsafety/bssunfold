@@ -4,7 +4,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Documentation](https://img.shields.io/badge/docs-sphinx-blue)](https://bssunfold.readthedocs.io/)
 [![DOI](https://zenodo.org/badge/1122800086.svg)](https://doi.org/10.5281/zenodo.18056376)
-[![Google Scholar](https://img.shields.io/badge/Google%20Scholar-4285F4?style=for-the-badge&logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=CtXdf28AAAAJ&hl=en)
+
 ## Overview
 
 **BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities.
@@ -268,9 +268,8 @@ bssunfold/
 - **Caching**: Response matrices are cached for repeated use
 
 ## Citation
-
+[![Google Scholar](https://img.shields.io/badge/Google%20Scholar-4285F4?style=for-the-badge&logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=CtXdf28AAAAJ&hl=en)
 If you use BSSUnfold in your research, please cite:
-
 ```bibtex
 @article{chizhov2024neutron,
   title={Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials},
