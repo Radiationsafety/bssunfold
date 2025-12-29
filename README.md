@@ -222,38 +222,42 @@ percentile_95 = result['spectrum_uncert_percentile_95']
 bssunfold/
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
-├── data/
-│   └── response_functions/
+├── data
+│   └── response_functions
 │       └── rf_GSF.csv
-├── docs/
+├── docs
 │   ├── conf.py
+│   ├── detector.rst
+│   ├── examples.rst
+│   ├── images
+│   │   └── bssunfold_logo.png
+│   ├── index.rst
+│   ├── make.bat
 │   ├── makefile
-│   ├── requirements.txt
-│   └── source/
-│       ├── conf.py
-│       ├── detector.rst
-│       ├── examples.rst
-│       └── index.rst
-├── example/
+│   └── requirements.txt
+├── example
 │   └── 01-basic-example.ipynb
 ├── favicon.ico
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
+├── README.pdf
 ├── requirements.txt
-├── src/
-│   └── bssunfold/
-│       ├── __init__.py
+├── src
+│   └── bssunfold
 │       ├── constants.py
-│       └── detector.py
-├── tests/
+│       ├── detector.py
+│       ├── __init__.py
+├── tests
+│   ├── __init__.py
 │   └── test_detector.py
+└── uv.lock
 ```
 
 ## Technical Requirements
 
 ### Minimum Requirements
-- Python 3.12 or higher
+- Python 3.11 or higher
 - NumPy >= 1.21.0
 - SciPy >= 1.7.0
 - Pandas >= 1.3.0
@@ -315,15 +319,26 @@ For questions, bug reports, or feature requests:
 
 - ICRP and IAEA for data
 - Contributors and testers
-- Joint institure for Nuclear Research
+- Joint Institure for Nuclear Research
+- University "Dubna", School of Big Data Analytics
 
-## References
-1. Compendium of neutron spectra and detector responses for radiation protection purposes: supplement to technical reports series no. 318. — Vienna: International Atomic Energy Agency, 2001. — Technical reports series no. 403. — STI/DOC/010/403. — ISBN 92-0-102201-8.
-2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials // Phys. Part. Nucl. — 2024. — V. 55. — P. 532–534. — DOI: https://doi.org/10.1134/S1063779624030298
-3. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X
+## Publications
+
+1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. дубна, 26 – 31 января 2026 г.
+1. Chizhov, K., Chizhov, A. Optimization of the Neutron Spectrum Unfolding Algorithm Using Shifted Legendre Polynomials Based on Weighted Tikhonov Regularization. Phys. Part. Nuclei 56, 1395–1399 (2025). https://doi.org/10.1134/S106377962570056X
+2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X
+3. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials // Phys. Part. Nucl. — 2024. — V. 55. — P. 532–534. — DOI: https://doi.org/10.1134/S1063779624030298
 4. Chizhov K., Chizhov A. Optimization approach to neutron spectra unfolding with Bonner multi-sphere spectrometer // Math. Model. — 2024. — V. 7. — P. 89–90.
 5. Чижов А. В., Чижов К. А. Восстановление спектров опорных нейтронных полей на Фазотроне (ОИЯИ) на основе показаний многошарового спектрометра Боннера методом усеченного сингулярного разложения Тезисы Трудов LXI Всероссийской конференции по физике РУДН 19 - 23 мая 2025.
 6. Chizhov, K., Chizhov, A., TSVD-based neutron spectra unfolding by Bonner multi-sphere spectrometer readings with iteration procedure, proceedings of the International Conference "Distributed Computing and Grid-technologies in Science and Education".
+1. Белый А.А., Стариковская М.Д., Чижов К.А. Разработка веб-приложения для эксперимента по восстановлению спектра нейтронов с применением алгоритмов нейронный сетей. Системный анализ в науке и образовании. 2025;(2):49–57. 
+1. Starikovskaya MD, Chizhov KA. Neutron spectrum unfolding based on random forest algorithm and generated training sample. In Российский университет дружбы народов им. П. Лумумбы; 2025 [cited 2025 Dec 25]. p. 389–94. Available from: https://www.elibrary.ru/item.asp?id=83014906
+1. Chizhov KA, Bely AA, Starikovskaia MD, Volkov EN. Восстановление энергетического спектра потока нейтронного излучения с помощью алгоритма машинного обучения «случайный лес». Современные информационные технологии и ИТ-образование. 2024 Dec 15 [cited 2025 Apr 9];20(4). Available from: http://sitito.cs.msu.ru/index.php/SITITO/article/view/1167
+
+## References
+1. Compendium of neutron spectra and detector responses for radiation protection purposes: supplement to technical reports series no. 318. — Vienna: International Atomic Energy Agency, 2001. — Technical reports series no. 403. — STI/DOC/010/403. — ISBN 92-0-102201-8.
+2. Diamond, S. and Boyd, S., 2016. CVXPY: A Python-embedded modeling language for convex optimization. Journal of Machine Learning Research, 17(83), pp.1-5.
+
 
 ---
 

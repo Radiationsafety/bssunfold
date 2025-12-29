@@ -8,15 +8,17 @@ authors = [
 ]
 keywords = [ "unfolding", "BSS" ]
 
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
-    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license ="GPL-3.0-only"
 license-files = ["LICENSE"]
@@ -54,6 +56,8 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/Radiationsafety/bssunfold"
 Issues = "https://github.com/Radiationsafety/bssunfold/issues"
+Repository = "https://github.com/Radiationsafety/bssunfold.git"
+Changelog = "https://github.com/Radiationsafety/bssunfold/blob/main/CHANGELOG.md"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

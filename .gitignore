@@ -182,7 +182,6 @@ CONTRIBUTING.pdf
 
 .vscode/
 .flake8
-uv.lock
 .pypirc
 .config
 .DS_Store
