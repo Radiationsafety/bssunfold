@@ -120,8 +120,7 @@ class Detector:
         str
             String that can be used to recreate the object
         """
-        return f"Detector(E_MeV={
-            self.E_MeV.tolist()}, sensitivities={self.sensitivities})"
+        return f"Detector(E_MeV={self.E_MeV.tolist()}, sensitivities={self.sensitivities})"
 
     @property
     def n_detectors(self) -> int:
@@ -559,7 +558,7 @@ class Detector:
             - 'iterations': Number of iterations performed
             - 'converged': Whether convergence was achieved
             - 'doserates': Dose rates for different geometries [pSv/s]
-            - 'spectrum_uncert_*': Monte-Carlo uncertainty estimates 
+            - 'spectrum_uncert_*': Monte-Carlo uncertainty estimates
                 (if calculate_errors=True)
 
         Raises
