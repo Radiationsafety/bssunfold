@@ -29,6 +29,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "numpy>=2.0",
     "pandas>=2.3.3",
+    "pyzmq>=27.1.0",
     "scipy>=1.16.3",
 ]
 
@@ -52,6 +53,8 @@ dev = [
     "directory-tree>=1.0.0",
     "marimo>=0.18.4",
     "ruff>=0.14.10",
+    "pandas-stubs>=2.3.3.251201",
+    "plotly>=6.5.0",
 ]
 
 [project.urls]
