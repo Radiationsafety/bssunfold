@@ -68,6 +68,30 @@ Changelog = "https://github.com/Radiationsafety/bssunfold/blob/main/CHANGELOG.md
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.coverage.run]
+source = ["src/bssunfold"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\bProtocol\\):",
+    "@(abc\\.)?abstractmethod"
+]
+
+# [tool.coverage.report]
+# fail_under = 80  # минимальный процент coverage
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
