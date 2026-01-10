@@ -9,6 +9,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   build:
 
@@ -38,3 +43,20 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+
+    # - name: Export Marimo notebooks to HTML
+    #   run: |
+    #     python -m marimo export html ./example/02-marimo-notebook.py --output index.html
+    #     echo "Exporting marimo notebook to HTML..."
+          
+    # - name: Setup Pages
+    #   uses: actions/configure-pages@v4
+        
+    # - name: Upload artifact
+    #   uses: actions/upload-pages-artifact@v3
+    #   with:
+    #       # Загружаем все HTML файлы и создаем index.html по умолчанию
+    #       path: ./build/
+    #       # Или укажите конкретную папку:
+    #       # path: ./build/

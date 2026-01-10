@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.19.1"
 app = marimo.App()
 
 
@@ -19,7 +19,6 @@ def _():
     import numpy as np
     import plotly.graph_objects as go
     from bssunfold import Detector
-
     return Detector, go, mo, pd
 
 
