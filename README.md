@@ -1,5 +1,6 @@
 # BSSunfold - Neutron Spectrum Unfolding Package for Bonner Sphere Spectrometers
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/0acc1d9e5c804a2b912f8dbb805ec3c8)](https://app.codacy.com/gh/Radiationsafety/bssunfold?utm_source=github.com&utm_medium=referral&utm_content=Radiationsafety/bssunfold&utm_campaign=Badge_Grade)
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Documentation](https://img.shields.io/badge/docs-sphinx-blue)](https://bssunfold.readthedocs.io/)
