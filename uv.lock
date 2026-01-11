@@ -73,7 +73,7 @@ wheels = [
 
 [[package]]
 name = "bssunfold"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy", extra = ["cvxopt", "ecos"] },

@@ -1,7 +1,17 @@
 import os
 import sys
 
+
+import tomllib
+
 sys.path.insert(0, os.path.abspath("../../"))
+
+# from pyproject.toml get version
+with open("../pyproject.toml", "rb") as f:
+    data = tomllib.load(f)
+
+release = data["project"]["version"]
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -13,7 +23,6 @@ sys.path.insert(0, os.path.abspath("../../"))
 project = "bssunfold"
 copyright = "2025, Konstantin Chizhov"
 author = "Konstantin Chizhov"
-release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
