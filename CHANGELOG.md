@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.1.1] - 2029-01-11
+
+### Added
+ - shields 
+ - Citation.cff
+ - Codeowners
+ - Code of conduct
+ - Response functions as a dict to the constants. 
+ - github workflow
+
+### Changed
+ - 01 basic example
+
+
 ## [0.1.0] - 2025-12-25
 
 - initial release

@@ -4,9 +4,12 @@ version = "0.1.1"
 description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
 readme = "README.md"
 authors = [
-    { name = "Konstantin Chizhov", email = "kchizhov@jinr.ru" }
+    { name = "Konstantin Chizhov", email = "kchizhov@jinr.ru" },
+    { name = "Alexei Chizhov", email = "chizhov@jinr.ru" },
+    { name = "Dmitry Borschev", email = "bds.22@uni-dubna.ru" },
+    { name = "Maria Akimochkina", email = "a.m.a.mos@yandex.ru" },
 ]
-keywords = [ "unfolding", "BSS" ]
+keywords = [ "unfolding", "BSS", "ill-posed task", "inverse problem", "Bonner sphere spectrometer"]
 
 requires-python = ">=3.11"
 
