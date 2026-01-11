@@ -57,6 +57,7 @@ dev = [
     "plotly>=6.5.0",
     "coverage>=7.13.1",
     "codacy-coverage>=1.3.11",
+    "radon>=6.0.1",
 ]
 
 [project.urls]
