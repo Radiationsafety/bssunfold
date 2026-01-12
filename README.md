@@ -334,7 +334,7 @@ For questions, bug reports, or feature requests:
 - Joint Institure for Nuclear Research
 - University "Dubna", School of Big Data Analytics
 
-## 📖 Publications
+## 🎓  Publications
 
 1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. дубна, 26 – 31 января 2026 г.
 1. Chizhov, K., Chizhov, A. Optimization of the Neutron Spectrum Unfolding Algorithm Using Shifted Legendre Polynomials Based on Weighted Tikhonov Regularization. Phys. Part. Nuclei 56, 1395–1399 (2025). https://doi.org/10.1134/S106377962570056X
