@@ -90,6 +90,7 @@ dev = [
     "grayskull>=2.9.2",
     "codemetapy>=3.0.3",
     "deptry>=0.24.0",
+    "jupyter-book>=2.1.0",
 ]
 
 [project.urls]
