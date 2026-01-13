@@ -1,0 +1,161 @@
+[project]
+name = "bssunfold"
+version = "0.1.1"
+description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
+readme = "README.md"
+authors = [
+    { name = "Konstantin Chizhov", email = "kchizhov@jinr.ru" },
+    { name = "Alexei Chizhov", email = "chizhov@jinr.ru" },
+    { name = "Dmitry Borschev", email = "bds.22@uni-dubna.ru" },
+    { name = "Maria Akimochkina", email = "a.m.a.mos@yandex.ru" },
+]
+maintainers = [
+  {name = "Konstantin Chizhov", email = "kchizhov@jinr.ru"}
+]
+keywords = [ "unfolding", "BSS", "ill-posed task", "inverse problem", "Bonner sphere spectrometer"]
+
+requires-python = ">=3.11"
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+license ="GPL-3.0-only"
+license-files = ["LICENSE"]
+
+dependencies = [
+    "cvxpy[cvxopt,ecos]>=1.1",
+    "matplotlib>=3.10.8",
+    "numpy>=2.0",
+    "pandas>=2.3.3",
+    "pyzmq>=27.1.0",
+    "scipy>=1.16.3",
+]
+
+[project.scripts]
+bssunfold = "bssunfold:main"
+
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = [
+    "src/bssunfold/**",
+    "README.md",
+    "LICENSE",
+]
+
+exclude = [
+    "tests/**",
+    "assets/**",
+    "docs/**",
+    "favicon.ico",
+    "uv.lock",
+    "**/pycache",
+    "**/*.pyc",
+    "**/.git*",
+    "**/*.tmp",
+    "tests/**/*.dat",
+    "*.log",
+    "codemeta.json",
+    "conda.recipe/**",
+]
+
+[dependency-groups]
+dev = [
+    "flake8>=7.3.0",
+    "pydata-sphinx-theme>=0.16.1",
+    "pytest>=9.0.2",
+    "sphinx>=9.0.4",
+    "twine>=6.2.0",
+    "uv-build>=0.9.18",
+    "pip>=24.0",
+    "troml>=0.4.1",
+    "directory-tree>=1.0.0",
+    "marimo>=0.18.4",
+    "ruff>=0.14.10",
+    "pandas-stubs>=2.3.3.251201",
+    "plotly>=6.5.0",
+    "coverage>=7.13.1",
+    "codacy-coverage>=1.3.11",
+    "radon>=6.0.1",
+    "grayskull>=2.9.2",
+    "codemetapy>=3.0.3",
+    "deptry>=0.24.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Radiationsafety/bssunfold"
+Issues = "https://github.com/Radiationsafety/bssunfold/issues"
+Repository = "https://github.com/Radiationsafety/bssunfold.git"
+Changelog = "https://github.com/Radiationsafety/bssunfold/blob/main/CHANGELOG.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/bssunfold"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\bProtocol\\):",
+    "@(abc\\.)?abstractmethod"
+]
+
+# [tool.coverage.report]
+# fail_under = 80  # минимальный процент coverage
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 80
+indent-width = 4
