@@ -46,28 +46,28 @@ bssunfold = "bssunfold:main"
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build]
-include = [
-    "src/bssunfold/**",
-    "README.md",
-    "LICENSE",
-]
+# [tool.hatch.build]
+# include = [
+#      "src/bssunfold/**",
+#     "README.md",
+#     "LICENSE",
+# ]
 
-exclude = [
-    "tests/**",
-    "assets/**",
-    "docs/**",
-    "favicon.ico",
-    "uv.lock",
-    "**/pycache",
-    "**/*.pyc",
-    "**/.git*",
-    "**/*.tmp",
-    "tests/**/*.dat",
-    "*.log",
-    "codemeta.json",
-    "conda.recipe/**",
-]
+# exclude = [
+#     "tests/**",
+#     "assets/**",
+#     "docs/**",
+#     "favicon.ico",
+#     "uv.lock",
+#     "**/pycache",
+#     "**/*.pyc",
+#     "**/.git*",
+#     "**/*.tmp",
+#     "tests/**/*.dat",
+#     "*.log",
+#     "codemeta.json",
+#     "conda.recipe/**",
+# ]
 
 [dependency-groups]
 dev = [
@@ -80,7 +80,7 @@ dev = [
     "pip>=24.0",
     "troml>=0.4.1",
     "directory-tree>=1.0.0",
-    "marimo>=0.18.4",
+    "marimo>=0.19.0",
     "ruff>=0.14.10",
     "pandas-stubs>=2.3.3.251201",
     "plotly>=6.5.0",
