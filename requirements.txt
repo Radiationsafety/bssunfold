@@ -1,6 +1,6 @@
 cvxpy[ecos]>=1.1
 matplotlib>=3.10.8
-numpy>=2.0.0
+numpy>=2.4.1
 pandas>=2.2.3
 pyzmq>=27.1.0
 scipy>=1.16.3
