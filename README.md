@@ -6,12 +6,23 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![DOI](https://zenodo.org/badge/1122800086.svg)](https://doi.org/10.5281/zenodo.18056376)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Radiationsafety/bssunfold/blob/main/examples/01-basic-example.ipynb)
+
 ## 🔍 Overview
 
 **BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities.
 
 ![logo](assets/bssunfold_logo.png)
+
+**Contents**
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick start](#-quick-start)
+- [Project structure](#-project-structure)
+- [Technical requirements](#-technical-requirements)
+- [Citing](#-citation)
+- [Documentation](#-documentation)
+- [Publications](#--publications)
+
 
 ## 📦 Features
 
@@ -51,6 +62,11 @@ pip install -e .
 ```
 
 ## 🎯 Quick Start
+
+Open in interactive notebooks:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Radiationsafety/bssunfold/blob/main/examples/01-basic-example.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Radiationsafety/bssunfold.git/HEAD?urlpath=%2Fdoc%2Ftree%2Fexamples%2F02-basic-example-for-mybinder.ipynb)
 
 ```python
 import pandas as pd
@@ -255,11 +271,13 @@ bssunfold/
 
 ### Requirements
 - Python 3.11 - 3.13
-- cvxpy[cvxopt,ecos] >= 1.1.0
-- NumPy >= 2.0.0
-- SciPy >= 1.16.3
-- Pandas >= 2.3.3
-- Matplotlib >= 3.5.0 (for visualization)
+- cvxpy[cvxopt,ecos]
+- NumPy
+- SciPy
+- Pandas
+- Matplotlib
+
+Available package versions see in [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml).
 
 ## Performance
 
@@ -311,7 +329,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## 📘 Documentation
 
-Documentation and API reference is available in /docs folder. Theory and methodology in the research paper, example of usage in /examples folder.
+Documentation and API reference is available in /docs folder. Theory and methodology in the research paper, examples of usage in /examples folder. Check the https://bssunfold.readthedocs.io/en/latest/
 
 ## 📄 License
 
