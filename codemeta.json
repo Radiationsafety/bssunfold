@@ -1,0 +1,123 @@
+{
+    "@context": [
+        "https://w3id.org/codemeta/3.0",
+        "https://w3id.org/software-iodata",
+        "https://raw.githubusercontent.com/jantman/repostatus.org/master/badges/latest/ontology.jsonld",
+        "https://schema.org",
+        "https://w3id.org/software-types"
+    ],
+    "@type": "SoftwareSourceCode",
+    "applicationCategory": [
+        "Scientific/Engineering > Mathematics",
+        "Scientific/Engineering > Physics",
+        "Software Development > Libraries > Python Modules"
+    ],
+    "author": [
+        {
+            "@type": "Person",
+            "email": "a.m.a.mos@yandex.ru",
+            "familyName": "Akimochkina",
+            "givenName": "Maria"
+        },
+        {
+            "@type": "Person",
+            "email": "bds.22@uni-dubna.ru",
+            "familyName": "Borschev",
+            "givenName": "Dmitry"
+        },
+        {
+            "@type": "Person",
+            "email": "chizhov@jinr.ru",
+            "familyName": "Chizhov",
+            "givenName": "Alexei"
+        },
+        {
+            "@type": "Person",
+            "email": "kchizhov@jinr.ru",
+            "familyName": "Chizhov",
+            "givenName": "Konstantin"
+        }
+    ],
+    "codeRepository": "https://github.com/Radiationsafety/bssunfold.git",
+    "description": "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)",
+    "developmentStatus": "https://www.repostatus.org/#wip",
+    "identifier": "bssunfold",
+    "isSourceCodeOf": {
+        "@type": "CommandLineApplication",
+        "executableName": "bssunfold",
+        "name": "bssunfold",
+        "runtimePlatform": "Python 3"
+    },
+    "issueTracker": "https://github.com/Radiationsafety/bssunfold/issues",
+    "keywords": [
+        "BSS",
+        "Bonner sphere spectrometer",
+        "ill-posed task",
+        "inverse problem",
+        "unfolding"
+    ],
+    "name": "bssunfold",
+    "operatingSystem": "OS Independent",
+    "referencePublication": "https://doi.org/10.5281/zenodo.18056377",
+    "runtimePlatform": [
+        "Python 3",
+        "Python 3.11",
+        "Python 3.12",
+        "Python 3.13"
+    ],
+    "softwareRequirements": [
+        {
+            "@type": "SoftwareApplication",
+            "identifier": "cvxpy[cvxopt",
+            "name": "cvxpy[cvxopt",
+            "runtimePlatform": "Python 3"
+        },
+        {
+            "@type": "SoftwareApplication",
+            "identifier": "ecos]",
+            "name": "ecos]",
+            "runtimePlatform": "Python 3",
+            "version": ">= 1.1"
+        },
+        {
+            "@type": "SoftwareApplication",
+            "identifier": "matplotlib",
+            "name": "matplotlib",
+            "runtimePlatform": "Python 3",
+            "version": ">= 3.10.8"
+        },
+        {
+            "@type": "SoftwareApplication",
+            "identifier": "numpy",
+            "name": "numpy",
+            "runtimePlatform": "Python 3",
+            "version": ">= 2.0"
+        },
+        {
+            "@type": "SoftwareApplication",
+            "identifier": "pandas",
+            "name": "pandas",
+            "runtimePlatform": "Python 3",
+            "version": ">= 2.3.3"
+        },
+        {
+            "@type": "SoftwareApplication",
+            "identifier": "pyzmq",
+            "name": "pyzmq",
+            "runtimePlatform": "Python 3",
+            "version": ">= 27.1.0"
+        },
+        {
+            "@type": "SoftwareApplication",
+            "identifier": "scipy",
+            "name": "scipy",
+            "runtimePlatform": "Python 3",
+            "version": ">= 1.16.3"
+        }
+    ],
+    "url": [
+        "https://github.com/Radiationsafety/bssunfold",
+        "https://github.com/Radiationsafety/bssunfold/blob/main/CHANGELOG.md"
+    ],
+    "version": "0.1.1"
+}

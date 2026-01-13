@@ -43,6 +43,29 @@ bssunfold = "bssunfold:main"
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+include = [
+    "src/bssunfold/**",
+    "README.md",
+    "LICENSE",
+]
+
+exclude = [
+    "tests/**",
+    "assets/**",
+    "docs/**",
+    "favicon.ico",
+    "uv.lock",
+    "**/pycache",
+    "**/*.pyc",
+    "**/.git*",
+    "**/*.tmp",
+    "tests/**/*.dat",
+    "*.log",
+    "codemeta.json",
+    "conda.recipe/**",
+]
+
 [dependency-groups]
 dev = [
     "flake8>=7.3.0",
@@ -61,6 +84,9 @@ dev = [
     "coverage>=7.13.1",
     "codacy-coverage>=1.3.11",
     "radon>=6.0.1",
+    "grayskull>=2.9.2",
+    "codemetapy>=3.0.3",
+    "deptry>=0.24.0",
 ]
 
 [project.urls]
