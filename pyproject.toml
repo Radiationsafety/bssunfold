@@ -52,7 +52,7 @@ include = [
 
 exclude = [
     "tests/**",
-    "assets/**"
+    "assets/**",
     "docs/**",
     "favicon.ico",
     "uv.lock",
@@ -84,6 +84,7 @@ dev = [
     "radon>=6.0.1",
     "grayskull>=2.9.2",
     "codemetapy>=3.0.3",
+    "deptry>=0.24.0",
 ]
 
 [project.urls]
