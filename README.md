@@ -21,7 +21,7 @@
   - Combined approach for improved accuracy
 
 - **Radiation Dose Calculations**:
-  - INTERNATIONAL COMMISSION ON RADIOLOGICAL PROTECTION (ICRP), publication 116: conversion coefficients for effective dose
+  - Effective dose calculations for different irradiation types based on  conversion coefficients from 116 publication of International commission on radiological protection (ICRP)
 
 - **Comprehensive Data Management**:
   - Automatic response function processing
@@ -29,7 +29,7 @@
 
 - **Advanced Visualization**:
   - Spectrum plotting with uncertainty bands
-  - Detector reading comparisons
+  - Detector reading comparison
 
 ## 📥 Installation
 
@@ -253,15 +253,12 @@ bssunfold/
 
 ## 🔧 Technical Requirements
 
-### Minimum Requirements
+### Requirements
 - Python 3.11 - 3.13
-- cvxpy[cvxopt,ecos] >= 1.1
-- NumPy >= 2.0
+- cvxpy[cvxopt,ecos] >= 1.1.0
+- NumPy >= 2.0.0
 - SciPy >= 1.16.3
 - Pandas >= 2.3.3
-
-### Optional Dependencies
-- CVXPY >= 1.1.0 (for convex optimization)
 - Matplotlib >= 3.5.0 (for visualization)
 
 ## Performance
