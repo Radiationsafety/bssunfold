@@ -62,6 +62,8 @@ exclude = [
     "**/*.tmp",
     "tests/**/*.dat",
     "*.log",
+    "codemeta.json",
+    "conda.recipe/**",
 ]
 
 [dependency-groups]
