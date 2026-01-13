@@ -9,6 +9,9 @@ authors = [
     { name = "Dmitry Borschev", email = "bds.22@uni-dubna.ru" },
     { name = "Maria Akimochkina", email = "a.m.a.mos@yandex.ru" },
 ]
+maintainers = [
+  {name = "Konstantin Chizhov", email = "kchizhov@jinr.ru"}
+]
 keywords = [ "unfolding", "BSS", "ill-posed task", "inverse problem", "Bonner sphere spectrometer"]
 
 requires-python = ">=3.11"

@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [0.1.1] - 2026-01-11
+## [0.1.1] - 2026-01-12
 
 ### Added
  - shields 

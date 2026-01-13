@@ -8,10 +8,11 @@ message: >-
   metadata from this file.
 type: software
 authors:
-  - given-names: Chizhov
+  - given-names: Konstantin
+    family-names: Chizhov
+    orcid: "https://orcid.org/0000-0003-1591-4289"
     email: kchizhov@jinr.ru
-    name-particle: Konstantin
-    affiliation: JINR
+    affiliation: Joint Institute for Nuclear Research
 identifiers:
   - type: doi
     value: 10.5281/zenodo.18056376
