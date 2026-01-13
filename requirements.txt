@@ -1,6 +1,6 @@
-cvxpy[cvxopt,ecos]>=1.1
+cvxpy[ecos]>=1.1
 matplotlib>=3.10.8
 numpy>=2.0.0
-pandas>=2.3.3
+pandas>=2.2.3
 pyzmq>=27.1.0
 scipy>=1.16.3
