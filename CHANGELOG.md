@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.1.2] - 2026-01-14
+
+### Added
+ - conda recipe
+
+### Changed
+ - pandas 2.3.3 for micropip in marimo
+ - readme.md
+
+
+
 ## [0.1.1] - 2026-01-12
 
 ### Added
@@ -15,7 +26,7 @@ and this project adheres to [Semantic Versioning].
  - Codeowners
  - Code of conduct
  - Response functions as a dict to the constants. 
- - github workflow
+ - github workflows
 
 ### Changed
  - 01 basic example
