@@ -34,7 +34,7 @@ dependencies = [
     "cvxpy[cvxopt,ecos]>=1.1",
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
-    "pandas>=2.3.3",
+    "pandas>=2.2.3",
     "pyzmq>=27.1.0",
     "scipy>=1.16.3",
 ]
@@ -46,28 +46,28 @@ bssunfold = "bssunfold:main"
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
-# [tool.hatch.build]
-# include = [
-#      "src/bssunfold/**",
-#     "README.md",
-#     "LICENSE",
-# ]
+[tool.hatch.build]
+include = [
+     "src/bssunfold/**",
+    "README.md",
+    "LICENSE",
+]
 
-# exclude = [
-#     "tests/**",
-#     "assets/**",
-#     "docs/**",
-#     "favicon.ico",
-#     "uv.lock",
-#     "**/pycache",
-#     "**/*.pyc",
-#     "**/.git*",
-#     "**/*.tmp",
-#     "tests/**/*.dat",
-#     "*.log",
-#     "codemeta.json",
-#     "conda.recipe/**",
-# ]
+exclude = [
+    "tests/**",
+    "assets/**",
+    "docs/**",
+    "favicon.ico",
+    "uv.lock",
+    "**/pycache",
+    "**/*.pyc",
+    "**/.git*",
+    "**/*.tmp",
+    "tests/**/*.dat",
+    "*.log",
+    "codemeta.json",
+    "conda.recipe/**",
+]
 
 [dependency-groups]
 dev = [
@@ -91,6 +91,7 @@ dev = [
     "codemetapy>=3.0.3",
     "deptry>=0.24.0",
     "jupyter-book>=2.1.0",
+    "ghp-import>=2.1.0",
 ]
 
 [project.urls]
