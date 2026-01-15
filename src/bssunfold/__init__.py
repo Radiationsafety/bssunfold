@@ -1,9 +1,9 @@
 # bssunfold/__init__.py
 import importlib.metadata
-__all__ = ["Detector", "ICRP116_COEFF_EFFECTIVE_DOSE", "RF_GSF"]
+__all__ = ["Detector", "ICRP116_COEFF_EFFECTIVE_DOSE", "RF_GSF", "RF_PTB", "RF_LANL"]
 
 from .detector import Detector
-from .constants import ICRP116_COEFF_EFFECTIVE_DOSE, RF_GSF
+from .constants import ICRP116_COEFF_EFFECTIVE_DOSE, RF_GSF, RF_PTB, RF_LANL
 
 try:
     __version__ = importlib.metadata.version("bssunfold")
