@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.1.3] - 2026-01-15
+
+### Added
+ - RF_PTB  in constants (response function for PTB BSS)
+ - RF_LANL in constants (response function for LANL BSS)
+
+### Changed
+ - numpy 2.0.2 for micropip in marimo
+
+
 ## [0.1.2] - 2026-01-14
 
 ### Added
@@ -15,7 +25,6 @@ and this project adheres to [Semantic Versioning].
 ### Changed
  - pandas 2.3.3 for micropip in marimo
  - readme.md
-
 
 
 ## [0.1.1] - 2026-01-12
