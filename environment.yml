@@ -1,0 +1,11 @@
+# for mybinder
+name: binder-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11  # Избегайте 3.14, она новая и проблемная
+  - cvxopt  # conda-версия собирается без ошибок
+  - cvxpy
+  - jupyter
+  - numpy
+  - scipy

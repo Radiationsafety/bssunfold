@@ -1,6 +1,17 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../'))
+
+
+import tomllib
+
+sys.path.insert(0, os.path.abspath("../../"))
+
+# from pyproject.toml get version
+with open("../pyproject.toml", "rb") as f:
+    data = tomllib.load(f)
+
+release = data["project"]["version"]
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -9,43 +20,39 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'bssunfold'
-copyright = '2025, Konstantin Chizhov'
-author = 'Konstantin Chizhov'
-release = '0.1.0'
+project = "bssunfold"
+copyright = "2025, Konstantin Chizhov"
+author = "Konstantin Chizhov"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = []
 
-templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
-
-
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "pydata_sphinx_theme"
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # Расширения
 extensions = [
-    'sphinx.ext.autodoc',       # Для автодокументации
-    'sphinx.ext.napoleon',      # Для поддержки Google/Numpy docstrings
-    'sphinx.ext.viewcode',      # Показывать исходный код
-    'sphinx.ext.autosummary',   # Авто-сводка
-    'sphinx.ext.intersphinx',   # Ссылки на другую документацию
+    "sphinx.ext.autodoc",  # Для автодокументации
+    "sphinx.ext.napoleon",  # Для поддержки Google/Numpy docstrings
+    "sphinx.ext.viewcode",  # Показывать исходный код
+    "sphinx.ext.autosummary",  # Авто-сводка
+    "sphinx.ext.intersphinx",  # Ссылки на другую документацию
 ]
 
 # Настройки autodoc
 autodoc_default_options = {
-    'members': True,
-    'member-order': 'bysource',
-    'special-members': '__init__',
-    'undoc-members': True,
-    'exclude-members': '__weakref__'
+    "members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+    "undoc-members": True,
+    "exclude-members": "__weakref__",
 }
 
 # Настройки napoleon (для Google/Numpy стиля)

@@ -52,6 +52,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+.ruff_cache
 
 # Translations
 *.mo
@@ -182,6 +183,7 @@ CONTRIBUTING.pdf
 
 .vscode/
 .flake8
-uv.lock
 .pypirc
 .config
+.DS_Store
+__marimo__

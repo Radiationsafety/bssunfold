@@ -1,6 +1,6 @@
 [project]
 name = "bssunfold"
-version = "0.1.3"
+version = "0.1.1"
 description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
 readme = "README.md"
 authors = [
@@ -33,8 +33,8 @@ license-files = ["LICENSE"]
 dependencies = [
     "cvxpy[cvxopt,ecos]>=1.1",
     "matplotlib>=3.10.8",
-    "numpy>=2.0.2",
-    "pandas>=2.2.3",
+    "numpy>=2.0",
+    "pandas>=2.3.3",
     "pyzmq>=27.1.0",
     "scipy>=1.16.3",
 ]
@@ -80,7 +80,7 @@ dev = [
     "pip>=24.0",
     "troml>=0.4.1",
     "directory-tree>=1.0.0",
-    "marimo>=0.19.0",
+    "marimo>=0.18.4",
     "ruff>=0.14.10",
     "pandas-stubs>=2.2.3",
     "plotly>=6.5.0",
@@ -90,9 +90,6 @@ dev = [
     "grayskull>=2.9.2",
     "codemetapy>=3.0.3",
     "deptry>=0.24.0",
-    "jupyter-book>=2.1.0",
-    "ghp-import>=2.1.0",
-    "ipywidgets>=8.1.8",
 ]
 
 [project.urls]
@@ -162,14 +159,3 @@ exclude = [
 # Same as Black.
 line-length = 80
 indent-width = 4
-
-[[tool.uv.index]]
-name = "testpypi"
-url = "https://test.pypi.org/simple/"
-publish-url = "https://test.pypi.org/legacy/"
-explicit = true
-
-[[tool.uv.index]]
-name = "pypi"
-url = "https://pypi.org/simple"
-publish-url = "https://upload.pypi.org/legacy/"

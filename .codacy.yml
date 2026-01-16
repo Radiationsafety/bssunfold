@@ -1,0 +1,12 @@
+# .codacy.yml
+exclude_paths:
+  - '.github/**'
+  - '**.md'
+  - 'docs/**'
+  - 'example/**'
+  - 'tests/**'
+
+pylint:
+  enabled: true
+  python_version: 3
+

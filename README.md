@@ -1,14 +1,30 @@
 # BSSunfold - Neutron Spectrum Unfolding Package for Bonner Sphere Spectrometers
-
-[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
+[![PyPI - Version](https://img.shields.io/pypi/v/BSSUnfold)](https://pypi.org/project/bssunfold/)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Documentation](https://img.shields.io/badge/docs-sphinx-blue)](https://bssunfold.readthedocs.io/)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
+[![DOI](https://zenodo.org/badge/1122800086.svg)](https://doi.org/10.5281/zenodo.18056376)
 
-## Overview
+## 🔍 Overview
 
 **BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities.
 
-## Features
+![logo](assets/bssunfold_logo.png)
+
+**Contents**
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick start](#-quick-start)
+- [Project structure](#-project-structure)
+- [Technical requirements](#-technical-requirements)
+- [Citing](#-citation)
+- [Documentation](#-documentation)
+- [Publications](#--publications)
+
+
+## 📦 Features
 
 - **Multiple Unfolding Algorithms**:
   - Tikhonov regularization with convex optimization (CVXPY)
@@ -16,7 +32,7 @@
   - Combined approach for improved accuracy
 
 - **Radiation Dose Calculations**:
-  - INTERNATIONAL COMMISSION ON RADIOLOGICAL PROTECTION (ICRP), publication 116: conversion coefficients for effective dose
+  - Effective dose calculations for different irradiation types based on  conversion coefficients from 116 publication of International commission on radiological protection (ICRP)
 
 - **Comprehensive Data Management**:
   - Automatic response function processing
@@ -24,9 +40,9 @@
 
 - **Advanced Visualization**:
   - Spectrum plotting with uncertainty bands
-  - Detector reading comparisons
+  - Detector reading comparison
 
-## Installation
+## 📥 Installation
 
 ### Using pip
 ```bash
@@ -45,7 +61,12 @@ cd bssunfold
 pip install -e .
 ```
 
-## Quick Start
+## 🎯 Quick Start
+
+Open in interactive notebooks:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Radiationsafety/bssunfold/blob/main/examples/01-basic-example.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Radiationsafety/bssunfold.git/HEAD?urlpath=%2Fdoc%2Ftree%2Fexamples%2F02-basic-example-for-mybinder.ipynb)
 
 ```python
 import pandas as pd
@@ -86,7 +107,7 @@ detector.plot_readings_comparison()
 print("Dose rates [pcSv/s]:", result['doserates'])
 ```
 
-## Input Data Structure
+## 📊 Input Data Structure
 
 ### Response Functions
 Response functions must be provided as a CSV file with the following format:
@@ -108,7 +129,7 @@ readings = {
 }
 ```
 
-## Available Methods
+## ⚙️ Available Methods
 
 ### 1. `unfold_cvxpy()`
 Tikhonov regularization with convex optimization for stable spectrum reconstruction.
@@ -136,46 +157,13 @@ result = detector.unfold_landweber(
 )
 ```
 
-## Visualization Examples
-
-### Spectrum Plotting
-```python
-# Basic spectrum plot
-detector.plot_spectrum()
-
-# With uncertainty bands
-detector.plot_spectrum(
-    uncertainty=True,
-    log_scale=True,
-    save_path='spectrum.png'
-)
-
-```
-
-### Readings Comparison
-```python
-# Compare original vs effective readings
-detector.plot_readings_comparison(
-    bar_width=0.35,
-    title='Detector Readings Comparison',
-    save_path='readings_comparison.png'
-)
-```
-
-### Dose Rate Analysis
-```python
-# Visualize dose rates by geometry
-detector.plot_doserates()
-```
-
-## Output Data
+## 📈 Output Data
 
 The package provides comprehensive output in standardized formats:
 
 ### Spectrum Results
 - Energy grid in MeV
-- Unfolded flux spectrum
-- Absolute spectrum values
+- Unfolded neutron spectrum for the grid of energy bins
 - Uncertainty estimates (if calculated)
 
 ### Dose Calculations
@@ -188,12 +176,10 @@ The package provides comprehensive output in standardized formats:
   - ISO (Isotropic)
 
 ### Quality Metrics
-- Residual norms
-- Convergence status
+- Residual norm
 - Iteration counts
-- Monte Carlo statistics
 
-## Application Areas
+## 📝 Application Areas
 
 ### Nuclear Research Facilities
 - Neutron spectroscopy at particle accelerators
@@ -210,7 +196,7 @@ The package provides comprehensive output in standardized formats:
 - Cosmic ray neutron measurements
 - Nuclear physics experiments
 
-## Advanced Features
+## 🔬 Advanced Features
 
 ### Result Management
 ```python
@@ -246,63 +232,61 @@ uncert_std = result['spectrum_uncert_std']
 percentile_95 = result['spectrum_uncert_percentile_95']
 ```
 
-## Data Structure
+## 📂 Project Structure
 
 ```
 bssunfold/
 ├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── data/
-│   └── response_functions/
+├── data
+│   └── response_functions
 │       └── rf_GSF.csv
-├── docs/
+├── docs
 │   ├── conf.py
+│   ├── detector.rst
+│   ├── examples.rst
+│   ├── index.rst
+│   ├── make.bat
 │   ├── makefile
-│   ├── requirements.txt
-│   └── source/
-│       ├── conf.py
-│       ├── detector.rst
-│       ├── examples.rst
-│       └── index.rst
-├── example/
-│   └── 01-basic-example.ipynb
+│   └── requirements.txt
+├── examples
 ├── favicon.ico
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
 ├── requirements.txt
-├── src/
-│   └── bssunfold/
-│       ├── __init__.py
+├── src
+│   └── bssunfold
 │       ├── constants.py
-│       └── detector.py
-├── tests/
+│       ├── detector.py
+│       ├── __init__.py
+├── tests
+│   ├── __init__.py
 │   └── test_detector.py
+└── uv.lock
 ```
 
-## Technical Requirements
+## 🔧 Technical Requirements
 
-### Minimum Requirements
-- Python 3.12 or higher
-- NumPy >= 1.21.0
-- SciPy >= 1.7.0
-- Pandas >= 1.3.0
+### Requirements
+- Python 3.11 - 3.13
+- cvxpy[cvxopt,ecos]
+- NumPy
+- SciPy
+- Pandas
+- Matplotlib
 
-### Optional Dependencies
-- CVXPY >= 1.1.0 (for convex optimization)
-- Matplotlib >= 3.5.0 (for visualization)
+Available package versions see in [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml).
 
 ## Performance
 
 - **Matrix Operations**: Optimized NumPy operations for response matrices
-- **Memory Efficient**: Sparse matrix support for large energy grids
-- **Parallel Processing**: Monte Carlo simulations can be parallelized
-- **Caching**: Response matrices are cached for repeated use
 
-## Citation
+## 📖 Citation
+[![Google Scholar](https://img.shields.io/badge/Google%20Scholar-4285F4?style=for-the-badge&logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=CtXdf28AAAAJ&hl=en)
 
-If you use BSSUnfold in your research, please cite:
-
+If you use BSSUnfold in your research, please cite paper:
 ```bibtex
 @article{chizhov2024neutron,
   title={Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials},
@@ -316,7 +300,24 @@ If you use BSSUnfold in your research, please cite:
 }
 ```
 
-## Contributing
+or software:
+```bibtex
+@misc{konstantin_radiationsafetybssunfold_2025,
+	title = {Radiationsafety/bssunfold},
+	copyright = {GNU General Public License v3.0 only},
+	shorttitle = {Radiationsafety/bssunfold},
+	url = {https://zenodo.org/doi/10.5281/zenodo.18056376},
+	abstract = {first published version of package},
+	urldate = {2026-01-12},
+	publisher = {Zenodo},
+	author = {Chizhov, Konstantin},
+	month = dec,
+	year = {2025},
+	doi = {10.5281/ZENODO.18056376},
+}
+```
+
+## 💬 Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -326,34 +327,45 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 4. Ensure all tests pass
 5. Submit a pull request
 
-## Documentation
+## 📘 Documentation
 
-Documentation and API reference is available in /docs folder. Theory and methodology in the research paper, example of usage in /examples folder.
+Documentation and API reference is available in /docs folder. Theory and methodology in the research paper, examples of usage in /examples folder. Check the https://bssunfold.readthedocs.io/en/latest/
 
-## License
+## 📄 License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## 💬 Support
 
 For questions, bug reports, or feature requests:
 
 - Open an issue on [GitHub](https://github.com/radiationsafety/bssunfold/issues)
 - Contact: kchizhov@jinr.ru
 
-## Acknowledgments
+## 🌐 Acknowledgments
 
 - ICRP and IAEA for data
 - Contributors and testers
-- Joint institure for Nuclear Research
+- Joint Institure for Nuclear Research
+- University "Dubna", School of Big Data Analytics
 
-## References
-1. Compendium of neutron spectra and detector responses for radiation protection purposes: supplement to technical reports series no. 318. — Vienna: International Atomic Energy Agency, 2001. — Technical reports series no. 403. — STI/DOC/010/403. — ISBN 92-0-102201-8.
-2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials // Phys. Part. Nucl. — 2024. — V. 55. — P. 532–534. — DOI: https://doi.org/10.1134/S1063779624030298
-3. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X
+## 🎓  Publications
+
+1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. дубна, 26 – 31 января 2026 г.
+1. Chizhov, K., Chizhov, A. Optimization of the Neutron Spectrum Unfolding Algorithm Using Shifted Legendre Polynomials Based on Weighted Tikhonov Regularization. Phys. Part. Nuclei 56, 1395–1399 (2025). https://doi.org/10.1134/S106377962570056X
+2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X
+3. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials // Phys. Part. Nucl. — 2024. — V. 55. — P. 532–534. — DOI: https://doi.org/10.1134/S1063779624030298
 4. Chizhov K., Chizhov A. Optimization approach to neutron spectra unfolding with Bonner multi-sphere spectrometer // Math. Model. — 2024. — V. 7. — P. 89–90.
 5. Чижов А. В., Чижов К. А. Восстановление спектров опорных нейтронных полей на Фазотроне (ОИЯИ) на основе показаний многошарового спектрометра Боннера методом усеченного сингулярного разложения Тезисы Трудов LXI Всероссийской конференции по физике РУДН 19 - 23 мая 2025.
 6. Chizhov, K., Chizhov, A., TSVD-based neutron spectra unfolding by Bonner multi-sphere spectrometer readings with iteration procedure, proceedings of the International Conference "Distributed Computing and Grid-technologies in Science and Education".
+1. Белый А.А., Стариковская М.Д., Чижов К.А. Разработка веб-приложения для эксперимента по восстановлению спектра нейтронов с применением алгоритмов нейронный сетей. Системный анализ в науке и образовании. 2025;(2):49–57. 
+1. Starikovskaya MD, Chizhov KA. Neutron spectrum unfolding based on random forest algorithm and generated training sample. In Российский университет дружбы народов им. П. Лумумбы; 2025 [cited 2025 Dec 25]. p. 389–94. Available from: https://www.elibrary.ru/item.asp?id=83014906
+1. Chizhov KA, Bely AA, Starikovskaia MD, Volkov EN. Восстановление энергетического спектра потока нейтронного излучения с помощью алгоритма машинного обучения «случайный лес». Современные информационные технологии и ИТ-образование. 2024 Dec 15 [cited 2025 Apr 9]; 20(4). Available from: http://sitito.cs.msu.ru/index.php/SITITO/article/view/1167
+
+## 📘 References
+1. Compendium of neutron spectra and detector responses for radiation protection purposes: supplement to technical reports series no. 318. — Vienna: International Atomic Energy Agency, 2001. — Technical reports series no. 403. — STI/DOC/010/403. — ISBN 92-0-102201-8.
+2. Diamond, S. and Boyd, S., 2016. CVXPY: A Python-embedded modeling language for convex optimization. Journal of Machine Learning Research, 17(83), pp.1-5.
+
 
 ---
 
