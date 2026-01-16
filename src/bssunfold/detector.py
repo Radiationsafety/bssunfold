@@ -397,7 +397,7 @@ class Detector:
         solver: str = "default",
         calculate_errors: bool = False,
         noise_level: float = 0.01,
-        n_montecarlo: int = 1000,
+        n_montecarlo: int = 100,
     ) -> Dict[str, Any]:
         """
         Unfold neutron spectrum using convex optimization (cvxpy).
@@ -513,7 +513,7 @@ class Detector:
 
         self._save_result(output)
         return output
-
+ 
     def unfold_landweber(
         self,
         readings: Dict[str, float],
