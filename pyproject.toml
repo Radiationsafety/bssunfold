@@ -93,6 +93,7 @@ dev = [
     "jupyter-book>=2.1.0",
     "ghp-import>=2.1.0",
     "ipywidgets>=8.1.8",
+    "seaborn>=0.13.2",
 ]
 
 [project.urls]
