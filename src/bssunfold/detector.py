@@ -396,6 +396,8 @@ class Detector:
         norm: int = 2,
         solver: str = "default",
         calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 1000,
     ) -> Dict[str, Any]:
         """
         Unfold neutron spectrum using convex optimization (cvxpy).
@@ -492,12 +494,10 @@ class Detector:
         # Monte-Carlo error estimation
         if calculate_errors:
             print("Calculating uncertainty with Monte-Carlo...")
-
-            n_montecarlo = 1000
             x_montecarlo = np.empty((n_montecarlo, n))
 
             for i in range(n_montecarlo):
-                readings_noisy = self._add_noise(readings)
+                readings_noisy = self._add_noise(readings, noise_level)
                 A_noisy, b_noisy, _ = self._build_system(readings_noisy)
                 x_montecarlo[i] = _solve_problem(A_noisy, b_noisy, solver)
 
