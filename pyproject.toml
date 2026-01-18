@@ -14,7 +14,7 @@ maintainers = [
 ]
 keywords = [ "unfolding", "BSS", "ill-posed task", "inverse problem", "Bonner sphere spectrometer"]
 
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -31,12 +31,13 @@ license ="GPL-3.0-only"
 license-files = ["LICENSE"]
 
 dependencies = [
-    "cvxpy[cvxopt,ecos]>=1.1",
+    "cvxpy[ecos]>=1.7.5",
     "matplotlib>=3.10.8",
-    "numpy>=2.0.2",
+    "numpy>=2.4.1",
     "pandas>=2.2.3",
     "pyzmq>=27.1.0",
     "scipy>=1.16.3",
+    "scs>=3.2.11",
 ]
 
 [project.scripts]
