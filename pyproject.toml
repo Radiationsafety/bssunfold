@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Mathematics",
@@ -31,9 +32,9 @@ license ="GPL-3.0-only"
 license-files = ["LICENSE"]
 
 dependencies = [
-    "cvxpy[cvxopt,ecos]>=1.1",
+    "cvxpy[ecos]>=1.7.5",
     "matplotlib>=3.10.8",
-    "numpy>=2.0.2",
+    "numpy>=2.4.1",
     "pandas>=2.2.3",
     "pyzmq>=27.1.0",
     "scipy>=1.16.3",
