@@ -131,6 +131,12 @@ class Detector:
     def n_energy_bins(self) -> int:
         """Number of energy bins."""
         return len(self.E_MeV)
+    
+    def get_response_matrix(self, readings):
+        """ Return response matrix for given readings (spheres)."""
+        selected = [name for name in self.detector_names if name in readings]
+        A = np.array([self.sensitivities[name] for name in selected], dtype=float)
+        return A
 
     def _save_result(self, result: Dict[str, Any]) -> str:
         """
@@ -507,6 +513,9 @@ class Detector:
                     "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
                     "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
                     "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
+                    "spectrum_uncert_all": x_montecarlo,
+                    "montecarlo_samples": n_montecarlo,
+                    "noise_level": noise_level,
                 }
             )
             print("...uncertainty calculated.")
@@ -694,6 +703,7 @@ class Detector:
                     "spectrum_uncert_percentile_95": np.percentile(
                         spectra_samples, 95, axis=0
                     ),
+                    "spectrum_uncert_all": spectra_samples,
                     "montecarlo_samples": n_montecarlo,
                     "noise_level": noise_level,
                 }
