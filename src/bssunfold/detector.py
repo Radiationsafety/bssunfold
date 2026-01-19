@@ -131,6 +131,12 @@ class Detector:
     def n_energy_bins(self) -> int:
         """Number of energy bins."""
         return len(self.E_MeV)
+    
+    def get_response_matrix(self, readings):
+        """ Return response matrix for given readings (spheres)."""
+        selected = [name for name in self.detector_names if name in readings]
+        A = np.array([self.sensitivities[name] for name in selected], dtype=float)
+        return A
 
     def _save_result(self, result: Dict[str, Any]) -> str:
         """
@@ -396,6 +402,8 @@ class Detector:
         norm: int = 2,
         solver: str = "default",
         calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
     ) -> Dict[str, Any]:
         """
         Unfold neutron spectrum using convex optimization (cvxpy).
@@ -492,12 +500,10 @@ class Detector:
         # Monte-Carlo error estimation
         if calculate_errors:
             print("Calculating uncertainty with Monte-Carlo...")
-
-            n_montecarlo = 1000
             x_montecarlo = np.empty((n_montecarlo, n))
 
             for i in range(n_montecarlo):
-                readings_noisy = self._add_noise(readings)
+                readings_noisy = self._add_noise(readings, noise_level)
                 A_noisy, b_noisy, _ = self._build_system(readings_noisy)
                 x_montecarlo[i] = _solve_problem(A_noisy, b_noisy, solver)
 
@@ -507,13 +513,16 @@ class Detector:
                     "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
                     "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
                     "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
+                    "spectrum_uncert_all": x_montecarlo,
+                    "montecarlo_samples": n_montecarlo,
+                    "noise_level": noise_level,
                 }
             )
             print("...uncertainty calculated.")
 
         self._save_result(output)
         return output
-
+ 
     def unfold_landweber(
         self,
         readings: Dict[str, float],
@@ -694,6 +703,7 @@ class Detector:
                     "spectrum_uncert_percentile_95": np.percentile(
                         spectra_samples, 95, axis=0
                     ),
+                    "spectrum_uncert_all": spectra_samples,
                     "montecarlo_samples": n_montecarlo,
                     "noise_level": noise_level,
                 }
