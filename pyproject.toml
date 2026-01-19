@@ -1,6 +1,6 @@
 [project]
 name = "bssunfold"
-version = "0.1.3"
+version = "0.1.4"
 description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
 readme = "README.md"
 authors = [
