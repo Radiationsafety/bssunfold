@@ -1,4 +1,0 @@
-format: jb-book
-root: README.md
-chapters:
-- file: 01-basic-example.ipynb
