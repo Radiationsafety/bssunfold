@@ -1,5 +1,5 @@
 """Detector class with unfolding methods."""
-
+import matplotlib.pyplot as plt
 import numpy as np
 from typing import Dict, Optional, List, Tuple, Any
 import cvxpy as cp
@@ -796,3 +796,21 @@ class Detector:
             # Apply noise
             readings_noisy[key] = value * (1 + noise)
         return readings_noisy
+
+    def plot_response_functions(self):
+        """ plot all response functions"""
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        for key, rf in self.sensitivities.items():
+            ax.plot(
+                self.E_MeV,
+                rf,
+                label=key,
+            )
+        ax.set_xscale("log")
+        ax.set_xlabel("Energy, MeV")
+        ax.set_ylabel("Response, cm²")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        ax.set_title("Response functions of the detector")
+        plt.show()
+        plt.close()
