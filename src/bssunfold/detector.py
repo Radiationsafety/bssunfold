@@ -1,6 +1,9 @@
 """Detector class with unfolding methods."""
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from scipy.interpolate import pchip
+
 from typing import Dict, Optional, List, Tuple, Any
 import cvxpy as cp
 import warnings
@@ -797,6 +800,7 @@ class Detector:
             readings_noisy[key] = value * (1 + noise)
         return readings_noisy
 
+    # --- UTILS ---
     def plot_response_functions(self):
         """ plot all response functions"""
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
@@ -814,3 +818,244 @@ class Detector:
         ax.set_title("Response functions of the detector")
         plt.show()
         plt.close()
+
+    def discretize_spectra(self, spectra):
+        '''
+        Interpolate spectra onto the target energy grid using PCHIP interpolation.
+        Extrapolation is avoided and replaced with zeros.
+        
+        Parameters:
+        -----------
+        spectra : pandas.DataFrame or dict
+            Input spectra to be discretized. If DataFrame, it should contain energy 
+            values. If dict, it should have 'E_MeV' and 'Phi' keys.
+            
+        Returns:
+        --------
+        pandas.DataFrame
+            Discretized spectra with columns 'E_MeV' and 'Phi'
+        '''
+        # Get target energy grid parameters
+        Emin = np.min(self.E_MeV)
+        new_ebins = self.E_MeV
+        
+        # Initialize variables for input spectra
+        energies = None
+        spectre_data = None
+        
+        # Handle dictionary input
+        if isinstance(spectra, dict):
+            # Convert dictionary to DataFrame for uniform processing
+            spectre_df = pd.DataFrame(spectra)
+        # Handle DataFrame input
+        elif isinstance(spectra, pd.DataFrame):
+            spectre_df = spectra.copy()
+        else:
+            raise TypeError("Input spectra must be either a pandas DataFrame or a dictionary")
+        
+        # Extract energy values from the input
+        if "E_MeV" in spectre_df.columns:
+            energies = spectre_df["E_MeV"].values
+            # Assuming the rest of the columns are spectral data
+            spectre_data = spectre_df.drop("E_MeV", axis=1).values
+        else:
+            # Assume the first column contains energy values
+            energies = spectre_df.iloc[:, 0].values
+            spectre_data = spectre_df.iloc[:, 1:].values
+        
+        # Convert string energy values to float if needed
+        if len(energies) > 0 and isinstance(energies[0], str):
+            energies = energies.astype(float)
+        
+        # Check if target grid exceeds input grid bounds
+        if new_ebins.min() < np.min(energies):
+            print("Warning: Target energy bins extend below the input grid minimum. Setting values to zero.")
+        
+        if new_ebins.max() > np.max(energies):
+            print("Warning: Target energy bins extend above the input grid maximum. Setting values to zero.")
+        
+        # Convert to logarithmic scale relative to minimum energy
+        u = np.log10(energies / Emin)
+        u_new = np.log10(new_ebins / Emin)  # New grid in log scale
+        
+        # Initialize array for interpolated values
+        interpolated_values = np.zeros((len(new_ebins), spectre_data.shape[1]))
+        
+        # Interpolate each spectral component separately
+        for i in range(spectre_data.shape[1]):
+            # Create PCHIP interpolator for this spectral component
+            interpolator = pchip(u, spectre_data[:, i])
+            
+            # Interpolate onto new grid
+            interp_vals = interpolator(u_new)
+            
+            # Replace extrapolated values with zeros
+            interp_vals[(u_new < u.min()) | (u_new > u.max())] = 0
+            
+            # Replace negative values with zeros
+            interp_vals[interp_vals < 0] = 0
+            
+            interpolated_values[:, i] = interp_vals
+        
+        # Create result DataFrame
+        new_spectra = pd.DataFrame()
+        new_spectra["E_MeV"] = new_ebins
+        
+        # Add interpolated spectral components
+        if spectre_data.shape[1] == 1:
+            # Single spectrum case
+            new_spectra["Phi"] = interpolated_values[:, 0]
+        else:
+            # Multiple spectra case
+            for i in range(spectre_data.shape[1]):
+                if isinstance(spectra, dict) and i == 0:
+                    # For dictionary input, use the original column names
+                    if 'Phi' in spectra:
+                        new_spectra[f"Phi_{i}"] = interpolated_values[:, i]
+                    else:
+                        # Try to use original column names
+                        col_name = spectre_df.columns[1] if len(spectre_df.columns) > 1 else f"Phi_{i}"
+                        new_spectra[col_name] = interpolated_values[:, i]
+                else:
+                    # For multiple spectra from DataFrame, preserve original names
+                    if i < len(spectre_df.columns) - 1:
+                        col_name = spectre_df.columns[i + 1]
+                    else:
+                        col_name = f"Phi_{i}"
+                    new_spectra[col_name] = interpolated_values[:, i]
+        
+        return new_spectra
+    
+    def get_effective_readings_for_spectra(self, spectra):
+        """
+        Calculate effective readings for a given spectrum.
+        
+        This function interpolates the input spectrum onto the detector's energy grid,
+        then calculates what readings each detector sphere would measure for that spectrum
+        by integrating the product of the spectrum and response functions.
+        
+        Parameters
+        ----------
+        spectra : pandas.DataFrame or dict
+            Input spectra to calculate effective readings for.
+            - If DataFrame: Should contain 'E_MeV' column for energies and one or more 
+            columns for spectral data (e.g., 'Phi').
+            - If dict: Should have 'E_MeV' and spectral data keys.
+        
+        Returns
+        -------
+        dict
+            Dictionary of effective readings for each detector sphere in the format:
+            {sphere_name: reading_value, ...}
+            
+        Raises
+        ------
+        TypeError
+            If input is not a pandas DataFrame or dictionary
+        ValueError
+            If energy grid doesn't match or spectrum has invalid shape
+        
+        Examples
+        --------
+        >>> # Using DataFrame input
+        >>> spectrum_df = pd.DataFrame({
+        ...     'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+        ...     'Phi': [1.0, 0.8, 0.5, 0.3, 0.1]
+        ... })
+        >>> readings = detector.get_effective_readings_for_spectra(spectrum_df)
+        
+        >>> # Using dictionary input
+        >>> spectrum_dict = {
+        ...     'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+        ...     'Phi': [1.0, 0.8, 0.5, 0.3, 0.1]
+        ... }
+        >>> readings = detector.get_effective_readings_for_spectra(spectrum_dict)
+        """
+        # Initialize variables for input spectra
+        energies = None
+        
+        # Handle dictionary input
+        if isinstance(spectra, dict):
+            # Convert dictionary to DataFrame for uniform processing
+            spectra_df = pd.DataFrame(spectra)
+        # Handle DataFrame input
+        elif isinstance(spectra, pd.DataFrame):
+            spectra_df = spectra.copy()
+        else:
+            raise TypeError(
+                "Input spectra must be either a pandas DataFrame or a dictionary. "
+                f"Got type: {type(spectra)}"
+            )
+        
+        # Check if input has the same energy grid as detector
+        if "E_MeV" in spectra_df.columns:
+            input_energies = spectra_df["E_MeV"].values
+        else:
+            # Assume first column is energy
+            input_energies = spectra_df.iloc[:, 0].values
+        
+        # Convert string energy values to float if needed
+        if len(input_energies) > 0 and isinstance(input_energies[0], str):
+            input_energies = input_energies.astype(float)
+        
+        # Check if we need to interpolate
+        need_interpolation = not np.array_equal(
+            np.round(input_energies, 12), 
+            np.round(self.E_MeV, 12)
+        )
+        
+        if need_interpolation:
+            # Interpolate spectrum onto detector's energy grid
+            interp_spectra_df = self.discretize_spectra(spectra)
+            
+            # Extract spectrum values from the interpolated DataFrame
+            if "Phi" in interp_spectra_df.columns:
+                spectrum_values = interp_spectra_df["Phi"].values
+            elif interp_spectra_df.shape[1] > 1:
+                # Use the first non-energy column
+                spectrum_values = interp_spectra_df.iloc[:, 1].values
+            else:
+                raise ValueError(
+                    "Interpolated spectra doesn't contain spectrum data. "
+                    f"Columns: {list(interp_spectra_df.columns)}"
+                )
+        else:
+            # Extract spectrum values directly
+            if "Phi" in spectra_df.columns:
+                spectrum_values = spectra_df["Phi"].values
+            else:
+                # Assume the second column is spectrum data
+                if spectra_df.shape[1] < 2:
+                    raise ValueError(
+                        f"Spectrum DataFrame must have at least 2 columns. "
+                        f"Got {spectra_df.shape[1]} columns."
+                    )
+                spectrum_values = spectra_df.iloc[:, 1].values
+        
+        # Ensure spectrum values have the right shape
+        if len(spectrum_values) != len(self.E_MeV):
+            raise ValueError(
+                f"Spectrum length ({len(spectrum_values)}) must match "
+                f"energy grid length ({len(self.E_MeV)})"
+            )
+        
+        # Calculate effective readings by integrating over energy
+        # For each detector: reading = ∫ Φ(E) * R(E) dE
+        # where R(E) is the response function (already includes log steps in Amat)
+        
+        effective_readings = {}
+        
+        for i, detector_name in enumerate(self.detector_names):
+            # Get response function for this detector
+            response_func = self.Amat[:, i]  # Already includes dlnE factor
+            
+            # Calculate reading: dot product of spectrum and response function
+            # This is equivalent to ∫ Φ(E) * R(E) dE over the energy grid
+            reading = np.sum(spectrum_values * response_func)
+            
+            # Ensure reading is non-negative (physical constraint)
+            reading = max(0.0, reading)
+            
+            effective_readings[detector_name] = float(reading)
+        
+        return effective_readings
