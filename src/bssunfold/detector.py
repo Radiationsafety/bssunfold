@@ -6,6 +6,7 @@ from scipy.interpolate import pchip
 
 from typing import Dict, Optional, List, Tuple, Any
 import cvxpy as cp
+import odl
 import warnings
 from datetime import datetime
 
@@ -712,6 +713,145 @@ class Detector:
                 }
             )
             print("...uncertainty calculation completed.")
+        self._save_result(output)
+        return output
+
+    def unfold_mlem_odl(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+    ) -> Dict:
+        """
+        Unfold neutron spectrum using Maximum
+        Likelihood Expectation Maximation algorithm,
+        poisson_log_likelihood  - Poisson log-likelihood.
+
+        Параметры:
+        readings : Dict[str, float]
+            Показания детекторов
+        initial_spectrum : Optional[np.ndarray], optional
+            Начальное приближение спектра. Если None, используется равномерный спектр.
+        tolerance : float, optional
+            Точность сходимости. По умолчанию 1e-6
+        max_iterations : int, optional
+            Максимальное число итераций. По умолчанию 1000
+
+        lambda_relax - positive float or sequence of positive floats, optional
+        Relaxation parameter in the iteration.
+        If a single float is given the same step is used for all operators,
+        otherwise separate steps are used.
+
+        calculate_errors : bool, optional
+            Флаг расчета ошибок восстановления. По умолчанию False
+
+        Возвращает:
+        Dict
+            Словарь с результатами восстановления спектра.
+        """
+
+        # Вспомогательная функция для создания ODL пространств
+        def _create_odl_spaces(b_size: int):
+            """Создание пространств ODL для заданного размера вектора измерений."""
+            measurement_space = odl.uniform_discr(0, b_size - 1, b_size)
+            spectrum_space = odl.uniform_discr(
+                np.min(self.E_MeV), np.max(self.E_MeV), self.E_MeV.shape[0]
+            )
+            return measurement_space, spectrum_space
+
+        # Вспомогательная функция для инициализации спектра
+        def _initialize_spectrum(spectrum_space, initial_spectrum=None):
+            """Инициализация спектра в заданном пространстве."""
+            if initial_spectrum is None:
+                # 0.5 - хорошо, иначе при 1 или 0 получаем нули.
+                return spectrum_space.element(0.5)
+            return spectrum_space.element(initial_spectrum)
+
+        # Основная функция выполнения MLEM
+        def _run_mlem(A_matrix, b_vector, initial_spectrum_vals=None):
+            """Запуск алгоритма MLEM для заданной системы уравнений."""
+            # Создаем пространства ODL
+            measurement_space, spectrum_space = _create_odl_spaces(len(b_vector))
+            
+            # Создаем оператор (матрицу чувствительности)
+            operator = odl.MatrixOperator(
+                A_matrix, 
+                domain=spectrum_space, 
+                range=measurement_space
+            )
+            
+            y = measurement_space.element(b_vector)
+            x = _initialize_spectrum(spectrum_space, initial_spectrum_vals)
+            
+            # Запускаем алгоритм MLEM
+            odl.solvers.mlem(
+                operator, 
+                x, 
+                y, 
+                niter=max_iterations, 
+                callback=callback
+            )
+            
+            return x.asarray(), A_matrix, b_vector
+
+        # Инициализация
+        callback = odl.solvers.CallbackPrintIteration()
+        
+        # Валидация и подготовка данных
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+        
+        # Основной запуск MLEM
+        unfolded_spectrum, A, b = _run_mlem(A, b, initial_spectrum)
+        
+        # Создание основного результата
+        output = self._standardize_output(
+            spectrum=unfolded_spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="MLEM (ODL)",
+            iterations=max_iterations,
+        )
+        
+        # Monte-Carlo оценка неопределенности
+        if calculate_errors:
+            print(f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples...")
+            
+            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
+            
+            for i in range(n_montecarlo):
+                # Добавляем шум к показаниям
+                noisy_readings = self._add_noise(readings, noise_level)
+                
+                # Перестраиваем систему с зашумленными данными
+                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
+                
+                # Запускаем MLEM с теми же параметрами
+                spectrum_sample, _, _ = _run_mlem(A_noisy, b_noisy, initial_spectrum)
+                spectra_samples[i] = spectrum_sample
+            
+            # Вычисляем статистики неопределенности
+            uncertainty_stats = {
+                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
+                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
+                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
+                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
+                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
+                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
+                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
+                "spectrum_uncert_all": spectra_samples,
+                "montecarlo_samples": n_montecarlo,
+                "noise_level": noise_level,
+            }
+            
+            output.update(uncertainty_stats)
+            print("...uncertainty calculation completed.")
+        
         self._save_result(output)
         return output
 
