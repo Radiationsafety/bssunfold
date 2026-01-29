@@ -1110,10 +1110,7 @@ class Detector:
         ...     'Phi': [1.0, 0.8, 0.5, 0.3, 0.1]
         ... }
         >>> readings = detector.get_effective_readings_for_spectra(spectrum_dict)
-        """
-        # Initialize variables for input spectra
-        energies = None
-        
+        """       
         # Handle dictionary input
         if isinstance(spectra, dict):
             # Convert dictionary to DataFrame for uniform processing

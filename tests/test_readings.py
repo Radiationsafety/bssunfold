@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from bssunfold import RF_LANL, Detector
+from src.bssunfold import RF_LANL, Detector
 
 # Тестовый спектр в новом формате
 test_spectrum = {

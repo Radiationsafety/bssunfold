@@ -4,3 +4,4 @@ numpy>=2.4.1
 pandas>=2.2.3
 pyzmq>=27.1.0
 scipy>=1.16.3
+odl>=1.0.0b1

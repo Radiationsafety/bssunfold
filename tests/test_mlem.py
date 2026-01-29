@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from bssunfold import Detector, RF_GSF  # Импортируем из вашего модуля
+from src.bssunfold import Detector, RF_GSF  # Импортируем из вашего модуля
 
 # Тестовые данные
 EXPECTED_RESULT = {
