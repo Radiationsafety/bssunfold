@@ -197,7 +197,7 @@ class TestDoseRateCalculation:
         # Создаем тестовый спектр
         test_spectrum = np.ones(detector.n_energy_bins) * 0.1
 
-        # Мокаем коэффициенты ICRP-116
+        # коэффициенты ICRP-116
         with patch.object(
             detector,
             "_load_icrp116_coefficients",
