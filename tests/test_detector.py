@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import pandas as pd
+import odl
 from unittest.mock import patch, MagicMock
 from src.bssunfold import Detector
 
@@ -197,7 +198,7 @@ class TestDoseRateCalculation:
         # Создаем тестовый спектр
         test_spectrum = np.ones(detector.n_energy_bins) * 0.1
 
-        # Мокаем коэффициенты ICRP-116
+        # коэффициенты ICRP-116
         with patch.object(
             detector,
             "_load_icrp116_coefficients",
