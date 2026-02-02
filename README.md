@@ -157,6 +157,18 @@ result = detector.unfold_landweber(
 )
 ```
 
+### 3. `unfold_mlem_odl()`
+Iterative Maximum likelihood expectation maximization (MLEM).
+
+```python
+result = detector.unfold_mlem_odl(
+    readings,
+    max_iterations=1000,      # Maximum iterations
+    calculate_errors=True,    # Monte Carlo uncertainty
+    save_result=True
+)
+```
+
 ## 📈 Output Data
 
 The package provides comprehensive output in standardized formats:
@@ -270,12 +282,13 @@ bssunfold/
 ## 🔧 Technical Requirements
 
 ### Requirements
-- Python 3.11 - 3.13
-- cvxpy[cvxopt,ecos]
+- Python 3.11 - 3.14
+- cvxpy[ecos]
 - NumPy
 - SciPy
 - Pandas
 - Matplotlib
+- odl
 
 Available package versions see in [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml).
 
@@ -351,7 +364,7 @@ For questions, bug reports, or feature requests:
 
 ## 🎓  Publications
 
-1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. дубна, 26 – 31 января 2026 г.
+1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. Дубна, 26 – 31 января 2026 г., [https://mce.su](https://mce.su/rus/presentations/p507586/)
 1. Chizhov, K., Chizhov, A. Optimization of the Neutron Spectrum Unfolding Algorithm Using Shifted Legendre Polynomials Based on Weighted Tikhonov Regularization. Phys. Part. Nuclei 56, 1395–1399 (2025). https://doi.org/10.1134/S106377962570056X
 2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X
 3. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectra unfolding from Bonner spectrometer readings by the regularization method using the Legendre polynomials // Phys. Part. Nucl. — 2024. — V. 55. — P. 532–534. — DOI: https://doi.org/10.1134/S1063779624030298

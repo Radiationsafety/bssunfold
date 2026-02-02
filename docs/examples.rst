@@ -36,3 +36,10 @@ Basic Usage
        tolerance=1e-5,
        calculate_errors=True
    )
+
+   # Unfold with MLEM
+   result_mlem = detector.unfold_mlem_odl(
+       readings,
+       max_iterations=500,
+       calculate_errors=True
+   )
