@@ -727,33 +727,32 @@ class Detector:
         n_montecarlo: int = 100,
     ) -> Dict:
         """
-        Unfold neutron spectrum using Maximum
-        Likelihood Expectation Maximation algorithm,
-        poisson_log_likelihood  - Poisson log-likelihood.
+        Unfold the neutron spectrum using the Maximum
+        Likelihood Expectation Maximization algorithm.
+        poisson_log_likelihood – Poisson log-likelihood.
 
-        Параметры:
+        Parameters
+        ----------
         readings : Dict[str, float]
-            Показания детекторов
+            Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
-            Начальное приближение спектра. Если None, используется равномерный спектр.
+            Initial spectrum approximation. If None, a uniform spectrum is used.
         tolerance : float, optional
-            Точность сходимости. По умолчанию 1e-6
+            Convergence tolerance. Default is 1e-6.
         max_iterations : int, optional
-            Максимальное число итераций. По умолчанию 1000
-
-        lambda_relax - positive float or sequence of positive floats, optional
-        Relaxation parameter in the iteration.
-        If a single float is given the same step is used for all operators,
-        otherwise separate steps are used.
-
+            Maximum number of iterations. Default is 1000.
         calculate_errors : bool, optional
-            Флаг расчета ошибок восстановления. По умолчанию False
+            Flag for calculating restoration errors. Default is False.
+        noise_level : float, optional
+            Noise level for error calculation. Default is 0.01.
+        n_montecarlo : int, optional
+            Number of Monte Carlo samples for error calculation. Default is 100.
 
-        Возвращает:
+        Returns
+        -------
         Dict
-            Словарь с результатами восстановления спектра.
+            Dictionary containing the spectrum restoration results.
         """
-
         # Вспомогательная функция для создания ODL пространств
         def _create_odl_spaces(b_size: int):
             """Создание пространств ODL для заданного размера вектора измерений."""
