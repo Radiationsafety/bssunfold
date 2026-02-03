@@ -1,14 +1,20 @@
 """Detector class with unfolding methods."""
+from __future__ import annotations
+
+from datetime import datetime
+import logging
+from typing import Any, Callable, Dict, List, Optional, Tuple
+import warnings
+
+import cvxpy as cp
 import matplotlib.pyplot as plt
 import numpy as np
+import odl
 import pandas as pd
 from scipy.interpolate import pchip
+from scipy.optimize import nnls
 
-from typing import Dict, Optional, List, Tuple, Any
-import cvxpy as cp
-import odl
-import warnings
-from datetime import datetime
+logger = logging.getLogger(__name__)
 
 
 class Detector:
@@ -136,8 +142,8 @@ class Detector:
         """Number of energy bins."""
         return len(self.E_MeV)
     
-    def get_response_matrix(self, readings):
-        """ Return response matrix for given readings (spheres)."""
+    def get_response_matrix(self, readings: Dict[str, float]) -> np.ndarray:
+        """Return response matrix for given readings (spheres)."""
         selected = [name for name in self.detector_names if name in readings]
         A = np.array([self.sensitivities[name] for name in selected], dtype=float)
         return A
@@ -168,7 +174,7 @@ class Detector:
         self.results_history[key] = result.copy()
         self.current_result = result
 
-        print(f"Result saved with key: {key}")
+        logger.info("Result saved with key: %s", key)
         return key
 
     def get_result(self, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -215,7 +221,7 @@ class Detector:
         """Clear all saved results."""
         self.results_history.clear()
         self.current_result = None
-        print("All results cleared.")
+        logger.info("All results cleared.")
 
     def _validate_readings(
         self, readings: Dict[str, float]
@@ -327,6 +333,54 @@ class Detector:
         }
         output.update(kwargs)
         return output
+
+    def _validate_initial_spectrum(
+        self,
+        initial_spectrum: Optional[np.ndarray],
+        default_value: float = 0.0,
+    ) -> np.ndarray:
+        """Validate and prepare an initial spectrum guess."""
+        if initial_spectrum is None:
+            return np.full(self.n_energy_bins, default_value, dtype=float)
+        if len(initial_spectrum) != self.n_energy_bins:
+            raise ValueError(
+                f"Initial spectrum length ({len(initial_spectrum)}) "
+                f"must match number of energy bins ({self.n_energy_bins})"
+            )
+        return np.maximum(np.asarray(initial_spectrum, dtype=float), 0.0)
+
+    @staticmethod
+    def _uncertainty_stats(samples: np.ndarray) -> Dict[str, Any]:
+        """Compute summary statistics from Monte-Carlo samples."""
+        return {
+            "spectrum_uncert_mean": np.mean(samples, axis=0),
+            "spectrum_uncert_std": np.std(samples, axis=0),
+            "spectrum_uncert_min": np.min(samples, axis=0),
+            "spectrum_uncert_max": np.max(samples, axis=0),
+            "spectrum_uncert_median": np.median(samples, axis=0),
+            "spectrum_uncert_percentile_5": np.percentile(samples, 5, axis=0),
+            "spectrum_uncert_percentile_95": np.percentile(samples, 95, axis=0),
+            "spectrum_uncert_all": samples,
+        }
+
+    def _monte_carlo_uncertainty(
+        self,
+        readings: Dict[str, float],
+        solver_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
+        noise_level: float,
+        n_montecarlo: int,
+    ) -> Dict[str, Any]:
+        """Run Monte-Carlo uncertainty propagation for a given solver."""
+        samples = np.zeros((n_montecarlo, self.n_energy_bins))
+        for i in range(n_montecarlo):
+            noisy_readings = self._add_noise(readings, noise_level)
+            A_noisy, b_noisy, _ = self._build_system(noisy_readings)
+            samples[i] = solver_fn(A_noisy, b_noisy)
+
+        stats = self._uncertainty_stats(samples)
+        stats["montecarlo_samples"] = n_montecarlo
+        stats["noise_level"] = noise_level
+        return stats
 
     def _convert_rf_to_matrix_variable_step(self, rf_df, Emin=1e-9) -> tuple:
         """
@@ -459,7 +513,7 @@ class Detector:
         """
 
         def _solve_problem(
-            A: np.ndarray, b: np.ndarray, use_solver: str = None
+            A: np.ndarray, b: np.ndarray, use_solver: Optional[str] = None
         ) -> np.ndarray:
             """Solve optimization problem."""
             x = cp.Variable(A.shape[1], nonneg=True)
@@ -473,22 +527,18 @@ class Detector:
             else:
                 problem.solve()
 
-            print(f"Status: {problem.status}")
-            print(f"Objective value: {problem.value}")
+            logger.info("CVXPY status: %s", problem.status)
+            logger.debug("CVXPY objective value: %s", problem.value)
             return x.value
 
         # Validate and solve
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
         alpha = regularization
-        n = A.shape[1]
+        _ = initial_spectrum  # kept for API compatibility
 
         # Main solution
         x_value = _solve_problem(A, b, solver)
-        computed_readings = A @ x_value
-        residual = b - computed_readings
-        residual_norm = np.linalg.norm(residual)
-        print(f"Residual norm: {residual_norm:.6f}")
 
         # Create main output
         output = self._standardize_output(
@@ -503,26 +553,21 @@ class Detector:
 
         # Monte-Carlo error estimation
         if calculate_errors:
-            print("Calculating uncertainty with Monte-Carlo...")
-            x_montecarlo = np.empty((n_montecarlo, n))
-
-            for i in range(n_montecarlo):
-                readings_noisy = self._add_noise(readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(readings_noisy)
-                x_montecarlo[i] = _solve_problem(A_noisy, b_noisy, solver)
-
-            output.update(
-                {
-                    "spectrum_uncert_mean": np.mean(x_montecarlo, axis=0),
-                    "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
-                    "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
-                    "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
-                    "spectrum_uncert_all": x_montecarlo,
-                    "montecarlo_samples": n_montecarlo,
-                    "noise_level": noise_level,
-                }
+            logger.info(
+                "Calculating uncertainty with %d Monte-Carlo samples...",
+                n_montecarlo,
             )
-            print("...uncertainty calculated.")
+            output.update(
+                self._monte_carlo_uncertainty(
+                    readings,
+                    solver_fn=lambda A_mc, b_mc: _solve_problem(
+                        A_mc, b_mc, solver
+                    ),
+                    noise_level=noise_level,
+                    n_montecarlo=n_montecarlo,
+                )
+            )
+            logger.info("Uncertainty calculation completed.")
 
         self._save_result(output)
         return output
@@ -640,16 +685,7 @@ class Detector:
         A, b, selected = self._build_system(validated_readings)
 
         # Set initial spectrum
-        if initial_spectrum is None:
-            # x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A)
-            x0 = np.zeros(self.n_energy_bins)
-        else:
-            if len(initial_spectrum) != self.n_energy_bins:
-                raise ValueError(
-                    f"Initial spectrum length ({len(initial_spectrum)}) "
-                    f"must match number of energy bins ({self.n_energy_bins})"
-                )
-            x0 = np.maximum(initial_spectrum, 0)
+        x0 = self._validate_initial_spectrum(initial_spectrum, default_value=0.0)
 
         # Main Landweber iteration
         x_opt, n_iter, converged = _landweber_iteration(
@@ -670,49 +706,21 @@ class Detector:
 
         # Monte-Carlo uncertainty estimation
         if calculate_errors:
-            print(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+            logger.info(
+                "Calculating uncertainty with %d Monte-Carlo samples...",
+                n_montecarlo,
             )
-
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-
-            for i in range(n_montecarlo):
-                # Add noise to readings
-                noisy_readings = self._add_noise(
-                    validated_readings, noise_level
-                )
-
-                # Rebuild system with noisy readings
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-
-                # Run Landweber with same parameters
-                x_sample, _, _ = _landweber_iteration(
-                    A_noisy, b_noisy, x0, max_iterations, tolerance
-                )
-                spectra_samples[i] = x_sample
-
-            # Calculate uncertainty statistics
             output.update(
-                {
-                    "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                    "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                    "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                    "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                    "spectrum_uncert_median": np.median(
-                        spectra_samples, axis=0
-                    ),
-                    "spectrum_uncert_percentile_5": np.percentile(
-                        spectra_samples, 5, axis=0
-                    ),
-                    "spectrum_uncert_percentile_95": np.percentile(
-                        spectra_samples, 95, axis=0
-                    ),
-                    "spectrum_uncert_all": spectra_samples,
-                    "montecarlo_samples": n_montecarlo,
-                    "noise_level": noise_level,
-                }
+                self._monte_carlo_uncertainty(
+                    validated_readings,
+                    solver_fn=lambda A_mc, b_mc: _landweber_iteration(
+                        A_mc, b_mc, x0, max_iterations, tolerance
+                    )[0],
+                    noise_level=noise_level,
+                    n_montecarlo=n_montecarlo,
+                )
             )
-            print("...uncertainty calculation completed.")
+            logger.info("Uncertainty calculation completed.")
         self._save_result(output)
         return output
 
@@ -753,40 +761,33 @@ class Detector:
         Dict
             Dictionary containing the spectrum restoration results.
         """
-        # Вспомогательная функция для создания ODL пространств
         def _create_odl_spaces(b_size: int):
-            """Создание пространств ODL для заданного размера вектора измерений."""
+            """Create ODL spaces for the given measurement size."""
             measurement_space = odl.uniform_discr(0, b_size - 1, b_size)
             spectrum_space = odl.uniform_discr(
                 np.min(self.E_MeV), np.max(self.E_MeV), self.E_MeV.shape[0]
             )
             return measurement_space, spectrum_space
 
-        # Вспомогательная функция для инициализации спектра
         def _initialize_spectrum(spectrum_space, initial_spectrum=None):
-            """Инициализация спектра в заданном пространстве."""
             if initial_spectrum is None:
-                # 0.5 - хорошо, иначе при 1 или 0 получаем нули.
+                # 0.5 prevents collapse to zero in ODL MLEM.
                 return spectrum_space.element(0.5)
             return spectrum_space.element(initial_spectrum)
 
-        # Основная функция выполнения MLEM
         def _run_mlem(A_matrix, b_vector, initial_spectrum_vals=None):
-            """Запуск алгоритма MLEM для заданной системы уравнений."""
-            # Создаем пространства ODL
+            """Run MLEM for the given system."""
             measurement_space, spectrum_space = _create_odl_spaces(len(b_vector))
-            
-            # Создаем оператор (матрицу чувствительности)
+
             operator = odl.MatrixOperator(
                 A_matrix, 
                 domain=spectrum_space, 
                 range=measurement_space
             )
-            
+
             y = measurement_space.element(b_vector)
             x = _initialize_spectrum(spectrum_space, initial_spectrum_vals)
-            
-            # Запускаем алгоритм MLEM
+
             odl.solvers.mlem(
                 operator, 
                 x, 
@@ -794,20 +795,19 @@ class Detector:
                 niter=max_iterations, 
                 callback=callback
             )
-            
+
             return x.asarray(), A_matrix, b_vector
 
-        # Инициализация
         callback = odl.solvers.CallbackPrintIteration()
-        
-        # Валидация и подготовка данных
+
+        # Validate and prepare data
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
-        
-        # Основной запуск MLEM
+
+        # Main MLEM run
         unfolded_spectrum, A, b = _run_mlem(A, b, initial_spectrum)
-        
-        # Создание основного результата
+
+        # Main output
         output = self._standardize_output(
             spectrum=unfolded_spectrum,
             A=A,
@@ -816,41 +816,278 @@ class Detector:
             method="MLEM (ODL)",
             iterations=max_iterations,
         )
-        
-        # Monte-Carlo оценка неопределенности
+
+        # Monte-Carlo uncertainty estimation
         if calculate_errors:
-            print(f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples...")
-            
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            
-            for i in range(n_montecarlo):
-                # Добавляем шум к показаниям
-                noisy_readings = self._add_noise(readings, noise_level)
-                
-                # Перестраиваем систему с зашумленными данными
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-                
-                # Запускаем MLEM с теми же параметрами
-                spectrum_sample, _, _ = _run_mlem(A_noisy, b_noisy, initial_spectrum)
-                spectra_samples[i] = spectrum_sample
-            
-            # Вычисляем статистики неопределенности
-            uncertainty_stats = {
-                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
-                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
-                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
-                "spectrum_uncert_all": spectra_samples,
-                "montecarlo_samples": n_montecarlo,
-                "noise_level": noise_level,
-            }
-            
-            output.update(uncertainty_stats)
-            print("...uncertainty calculation completed.")
+            logger.info(
+                "Calculating uncertainty with %d Monte-Carlo samples...",
+                n_montecarlo,
+            )
+            output.update(
+                self._monte_carlo_uncertainty(
+                    readings,
+                    solver_fn=lambda A_mc, b_mc: _run_mlem(
+                        A_mc, b_mc, initial_spectrum
+                    )[0],
+                    noise_level=noise_level,
+                    n_montecarlo=n_montecarlo,
+                )
+            )
+            logger.info("Uncertainty calculation completed.")
         
+        self._save_result(output)
+        return output
+
+    def unfold_nnls(
+        self,
+        readings: Dict[str, float],
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Non-Negative Least Squares (NNLS).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        calculate_errors : bool, optional
+            Flag to calculate uncertainty via Monte-Carlo, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty calculation, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        spectrum, _ = nnls(A, b)
+
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="NNLS",
+        )
+
+        if calculate_errors:
+            logger.info(
+                "Calculating uncertainty with %d Monte-Carlo samples...",
+                n_montecarlo,
+            )
+            output.update(
+                self._monte_carlo_uncertainty(
+                    readings,
+                    solver_fn=lambda A_mc, b_mc: nnls(A_mc, b_mc)[0],
+                    noise_level=noise_level,
+                    n_montecarlo=n_montecarlo,
+                )
+            )
+            logger.info("Uncertainty calculation completed.")
+
+        self._save_result(output)
+        return output
+
+    def unfold_tikhonov(
+        self,
+        readings: Dict[str, float],
+        regularization: float = 1e-2,
+        regularization_matrix: str = "identity",
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Tikhonov regularization.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        regularization : float, optional
+            Regularization strength, default: 1e-2.
+        regularization_matrix : str, optional
+            Regularization operator: 'identity', 'first_derivative',
+            or 'second_derivative'. Default: 'identity'.
+        nonneg : bool, optional
+            Enforce non-negativity after solution, default: True.
+        calculate_errors : bool, optional
+            Flag to calculate uncertainty via Monte-Carlo, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty calculation, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        def _build_regularization_matrix(kind: str, n: int) -> np.ndarray:
+            if kind == "identity":
+                return np.eye(n)
+            if kind == "first_derivative":
+                if n < 2:
+                    raise ValueError("first_derivative requires at least 2 bins")
+                L = np.zeros((n - 1, n))
+                for i in range(n - 1):
+                    L[i, i] = -1.0
+                    L[i, i + 1] = 1.0
+                return L
+            if kind == "second_derivative":
+                if n < 3:
+                    raise ValueError("second_derivative requires at least 3 bins")
+                L = np.zeros((n - 2, n))
+                for i in range(n - 2):
+                    L[i, i] = 1.0
+                    L[i, i + 1] = -2.0
+                    L[i, i + 2] = 1.0
+                return L
+            raise ValueError(
+                "regularization_matrix must be one of: "
+                "'identity', 'first_derivative', 'second_derivative'"
+            )
+
+        def _solve_tikhonov(A: np.ndarray, b: np.ndarray) -> np.ndarray:
+            n = A.shape[1]
+            L = _build_regularization_matrix(regularization_matrix, n)
+            lhs = A.T @ A + regularization * (L.T @ L)
+            rhs = A.T @ b
+            try:
+                x = np.linalg.solve(lhs, rhs)
+            except np.linalg.LinAlgError:
+                x = np.linalg.lstsq(lhs, rhs, rcond=None)[0]
+            if nonneg:
+                x = np.maximum(x, 0.0)
+            return x
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+        spectrum = _solve_tikhonov(A, b)
+
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Tikhonov",
+            regularization=regularization,
+            regularization_matrix=regularization_matrix,
+            nonneg=nonneg,
+        )
+
+        if calculate_errors:
+            logger.info(
+                "Calculating uncertainty with %d Monte-Carlo samples...",
+                n_montecarlo,
+            )
+            output.update(
+                self._monte_carlo_uncertainty(
+                    readings,
+                    solver_fn=_solve_tikhonov,
+                    noise_level=noise_level,
+                    n_montecarlo=n_montecarlo,
+                )
+            )
+            logger.info("Uncertainty calculation completed.")
+
+        self._save_result(output)
+        return output
+
+    def unfold_tsvd(
+        self,
+        readings: Dict[str, float],
+        n_components: Optional[int] = None,
+        cutoff: Optional[float] = 1e-3,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Truncated SVD (TSVD).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        n_components : Optional[int], optional
+            Number of singular values to keep. If None, use cutoff.
+        cutoff : Optional[float], optional
+            Relative cutoff for singular values (s / s_max). Default: 1e-3.
+        nonneg : bool, optional
+            Enforce non-negativity after solution, default: True.
+        calculate_errors : bool, optional
+            Flag to calculate uncertainty via Monte-Carlo, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty calculation, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        def _solve_tsvd(A: np.ndarray, b: np.ndarray) -> np.ndarray:
+            U, s, Vt = np.linalg.svd(A, full_matrices=False)
+            if s.size == 0 or s[0] == 0:
+                return np.zeros(A.shape[1], dtype=float)
+            if n_components is not None:
+                k = max(1, min(int(n_components), len(s)))
+            else:
+                if cutoff is None:
+                    k = len(s)
+                else:
+                    s_rel = s / s[0]
+                    k = max(1, int(np.sum(s_rel >= cutoff)))
+
+            Uk = U[:, :k]
+            sk = s[:k]
+            Vk = Vt[:k, :]
+            x = Vk.T @ ((Uk.T @ b) / sk)
+            if nonneg:
+                x = np.maximum(x, 0.0)
+            return x
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+        spectrum = _solve_tsvd(A, b)
+
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="TSVD",
+            n_components=n_components,
+            cutoff=cutoff,
+            nonneg=nonneg,
+        )
+
+        if calculate_errors:
+            logger.info(
+                "Calculating uncertainty with %d Monte-Carlo samples...",
+                n_montecarlo,
+            )
+            output.update(
+                self._monte_carlo_uncertainty(
+                    readings,
+                    solver_fn=_solve_tsvd,
+                    noise_level=noise_level,
+                    n_montecarlo=n_montecarlo,
+                )
+            )
+            logger.info("Uncertainty calculation completed.")
+
         self._save_result(output)
         return output
 

@@ -139,8 +139,7 @@ result = detector.unfold_cvxpy(
     readings,
     regularization=1e-4,      # Regularization parameter
     norm=2,                   # L2 norm for regularization
-    calculate_errors=True,    # Monte Carlo uncertainty estimation
-    save_result=True          # Store result in history
+    calculate_errors=True     # Monte Carlo uncertainty estimation
 )
 ```
 
@@ -152,8 +151,7 @@ result = detector.unfold_landweber(
     readings,
     max_iterations=1000,      # Maximum iterations
     tolerance=1e-6,           # Convergence tolerance
-    calculate_errors=True,    # Monte Carlo uncertainty
-    save_result=True
+    calculate_errors=True     # Monte Carlo uncertainty
 )
 ```
 
@@ -164,8 +162,40 @@ Iterative Maximum likelihood expectation maximization (MLEM).
 result = detector.unfold_mlem_odl(
     readings,
     max_iterations=1000,      # Maximum iterations
-    calculate_errors=True,    # Monte Carlo uncertainty
-    save_result=True
+    calculate_errors=True     # Monte Carlo uncertainty
+)
+```
+
+### 4. `unfold_nnls()`
+Non-negative least squares (NNLS).
+
+```python
+result = detector.unfold_nnls(
+    readings,
+    calculate_errors=True
+)
+```
+
+### 5. `unfold_tikhonov()`
+Direct Tikhonov regularization with optional derivative penalties.
+
+```python
+result = detector.unfold_tikhonov(
+    readings,
+    regularization=1e-2,
+    regularization_matrix="second_derivative",
+    calculate_errors=True
+)
+```
+
+### 6. `unfold_tsvd()`
+Truncated SVD (TSVD) solution.
+
+```python
+result = detector.unfold_tsvd(
+    readings,
+    cutoff=1e-3,
+    calculate_errors=True
 )
 ```
 
