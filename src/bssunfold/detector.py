@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import importlib
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
@@ -12,7 +13,7 @@ import numpy as np
 import odl
 import pandas as pd
 from scipy.interpolate import pchip
-from scipy.optimize import nnls
+from scipy.optimize import minimize, nnls
 
 logger = logging.getLogger(__name__)
 
@@ -381,6 +382,30 @@ class Detector:
         stats["montecarlo_samples"] = n_montecarlo
         stats["noise_level"] = noise_level
         return stats
+
+    @staticmethod
+    def _import_optional(module_name: str, purpose: str) -> Any:
+        """
+        Import an optional dependency with a clear error message.
+
+        Parameters
+        ----------
+        module_name : str
+            Module name to import.
+        purpose : str
+            Short description of what the dependency is needed for.
+
+        Returns
+        -------
+        Any
+            Imported module.
+        """
+        try:
+            return importlib.import_module(module_name)
+        except ImportError as exc:
+            raise ImportError(
+                f"Optional dependency '{module_name}' is required for {purpose}."
+            ) from exc
 
     def _convert_rf_to_matrix_variable_step(self, rf_df, Emin=1e-9) -> tuple:
         """
@@ -1090,6 +1115,2068 @@ class Detector:
 
         self._save_result(output)
         return output
+
+    # --- Unfolding methods: external/advanced ---
+
+    def unfold_tikhonov_legendre(
+        self,
+        readings: Dict[str, float],
+        delta: float = 0.05,
+        n_polynomials: int = 15,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Tikhonov regularization with Legendre basis.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        delta : float, optional
+            Regularization parameter, by default 0.05.
+        n_polynomials : int, optional
+            Number of Legendre polynomials, by default 15.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        try:
+            from spectrum_recovery import calculate_spectrum_tikhonov_core
+        except ImportError as exc:
+            raise ImportError(
+                "Missing dependency 'spectrum_recovery' for Tikhonov-Legendre."
+            ) from exc
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        result = calculate_spectrum_tikhonov_core(
+            E_MeV=self.E_MeV,
+            K_j=A,
+            Q_j=b,
+            delta=delta,
+            n_polynomials=n_polynomials,
+        )
+
+        spectrum = np.asarray(result.get("spectrum"), dtype=float)
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Tikhonov-Legendre",
+            delta=delta,
+            n_polynomials=n_polynomials,
+        )
+        output.update(
+            {
+                "alpha": result.get("alpha"),
+                "coefficients": result.get("coefficients"),
+            }
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_maxed(
+        self,
+        readings: Dict[str, float],
+        reference_spectrum: Optional[Dict[str, np.ndarray]] = None,
+        sigma_factor: float = 0.01,
+        omega: float = 1.0,
+        maxiter: int = 5000,
+        tol: float = 1e-6,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using the MAXED (maximum entropy) method.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        reference_spectrum : Optional[Dict[str, np.ndarray]], optional
+            Reference spectrum with keys 'E_MeV' and 'Phi'. If None, a default
+            reference spectrum is used.
+        sigma_factor : float, optional
+            Relative measurement uncertainty, by default 0.01.
+        omega : float, optional
+            Chi-square constraint parameter, by default 1.0.
+        maxiter : int, optional
+            Maximum iterations, by default 5000.
+        tol : float, optional
+            Convergence tolerance, by default 1e-6.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        phi_0 = None
+        if reference_spectrum is not None:
+            ref_E = np.asarray(reference_spectrum["E_MeV"], dtype=float)
+            ref_phi = np.asarray(reference_spectrum["Phi"], dtype=float)
+            if len(ref_E) != len(ref_phi):
+                raise ValueError("reference_spectrum E_MeV and Phi must match in length")
+            phi_0 = np.interp(
+                np.log10(self.E_MeV),
+                np.log10(np.maximum(ref_E, self.E_MeV.min())),
+                ref_phi,
+                left=1e-10,
+                right=1e-10,
+            )
+            phi_0 = np.maximum(phi_0, 1e-10)
+
+        result = self._calculate_spectrum_maxed_core(
+            E_MeV=self.E_MeV,
+            K_j=A,
+            Q_j=b,
+            phi_0=phi_0,
+            sigma_factor=sigma_factor,
+            omega=omega,
+            maxiter=maxiter,
+            tol=tol,
+        )
+
+        spectrum = np.asarray(result["spectrum"], dtype=float)
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="MAXED",
+            omega=result.get("omega"),
+            mu=result.get("mu"),
+            chi_square=result.get("chi_square"),
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_gravel(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        tolerance: float = 1e-8,
+        max_iterations: int = 1000,
+        regularization: float = 0.0,
+        calculate_errors: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using the GRAVEL algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, uses a flat spectrum.
+        tolerance : float, optional
+            Convergence tolerance, by default 1e-8.
+        max_iterations : int, optional
+            Maximum iterations, by default 1000.
+        regularization : float, optional
+            Regularization strength, by default 0.0.
+        calculate_errors : bool, optional
+            Whether to estimate spectrum errors, by default False.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        if initial_spectrum is None:
+            x0 = np.ones(self.n_energy_bins, dtype=float)
+        else:
+            x0 = np.asarray(initial_spectrum, dtype=float)
+            if len(x0) != self.n_energy_bins:
+                raise ValueError(
+                    "initial_spectrum length must match number of energy bins"
+                )
+
+        if calculate_errors:
+            results = self._gravel_with_errors(
+                S=A,
+                measurements=b,
+                x0=x0,
+                tolerance=tolerance,
+                max_iterations=max_iterations,
+                regularization=regularization,
+            )
+        else:
+            results = self._gravel(
+                S=A,
+                measurements=b,
+                x0=x0,
+                tolerance=tolerance,
+                max_iterations=max_iterations,
+                regularization=regularization,
+            )
+
+        spectrum = np.asarray(results["spectrum_absolute"], dtype=float)
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="GRAVEL",
+            iterations=results.get("iterations"),
+            converged=results.get("converged"),
+        )
+
+        for key in (
+            "error_history",
+            "chi_sq_history",
+            "spectrum_errors",
+            "covariance_matrix",
+            "correlation_matrix",
+        ):
+            if key in results:
+                output[key] = results[key]
+
+        self._save_result(output)
+        return output
+
+    def unfold_tikhonov_legendre_maxed(
+        self,
+        readings: Dict[str, float],
+        delta: float = 0.05,
+        n_polynomials: int = 15,
+        sigma_factor: float = 0.01,
+        omega: float = 1.0,
+        maxiter: int = 5000,
+        tol: float = 1e-6,
+    ) -> Dict[str, Any]:
+        """
+        Hybrid unfolding: Tikhonov-Legendre followed by MAXED.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        delta : float, optional
+            Tikhonov regularization parameter.
+        n_polynomials : int, optional
+            Number of Legendre polynomials.
+        sigma_factor : float, optional
+            Relative measurement uncertainty for MAXED.
+        omega : float, optional
+            Chi-square constraint parameter.
+        maxiter : int, optional
+            Maximum iterations for MAXED.
+        tol : float, optional
+            Convergence tolerance for MAXED.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        tikh = self.unfold_tikhonov_legendre(readings, delta, n_polynomials)
+        prior = {"E_MeV": tikh["energy"], "Phi": tikh["spectrum"]}
+        maxed = self.unfold_maxed(
+            readings,
+            reference_spectrum=prior,
+            sigma_factor=sigma_factor,
+            omega=omega,
+            maxiter=maxiter,
+            tol=tol,
+        )
+        maxed["tikhonov_alpha"] = tikh.get("alpha")
+        maxed["tikhonov_coefficients"] = tikh.get("coefficients")
+        return maxed
+
+    def unfold_tikhonov_legendre_gravel(
+        self,
+        readings: Dict[str, float],
+        delta: float = 0.05,
+        n_polynomials: int = 15,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+        regularization: float = 0.0,
+        calculate_errors: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Hybrid unfolding: Tikhonov-Legendre followed by GRAVEL.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        delta : float, optional
+            Tikhonov regularization parameter.
+        n_polynomials : int, optional
+            Number of Legendre polynomials.
+        tolerance : float, optional
+            GRAVEL convergence tolerance.
+        max_iterations : int, optional
+            GRAVEL maximum iterations.
+        regularization : float, optional
+            GRAVEL regularization strength.
+        calculate_errors : bool, optional
+            Whether to compute GRAVEL error estimates.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        tikh = self.unfold_tikhonov_legendre(readings, delta, n_polynomials)
+        gravel_result = self.unfold_gravel(
+            readings,
+            initial_spectrum=tikh["spectrum"],
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+            regularization=regularization,
+            calculate_errors=calculate_errors,
+        )
+        gravel_result["tikhonov_alpha"] = tikh.get("alpha")
+        gravel_result["tikhonov_coefficients"] = tikh.get("coefficients")
+        gravel_result["method"] = "Tikhonov-Legendre + GRAVEL"
+        return gravel_result
+
+    def unfold_mlem(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        method: str = "L-BFGS-B",
+        max_iterations: int = 1000,
+        tolerance: float = 1e-8,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Maximum Likelihood (MLE) optimization.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        method : str, optional
+            SciPy optimizer method name.
+        max_iterations : int, optional
+            Maximum optimization iterations.
+        tolerance : float, optional
+            Optimization tolerance.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        if initial_spectrum is None:
+            spectrum_initial = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A)
+        else:
+            spectrum_initial = np.asarray(initial_spectrum, dtype=float)
+            if len(spectrum_initial) != self.n_energy_bins:
+                raise ValueError(
+                    "initial_spectrum length must match number of energy bins"
+                )
+
+        def negative_log_likelihood(spectrum: np.ndarray) -> float:
+            predicted = A @ spectrum
+            epsilon = 1e-10
+            log_likelihood = np.sum(b * np.log(predicted + epsilon) - predicted)
+            return -log_likelihood
+
+        def gradient_negative_log_likelihood(spectrum: np.ndarray) -> np.ndarray:
+            predicted = A @ spectrum
+            grad = -A.T @ (b / (predicted + 1e-10) - 1)
+            return grad
+
+        bounds = [(1e-10, None)] * self.n_energy_bins
+        result = minimize(
+            negative_log_likelihood,
+            spectrum_initial,
+            method=method,
+            bounds=bounds,
+            jac=gradient_negative_log_likelihood,
+            options={"maxiter": max_iterations, "ftol": tolerance},
+        )
+
+        output = self._standardize_output(
+            spectrum=result.x,
+            A=A,
+            b=b,
+            selected=selected,
+            method="MLE (scipy)",
+            iterations=result.nit,
+            converged=result.success,
+            optimization_result={
+                "fun": result.fun,
+                "message": result.message,
+                "nfev": result.nfev,
+                "njev": result.njev,
+            },
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_doroshenko(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+        regularization: float = 0.0,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using the Doroshenko coordinate update method.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        tolerance : float, optional
+            Convergence tolerance.
+        max_iterations : int, optional
+            Maximum iterations.
+        regularization : float, optional
+            Regularization strength.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        if initial_spectrum is None:
+            x = np.ones(self.n_energy_bins)
+        else:
+            x = np.asarray(initial_spectrum, dtype=float)
+            if x.size != self.n_energy_bins:
+                raise ValueError(
+                    "initial_spectrum length must match number of energy bins"
+                )
+
+        denominator_cache = np.sum(A * A, axis=0)
+
+        for iteration in range(max_iterations):
+            x_old = x.copy()
+            for i in range(x.size):
+                ax_without_i = A[:, :i] @ x[:i] + A[:, i + 1 :] @ x[i + 1 :]
+                numerator = np.dot(A[:, i], b - ax_without_i)
+                denominator = denominator_cache[i] + regularization
+                if denominator > 0:
+                    x[i] = max(0.0, numerator / denominator)
+            if np.linalg.norm(x - x_old) < tolerance:
+                break
+
+        output = self._standardize_output(
+            spectrum=x,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Doroshenko",
+            iterations=iteration + 1,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_doroshenko_matrix(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using the Doroshenko matrix form.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        tolerance : float, optional
+            Convergence tolerance.
+        max_iterations : int, optional
+            Maximum iterations.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        if initial_spectrum is None:
+            x = np.ones(self.n_energy_bins)
+        else:
+            x = np.asarray(initial_spectrum, dtype=float)
+            if len(x) != self.n_energy_bins:
+                raise ValueError(
+                    "initial_spectrum length must match number of energy bins"
+                )
+
+        ATA = A.T @ A
+        ATb = A.T @ b
+
+        for iteration in range(max_iterations):
+            x_old = x.copy()
+            for i in range(ATA.shape[0]):
+                sum_without_i = np.sum(ATA[i, :] * x) - ATA[i, i] * x[i]
+                numerator = ATb[i] - sum_without_i
+                if ATA[i, i] > 0:
+                    x[i] = max(0.0, numerator / ATA[i, i])
+            if np.linalg.norm(x - x_old) < tolerance:
+                break
+
+        output = self._standardize_output(
+            spectrum=x,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Doroshenko-matrix",
+            iterations=iteration + 1,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_cvxopt(
+        self,
+        readings: Dict[str, float],
+        regularization: float = 1e-4,
+        solver: str = "ECOS",
+        abstol: float = 1e-10,
+        reltol: float = 1e-10,
+        feastol: float = 1e-10,
+        max_iterations: int = 1000,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using CVXOPT quadratic programming.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        regularization : float, optional
+            Regularization strength.
+        solver : str, optional
+            CVXOPT solver name.
+        abstol : float, optional
+            Absolute tolerance.
+        reltol : float, optional
+            Relative tolerance.
+        feastol : float, optional
+            Feasibility tolerance.
+        max_iterations : int, optional
+            Maximum iterations.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        cvxopt = self._import_optional("cvxopt", "CVXOPT-based unfolding")
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        m, n = A.shape
+        P = A.T @ A + regularization * np.eye(n)
+        q = -A.T @ b
+
+        P_cvx = cvxopt.matrix(P.astype(float))
+        q_cvx = cvxopt.matrix(q.astype(float))
+        G = cvxopt.matrix(-np.eye(n).astype(float))
+        h = cvxopt.matrix(np.zeros(n).astype(float))
+
+        cvxopt.solvers.options.clear()
+        cvxopt.solvers.options["abstol"] = abstol
+        cvxopt.solvers.options["reltol"] = reltol
+        cvxopt.solvers.options["feastol"] = feastol
+        cvxopt.solvers.options["show_progress"] = False
+        cvxopt.solvers.options["maxit"] = max_iterations
+
+        try:
+            solution = cvxopt.solvers.qp(P_cvx, q_cvx, G, h, solver=solver.lower())
+        except Exception:
+            solution = cvxopt.solvers.qp(P_cvx, q_cvx, G, h)
+
+        if solution["status"] != "optimal":
+            raise ValueError(f"CVXOPT failed with status: {solution['status']}")
+
+        spectrum = np.array(solution["x"]).flatten()
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="CVXOPT",
+            regularization=regularization,
+            solver=solver,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_cuqipy(
+        self,
+        readings: Dict[str, float],
+        readings_error: float = 0.05,
+        spectrum_error: float = 0.1,
+        method: str = "Gaussian",
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using CUQIpy Bayesian inversion.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        readings_error : float, optional
+            Measurement error scale.
+        spectrum_error : float, optional
+            Prior spectrum error scale.
+        method : str, optional
+            Prior type: 'Gaussian', 'LMRF', or 'CMRF'.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        cuqi_model = self._import_optional("cuqi.model", "CUQIpy unfolding")
+        cuqi_distribution = self._import_optional("cuqi.distribution", "CUQIpy unfolding")
+        cuqi_problem = self._import_optional("cuqi.problem", "CUQIpy unfolding")
+
+        LinearModel = cuqi_model.LinearModel
+        Gaussian = cuqi_distribution.Gaussian
+        LMRF = cuqi_distribution.LMRF
+        CMRF = cuqi_distribution.CMRF
+        BayesianProblem = cuqi_problem.BayesianProblem
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        Amodel = LinearModel(A)
+        if method == "Gaussian":
+            x = Gaussian(np.zeros(A.shape[1]), spectrum_error)
+        elif method == "LMRF":
+            x = LMRF(0, spectrum_error, geometry=A.shape[1], bc_type="zero")
+        elif method == "CMRF":
+            x = CMRF(0, spectrum_error, geometry=A.shape[1], bc_type="zero")
+        else:
+            raise ValueError("method must be one of: Gaussian, LMRF, CMRF")
+
+        y = Gaussian(Amodel @ x, readings_error)
+        ip = BayesianProblem(y, x).set_data(y=b)
+        samples = ip.UQ()
+
+        spectrum = samples.samples.mean(axis=1)
+        spectrum_err = samples.samples.std(axis=1)
+
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"CUQIpy ({method})",
+        )
+        output["spectrum_error"] = spectrum_err
+        self._save_result(output)
+        return output
+
+    def unfold_gurobi(
+        self,
+        readings: Dict[str, float],
+        tolerance: float = 1e-6,
+        method: str = "MinNormNonnegative",
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Gurobi optimization.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        tolerance : float, optional
+            Constraint tolerance.
+        method : str, optional
+            Model name/label for Gurobi.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        gp = self._import_optional("gurobipy", "Gurobi-based unfolding")
+        GRB = gp.GRB
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        model = gp.Model(method)
+        x = model.addVars(A.shape[1], lb=0.0, name="x")
+
+        for i in range(A.shape[0]):
+            expr = gp.LinExpr()
+            for j in range(A.shape[1]):
+                expr += A[i, j] * x[j]
+            model.addConstr(expr >= b[i] - tolerance, f"constr_lower_{i}")
+            model.addConstr(expr <= b[i] + tolerance, f"constr_upper_{i}")
+
+        obj = gp.QuadExpr()
+        for j in range(A.shape[1]):
+            obj += x[j] * x[j]
+        model.setObjective(obj, GRB.MINIMIZE)
+        model.optimize()
+
+        if model.status != GRB.OPTIMAL:
+            raise ValueError(f"Gurobi failed with status: {model.status}")
+
+        spectrum = np.array([x[i].X for i in range(A.shape[1])])
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"Gurobi ({method})",
+            tolerance=tolerance,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_bayes(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 4000,
+        tolerance: float = 1e-3,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using iterative Bayes (D'Agostini).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Prior spectrum.
+        max_iterations : int, optional
+            Maximum iterations.
+        tolerance : float, optional
+            Stopping tolerance.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        pyunfold = self._import_optional("pyunfold", "Bayesian unfolding")
+        pyunfold_callbacks = self._import_optional("pyunfold.callbacks", "Bayesian unfolding")
+
+        iterative_unfold = pyunfold.iterative_unfold
+        Logger = pyunfold_callbacks.Logger
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        efficiencies = [1] * A.shape[1]
+        response_err = np.zeros_like(A)
+        efficiencies_err = [0.05] * A.shape[1]
+        data_err = [0.05] * A.shape[0]
+
+        result = iterative_unfold(
+            data=b,
+            data_err=data_err,
+            response=A,
+            response_err=response_err,
+            efficiencies=efficiencies,
+            efficiencies_err=efficiencies_err,
+            max_iter=max_iterations,
+            callbacks=[Logger()],
+            prior=initial_spectrum,
+            ts_stopping=tolerance,
+        )
+
+        output = self._standardize_output(
+            spectrum=result["unfolded"],
+            A=A,
+            b=b,
+            selected=selected,
+            method="Bayes (D'Agostini)",
+            iterations=result["num_iterations"],
+        )
+        output["spectrum_statistical_uncertainties"] = result["stat_err"]
+        output["spectrum_systematic_uncertainties"] = result["sys_err"]
+        self._save_result(output)
+        return output
+
+    def unfold_bayes_spline_regularization(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 4000,
+        tolerance: float = 1e-3,
+        spline_degree: int = 3,
+        spline_smooth: float = 1e-2,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Bayes (D'Agostini) with spline regularization.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Prior spectrum.
+        max_iterations : int, optional
+            Maximum iterations.
+        tolerance : float, optional
+            Stopping tolerance.
+        spline_degree : int, optional
+            Spline degree.
+        spline_smooth : float, optional
+            Spline smoothing parameter.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        pyunfold = self._import_optional("pyunfold", "Bayesian unfolding")
+        pyunfold_callbacks = self._import_optional("pyunfold.callbacks", "Bayesian unfolding")
+
+        iterative_unfold = pyunfold.iterative_unfold
+        Logger = pyunfold_callbacks.Logger
+        SplineRegularizer = pyunfold_callbacks.SplineRegularizer
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        spline_reg = SplineRegularizer(degree=spline_degree, smooth=spline_smooth)
+
+        efficiencies = [1] * A.shape[1]
+        response_err = np.zeros_like(A)
+        efficiencies_err = [0.05] * A.shape[1]
+        data_err = [0.05] * A.shape[0]
+
+        result = iterative_unfold(
+            data=b,
+            data_err=data_err,
+            response=A,
+            response_err=response_err,
+            efficiencies=efficiencies,
+            efficiencies_err=efficiencies_err,
+            max_iter=max_iterations,
+            callbacks=[Logger(), spline_reg],
+            prior=initial_spectrum,
+            ts_stopping=tolerance,
+        )
+
+        output = self._standardize_output(
+            spectrum=result["unfolded"],
+            A=A,
+            b=b,
+            selected=selected,
+            method="Bayes (D'Agostini) + spline",
+            iterations=result["num_iterations"],
+            spline_degree=spline_degree,
+            spline_smooth=spline_smooth,
+        )
+        output["spectrum_statistical_uncertainties"] = result["stat_err"]
+        output["spectrum_systematic_uncertainties"] = result["sys_err"]
+        self._save_result(output)
+        return output
+
+    def unfold_statreg(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        unfoldermethod: str = "EmpiricalBayes",
+        regularization: Optional[np.ndarray] = None,
+        basis_name: str = "CubicSplines",
+        boundary: Optional[str] = None,
+        derivative_degree: int = 2,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using statistical regularization (Turchin's method).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Prior spectrum.
+        unfoldermethod : str, optional
+            Unfolder method ('EmpiricalBayes' or 'User').
+        regularization : Optional[np.ndarray], optional
+            Regularization parameter(s) for 'User' mode.
+        basis_name : str, optional
+            Basis type (only 'CubicSplines' supported).
+        boundary : Optional[str], optional
+            Boundary condition.
+        derivative_degree : int, optional
+            Regularization derivative degree.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        statreg_model = self._import_optional(
+            "statreg.model", "statistical regularization unfolding"
+        )
+        statreg_basis = self._import_optional(
+            "statreg.basis", "statistical regularization unfolding"
+        )
+
+        GaussErrorMatrixUnfolder = statreg_model.GaussErrorMatrixUnfolder
+        CubicSplines = statreg_basis.CubicSplines
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        b_err = b * 0.05
+        Emin = np.min(self.E_MeV)
+
+        if basis_name != "CubicSplines":
+            raise ValueError("Only CubicSplines basis is currently supported")
+
+        basis = CubicSplines(np.log10(self.E_MeV / Emin), boundary=boundary)
+        omega = basis.omega(derivative_degree)
+
+        if unfoldermethod == "EmpiricalBayes":
+            model = GaussErrorMatrixUnfolder(omega, method=unfoldermethod)
+        elif unfoldermethod == "User":
+            if regularization is None:
+                regularization = 1e-4
+            model = GaussErrorMatrixUnfolder(
+                omega, method=unfoldermethod, alphas=regularization
+            )
+        else:
+            raise ValueError("unfoldermethod must be 'EmpiricalBayes' or 'User'")
+
+        result = model.solve(A, b, b_err)
+
+        output = self._standardize_output(
+            spectrum=result.phi,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Statistical regularization (Turchin)",
+            alphas=result["alphas"],
+            basis_name=basis_name,
+            boundary=boundary,
+            derivative_degree=derivative_degree,
+        )
+        output["covariance"] = result["covariance"]
+        output["uncertainties"] = np.sqrt(np.diag(result["covariance"]))
+        self._save_result(output)
+        return output
+
+    def unfold_scipy_direct_method(
+        self,
+        readings: Dict[str, float],
+        tolerance: float = 1e-8,
+        max_iterations: int = 4000,
+        method: str = "cg",
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using SciPy sparse solvers on normal equations.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        tolerance : float, optional
+            Solver tolerance.
+        max_iterations : int, optional
+            Maximum iterations.
+        method : str, optional
+            Solver name.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        scipy_sparse = self._import_optional(
+            "scipy.sparse.linalg", "SciPy sparse linear solvers"
+        )
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        AT_A = A.T @ A
+        AT_b = A.T @ b
+
+        solvers = {
+            "cg": lambda: scipy_sparse.cg(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "cgs": lambda: scipy_sparse.cgs(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "bicgstab": lambda: scipy_sparse.bicgstab(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "gmres": lambda: scipy_sparse.gmres(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "lgmres": lambda: scipy_sparse.lgmres(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "minres": lambda: scipy_sparse.minres(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "qmr": lambda: scipy_sparse.qmr(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "gcrotmk": lambda: scipy_sparse.gcrotmk(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "tfqmr": lambda: scipy_sparse.tfqmr(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+            "lsqr": lambda: scipy_sparse.lsqr(A, b, atol=tolerance),
+            "lsmr": lambda: scipy_sparse.lsmr(A, b, atol=tolerance, maxiter=max_iterations),
+        }
+
+        if method not in solvers:
+            raise ValueError(f"Unknown method: {method}")
+
+        x = solvers[method]()[0]
+        x = np.maximum(x, 0)
+
+        output = self._standardize_output(
+            spectrum=x,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"SciPy solver ({method})",
+            iterations=max_iterations,
+            tolerance=tolerance,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_mcmc(
+        self,
+        readings: Dict[str, float],
+        prior_type: str = "gamma",
+        n_samples: int = 5000,
+        tune: int = 5000,
+        target_accept: float = 0.9,
+        cpucores: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using MCMC (PyMC).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        prior_type : str, optional
+            Prior distribution type.
+        n_samples : int, optional
+            Number of MCMC samples.
+        tune : int, optional
+            Tuning steps.
+        target_accept : float, optional
+            Target acceptance rate.
+        cpucores : Optional[int], optional
+            Number of CPU cores.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        pm = self._import_optional("pymc", "MCMC unfolding")
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        m = A.shape[1]
+
+        with pm.Model() as model:
+            if prior_type == "truncated_normal":
+                x = pm.TruncatedNormal("x", mu=0, sigma=1, lower=0, shape=m)
+            elif prior_type == "exponential":
+                x = pm.Exponential("x", lam=1, shape=m)
+            elif prior_type == "half_normal":
+                x = pm.HalfNormal("x", sigma=1, shape=m)
+            elif prior_type == "gamma":
+                x = pm.Gamma("x", alpha=1, beta=1, shape=m)
+            else:
+                raise ValueError("prior_type must be one of: truncated_normal, exponential, half_normal, gamma")
+
+            b_pred = pm.math.dot(A, x)
+            sigma = pm.HalfNormal("sigma", sigma=1)
+            pm.Normal("b_obs", mu=b_pred, sigma=sigma, observed=b)
+
+            trace = pm.sample(
+                n_samples, tune=tune, target_accept=target_accept, cores=cpucores
+            )
+
+        result = np.array(trace.posterior["x"].mean(axis=(0, 1)))
+        output = self._standardize_output(
+            spectrum=result,
+            A=A,
+            b=b,
+            selected=selected,
+            method="MCMC (PyMC)",
+            prior_type=prior_type,
+            n_samples=n_samples,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_ridge(
+        self,
+        readings: Dict[str, float],
+        method: str = "ridgecv",
+        regularization: float = 1e-4,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using scikit-learn linear models.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        method : str, optional
+            Model name: ridge, ridgecv, lasso, bayesianridge.
+        regularization : float, optional
+            Regularization strength.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        sklearn_linear_model = self._import_optional(
+            "sklearn.linear_model", "scikit-learn ridge/lasso unfolding"
+        )
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        if method == "ridge":
+            reg = sklearn_linear_model.Ridge(alpha=regularization, positive=True)
+        elif method == "ridgecv":
+            reg = sklearn_linear_model.RidgeCV(alphas=np.logspace(-19, 2, 50))
+        elif method == "lasso":
+            reg = sklearn_linear_model.Lasso(alpha=regularization, positive=True)
+        elif method == "bayesianridge":
+            reg = sklearn_linear_model.BayesianRidge(
+                alpha_init=regularization, lambda_init=regularization
+            )
+        else:
+            raise ValueError(
+                "method must be one of: ridge, ridgecv, lasso, bayesianridge"
+            )
+
+        reg.fit(A, b)
+        if method == "ridgecv":
+            regularization = reg.alpha_
+
+        output = self._standardize_output(
+            spectrum=reg.coef_,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"sklearn ({method})",
+            regularization=regularization,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_pyomo(
+        self,
+        readings: Dict[str, float],
+        solver_name: str = "gurobi",
+        regularization: float = 1e-4,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using Pyomo optimization models.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        solver_name : str, optional
+            Pyomo solver name.
+        regularization : float, optional
+            Regularization strength.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        pyo = self._import_optional("pyomo.environ", "Pyomo-based unfolding")
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        model = pyo.ConcreteModel()
+        model.I = pyo.Set(initialize=range(A.shape[0]))
+        model.J = pyo.Set(initialize=range(A.shape[1]))
+        model.x = pyo.Var(model.J, domain=pyo.NonNegativeReals)
+
+        def objective_rule(model):
+            residual_sum = 0.0
+            for i in model.I:
+                linear_comb = 0.0
+                for j in model.J:
+                    linear_comb += A[i, j] * model.x[j]
+                residual_sum += (linear_comb - b[i]) ** 2
+            reg_sum = 0.0
+            for j in model.J:
+                reg_sum += regularization * model.x[j] ** 2
+            return residual_sum + reg_sum
+
+        model.obj = pyo.Objective(rule=objective_rule, sense=pyo.minimize)
+
+        solver = pyo.SolverFactory(solver_name)
+        results = solver.solve(model, tee=False)
+
+        if results.solver.termination_condition != pyo.TerminationCondition.optimal:
+            raise ValueError(f"Pyomo solver failed: {results.solver.termination_condition}")
+
+        spectrum = np.array([pyo.value(model.x[j]) for j in range(A.shape[1])])
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"Pyomo ({solver_name})",
+            regularization=regularization,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_lmfit(
+        self,
+        readings: Dict[str, float],
+        method: str = "leastsq",
+        model_name: str = "elastic",
+        regularization: float = 1e-4,
+        regularization2: float = 1e-4,
+        l1_weight: float = 0.5,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        method : str, optional
+            lmfit solver name.
+        model_name : str, optional
+            Regularization model: elastic, lasso, ridge.
+        regularization : float, optional
+            L1 regularization strength.
+        regularization2 : float, optional
+            L2 regularization strength.
+        l1_weight : float, optional
+            L1 weight for elastic net.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        lmfit = self._import_optional("lmfit", "lmfit-based unfolding")
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+        m = A.shape[1]
+
+        params = lmfit.Parameters()
+        init_values = np.ones(m) * np.mean(b) / np.mean(A.sum(axis=1))
+        for i in range(m):
+            params.add(f"x{i}", value=max(init_values[i], 1e-10), min=0.0)
+
+        def residual_lasso(params, A, b, regularization):
+            x = np.array([params[f"x{i}"].value for i in range(m)])
+            residual = A @ x - b
+            if method == "leastsq":
+                reg_residual = np.sqrt(regularization) * np.sqrt(m) * x
+                return np.concatenate([residual, reg_residual])
+            return np.sum(residual**2) + regularization * np.sum(np.abs(x))
+
+        def residual_ridge(params, A, b, regularization):
+            x = np.array([params[f"x{i}"].value for i in range(m)])
+            residual = A @ x - b
+            if method == "leastsq":
+                reg_residual = np.sqrt(regularization) * x
+                return np.concatenate([residual, reg_residual])
+            return np.sum(residual**2) + regularization * np.sum(x**2)
+
+        def residual_elastic(params, A, b, regularization, regularization2, l1_weight):
+            x = np.array([params[f"x{i}"].value for i in range(m)])
+            residual = A @ x - b
+            if method == "leastsq":
+                l1_residual = (
+                    np.sqrt(regularization * l1_weight) * np.sqrt(m) * np.abs(x)
+                )
+                l2_residual = np.sqrt(regularization2 * (1 - l1_weight)) * x
+                reg_residual = np.concatenate([l1_residual, l2_residual])
+                return np.concatenate([residual, reg_residual])
+            l1_penalty = regularization * l1_weight * np.sum(np.abs(x))
+            l2_penalty = regularization2 * (1 - l1_weight) * np.sum(x**2)
+            return np.sum(residual**2) + l1_penalty + l2_penalty
+
+        gradient_methods = {"newton", "tnc", "cg", "bfgs", "lbfgsb"}
+
+        if model_name == "lasso":
+            result = lmfit.minimize(
+                residual_lasso,
+                params,
+                args=(A, b, regularization),
+                method=method,
+            )
+        elif model_name == "ridge":
+            result = lmfit.minimize(
+                residual_ridge,
+                params,
+                args=(A, b, regularization),
+                method=method,
+            )
+        elif model_name == "elastic":
+            result = lmfit.minimize(
+                residual_elastic,
+                params,
+                args=(A, b, regularization, regularization2, l1_weight),
+                method=method,
+            )
+        else:
+            raise ValueError("model_name must be one of: elastic, lasso, ridge")
+
+        spectrum = np.array([result.params[f"x{i}"].value for i in range(m)])
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"lmfit ({method})",
+            model_name=model_name,
+        )
+        output.update(
+            {
+                "regularization": regularization,
+                "regularization2": regularization2 if model_name == "elastic" else None,
+                "l1_weight": l1_weight if model_name == "elastic" else None,
+                "success": result.success,
+                "message": result.message,
+                "nfev": result.nfev,
+            }
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_gauss_newton(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 1000,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using ODL Gauss-Newton iterations.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        measurement_space = odl.uniform_discr(0, len(b) - 1, len(b))
+        spectrum_space = odl.uniform_discr(
+            np.min(self.E_MeV), np.max(self.E_MeV), self.E_MeV.shape[0]
+        )
+        operator = odl.MatrixOperator(A, domain=spectrum_space, range=measurement_space)
+        y = measurement_space.element(b)
+        x = spectrum_space.element(0.5 if initial_spectrum is None else initial_spectrum)
+
+        if hasattr(odl.solvers, "gauss_newton"):
+            odl.solvers.gauss_newton(operator, x, y, niter=max_iterations, callback=None)
+        elif hasattr(odl.solvers, "iterative") and hasattr(
+            odl.solvers.iterative, "gauss_newton"
+        ):
+            odl.solvers.iterative.gauss_newton(
+                operator, x, y, niter=max_iterations, callback=None
+            )
+        else:
+            raise ImportError("ODL gauss_newton solver is not available in this version.")
+
+        spectrum = x.asarray()
+        spectrum[spectrum < 0] = 0
+
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Gauss-Newton (ODL)",
+            iterations=max_iterations,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_kaczmarz(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 1000,
+        omega: float = 1.0,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using the Kaczmarz algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations.
+        omega : float, optional
+            Relaxation parameter.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+        m, n = A.shape
+
+        x = np.zeros(n) if initial_spectrum is None else np.asarray(initial_spectrum)
+
+        for k in range(max_iterations):
+            i = k % m
+            a_i = A[i, :]
+            denominator = np.dot(a_i, a_i)
+            if denominator > 0:
+                update = (b[i] - np.dot(a_i, x)) / denominator
+                x = x + omega * update * a_i
+
+        output = self._standardize_output(
+            spectrum=x,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Kaczmarz",
+            iterations=max_iterations,
+            omega=omega,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_kaczmarz2(
+        self,
+        readings: Dict[str, float],
+        max_iterations: int = 4000,
+        tolerance: float = 1e-8,
+        rule: str = "maxdistance",
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using the kaczmarz-algorithms package.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        max_iterations : int, optional
+            Maximum iterations.
+        tolerance : float, optional
+            Convergence tolerance.
+        rule : str, optional
+            Selection rule: 'maxdistance' or 'cyclic'.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        kaczmarz = self._import_optional("kaczmarz", "kaczmarz-algorithms unfolding")
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        if rule == "maxdistance":
+            x = kaczmarz.MaxDistance.solve(A, b, maxiter=max_iterations, tol=tolerance)
+        elif rule == "cyclic":
+            x = kaczmarz.Cyclic.solve(A, b, maxiter=max_iterations, tol=tolerance)
+        else:
+            raise ValueError("rule must be 'maxdistance' or 'cyclic'")
+
+        output = self._standardize_output(
+            spectrum=x,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"Kaczmarz ({rule})",
+            iterations=max_iterations,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_evolutionary(
+        self,
+        readings: Dict[str, float],
+        regularization: float = 1.0,
+        penalty_weight: int = 1000,
+        population_size: int = 300,
+        generations: int = 300,
+        mu: float = 0.0,
+        mate_param: float = 0.3,
+        tournsize: int = 3,
+        mutation_strength: float = 0.3,
+        individ_probability: float = 0.1,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using a DEAP-based evolutionary algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        regularization : float, optional
+            L2 regularization strength.
+        penalty_weight : int, optional
+            Penalty weight for negative values.
+        population_size : int, optional
+            Population size.
+        generations : int, optional
+            Number of generations.
+        mu : float, optional
+            Mutation mean.
+        mate_param : float, optional
+            Crossover blending parameter.
+        tournsize : int, optional
+            Tournament size.
+        mutation_strength : float, optional
+            Mutation standard deviation.
+        individ_probability : float, optional
+            Mutation probability per gene.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        deap_base = self._import_optional("deap.base", "DEAP evolutionary unfolding")
+        deap_creator = self._import_optional("deap.creator", "DEAP evolutionary unfolding")
+        deap_tools = self._import_optional("deap.tools", "DEAP evolutionary unfolding")
+        deap_algorithms = self._import_optional("deap.algorithms", "DEAP evolutionary unfolding")
+        import random
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        def evaluate_solution_penalty(individual):
+            x = np.array(individual)
+            negative_penalty = penalty_weight * np.sum(np.minimum(0, x) ** 2)
+            residual = A @ x - b
+            error = np.sum(residual**2) + negative_penalty + regularization * np.sum(x**2)
+            return (error,)
+
+        def nonnegative_mutation(individual, mu, sigma, indpb):
+            for i in range(len(individual)):
+                if random.random() < indpb:
+                    new_value = individual[i] + random.gauss(mu, sigma)
+                    individual[i] = max(0, new_value)
+            return (individual,)
+
+        if not hasattr(deap_creator, "FitnessMin"):
+            deap_creator.create("FitnessMin", deap_base.Fitness, weights=(-1.0,))
+        if not hasattr(deap_creator, "Individual"):
+            deap_creator.create("Individual", list, fitness=deap_creator.FitnessMin)
+
+        toolbox = deap_base.Toolbox()
+        toolbox.register("attr_float", random.uniform, 0.0, 5.0)
+        toolbox.register(
+            "individual",
+            deap_tools.initRepeat,
+            deap_creator.Individual,
+            toolbox.attr_float,
+            n=A.shape[1],
+        )
+        toolbox.register("population", deap_tools.initRepeat, list, toolbox.individual)
+        toolbox.register("evaluate", evaluate_solution_penalty)
+        toolbox.register("mate", deap_tools.cxBlend, alpha=mate_param)
+        toolbox.register(
+            "mutate",
+            nonnegative_mutation,
+            mu=mu,
+            sigma=mutation_strength,
+            indpb=individ_probability,
+        )
+        toolbox.register("select", deap_tools.selTournament, tournsize=tournsize)
+
+        population = toolbox.population(n=population_size)
+        population, _ = deap_algorithms.eaSimple(
+            population,
+            toolbox,
+            cxpb=mate_param,
+            mutpb=mutation_strength,
+            ngen=generations,
+            stats=None,
+            verbose=False,
+        )
+
+        best_individual = deap_tools.selBest(population, k=1)[0]
+        spectrum = np.maximum(0, np.array(best_individual))
+
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Evolutionary (DEAP)",
+            population_size=population_size,
+            generations=generations,
+        )
+        self._save_result(output)
+        return output
+
+    def unfold_qubo(
+        self,
+        readings: Dict[str, float],
+        regularization: float = 1e-4,
+        num_reads: int = 200,
+    ) -> Dict[str, Any]:
+        """
+        Unfold neutron spectrum using QUnfold QUBO formulation.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        regularization : float, optional
+            Regularization strength.
+        num_reads : int, optional
+            Number of annealing reads.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result dictionary.
+        """
+        qunfold = self._import_optional("qunfold", "QUnfold QUBO unfolding")
+        QUnfolder = qunfold.QUnfolder
+
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+
+        binning = np.append(np.array(self.E_MeV), np.array(np.max(self.E_MeV)))
+        unfolder = QUnfolder(A.T @ A, A.T @ b, binning, lam=regularization)
+        unfolder.initialize_qubo_model()
+        spectrum, cov = unfolder.solve_simulated_annealing(num_reads=num_reads)
+
+        output = self._standardize_output(
+            spectrum=spectrum,
+            A=A,
+            b=b,
+            selected=selected,
+            method="QUBO (QUnfold)",
+            regularization=regularization,
+            num_reads=num_reads,
+        )
+        output["spectrum_error"] = np.sqrt(np.diag(cov))
+        output["covariance"] = cov
+        self._save_result(output)
+        return output
+
+    # --- Auxiliary helpers: MAXED / GRAVEL implementations ---
+
+    @staticmethod
+    def _calculate_spectrum_maxed_core(
+        E_MeV: np.ndarray,
+        K_j: np.ndarray,
+        Q_j: np.ndarray,
+        phi_0: Optional[np.ndarray] = None,
+        sigma_factor: float = 0.01,
+        omega: float = 1.0,
+        mu: float = 1.0,
+        maxiter: int = 5000,
+        tol: float = 1e-6,
+        seed: int = 42,
+    ) -> Dict[str, Any]:
+        """
+        Core implementation of the MAXED algorithm (maximum entropy).
+        """
+        E = np.asarray(E_MeV, dtype=float)
+        K_j = np.asarray(K_j, dtype=float)
+        Q_j = np.asarray(Q_j, dtype=float)
+
+        if phi_0 is None:
+            n_energy = len(E)
+            phi_0 = np.zeros_like(E)
+            pos1 = n_energy // 8
+            pos2 = 2 * n_energy // 4
+            sigma = max(1, n_energy // 10)
+            for i in range(n_energy):
+                gauss1 = np.exp(-0.5 * ((i - pos1) / sigma) ** 2)
+                gauss2 = np.exp(-0.5 * ((i - pos2) / sigma) ** 2)
+                phi_0[i] = gauss1 + gauss2
+            if np.max(phi_0) > 0:
+                phi_0 = phi_0 / np.max(phi_0)
+        else:
+            phi_0 = np.asarray(phi_0, dtype=float)
+            if phi_0.shape != E.shape:
+                raise ValueError("phi_0 shape mismatch")
+
+        E_lower = E.copy()
+        E_upper = np.roll(E_lower, -1)
+        E_upper[-1] = E_lower[-1] * 1.1
+        dlnE = np.log(E_upper / E_lower)
+
+        Q_j_nonzero = np.where(Q_j == 0, 1.0, Q_j)
+        sigma_j = sigma_factor * Q_j_nonzero
+
+        def calc_phi(lam: np.ndarray) -> np.ndarray:
+            exp_term = -np.dot(K_j.T, lam)
+            phi = phi_0 * np.exp(exp_term)
+            return np.maximum(phi, 1e-20)
+
+        def calc_predicted(phi: np.ndarray) -> np.ndarray:
+            return (phi * dlnE) @ K_j.T
+
+        def dual_Z(lam: np.ndarray) -> float:
+            try:
+                phi = calc_phi(lam)
+                c_pred = calc_predicted(phi)
+                ratio = np.where(phi > 1e-20, phi / np.maximum(phi_0, 1e-20), 1.0)
+                term1 = phi * np.log(ratio)
+                term2 = phi_0 - phi
+                entropy = -np.sum((term1 + term2) * dlnE)
+                chi_sq = np.sum(((c_pred - Q_j) / sigma_j) ** 2)
+                constraint = 0.5 * mu * max(0.0, chi_sq - omega)
+                linear = np.dot(lam, c_pred - Q_j)
+                return entropy - linear - constraint
+            except Exception:
+                return -1e10
+
+        rng = np.random.default_rng(seed)
+        lam = np.zeros(len(Q_j))
+        Z = dual_Z(lam)
+        best_lam = lam.copy()
+        best_Z = Z
+        T = 10.0
+        cooling = 0.95
+        min_T = 1e-8
+        steps_per_T = 50
+
+        for iter_count in range(maxiter):
+            for _ in range(steps_per_T):
+                step = 0.5 * T * (1 + iter_count / 500)
+                trial_lam = lam + rng.normal(0, step, size=lam.shape)
+                trial_lam = np.clip(trial_lam, -50, 50)
+                trial_Z = dual_Z(trial_lam)
+                dZ = trial_Z - Z
+                if dZ > 0 or (T > 1e-12 and rng.random() < np.exp(dZ / T)):
+                    lam = trial_lam
+                    Z = trial_Z
+                    if Z > best_Z:
+                        best_lam = lam.copy()
+                        best_Z = Z
+            T *= cooling
+            if T < min_T or (iter_count > 200 and abs(best_Z - Z) < tol):
+                break
+
+        phi_opt = calc_phi(best_lam)
+        c_pred = calc_predicted(phi_opt)
+
+        if np.sum(c_pred) > 0 and np.sum(Q_j) > 0:
+            scale = np.sum(Q_j * c_pred) / np.sum(c_pred**2)
+            phi_opt *= scale
+            c_pred *= scale
+
+        chi_sq = float(np.sum(((c_pred - Q_j) / sigma_j) ** 2))
+
+        return {
+            "energy": E_lower,
+            "spectrum": phi_opt,
+            "success": True,
+            "effective_readings": c_pred,
+            "energy_range": (float(E_lower[0]), float(E_upper[-1])),
+            "chi_square": chi_sq,
+            "omega": omega,
+            "mu": mu,
+            "lambda_values": best_lam.tolist(),
+            "delta_lnE": dlnE.tolist(),
+        }
+
+    @staticmethod
+    def _gravel(
+        S: np.ndarray,
+        measurements: np.ndarray,
+        x0: np.ndarray,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+        regularization: float = 0.0,
+    ) -> Dict[str, Any]:
+        """
+        GRAVEL algorithm for neutron spectrum unfolding.
+        """
+        M, N = S.shape
+        if len(measurements) != M:
+            raise ValueError("Measurement vector length does not match S rows")
+        if len(x0) != N:
+            raise ValueError("Initial spectrum length does not match S columns")
+
+        x = x0.copy().astype(np.float64)
+        measurements = measurements.astype(np.float64)
+
+        valid_indices = measurements > 0
+        if np.sum(valid_indices) == 0:
+            raise ValueError("All measurements are zero or negative")
+
+        S_valid = S[valid_indices]
+        measurements_valid = measurements[valid_indices]
+        M_valid = len(measurements_valid)
+
+        J_prev = 0.0
+        dJ_prev = 1.0
+        error_history = []
+        chi_sq_history = []
+
+        for iteration in range(1, max_iterations + 1):
+            computed = np.zeros(M_valid)
+            for i in range(M_valid):
+                computed[i] = S_valid[i, :] @ x
+
+            W = np.zeros((M_valid, N))
+            for j in range(N):
+                for i in range(M_valid):
+                    if computed[i] > 0 and x[j] > 0:
+                        W[i, j] = (
+                            measurements_valid[i] * S_valid[i, j] * x[j] / computed[i]
+                        )
+
+                numerator = 0.0
+                denominator = 0.0
+                for i in range(M_valid):
+                    if computed[i] > 0 and measurements_valid[i] > 0 and W[i, j] > 0:
+                        log_ratio = np.log(measurements_valid[i] / computed[i])
+                        numerator += W[i, j] * log_ratio
+                        denominator += W[i, j]
+
+                if denominator > 0:
+                    regularization_term = regularization * np.log(x[j] + 1e-10)
+                    update = np.exp((numerator - regularization_term) / denominator)
+                    x[j] *= update
+
+            computed_final = np.zeros(M_valid)
+            for i in range(M_valid):
+                computed_final[i] = S_valid[i, :] @ x
+
+            chi_sq = np.sum(
+                (computed_final - measurements_valid) ** 2
+                / np.maximum(measurements_valid, 1e-10)
+            )
+            chi_sq_history.append(chi_sq)
+            J = chi_sq / np.sum(computed_final)
+            dJ = J_prev - J
+            ddJ = abs(dJ - dJ_prev)
+            error_history.append(ddJ)
+
+            if ddJ <= tolerance:
+                break
+            J_prev = J
+            dJ_prev = dJ
+
+        computed_all = np.zeros(M)
+        for i in range(M):
+            computed_all[i] = S[i, :] @ x
+
+        x_normalized = x / np.sum(x) if np.sum(x) > 0 else x
+
+        return {
+            "spectrum": x_normalized,
+            "spectrum_absolute": x,
+            "error_history": np.array(error_history),
+            "chi_sq_history": np.array(chi_sq_history),
+            "computed_measurements": computed_all,
+            "iterations": iteration,
+            "converged": ddJ <= tolerance,
+        }
+
+    @classmethod
+    def _gravel_with_errors(
+        cls,
+        S: np.ndarray,
+        measurements: np.ndarray,
+        x0: np.ndarray,
+        tolerance: float,
+        max_iterations: int = 1000,
+        regularization: float = 0.0,
+    ) -> Dict[str, Any]:
+        """
+        GRAVEL algorithm with spectrum error estimation.
+        """
+        results = cls._gravel(
+            S=S,
+            measurements=measurements,
+            x0=x0,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+            regularization=regularization,
+        )
+
+        spectrum_errors, covariance_matrix, correlation_matrix = cls._calculate_spectrum_errors(
+            results["spectrum_absolute"],
+            S,
+            measurements,
+            method="covariance",
+        )
+        results["spectrum_errors"] = spectrum_errors
+        results["covariance_matrix"] = covariance_matrix
+        results["correlation_matrix"] = correlation_matrix
+        return results
+
+    @staticmethod
+    def _calculate_spectrum_errors(
+        spectrum: np.ndarray,
+        S: np.ndarray,
+        measurements: np.ndarray,
+        method: str = "covariance",
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Estimate spectrum errors using selected method.
+        """
+        if method == "covariance":
+            return Detector._calculate_covariance_errors(spectrum, S, measurements)
+        if method == "bootstrap":
+            return Detector._calculate_bootstrap_errors(spectrum, S, measurements)
+        if method == "jackknife":
+            return Detector._calculate_jackknife_errors(spectrum, S, measurements)
+        return Detector._calculate_covariance_errors(spectrum, S, measurements)
+
+    @staticmethod
+    def _calculate_covariance_errors(
+        spectrum: np.ndarray,
+        S: np.ndarray,
+        measurements: np.ndarray,
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Estimate spectrum errors via covariance matrix propagation.
+        """
+        try:
+            computed = S @ spectrum
+            J = np.zeros_like(S)
+            for i in range(S.shape[0]):
+                for j in range(S.shape[1]):
+                    if computed[i] > 0 and spectrum[j] > 0:
+                        J[i, j] = (
+                            measurements[i] * S[i, j] * spectrum[j] / (computed[i] ** 2)
+                        ) - (S[i, j] / computed[i])
+
+            cov_meas = np.diag(measurements)
+            J_pinv = np.linalg.pinv(J)
+            cov_spectrum = J_pinv @ cov_meas @ J_pinv.T
+            spectrum_errors = np.sqrt(np.abs(np.diag(cov_spectrum)))
+            D = np.sqrt(np.diag(cov_spectrum))
+            D_inv = np.linalg.pinv(np.diag(D))
+            correlation_matrix = D_inv @ cov_spectrum @ D_inv
+            return spectrum_errors, cov_spectrum, correlation_matrix
+        except Exception:
+            return None, None, None
+
+    @staticmethod
+    def _calculate_bootstrap_errors(
+        spectrum: np.ndarray,
+        S: np.ndarray,
+        measurements: np.ndarray,
+        n_bootstrap: int = 100,
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Estimate spectrum errors via bootstrap resampling.
+        """
+        M, N = S.shape
+        bootstrap_spectra = []
+
+        for _ in range(n_bootstrap):
+            indices = np.random.choice(M, M, replace=True)
+            S_boot = S[indices]
+            meas_boot = measurements[indices]
+            x_boot = spectrum.copy()
+            for _ in range(10):
+                computed = S_boot @ x_boot
+                for j in range(N):
+                    numerator = 0.0
+                    denominator = 0.0
+                    for k in range(M):
+                        if computed[k] > 0 and meas_boot[k] > 0:
+                            weight = (
+                                meas_boot[k] * S_boot[k, j] * x_boot[j] / computed[k]
+                            )
+                            numerator += weight * np.log(meas_boot[k] / computed[k])
+                            denominator += weight
+                    if denominator > 0:
+                        x_boot[j] *= np.exp(numerator / denominator)
+            bootstrap_spectra.append(x_boot)
+
+        if not bootstrap_spectra:
+            return None, None, None
+
+        bootstrap_spectra = np.array(bootstrap_spectra)
+        spectrum_errors = np.std(bootstrap_spectra, axis=0)
+        covariance_matrix = np.cov(bootstrap_spectra.T)
+        D = np.sqrt(np.diag(covariance_matrix))
+        D_inv = np.linalg.pinv(np.diag(D))
+        correlation_matrix = D_inv @ covariance_matrix @ D_inv
+        return spectrum_errors, covariance_matrix, correlation_matrix
+
+    @staticmethod
+    def _calculate_jackknife_errors(
+        spectrum: np.ndarray,
+        S: np.ndarray,
+        measurements: np.ndarray,
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Estimate spectrum errors via jackknife resampling.
+        """
+        M, N = S.shape
+        jackknife_spectra = []
+
+        for i in range(M):
+            indices = [j for j in range(M) if j != i]
+            S_jack = S[indices]
+            meas_jack = measurements[indices]
+            x_jack = spectrum.copy()
+            for _ in range(10):
+                computed = S_jack @ x_jack
+                for j in range(N):
+                    numerator = 0.0
+                    denominator = 0.0
+                    for k in range(len(indices)):
+                        if computed[k] > 0 and meas_jack[k] > 0:
+                            weight = (
+                                meas_jack[k] * S_jack[k, j] * x_jack[j] / computed[k]
+                            )
+                            numerator += weight * np.log(meas_jack[k] / computed[k])
+                            denominator += weight
+                    if denominator > 0:
+                        x_jack[j] *= np.exp(numerator / denominator)
+            jackknife_spectra.append(x_jack)
+
+        if not jackknife_spectra:
+            return None, None, None
+
+        jackknife_spectra = np.array(jackknife_spectra)
+        mean_spectrum = np.mean(jackknife_spectra, axis=0)
+        spectrum_errors = np.sqrt(
+            (M - 1) / M * np.sum((jackknife_spectra - mean_spectrum) ** 2, axis=0)
+        )
+        covariance_matrix = np.cov(jackknife_spectra.T)
+        D = np.sqrt(np.diag(covariance_matrix))
+        D_inv = np.linalg.pinv(np.diag(D))
+        correlation_matrix = D_inv @ covariance_matrix @ D_inv
+        return spectrum_errors, covariance_matrix, correlation_matrix
 
     def _calculate_doserates(
         self, spectrum: np.ndarray, dlnE: float = 0.2
