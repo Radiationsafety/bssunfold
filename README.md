@@ -131,7 +131,44 @@ readings = {
 
 ## ⚙️ Available Methods
 
-### 1. `unfold_cvxpy()`
+### Core methods (always available)
+- `unfold_cvxpy()`
+- `unfold_landweber()`
+- `unfold_mlem_odl()`
+- `unfold_nnls()`
+- `unfold_tikhonov()`
+- `unfold_tsvd()`
+
+### Advanced methods (may require optional dependencies)
+- `unfold_tikhonov_legendre()`
+- `unfold_maxed()`
+- `unfold_gravel()`
+- `unfold_tikhonov_legendre_maxed()`
+- `unfold_tikhonov_legendre_gravel()`
+- `unfold_mlem()` (SciPy optimization)
+- `unfold_doroshenko()`
+- `unfold_doroshenko_matrix()`
+- `unfold_cvxopt()`
+- `unfold_cuqipy()`
+- `unfold_gurobi()`
+- `unfold_bayes()`
+- `unfold_bayes_spline_regularization()`
+- `unfold_statreg()`
+- `unfold_scipy_direct_method()`
+- `unfold_mcmc()`
+- `unfold_ridge()`
+- `unfold_pyomo()`
+- `unfold_lmfit()`
+- `unfold_gauss_newton()`
+- `unfold_kaczmarz()`
+- `unfold_kaczmarz2()`
+- `unfold_evolutionary()`
+- `unfold_qubo()`
+
+Note: methods that rely on optional packages raise a clear ImportError if the dependency is not installed.
+
+### Examples
+#### 1. `unfold_cvxpy()`
 Tikhonov regularization with convex optimization for stable spectrum reconstruction.
 
 ```python
@@ -143,7 +180,7 @@ result = detector.unfold_cvxpy(
 )
 ```
 
-### 2. `unfold_landweber()`
+#### 2. `unfold_landweber()`
 Iterative Landweber method with convergence control.
 
 ```python
@@ -155,7 +192,7 @@ result = detector.unfold_landweber(
 )
 ```
 
-### 3. `unfold_mlem_odl()`
+#### 3. `unfold_mlem_odl()`
 Iterative Maximum likelihood expectation maximization (MLEM).
 
 ```python
@@ -166,7 +203,7 @@ result = detector.unfold_mlem_odl(
 )
 ```
 
-### 4. `unfold_nnls()`
+#### 4. `unfold_nnls()`
 Non-negative least squares (NNLS).
 
 ```python
@@ -176,7 +213,7 @@ result = detector.unfold_nnls(
 )
 ```
 
-### 5. `unfold_tikhonov()`
+#### 5. `unfold_tikhonov()`
 Direct Tikhonov regularization with optional derivative penalties.
 
 ```python
@@ -188,7 +225,7 @@ result = detector.unfold_tikhonov(
 )
 ```
 
-### 6. `unfold_tsvd()`
+#### 6. `unfold_tsvd()`
 Truncated SVD (TSVD) solution.
 
 ```python

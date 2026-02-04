@@ -26,10 +26,11 @@ Features
 --------
 
 - **Multiple Unfolding Algorithms**:
-  - Tikhonov regularization with convex optimization (CVXPY)
-  - Landweber iterative method
-  - Maximum likelihood expectation maximization (MLEM)
-  - Combined approach for improved accuracy
+  - CVXPY, Landweber, MLEM (ODL), NNLS, Tikhonov, TSVD
+  - MAXED, GRAVEL, Tikhonov-Legendre hybrids
+  - Doroshenko, Kaczmarz, Gauss-Newton, SciPy solvers
+  - Bayesian, statistical regularization, QUBO, evolutionary methods
+  - Optional solvers (CVXOPT, Gurobi, Pyomo, lmfit, PyMC, CUQIpy, etc.)
 
 - **Radiation Dose Calculations**:
   - ICRP-116 conversion coefficients for effective dose

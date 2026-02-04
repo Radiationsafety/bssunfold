@@ -43,3 +43,17 @@ Basic Usage
        max_iterations=500,
        calculate_errors=True
    )
+
+   # Unfold with MAXED (maximum entropy)
+   result_maxed = detector.unfold_maxed(
+       readings,
+       sigma_factor=0.01,
+       omega=1.0
+   )
+
+   # Unfold with GRAVEL
+   result_gravel = detector.unfold_gravel(
+       readings,
+       max_iterations=500,
+       tolerance=1e-6
+   )
