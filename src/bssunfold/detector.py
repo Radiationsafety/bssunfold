@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import pchip
 
-from typing import Dict, Optional, List, Tuple, Any
+from typing import Dict, Optional, List, Tuple, Any, Union
 import cvxpy as cp
 import odl
 import warnings
@@ -21,10 +21,19 @@ class Detector:
 
     Parameters
     ----------
-    response_functions_df : pd.DataFrame
-        DataFrame containing detector response functions. The first column should
-        be 'E_MeV' (energy in MeV) and subsequent columns contain response
-        functions for different detector spheres.
+    response_functions : pd.DataFrame, dict, optional
+        Response functions data. Can be:
+        - pandas DataFrame with 'E_MeV' column and detector columns.
+        - dict with 'E_MeV' key (array) and detector names as keys (arrays).
+        If None, default GSF response functions are used.
+    E_MeV : np.ndarray, optional
+        Energy grid in MeV. Required if `response_functions` is not provided
+        and `sensitivities` is provided.
+    sensitivities : dict or np.ndarray, optional
+        Detector sensitivities. If dict, keys are detector names and
+        values
+        are arrays of same length as E_MeV. If 2D array, shape (n_energy, n_detectors).
+        Required if `response_functions` is not provided and `E_MeV` is provided.
 
     Attributes
     ----------
@@ -47,36 +56,63 @@ class Detector:
 
     Examples
     --------
-    >>> import pandas as pd
     >>> from bssunfold import Detector
-    >>> # Load response functions from CSV
-    >>> rf_df = pd.read_csv('response_functions.csv')
-    >>> detector = Detector(rf_df)
+    >>> # Create detector with default GSF response functions
+    >>> detector = Detector()
+    >>> # Or from a DataFrame
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({
+    ...     'E_MeV': [1e-9, 1e-8, 1e-7],
+    ...     'sphere_1': [0.1, 0.2, 0.3],
+    ...     'sphere_2': [0.4, 0.5, 0.6]
+    ... })
+    >>> detector = Detector(df)
+    >>> # Or from a dictionary
+    >>> rf_dict = {
+    ...     'E_MeV': [1e-9, 1e-8, 1e-7],
+    ...     'sphere_1': [0.1, 0.2, 0.3],
+    ...     'sphere_2': [0.4, 0.5, 0.6]
+    ... }
+    >>> detector = Detector(rf_dict)
+    >>> # Or using numpy arrays
+    >>> import numpy as np
+    >>> E = np.array([1e-9, 1e-8, 1e-7])
+    >>> sens = np.array([[0.1, 0.4], [0.2, 0.5], [0.3, 0.6]])
+    >>> detector = Detector(E_MeV=E, sensitivities=sens)
     >>> # Perform unfolding
     >>> readings = {'sphere_1': 100.5, 'sphere_2': 85.3}
     >>> result = detector.unfold_cvxpy(readings)
     """
 
-    def __init__(self, response_functions_df):
+    def __init__(self, response_functions=None, E_MeV=None, sensitivities=None):
         """
         Initialize Detector with response functions.
 
         Parameters
         ----------
-        response_functions_df : pd.DataFrame
-            DataFrame containing response functions with 'E_MeV'
-            as first column
-            and detector names as subsequent columns.
+        response_functions : pd.DataFrame, dict, optional
+            Response functions data. Can be:
+            - pandas DataFrame with 'E_MeV' column and detector columns.
+            - dict with 'E_MeV' key (array) and detector names as keys (arrays).
+            If None, default GSF response functions are used.
+        E_MeV : np.ndarray, optional
+            Energy grid in MeV. Required if `response_functions` is not provided
+            and `sensitivities` is provided.
+        sensitivities : dict or np.ndarray, optional
+            Detector sensitivities. If dict, keys are detector names and
+        values
+            are arrays of same length as E_MeV. If 2D array, shape (n_energy, n_detectors).
+            Required if `response_functions` is not provided and `E_MeV` is provided.
 
         Raises
         ------
         ValueError
-            If E_MeV is not a 1D array or has less than 2 energy points
+            If E_MeV is not a 1D array or has less than 2 energy points,
+            or if input data is inconsistent.
         """
+        rf_df = self._process_input(response_functions, E_MeV, sensitivities)
         Amat, E_MeV, detector_names, log_steps = (
-            self._convert_rf_to_matrix_variable_step(
-                response_functions_df, Emin=1e-9
-            )
+            self._convert_rf_to_matrix_variable_step(rf_df, Emin=1e-9)
         )
 
         self.Amat = Amat
@@ -96,8 +132,76 @@ class Detector:
         self.cc_icrp116 = self._load_icrp116_coefficients()
 
         # Initialize results storage
-        self.results_history = {}
-        self.current_result = None
+        self.results_history: Dict[str, Dict[str, Any]] = {}
+        self.current_result: Optional[Dict[str, Any]] = None
+
+    def _process_input(self, response_functions, E_MeV, sensitivities):
+        """
+        Convert various input formats to a unified DataFrame.
+
+        Parameters
+        ----------
+        response_functions : pd.DataFrame, dict, or None
+        E_MeV : np.ndarray or None
+        sensitivities : dict, np.ndarray, or None
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with 'E_MeV' column and detector columns.
+        """
+        import pandas as pd
+        import numpy as np
+        from .constants import RF_GSF
+
+        # Case 1: response_functions is a DataFrame
+        if isinstance(response_functions, pd.DataFrame):
+            return response_functions.copy()
+
+        # Case 2: response_functions is a dict
+        if isinstance(response_functions, dict):
+            # Ensure 'E_MeV' key exists
+            if 'E_MeV' not in response_functions:
+                raise ValueError("Dictionary must contain 'E_MeV' key")
+            return pd.DataFrame(response_functions)
+
+        # Case 3: E_MeV and sensitivities provided
+        if E_MeV is not None and sensitivities is not None:
+            if isinstance(sensitivities, dict):
+                # Convert dict to DataFrame
+                data = {'E_MeV': E_MeV}
+                for det_name, sens_arr in sensitivities.items():
+                    if len(sens_arr) != len(E_MeV):
+                        raise ValueError(
+                            f"Sensitivity array length for '{det_name}' "
+                            f"must match E_MeV length"
+                        )
+                    data[det_name] = sens_arr
+                return pd.DataFrame(data)
+            elif isinstance(sensitivities, np.ndarray):
+                if sensitivities.ndim != 2:
+                    raise ValueError("sensitivities must be 2D array (n_energy, n_detectors)")
+                if sensitivities.shape[0] != len(E_MeV):
+                    raise ValueError("Number of rows in sensitivities must match length of E_MeV")
+                # Create detector names
+                detector_names = [f"det_{i}" for i in range(sensitivities.shape[1])]
+                data = {'E_MeV': E_MeV}
+                for i, name in enumerate(detector_names):
+                    data[name] = sensitivities[:, i]
+                return pd.DataFrame(data)
+            else:
+                raise TypeError("sensitivities must be dict or np.ndarray")
+
+        # Case 4: No arguments, use default
+        if response_functions is None and E_MeV is None and sensitivities is None:
+            # Use GSF response functions as default
+            return pd.DataFrame(RF_GSF)
+
+        # If none of the above, raise error
+        raise ValueError(
+            "Invalid input combination. Provide either response_functions "
+            "(DataFrame/dict) or both E_MeV and sensitivities."
+        )
 
     def __str__(self) -> str:
         """
@@ -136,8 +240,8 @@ class Detector:
         """Number of energy bins."""
         return len(self.E_MeV)
     
-    def get_response_matrix(self, readings):
-        """ Return response matrix for given readings (spheres)."""
+    def get_response_matrix(self, readings: Dict[str, float]) -> np.ndarray:
+        """Return response matrix for given readings (spheres)."""
         selected = [name for name in self.detector_names if name in readings]
         A = np.array([self.sensitivities[name] for name in selected], dtype=float)
         return A
@@ -408,6 +512,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
+        save_result: bool = True,
     ) -> Dict[str, Any]:
         """
         Unfold neutron spectrum using convex optimization (cvxpy).
@@ -426,6 +531,12 @@ class Detector:
             Solver to use ('ECOS' or 'default'), default: 'default'
         calculate_errors : bool, optional
             Flag to calculate unfolding errors via Monte-Carlo, default: False
+        noise_level : float, optional
+            Noise level for Monte-Carlo error estimation, default: 0.01
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100
+        save_result : bool, optional
+            If True, save result to internal history, default: True
 
         Returns
         -------
@@ -524,8 +635,10 @@ class Detector:
             )
             print("...uncertainty calculated.")
 
-        self._save_result(output)
-        return output
+        if save_result:
+            if save_result:
+                self._save_result(output)
+            return output
  
     def unfold_landweber(
         self,
@@ -536,6 +649,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
+        save_result: bool = True,
     ) -> Dict[str, Any]:
         """
         Unfold neutron spectrum using the Landweber iteration method.
@@ -556,6 +670,8 @@ class Detector:
             Noise level for Monte-Carlo uncertainty calculation, default: 0.01
         n_montecarlo : int, optional
             Number of Monte-Carlo samples for error estimation, default: 100
+        save_result : bool, optional
+            If True, save result to internal history, default: True
 
         Returns
         -------
@@ -713,7 +829,8 @@ class Detector:
                 }
             )
             print("...uncertainty calculation completed.")
-        self._save_result(output)
+        if save_result:
+            self._save_result(output)
         return output
 
     def unfold_mlem_odl(
@@ -725,6 +842,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
+        save_result: bool = True,
     ) -> Dict:
         """
         Unfold the neutron spectrum using the Maximum
@@ -747,6 +865,8 @@ class Detector:
             Noise level for error calculation. Default is 0.01.
         n_montecarlo : int, optional
             Number of Monte Carlo samples for error calculation. Default is 100.
+        save_result : bool, optional
+            If True, save result to internal history. Default is True.
 
         Returns
         -------
@@ -940,8 +1060,8 @@ class Detector:
         return readings_noisy
 
     # --- UTILS ---
-    def plot_response_functions(self):
-        """ plot all response functions"""
+    def plot_response_functions(self) -> None:
+        """Plot all response functions."""
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
         for key, rf in self.sensitivities.items():
             ax.plot(
@@ -958,7 +1078,9 @@ class Detector:
         plt.show()
         plt.close()
 
-    def discretize_spectra(self, spectra):
+    def discretize_spectra(
+        self, spectra: Union[pd.DataFrame, Dict]
+    ) -> pd.DataFrame:
         '''
         Interpolate spectra onto the target energy grid using PCHIP interpolation.
         Extrapolation is avoided and replaced with zeros.
@@ -966,7 +1088,7 @@ class Detector:
         Parameters:
         -----------
         spectra : pandas.DataFrame or dict
-            Input spectra to be discretized. If DataFrame, it should contain energy 
+            Input spectra to be discretized. If DataFrame, it should contain energy
             values. If dict, it should have 'E_MeV' and 'Phi' keys.
             
         Returns:
@@ -1065,7 +1187,9 @@ class Detector:
         
         return new_spectra
     
-    def get_effective_readings_for_spectra(self, spectra):
+    def get_effective_readings_for_spectra(
+        self, spectra: Union[pd.DataFrame, Dict]
+    ) -> Dict[str, float]:
         """
         Calculate effective readings for a given spectrum.
         
