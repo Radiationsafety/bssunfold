@@ -1058,9 +1058,72 @@ class Detector:
             readings_noisy[key] = value * (1 + noise)
         return readings_noisy
 
+    def _save_figure(
+        self,
+        fig: plt.Figure,
+        save_to: Optional[str] = None,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
+    ) -> None:
+        """
+        Save figure to file with support for multiple formats.
+
+        Parameters
+        ----------
+        fig : matplotlib.figure.Figure
+            Figure object to save.
+        save_to : str, optional
+            File path for saving. Supported extensions: .png, .jpg, .jpeg, .eps, .pdf.
+            If None, figure is not saved.
+        dpi : int, optional
+            Resolution in dots per inch, default 300.
+        bbox_inches : str, optional
+            Bounding box inches, default "tight".
+        **savefig_kwargs : dict
+            Additional keyword arguments passed to fig.savefig().
+        """
+        if save_to is None:
+            return
+        # Validate extension
+        allowed_extensions = (".png", ".jpg", ".jpeg", ".eps", ".pdf")
+        if not any(save_to.lower().endswith(ext) for ext in allowed_extensions):
+            raise ValueError(
+                f"Unsupported file extension. Allowed: {allowed_extensions}"
+            )
+        fig.savefig(
+            save_to,
+            dpi=dpi,
+            bbox_inches=bbox_inches,
+            **savefig_kwargs,
+        )
+        print(f"Figure saved to: {save_to}")
     # --- UTILS ---
-    def plot_response_functions(self) -> None:
-        """Plot all response functions."""
+    def plot_response_functions(
+        self,
+        save_to: Optional[str] = None,
+        show: bool = True,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
+    ) -> None:
+        """
+        Plot all response functions.
+
+        Parameters
+        ----------
+        save_to : str, optional
+            File path to save the figure. Supported extensions: .png, .jpg, .jpeg, .eps, .pdf.
+            If None, figure is not saved.
+        show : bool, optional
+            If True, display the figure with plt.show().
+        dpi : int, optional
+            Resolution for saved figure, default 300.
+        bbox_inches : str, optional
+            Bounding box inches, default "tight".
+        **savefig_kwargs : dict
+            Additional keyword arguments passed to fig.savefig().
+        """
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
         for key, rf in self.sensitivities.items():
             ax.plot(
@@ -1074,7 +1137,18 @@ class Detector:
         ax.legend()
         ax.grid(True, alpha=0.3)
         ax.set_title("Response functions of the detector")
-        plt.show()
+
+        # Save figure if requested
+        self._save_figure(
+            fig,
+            save_to=save_to,
+            dpi=dpi,
+            bbox_inches=bbox_inches,
+            **savefig_kwargs,
+        )
+
+        if show:
+            plt.show()
         plt.close()
 
     def plot_with_uncertainty(
@@ -1087,6 +1161,10 @@ class Detector:
         colors: Optional[List[str]] = None,
         title: Optional[str] = None,
         show: bool = True,
+        save_to: Optional[str] = None,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
     ) -> Tuple[plt.Figure, plt.Axes]:
         """
         Plot unfolded spectrum with uncertainty range.
@@ -1112,6 +1190,15 @@ class Detector:
             Plot title. If None, generates automatic title.
         show : bool, optional
             If True, calls plt.show().
+        save_to : str, optional
+            File path to save the figure. Supported extensions: .png, .jpg, .jpeg, .eps, .pdf.
+            If None, figure is not saved.
+        dpi : int, optional
+            Resolution for saved figure, default 300.
+        bbox_inches : str, optional
+            Bounding box inches, default "tight".
+        **savefig_kwargs : dict
+            Additional keyword arguments passed to fig.savefig().
 
         Returns
         -------
@@ -1239,6 +1326,15 @@ class Detector:
                 method = list(result_dict.keys())[0]
                 title = f"Unfolded spectrum ({method}) with uncertainty range"
         ax.set_title(title, fontsize=14)
+
+        # Save figure if requested
+        self._save_figure(
+            fig,
+            save_to=save_to,
+            dpi=dpi,
+            bbox_inches=bbox_inches,
+            **savefig_kwargs,
+        )
 
         if show:
             plt.show()
