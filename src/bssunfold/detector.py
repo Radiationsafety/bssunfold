@@ -592,6 +592,13 @@ class Detector:
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
         alpha = regularization
+        
+        # Normalize initial spectrum if provided
+        if initial_spectrum is not None:
+            initial_spectrum = self._normalize_initial_spectrum(initial_spectrum)
+            # Currently not used in cvxpy solver, but kept for compatibility
+            # Could be used as initial guess for x in future improvements
+        
         n = A.shape[1]
 
         # Main solution
@@ -754,17 +761,13 @@ class Detector:
         validated_readings = self._validate_readings(readings)
         A, b, selected = self._build_system(validated_readings)
 
-        # Set initial spectrum
+        # Set initial spectrum (normalize if needed)
         if initial_spectrum is None:
-            # x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A)
             x0 = np.zeros(self.n_energy_bins)
         else:
-            if len(initial_spectrum) != self.n_energy_bins:
-                raise ValueError(
-                    f"Initial spectrum length ({len(initial_spectrum)}) "
-                    f"must match number of energy bins ({self.n_energy_bins})"
-                )
-            x0 = np.maximum(initial_spectrum, 0)
+            x0 = self._normalize_initial_spectrum(initial_spectrum)
+            if x0 is None:
+                x0 = np.zeros(self.n_energy_bins)
 
         # Main Landweber iteration
         x_opt, n_iter, converged = _landweber_iteration(
@@ -923,8 +926,15 @@ class Detector:
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
         
+        # Нормализация начального спектра
+        normalized_initial = None
+        if initial_spectrum is not None:
+            normalized_initial = self._normalize_initial_spectrum(
+                initial_spectrum
+            )
+        
         # Основной запуск MLEM
-        unfolded_spectrum, A, b = _run_mlem(A, b, initial_spectrum)
+        unfolded_spectrum, A, b = _run_mlem(A, b, normalized_initial)
         
         # Создание основного результата
         output = self._standardize_output(
@@ -950,7 +960,9 @@ class Detector:
                 A_noisy, b_noisy, _ = self._build_system(noisy_readings)
                 
                 # Запускаем MLEM с теми же параметрами
-                spectrum_sample, _, _ = _run_mlem(A_noisy, b_noisy, initial_spectrum)
+                spectrum_sample, _, _ = _run_mlem(
+                    A_noisy, b_noisy, normalized_initial
+                )
                 spectra_samples[i] = spectrum_sample
             
             # Вычисляем статистики неопределенности
@@ -1058,6 +1070,82 @@ class Detector:
             readings_noisy[key] = value * (1 + noise)
         return readings_noisy
 
+    def _normalize_initial_spectrum(
+        self,
+        initial_spectrum: Optional[Union[np.ndarray, Dict, pd.DataFrame]],
+    ) -> Optional[np.ndarray]:
+        """
+        Normalize initial spectrum to detector's energy grid.
+
+        If initial_spectrum is None, returns None.
+        If it's a numpy array, assumes it's already on self.E_MeV grid.
+        If lengths differ, raises ValueError (cannot interpolate without energies).
+        If it's a dict or DataFrame, uses discretize_spectra to interpolate onto self.E_MeV,
+        ensuring non-negative values.
+
+        Parameters
+        ----------
+        initial_spectrum : Optional[Union[np.ndarray, Dict, pd.DataFrame]]
+            Initial spectrum guess. Can be:
+            - None: returns None.
+            - np.ndarray: 1D array of length n_energy_bins (must match).
+            - dict: with 'E_MeV' and 'Phi' keys (or similar).
+            - pd.DataFrame: with 'E_MeV' column and at least one spectrum column.
+
+        Returns
+        -------
+        Optional[np.ndarray]
+            Normalized spectrum as 1D numpy array of length self.n_energy_bins,
+            with negative values replaced by 0. Returns None if input is None.
+
+        Raises
+        ------
+        ValueError
+            If initial_spectrum is np.ndarray with wrong length, or if dict/DataFrame
+            cannot be interpolated.
+        """
+        if initial_spectrum is None:
+            return None
+
+        # Case 1: numpy array
+        if isinstance(initial_spectrum, np.ndarray):
+            if len(initial_spectrum) != self.n_energy_bins:
+                raise ValueError(
+                    f"Initial spectrum length ({len(initial_spectrum)}) "
+                    f"must match number of energy bins ({self.n_energy_bins}). "
+                    "If you have a spectrum on a different energy grid, "
+                    "provide it as a dict or DataFrame with 'E_MeV' column."
+                )
+            # Ensure non-negative
+            return np.maximum(initial_spectrum, 0)
+
+        # Case 2: dict or DataFrame
+        # Use existing discretize_spectra method which does PCHIP interpolation
+        # and replaces negatives with zero.
+        if isinstance(initial_spectrum, (dict, pd.DataFrame)):
+            # discretize_spectra returns DataFrame with columns 'E_MeV' and at least one spectrum column
+            discretized = self.discretize_spectra(initial_spectrum)
+            # Extract the first spectrum column (assuming single spectrum)
+            # If multiple columns, take the first non-energy column
+            if 'Phi' in discretized.columns:
+                spectrum_col = 'Phi'
+            else:
+                # Find first column that is not 'E_MeV'
+                non_energy_cols = [c for c in discretized.columns if c != 'E_MeV']
+                if not non_energy_cols:
+                    raise ValueError(
+                        "No spectrum column found in discretized result."
+                    )
+                spectrum_col = non_energy_cols[0]
+            spectrum = discretized[spectrum_col].values
+            # Ensure non-negative (already done by discretize_spectra, but double-check)
+            spectrum = np.maximum(spectrum, 0)
+            return spectrum
+
+        raise TypeError(
+            f"initial_spectrum must be None, np.ndarray, dict, or pd.DataFrame. "
+            f"Got {type(initial_spectrum)}"
+        )
     def _save_figure(
         self,
         fig: plt.Figure,
