@@ -636,9 +636,8 @@ class Detector:
             print("...uncertainty calculated.")
 
         if save_result:
-            if save_result:
-                self._save_result(output)
-            return output
+            self._save_result(output)
+        return output
  
     def unfold_landweber(
         self,
