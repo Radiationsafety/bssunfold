@@ -1077,6 +1077,174 @@ class Detector:
         plt.show()
         plt.close()
 
+    def plot_with_uncertainty(
+        self,
+        result: Optional[Dict[str, Any]] = None,
+        results: Optional[Dict[str, Dict[str, Any]]] = None,
+        reference_spectrum: Optional[Union[pd.DataFrame, Dict]] = None,
+        ax: Optional[plt.Axes] = None,
+        figsize: Tuple[int, int] = (12, 8),
+        colors: Optional[List[str]] = None,
+        title: Optional[str] = None,
+        show: bool = True,
+    ) -> Tuple[plt.Figure, plt.Axes]:
+        """
+        Plot unfolded spectrum with uncertainty range.
+
+        Parameters
+        ----------
+        result : Dict[str, Any], optional
+            Single unfolding result dictionary (must contain 'energy', 'spectrum',
+            and optionally 'spectrum_uncert_min', 'spectrum_uncert_max').
+            If not provided, uses self.current_result.
+        results : Dict[str, Dict[str, Any]], optional
+            Dictionary of multiple results (key: method name, value: result dict).
+            If provided, plots all spectra with uncertainty ranges.
+        reference_spectrum : pandas.DataFrame or dict, optional
+            Reference spectrum with columns 'E_MeV' and 'Phi'.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates new figure.
+        figsize : tuple, optional
+            Figure size (width, height) in inches, default (12, 8).
+        colors : list of str, optional
+            Colors for each spectrum (including reference). If None, uses default palette.
+        title : str, optional
+            Plot title. If None, generates automatic title.
+        show : bool, optional
+            If True, calls plt.show().
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            Figure object.
+        ax : matplotlib.axes.Axes
+            Axes object.
+
+        Examples
+        --------
+        >>> # Plot single result with uncertainty
+        >>> result = detector.unfold_cvxpy(readings, calculate_errors=True)
+        >>> detector.plot_with_uncertainty(result)
+        >>> # Plot multiple results
+        >>> results = {
+        ...     'MLEM': result_mlem,
+        ...     'cvxpy': result_cvxpy
+        ... }
+        >>> detector.plot_with_uncertainty(results=results)
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import pandas as pd
+
+        # Determine what to plot
+        if results is not None:
+            # Multiple results
+            plot_multiple = True
+            result_dict = results
+        else:
+            # Single result
+            plot_multiple = False
+            if result is None:
+                result = self.current_result
+                if result is None:
+                    raise ValueError("No result provided and no current result available.")
+            result_dict = {"result": result}
+
+        # Prepare colors
+        if colors is None:
+            # Default palette: black for reference, then tab10
+            default_colors = ["black", "#1f77b4", "#e68910", "#589c43", "indianred",
+                              "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22"]
+            # If more spectra than colors, cycle
+            colors = default_colors
+
+        # Create figure if needed
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            fig = ax.figure
+
+        # Plot reference spectrum if provided
+        if reference_spectrum is not None:
+            if isinstance(reference_spectrum, pd.DataFrame):
+                ref_E = reference_spectrum["E_MeV"].values
+                ref_Phi = reference_spectrum["Phi"].values
+            elif isinstance(reference_spectrum, dict):
+                ref_E = reference_spectrum["E_MeV"]
+                ref_Phi = reference_spectrum["Phi"]
+            else:
+                raise TypeError("reference_spectrum must be DataFrame or dict")
+            ax.plot(
+                ref_E,
+                ref_Phi,
+                label="reference",
+                linewidth=1,
+                linestyle=":",
+                color=colors[0],
+            )
+
+        # Plot each result
+        for i, (method, res) in enumerate(result_dict.items()):
+            color_idx = i + 1 if reference_spectrum is not None else i
+            color = colors[color_idx % len(colors)]
+
+            # Extract data
+            energy = res.get("energy", self.E_MeV)
+            spectrum = res.get("spectrum")
+            if spectrum is None:
+                raise ValueError(f"Result for '{method}' missing 'spectrum' key.")
+            # Uncertainty ranges
+            uncert_min = res.get("spectrum_uncert_min")
+            uncert_max = res.get("spectrum_uncert_max")
+
+            # Plot uncertainty region if available
+            if uncert_min is not None and uncert_max is not None:
+                ax.fill_between(
+                    energy,
+                    uncert_min,
+                    uncert_max,
+                    alpha=0.5,
+                    color=color,
+                    label=f"{method} uncertainty range",
+                )
+
+            # Plot spectrum line
+            ax.plot(
+                energy,
+                spectrum,
+                label=method,
+                color=color,
+                ls="-",
+                linewidth=0.8,
+                alpha=1,
+            )
+
+        # Set labels and scales
+        ax.set_xlabel("Energy, MeV")
+        ax.set_ylabel("Fluence per unit lethargy, F(E)E, neutron/(cm² ∙ s)")
+        ax.set_xscale("log")
+        # Adjust ylim
+        ymax = ax.get_ylim()[1]
+        if reference_spectrum is not None:
+            ymax = max(ymax, np.max(ref_Phi) * 1.5)
+        ax.set_ylim(0, ymax)
+        ax.legend(loc="upper left", borderaxespad=0.0, fontsize=8)
+        ax.grid(True, which="both", ls=":")
+
+        # Title
+        if title is None:
+            if plot_multiple:
+                title = "Unfolded spectra with uncertainty ranges"
+            else:
+                method = list(result_dict.keys())[0]
+                title = f"Unfolded spectrum ({method}) with uncertainty range"
+        ax.set_title(title, fontsize=14)
+
+        if show:
+            plt.show()
+
+        return fig, ax
+
     def discretize_spectra(
         self, spectra: Union[pd.DataFrame, Dict]
     ) -> pd.DataFrame:
