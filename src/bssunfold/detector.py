@@ -1214,10 +1214,9 @@ class Detector:
         if isinstance(initial_spectrum, np.ndarray):
             if len(initial_spectrum) != self.n_energy_bins:
                 raise ValueError(
-                    f"Initial spectrum length ({len(initial_spectrum)}) "
-                    f"must match number of energy bins ({
-                        self.n_energy_bins}). "
-                    "If you have a spectrum on a different energy grid, "
+                    f"Initial spectrum length ({len(initial_spectrum)}) ",
+                    f"must match number of energy bins ({self.n_energy_bins}). ",
+                    "If you have a spectrum on a different energy grid, ",
                     "provide it as a dict or DataFrame with 'E_MeV' column."
                 )
             # Ensure non-negative

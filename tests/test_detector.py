@@ -290,7 +290,7 @@ class TestDetectorInitializationVariants:
 
     def test_init_with_response_functions_rf_gsf(self):
         """Инициализация с response_functions=RF_GSF (старый способ)."""
-        from bssunfold.constants import RF_GSF
+        from src.bssunfold.constants import RF_GSF
         detector = Detector(response_functions=RF_GSF)
         assert detector.n_detectors > 0
         assert detector.n_energy_bins > 0
