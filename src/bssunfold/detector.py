@@ -10,7 +10,7 @@ import cvxpy as cp
 import odl
 import warnings
 from datetime import datetime
-
+import pytikhonov as ptk
 
 
 class Detector:
@@ -33,9 +33,10 @@ class Detector:
         and `sensitivities` is provided.
     sensitivities : dict or np.ndarray, optional
         Detector sensitivities. If dict, keys are detector names and
-        values
-        are arrays of same length as E_MeV. If 2D array, shape (n_energy, n_detectors).
-        Required if `response_functions` is not provided and `E_MeV` is provided.
+        values are arrays of same length as E_MeV. If 2D array,
+        shape (n_energy, n_detectors).
+        Required if `response_functions` is not provided
+        and `E_MeV` is provided.
 
     Attributes
     ----------
@@ -97,16 +98,20 @@ class Detector:
         response_functions : pd.DataFrame, dict, optional
             Response functions data. Can be:
             - pandas DataFrame with 'E_MeV' column and detector columns.
-            - dict with 'E_MeV' key (array) and detector names as keys (arrays).
+            - dict with 'E_MeV' key (array) and detector names as keys
+              (arrays).
             If None, default GSF response functions are used.
         E_MeV : np.ndarray, optional
-            Energy grid in MeV. Required if `response_functions` is not provided
+            Energy grid in MeV. Required if `response_functions` is not
+            provided
             and `sensitivities` is provided.
         sensitivities : dict or np.ndarray, optional
             Detector sensitivities. If dict, keys are detector names and
         values
-            are arrays of same length as E_MeV. If 2D array, shape (n_energy, n_detectors).
-            Required if `response_functions` is not provided and `E_MeV` is provided.
+            are arrays of same length as E_MeV. If 2D array,
+            shape (n_energy, n_detectors).
+            Required if `response_functions` is not provided
+            and `E_MeV` is provided.
 
         Raises
         ------
@@ -185,11 +190,13 @@ class Detector:
             elif isinstance(sensitivities, np.ndarray):
                 if sensitivities.ndim != 2:
                     raise ValueError(
-                        "sensitivities must be 2D array (n_energy, n_detectors)"
+                        "sensitivities must be 2D array "
+                        "(n_energy, n_detectors)"
                     )
                 if sensitivities.shape[0] != len(E_MeV):
                     raise ValueError(
-                        "Number of rows in sensitivities must match length of E_MeV"
+                        "Number of rows in sensitivities must match length "
+                        "of E_MeV"
                     )
                 # Create detector names
                 detector_names = [
@@ -242,7 +249,8 @@ class Detector:
         str
             String that can be used to recreate the object
         """
-        return f"Detector(E_MeV={self.E_MeV.tolist()}, sensitivities={self.sensitivities})"
+        return (f"Detector(E_MeV={self.E_MeV.tolist()}, "
+                f"sensitivities={self.sensitivities})")
 
     @property
     def n_detectors(self) -> int:
@@ -452,9 +460,11 @@ class Detector:
 
     def _convert_rf_to_matrix_variable_step(self, rf_df, Emin=1e-9) -> tuple:
         """
-        Convert response functions DataFrame to matrix with variable step correction.
+        Convert response functions DataFrame to matrix with variable step
+        correction.
 
-        Multiplies by np.log(10) and individual logarithmic energy step for each point.
+        Multiplies by np.log(10) and individual logarithmic energy step for
+        each point.
 
         Parameters
         ----------
@@ -868,7 +878,8 @@ class Detector:
         # Monte-Carlo uncertainty estimation
         if calculate_errors:
             print(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo "
+                "samples..."
             )
 
             spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
@@ -935,7 +946,8 @@ class Detector:
         readings : Dict[str, float]
             Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
-            Initial spectrum approximation. If None, a uniform spectrum is used.
+            Initial spectrum approximation. If None, a uniform spectrum is
+            used.
         tolerance : float, optional
             Convergence tolerance. Default is 1e-6.
         max_iterations : int, optional
@@ -945,7 +957,8 @@ class Detector:
         noise_level : float, optional
             Noise level for error calculation. Default is 0.01.
         n_montecarlo : int, optional
-            Number of Monte Carlo samples for error calculation. Default is 100.
+            Number of Monte Carlo samples for error calculation. Default is
+            100.
         save_result : bool, optional
             If True, save result to internal history. Default is True.
 
@@ -957,7 +970,8 @@ class Detector:
 
         # Вспомогательная функция для создания ODL пространств
         def _create_odl_spaces(b_size: int):
-            """Создание пространств ODL для заданного размера вектора измерений."""
+            """Создание пространств ODL для заданного размера вектора
+            измерений."""
             measurement_space = odl.uniform_discr(0, b_size - 1, b_size)
             spectrum_space = odl.uniform_discr(
                 np.min(self.E_MeV), np.max(self.E_MeV), self.E_MeV.shape[0]
@@ -1025,7 +1039,8 @@ class Detector:
         # Monte-Carlo оценка неопределенности
         if calculate_errors:
             print(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo "
+                "samples..."
             )
 
             spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
@@ -1123,7 +1138,8 @@ class Detector:
             return ICRP116_COEFF_EFFECTIVE_DOSE
         except ImportError:
             warnings.warn(
-                "ICRP-116 coefficients not found. Dose calculations will return zeros."
+                "ICRP-116 coefficients not found. Dose calculations will "
+                "return zeros."
             )
             return {}
 
@@ -1162,8 +1178,10 @@ class Detector:
 
         If initial_spectrum is None, returns None.
         If it's a numpy array, assumes it's already on self.E_MeV grid.
-        If lengths differ, raises ValueError (cannot interpolate without energies).
-        If it's a dict or DataFrame, uses discretize_spectra to interpolate onto self.E_MeV,
+        If lengths differ, raises ValueError (cannot interpolate without
+        energies).
+        If it's a dict or DataFrame, uses discretize_spectra to interpolate
+        onto self.E_MeV,
         ensuring non-negative values.
 
         Parameters
@@ -1173,7 +1191,8 @@ class Detector:
             - None: returns None.
             - np.ndarray: 1D array of length n_energy_bins (must match).
             - dict: with 'E_MeV' and 'Phi' keys (or similar).
-            - pd.DataFrame: with 'E_MeV' column and at least one spectrum column.
+            - pd.DataFrame: with 'E_MeV' column and at least one spectrum
+              column.
 
         Returns
         -------
@@ -1184,7 +1203,8 @@ class Detector:
         Raises
         ------
         ValueError
-            If initial_spectrum is np.ndarray with wrong length, or if dict/DataFrame
+            If initial_spectrum is np.ndarray with wrong length, or if
+            dict/DataFrame
             cannot be interpolated.
         """
         if initial_spectrum is None:
@@ -1231,7 +1251,8 @@ class Detector:
             return spectrum
 
         raise TypeError(
-            f"initial_spectrum must be None, np.ndarray, dict, or pd.DataFrame. "
+            f"initial_spectrum must be None, np.ndarray, dict, or "
+            f"pd.DataFrame. "
             f"Got {type(initial_spectrum)}"
         )
 
@@ -1359,7 +1380,8 @@ class Detector:
             Noise variance for discrepancy principle.
             If None, estimated from residual of unregularized solution.
         plot : bool, optional
-            If True, generate comparison plot using pytikhonov.plot_all_methods.
+            If True, generate comparison plot using "
+            "pytikhonov.plot_all_methods.
         plot_path : str, optional
             Path to save the plot. If None, plot is shown (if plot=True).
 
@@ -1373,7 +1395,6 @@ class Detector:
             - 'all_data': dict from pytikhonov.all_regparam_methods()
             - 'selected': dict mapping method name to selected lambda.
         """
-         import pytikhonov as ptk
 
         n = A.shape[1]
         L = np.eye(n)
@@ -1414,7 +1435,8 @@ class Detector:
         plot_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Public method to compare regularization selection methods for given readings.
+        Public method to compare regularization selection methods for given
+        readings.
 
         Parameters
         ----------
@@ -1596,7 +1618,8 @@ class Detector:
         fig : matplotlib.figure.Figure
             Figure object to save.
         save_to : str, optional
-            File path for saving. Supported extensions: .png, .jpg, .jpeg, .eps, .pdf.
+            File path for saving. Supported extensions: .png, .jpg, .jpeg, "
+            ".eps, .pdf."
             If None, figure is not saved.
         dpi : int, optional
             Resolution in dots per inch, default 300.
@@ -1638,7 +1661,8 @@ class Detector:
         Parameters
         ----------
         save_to : str, optional
-            File path to save the figure. Supported extensions: .png, .jpg, .jpeg, .eps, .pdf.
+            File path to save the figure. Supported extensions: .png, .jpg, "
+            ".jpeg, .eps, .pdf."
             If None, figure is not saved.
         show : bool, optional
             If True, display the figure with plt.show().
@@ -1697,11 +1721,13 @@ class Detector:
         Parameters
         ----------
         result : Dict[str, Any], optional
-            Single unfolding result dictionary (must contain 'energy', 'spectrum',
+            Single unfolding result dictionary (must contain 'energy',
+            'spectrum',
             and optionally 'spectrum_uncert_min', 'spectrum_uncert_max').
             If not provided, uses self.current_result.
         results : Dict[str, Dict[str, Any]], optional
-            Dictionary of multiple results (key: method name, value: result dict).
+            Dictionary of multiple results (key: method name, value: result
+            dict).
             If provided, plots all spectra with uncertainty ranges.
         reference_spectrum : pandas.DataFrame or dict, optional
             Reference spectrum with columns 'E_MeV' and 'Phi'.
@@ -1710,13 +1736,15 @@ class Detector:
         figsize : tuple, optional
             Figure size (width, height) in inches, default (12, 8).
         colors : list of str, optional
-            Colors for each spectrum (including reference). If None, uses default palette.
+            Colors for each spectrum (including reference). If None, uses
+            default palette.
         title : str, optional
             Plot title. If None, generates automatic title.
         show : bool, optional
             If True, calls plt.show().
         save_to : str, optional
-            File path to save the figure. Supported extensions: .png, .jpg, .jpeg, .eps, .pdf.
+            File path to save the figure. Supported extensions: .png, .jpg, "
+            ".jpeg, .eps, .pdf."
             If None, figure is not saved.
         dpi : int, optional
             Resolution for saved figure, default 300.
@@ -1884,13 +1912,15 @@ class Detector:
         self, spectra: Union[pd.DataFrame, Dict]
     ) -> pd.DataFrame:
         """
-        Interpolate spectra onto the target energy grid using PCHIP interpolation.
+        Interpolate spectra onto the target energy grid using PCHIP
+        interpolation.
         Extrapolation is avoided and replaced with zeros.
 
         Parameters:
         -----------
         spectra : pandas.DataFrame or dict
-            Input spectra to be discretized. If DataFrame, it should contain energy
+            Input spectra to be discretized. If DataFrame, it should contain
+            energy
             values. If dict, it should have 'E_MeV' and 'Phi' keys.
 
         Returns:
@@ -1915,7 +1945,8 @@ class Detector:
             spectre_df = spectra.copy()
         else:
             raise TypeError(
-                "Input spectra must be either a pandas DataFrame or a dictionary"
+                "Input spectra must be either a pandas DataFrame or a "
+                "dictionary"
             )
 
         # Extract energy values from the input
@@ -1935,12 +1966,14 @@ class Detector:
         # Check if target grid exceeds input grid bounds
         if new_ebins.min() < np.min(energies):
             print(
-                "Warning: Target energy bins extend below the input grid minimum. Setting values to zero."
+                "Warning: Target energy bins extend below the input grid "
+                "minimum. Setting values to zero."
             )
 
         if new_ebins.max() > np.max(energies):
             print(
-                "Warning: Target energy bins extend above the input grid maximum. Setting values to zero."
+                "Warning: Target energy bins extend above the input grid "
+                "maximum. Setting values to zero."
             )
 
         # Convert to logarithmic scale relative to minimum energy
@@ -2006,22 +2039,26 @@ class Detector:
         """
         Calculate effective readings for a given spectrum.
 
-        This function interpolates the input spectrum onto the detector's energy grid,
-        then calculates what readings each detector sphere would measure for that spectrum
+        This function interpolates the input spectrum onto the detector's "
+        "energy grid,
+        then calculates what readings each detector sphere would measure for "
+        "that spectrum
         by integrating the product of the spectrum and response functions.
 
         Parameters
         ----------
         spectra : pandas.DataFrame or dict
             Input spectra to calculate effective readings for.
-            - If DataFrame: Should contain 'E_MeV' column for energies and one or more
+            - If DataFrame: Should contain 'E_MeV' column for energies and "
+            "one or more
             columns for spectral data (e.g., 'Phi').
             - If dict: Should have 'E_MeV' and spectral data keys.
 
         Returns
         -------
         dict
-            Dictionary of effective readings for each detector sphere in the format:
+            Dictionary of effective readings for each detector sphere in the "
+            "format:
             {sphere_name: reading_value, ...}
 
         Raises
@@ -2045,7 +2082,8 @@ class Detector:
         ...     'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
         ...     'Phi': [1.0, 0.8, 0.5, 0.3, 0.1]
         ... }
-        >>> readings = detector.get_effective_readings_for_spectra(spectrum_dict)
+        >>> readings = detector.get_effective_readings_for_spectra(
+        ...     spectrum_dict)
         """
         # Handle dictionary input
         if isinstance(spectra, dict):
@@ -2056,8 +2094,8 @@ class Detector:
             spectra_df = spectra.copy()
         else:
             raise TypeError(
-                "Input spectra must be either a pandas DataFrame or a dictionary. "
-                f"Got type: {type(spectra)}"
+                "Input spectra must be either a pandas DataFrame or a "
+                f"dictionary. Got type: {type(spectra)}"
             )
 
         # Check if input has the same energy grid as detector
