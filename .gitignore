@@ -187,3 +187,5 @@ CONTRIBUTING.pdf
 .config
 .DS_Store
 __marimo__
+.idea
+.gigaide

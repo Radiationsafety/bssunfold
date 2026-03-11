@@ -1856,7 +1856,9 @@ class Detector:
                     energy,
                     uncert_min,
                     uncert_max,
-                    alpha=0.5,
+                    alpha=0.3,
+                    hatch='\\',
+                    facecolor=color,
                     color=color,
                     label=f"{method} uncertainty range",
                 )
@@ -1868,7 +1870,7 @@ class Detector:
                 label=method,
                 color=color,
                 ls="-",
-                linewidth=0.8,
+                linewidth=1.3,
                 alpha=1,
             )
 
