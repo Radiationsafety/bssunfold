@@ -580,6 +580,8 @@ class Detector:
             - 'dp': Discrepancy principle.
             - 'gcv': Generalized cross validation.
             - 'all': run all methods and pick L-curve value.
+            - 'cosine': maximize cosine similarity with initial_spectrum.
+                Requires `initial_spectrum` parameter.
         noise_var : float, optional
             Noise variance for discrepancy principle. If None, estimated from
             residual of unregularized solution. Only used for 'dp' method.
@@ -659,6 +661,43 @@ class Detector:
         if regularization_method == "manual":
             alpha = regularization
             selected_lambda = alpha
+        elif regularization_method == "cosine":
+            if initial_spectrum is None:
+                raise ValueError(
+                    "For 'cosine' regularization method, initial_spectrum must be provided."
+                )
+            # Warn if norm != 2 (cosine method assumes L2 for consistency)
+            if norm != 2:
+                warnings.warn(
+                    f"Cosine regularization selection method assumes L2 "
+                    f"norm, but norm={norm} was requested. Using L2 for "
+                    f"selection."
+                )
+            # Normalize initial spectrum
+            initial_spectrum_norm = self._normalize_initial_spectrum(initial_spectrum)
+            # Grid of alpha values
+            alphas = np.logspace(-9, 2, 100)
+            cosine_similarities = []
+            all_unfolded_spectra = []
+            # Temporary variable to store original alpha
+            original_alpha = alpha if 'alpha' in locals() else None
+            for alpha_val in alphas:
+                alpha = alpha_val
+                x_temp = _solve_problem(A, b, solver)
+                all_unfolded_spectra.append(x_temp)
+                cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
+                cosine_similarities.append(cos_sim)
+            # Restore alpha (will be set to optimal later)
+            if original_alpha is not None:
+                alpha = original_alpha
+            # Find optimal alpha
+            optimal_idx = np.argmax(cosine_similarities)
+            selected_lambda = alphas[optimal_idx]
+            alpha = selected_lambda
+            print(
+                f"Selected regularization (method=cosine): "
+                f"{selected_lambda:.3e}"
+            )
         else:
             # Warn if norm != 2 (automatic methods assume L2)
             if norm != 2:
@@ -1259,6 +1298,32 @@ class Detector:
             f"Got {type(initial_spectrum)}"
         )
 
+    def _cosine_similarity(
+        self, spectrum1: np.ndarray, spectrum2: np.ndarray
+    ) -> float:
+        """
+        Вычисление косинусного сходства между двумя спектрами.
+        
+        Parameters
+        ----------
+        spectrum1 : np.ndarray
+            Первый спектр
+        spectrum2 : np.ndarray
+            Второй спектр
+        
+        Returns
+        -------
+        float
+            Косинусное сходство (от -1 до 1)
+        """
+        # Нормализация спектров
+        norm1 = np.linalg.norm(spectrum1)
+        norm2 = np.linalg.norm(spectrum2)
+        
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        
+        return np.dot(spectrum1, spectrum2) / (norm1 * norm2)
     def _select_regularization(
         self,
         A: np.ndarray,
@@ -2194,22 +2259,66 @@ class Detector:
         Восстановление спектра с помощью библиотеки qpsolvers.
 
         Параметры:
+        ----------
         readings : Dict[str, float]
             Показания детекторов
         initial_spectrum : Optional[np.ndarray], optional
             Начальное приближение спектра. Если None, используется равномерный спектр.
         regularization : float, optional
-            Параметр регуляризации. По умолчанию 1e-4
+            Параметр регуляризации. По умолчанию 1e-4. Используется только при
+            regularization_method='manual'.
         norm : int, optional
-            Норма регуляризации (1 или 2). По умолчанию 2
+            Норма регуляризации (1 для L1, 2 для L2). По умолчанию 2.
+            Примечание: автоматические методы выбора регуляризации предполагают L2 норму.
         solver : str, optional
             Решатель QP из списка qpsolvers. По умолчанию "proxqp"
         calculate_errors : bool, optional
-            Флаг расчета ошибок восстановления. По умолчанию False
+            Флаг расчета ошибок восстановления методом Монте-Карло. По умолчанию False
+        noise_level : float, optional
+            Уровень шума для оценки ошибок Монте-Карло. По умолчанию 0.01
+        n_montecarlo : int, optional
+            Количество выборок Монте-Карло для оценки ошибок. По умолчанию 100
+        save_result : bool, optional
+            Если True, сохраняет результат во внутреннюю историю. По умолчанию True
+        regularization_method : str, optional
+            Метод выбора параметра регуляризации. Варианты:
+            - 'manual': использовать параметр `regularization` (по умолчанию).
+            - 'lcurve': эвристика угла L-кривой.
+            - 'dp': принцип невязки.
+            - 'gcv': обобщённая перекрёстная проверка.
+            - 'all': запустить все методы и выбрать значение L-кривой.
+            - 'cosine': максимизация косинусного сходства с initial_spectrum.
+                Требует параметр `initial_spectrum`.
+        noise_var : float, optional
+            Дисперсия шума для принципа невязки. Если None, оценивается по
+            невязке нерегуляризованного решения. Используется только для метода 'dp'.
 
         Возвращает:
+        --------
         Dict
-            Словарь с результатами восстановления спектра.
+            Словарь с результатами восстановления спектра, содержащий ключи:
+            - 'energy': энергетическая сетка [МэВ]
+            - 'spectrum': восстановленный спектр [счетов/бин]
+            - 'spectrum_absolute': абсолютный восстановленный спектр
+            - 'effective_readings': рассчитанные показания из восстановленного спектра
+            - 'residual': разница между измеренными и рассчитанными показаниями
+            - 'residual_norm': L2 норма невязки
+            - 'method': имя метода ('qpsolvers_{solver}')
+            - 'doserates': мощности доз для разных геометрий [пЗв/с]
+            - 'spectrum_uncert_*': оценки неопределённости (если calculate_errors=True)
+            - 'regularization_method': использованный метод выбора регуляризации.
+            - 'selected_regularization': выбранное значение параметра регуляризации.
+
+        Примеры:
+        --------
+        >>> readings = {'sphere_1': 150.2, 'sphere_2': 120.5, 'sphere_3': 95.7}
+        >>> result = detector.unfold_qpsolvers(
+        ...     readings,
+        ...     regularization=0.001,
+        ...     calculate_errors=True
+        ... )
+        >>> print(f"Длина спектра: {len(result['spectrum'])}")
+        >>> print(f"Норма невязки: {result['residual_norm']:.3f}")
         """
 
         def _solve_problem_qpsolvers(
@@ -2320,7 +2429,52 @@ class Detector:
         # select regularization method
         if regularization_method == "manual":
             alpha = regularization
+            selected_lambda = alpha
+        elif regularization_method == "cosine":
+            if initial_spectrum is None:
+                raise ValueError(
+                    "For 'cosine' regularization method, initial_spectrum must be provided."
+                )
+            # Warn if norm != 2 (cosine method assumes L2 for consistency)
+            if norm != 2:
+                warnings.warn(
+                    f"Cosine regularization selection method assumes L2 "
+                    f"norm, but norm={norm} was requested. Using L2 for "
+                    f"selection."
+                )
+            # Normalize initial spectrum
+            initial_spectrum_norm = self._normalize_initial_spectrum(initial_spectrum)
+            # Grid of alpha values
+            alphas = np.logspace(-9, 2, 100)
+            cosine_similarities = []
+            all_unfolded_spectra = []
+            # Temporary variable to store original alpha
+            original_alpha = alpha if 'alpha' in locals() else None
+            for alpha_val in alphas:
+                alpha = alpha_val
+                x_temp = _solve_problem_qpsolvers(A, b, alpha, norm, solver, x_init=initial_spectrum_norm)
+                all_unfolded_spectra.append(x_temp)
+                cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
+                cosine_similarities.append(cos_sim)
+            # Restore alpha (will be set to optimal later)
+            if original_alpha is not None:
+                alpha = original_alpha
+            # Find optimal alpha
+            optimal_idx = np.argmax(cosine_similarities)
+            selected_lambda = alphas[optimal_idx]
+            alpha = selected_lambda
+            print(
+                f"Selected regularization (method=cosine): "
+                f"{selected_lambda:.3e}"
+            )
         else:
+            # Warn if norm != 2 (automatic methods assume L2)
+            if norm != 2:
+                warnings.warn(
+                    f"Automatic regularization selection methods assume L2 "
+                    f"norm, but norm={norm} was requested. Using L2 for "
+                    f"selection."
+                )
             try:
                 selected_lambda = self._select_regularization(
                     A, b, method=regularization_method, noise_var=noise_var
@@ -2328,8 +2482,13 @@ class Detector:
             except Exception as e:
                 raise ValueError(
                     f"Regularization selection failed: {e}. "
-                    "Consider using manual regularization.")
+                    "Consider using manual regularization."
+                )
             alpha = selected_lambda
+            print(
+                f"Selected regularization (method={regularization_method}): "
+                f"{selected_lambda:.3e}"
+            )
         # Основное решение
         x_value = _solve_problem_qpsolvers(
             A, b, alpha, norm, solver, 
@@ -2355,6 +2514,8 @@ class Detector:
             method=f"qpsolvers_{solver}",
             norm=norm,
             regularization=regularization,
+            regularization_method=regularization_method,
+            selected_regularization=selected_lambda,
         )
 
         # Расчет погрешностей методом Монте-Карло (при необходимости)

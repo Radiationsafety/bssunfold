@@ -186,7 +186,7 @@ result = detector.unfold_qpsolvers(
 ```
 ### 5. `unfold_combined()`
 Combination (pipeline) of algorithms cvxpy → Landweber with selection of parameters for each method.
-```
+```python
 result = det.unfold_combined(
     readings=readings,
     pipeline=[
