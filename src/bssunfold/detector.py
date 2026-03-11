@@ -1,14 +1,16 @@
 """Detector class with unfolding methods."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.interpolate import pchip
 
-from typing import Dict, Optional, List, Tuple, Any
+from typing import Dict, Optional, List, Tuple, Any, Union
 import cvxpy as cp
 import odl
 import warnings
 from datetime import datetime
+import pytikhonov as ptk
 
 
 class Detector:
@@ -21,10 +23,20 @@ class Detector:
 
     Parameters
     ----------
-    response_functions_df : pd.DataFrame
-        DataFrame containing detector response functions. The first column should
-        be 'E_MeV' (energy in MeV) and subsequent columns contain response
-        functions for different detector spheres.
+    response_functions : pd.DataFrame, dict, optional
+        Response functions data. Can be:
+        - pandas DataFrame with 'E_MeV' column and detector columns.
+        - dict with 'E_MeV' key (array) and detector names as keys (arrays).
+        If None, default GSF response functions are used.
+    E_MeV : np.ndarray, optional
+        Energy grid in MeV. Required if `response_functions` is not provided
+        and `sensitivities` is provided.
+    sensitivities : dict or np.ndarray, optional
+        Detector sensitivities. If dict, keys are detector names and
+        values are arrays of same length as E_MeV. If 2D array,
+        shape (n_energy, n_detectors).
+        Required if `response_functions` is not provided
+        and `E_MeV` is provided.
 
     Attributes
     ----------
@@ -47,36 +59,69 @@ class Detector:
 
     Examples
     --------
-    >>> import pandas as pd
     >>> from bssunfold import Detector
-    >>> # Load response functions from CSV
-    >>> rf_df = pd.read_csv('response_functions.csv')
-    >>> detector = Detector(rf_df)
+    >>> # Create detector with default GSF response functions
+    >>> detector = Detector()
+    >>> # Or from a DataFrame
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({
+    ...     'E_MeV': [1e-9, 1e-8, 1e-7],
+    ...     'sphere_1': [0.1, 0.2, 0.3],
+    ...     'sphere_2': [0.4, 0.5, 0.6]
+    ... })
+    >>> detector = Detector(df)
+    >>> # Or from a dictionary
+    >>> rf_dict = {
+    ...     'E_MeV': [1e-9, 1e-8, 1e-7],
+    ...     'sphere_1': [0.1, 0.2, 0.3],
+    ...     'sphere_2': [0.4, 0.5, 0.6]
+    ... }
+    >>> detector = Detector(rf_dict)
+    >>> # Or using numpy arrays
+    >>> import numpy as np
+    >>> E = np.array([1e-9, 1e-8, 1e-7])
+    >>> sens = np.array([[0.1, 0.4], [0.2, 0.5], [0.3, 0.6]])
+    >>> detector = Detector(E_MeV=E, sensitivities=sens)
     >>> # Perform unfolding
     >>> readings = {'sphere_1': 100.5, 'sphere_2': 85.3}
     >>> result = detector.unfold_cvxpy(readings)
     """
 
-    def __init__(self, response_functions_df):
+    def __init__(
+        self, response_functions=None, E_MeV=None, sensitivities=None
+    ):
         """
         Initialize Detector with response functions.
 
         Parameters
         ----------
-        response_functions_df : pd.DataFrame
-            DataFrame containing response functions with 'E_MeV'
-            as first column
-            and detector names as subsequent columns.
+        response_functions : pd.DataFrame, dict, optional
+            Response functions data. Can be:
+            - pandas DataFrame with 'E_MeV' column and detector columns.
+            - dict with 'E_MeV' key (array) and detector names as keys
+              (arrays).
+            If None, default GSF response functions are used.
+        E_MeV : np.ndarray, optional
+            Energy grid in MeV. Required if `response_functions` is not
+            provided
+            and `sensitivities` is provided.
+        sensitivities : dict or np.ndarray, optional
+            Detector sensitivities. If dict, keys are detector names and
+        values
+            are arrays of same length as E_MeV. If 2D array,
+            shape (n_energy, n_detectors).
+            Required if `response_functions` is not provided
+            and `E_MeV` is provided.
 
         Raises
         ------
         ValueError
-            If E_MeV is not a 1D array or has less than 2 energy points
+            If E_MeV is not a 1D array or has less than 2 energy points,
+            or if input data is inconsistent.
         """
+        rf_df = self._process_input(response_functions, E_MeV, sensitivities)
         Amat, E_MeV, detector_names, log_steps = (
-            self._convert_rf_to_matrix_variable_step(
-                response_functions_df, Emin=1e-9
-            )
+            self._convert_rf_to_matrix_variable_step(rf_df, Emin=1e-9)
         )
 
         self.Amat = Amat
@@ -96,8 +141,88 @@ class Detector:
         self.cc_icrp116 = self._load_icrp116_coefficients()
 
         # Initialize results storage
-        self.results_history = {}
-        self.current_result = None
+        self.results_history: Dict[str, Dict[str, Any]] = {}
+        self.current_result: Optional[Dict[str, Any]] = None
+
+    def _process_input(self, response_functions, E_MeV, sensitivities):
+        """
+        Convert various input formats to a unified DataFrame.
+
+        Parameters
+        ----------
+        response_functions : pd.DataFrame, dict, or None
+        E_MeV : np.ndarray or None
+        sensitivities : dict, np.ndarray, or None
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with 'E_MeV' column and detector columns.
+        """
+        import pandas as pd
+        import numpy as np
+        from .constants import RF_GSF
+
+        # Case 1: response_functions is a DataFrame
+        if isinstance(response_functions, pd.DataFrame):
+            return response_functions.copy()
+
+        # Case 2: response_functions is a dict
+        if isinstance(response_functions, dict):
+            # Ensure 'E_MeV' key exists
+            if "E_MeV" not in response_functions:
+                raise ValueError("Dictionary must contain 'E_MeV' key")
+            return pd.DataFrame(response_functions)
+
+        # Case 3: E_MeV and sensitivities provided
+        if E_MeV is not None and sensitivities is not None:
+            if isinstance(sensitivities, dict):
+                # Convert dict to DataFrame
+                data = {"E_MeV": E_MeV}
+                for det_name, sens_arr in sensitivities.items():
+                    if len(sens_arr) != len(E_MeV):
+                        raise ValueError(
+                            f"Sensitivity array length for '{det_name}' "
+                            f"must match E_MeV length"
+                        )
+                    data[det_name] = sens_arr
+                return pd.DataFrame(data)
+            elif isinstance(sensitivities, np.ndarray):
+                if sensitivities.ndim != 2:
+                    raise ValueError(
+                        "sensitivities must be 2D array "
+                        "(n_energy, n_detectors)"
+                    )
+                if sensitivities.shape[0] != len(E_MeV):
+                    raise ValueError(
+                        "Number of rows in sensitivities must match length "
+                        "of E_MeV"
+                    )
+                # Create detector names
+                detector_names = [
+                    f"det_{i}" for i in range(sensitivities.shape[1])
+                ]
+                data = {"E_MeV": E_MeV}
+                for i, name in enumerate(detector_names):
+                    data[name] = sensitivities[:, i]
+                return pd.DataFrame(data)
+            else:
+                raise TypeError("sensitivities must be dict or np.ndarray")
+
+        # Case 4: No arguments, use default
+        if (
+            response_functions is None
+            and E_MeV is None
+            and sensitivities is None
+        ):
+            # Use GSF response functions as default
+            return pd.DataFrame(RF_GSF)
+
+        # If none of the above, raise error
+        raise ValueError(
+            "Invalid input combination. Provide either response_functions "
+            "(DataFrame/dict) or both E_MeV and sensitivities."
+        )
 
     def __str__(self) -> str:
         """
@@ -124,7 +249,8 @@ class Detector:
         str
             String that can be used to recreate the object
         """
-        return f"Detector(E_MeV={self.E_MeV.tolist()}, sensitivities={self.sensitivities})"
+        return (f"Detector(E_MeV={self.E_MeV.tolist()}, "
+                f"sensitivities={self.sensitivities})")
 
     @property
     def n_detectors(self) -> int:
@@ -135,11 +261,13 @@ class Detector:
     def n_energy_bins(self) -> int:
         """Number of energy bins."""
         return len(self.E_MeV)
-    
-    def get_response_matrix(self, readings):
-        """ Return response matrix for given readings (spheres)."""
+
+    def get_response_matrix(self, readings: Dict[str, float]) -> np.ndarray:
+        """Return response matrix for given readings (spheres)."""
         selected = [name for name in self.detector_names if name in readings]
-        A = np.array([self.sensitivities[name] for name in selected], dtype=float)
+        A = np.array(
+            [self.sensitivities[name] for name in selected], dtype=float
+        )
         return A
 
     def _save_result(self, result: Dict[str, Any]) -> str:
@@ -171,7 +299,9 @@ class Detector:
         print(f"Result saved with key: {key}")
         return key
 
-    def get_result(self, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_result(
+        self, key: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Get unfolding result from history.
 
@@ -330,9 +460,11 @@ class Detector:
 
     def _convert_rf_to_matrix_variable_step(self, rf_df, Emin=1e-9) -> tuple:
         """
-        Convert response functions DataFrame to matrix with variable step correction.
+        Convert response functions DataFrame to matrix with variable step
+        correction.
 
-        Multiplies by np.log(10) and individual logarithmic energy step for each point.
+        Multiplies by np.log(10) and individual logarithmic energy step for
+        each point.
 
         Parameters
         ----------
@@ -408,6 +540,9 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
+        save_result: bool = True,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Unfold neutron spectrum using convex optimization (cvxpy).
@@ -419,13 +554,31 @@ class Detector:
         initial_spectrum : Optional[np.ndarray], optional
             Initial spectrum guess. If None, uniform spectrum is used.
         regularization : float, optional
-            Regularization parameter, default: 1e-4
+            Regularization parameter, default: 1e-4. Used only when
+            regularization_method='manual'.
         norm : int, optional
-            Norm type for regularization (1 for L1, 2 for L2), default: 2
+            Norm type for regularization (1 for L1, 2 for L2), default: 2.
+            Note: automatic regularization selection methods assume L2 norm.
         solver : str, optional
             Solver to use ('ECOS' or 'default'), default: 'default'
         calculate_errors : bool, optional
             Flag to calculate unfolding errors via Monte-Carlo, default: False
+        noise_level : float, optional
+            Noise level for Monte-Carlo error estimation, default: 0.01
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100
+        save_result : bool, optional
+            If True, save result to internal history, default: True
+        regularization_method : str, optional
+            Method for selecting regularization parameter. Options:
+            - 'manual': use the `regularization` parameter (default).
+            - 'lcurve': L-curve corner heuristic.
+            - 'dp': Discrepancy principle.
+            - 'gcv': Generalized cross validation.
+            - 'all': run all methods and pick L-curve value.
+        noise_var : float, optional
+            Noise variance for discrepancy principle. If None, estimated from
+            residual of unregularized solution. Only used for 'dp' method.
 
         Returns
         -------
@@ -439,7 +592,10 @@ class Detector:
             - 'residual_norm': L2 norm of residual
             - 'method': Method name ('cvxpy')
             - 'doserates': Dose rates for different geometries [pSv/s]
-            - 'spectrum_uncert_*': Uncertainty estimates (if calculate_errors=True)
+            - 'spectrum_uncert_*': Uncertainty estimates (if
+              calculate_errors=True)
+            - 'regularization_method': method used for selecting lambda.
+            - 'selected_regularization': selected lambda value.
 
         Raises
         ------
@@ -473,14 +629,63 @@ class Detector:
             else:
                 problem.solve()
 
-            print(f"Status: {problem.status}")
+            status = problem.status
+            print(f"Status: {status}")
             print(f"Objective value: {problem.value}")
+
+            if x.value is None:
+                warnings.warn(
+                    f"Solution variable is None. Problem status: {status}. "
+                    "Returning zero vector."
+                )
+                return np.zeros(A.shape[1])
+            # Check for non-optimal status
+            if status not in ["optimal", "optimal_inaccurate"]:
+                warnings.warn(
+                    f"Problem status is not optimal: {status}. "
+                    "Solution may be inaccurate."
+                )
             return x.value
 
         # Validate and solve
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
-        alpha = regularization
+
+        # Select regularization parameter
+        if regularization_method == "manual":
+            alpha = regularization
+            selected_lambda = alpha
+        else:
+            # Warn if norm != 2 (automatic methods assume L2)
+            if norm != 2:
+                warnings.warn(
+                    f"Automatic regularization selection methods assume L2 "
+                    f"norm, but norm={norm} was requested. Using L2 for "
+                    f"selection."
+                )
+            try:
+                selected_lambda = self._select_regularization(
+                    A, b, method=regularization_method, noise_var=noise_var
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"Regularization selection failed: {e}. "
+                    "Consider using manual regularization."
+                )
+            alpha = selected_lambda
+            print(
+                f"Selected regularization (method={regularization_method}): "
+                f"{selected_lambda:.3e}"
+            )
+
+        # Normalize initial spectrum if provided
+        if initial_spectrum is not None:
+            initial_spectrum = self._normalize_initial_spectrum(
+                initial_spectrum
+            )
+            # Currently not used in cvxpy solver, but kept for compatibility
+            # Could be used as initial guess for x in future improvements
+
         n = A.shape[1]
 
         # Main solution
@@ -499,6 +704,8 @@ class Detector:
             method="cvxpy",
             norm=norm,
             solver=solver,
+            regularization_method=regularization_method,
+            selected_regularization=selected_lambda,
         )
 
         # Monte-Carlo error estimation
@@ -524,9 +731,10 @@ class Detector:
             )
             print("...uncertainty calculated.")
 
-        self._save_result(output)
+        if save_result:
+            self._save_result(output)
         return output
- 
+
     def unfold_landweber(
         self,
         readings: Dict[str, float],
@@ -536,6 +744,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
+        save_result: bool = True,
     ) -> Dict[str, Any]:
         """
         Unfold neutron spectrum using the Landweber iteration method.
@@ -556,6 +765,8 @@ class Detector:
             Noise level for Monte-Carlo uncertainty calculation, default: 0.01
         n_montecarlo : int, optional
             Number of Monte-Carlo samples for error estimation, default: 100
+        save_result : bool, optional
+            If True, save result to internal history, default: True
 
         Returns
         -------
@@ -639,17 +850,13 @@ class Detector:
         validated_readings = self._validate_readings(readings)
         A, b, selected = self._build_system(validated_readings)
 
-        # Set initial spectrum
+        # Set initial spectrum (normalize if needed)
         if initial_spectrum is None:
-            # x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A)
             x0 = np.zeros(self.n_energy_bins)
         else:
-            if len(initial_spectrum) != self.n_energy_bins:
-                raise ValueError(
-                    f"Initial spectrum length ({len(initial_spectrum)}) "
-                    f"must match number of energy bins ({self.n_energy_bins})"
-                )
-            x0 = np.maximum(initial_spectrum, 0)
+            x0 = self._normalize_initial_spectrum(initial_spectrum)
+            if x0 is None:
+                x0 = np.zeros(self.n_energy_bins)
 
         # Main Landweber iteration
         x_opt, n_iter, converged = _landweber_iteration(
@@ -671,7 +878,8 @@ class Detector:
         # Monte-Carlo uncertainty estimation
         if calculate_errors:
             print(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo "
+                "samples..."
             )
 
             spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
@@ -713,7 +921,8 @@ class Detector:
                 }
             )
             print("...uncertainty calculation completed.")
-        self._save_result(output)
+        if save_result:
+            self._save_result(output)
         return output
 
     def unfold_mlem_odl(
@@ -725,6 +934,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
+        save_result: bool = True,
     ) -> Dict:
         """
         Unfold the neutron spectrum using the Maximum
@@ -736,7 +946,8 @@ class Detector:
         readings : Dict[str, float]
             Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
-            Initial spectrum approximation. If None, a uniform spectrum is used.
+            Initial spectrum approximation. If None, a uniform spectrum is
+            used.
         tolerance : float, optional
             Convergence tolerance. Default is 1e-6.
         max_iterations : int, optional
@@ -746,16 +957,21 @@ class Detector:
         noise_level : float, optional
             Noise level for error calculation. Default is 0.01.
         n_montecarlo : int, optional
-            Number of Monte Carlo samples for error calculation. Default is 100.
+            Number of Monte Carlo samples for error calculation. Default is
+            100.
+        save_result : bool, optional
+            If True, save result to internal history. Default is True.
 
         Returns
         -------
         Dict
             Dictionary containing the spectrum restoration results.
         """
+
         # Вспомогательная функция для создания ODL пространств
         def _create_odl_spaces(b_size: int):
-            """Создание пространств ODL для заданного размера вектора измерений."""
+            """Создание пространств ODL для заданного размера вектора
+            измерений."""
             measurement_space = odl.uniform_discr(0, b_size - 1, b_size)
             spectrum_space = odl.uniform_discr(
                 np.min(self.E_MeV), np.max(self.E_MeV), self.E_MeV.shape[0]
@@ -774,39 +990,42 @@ class Detector:
         def _run_mlem(A_matrix, b_vector, initial_spectrum_vals=None):
             """Запуск алгоритма MLEM для заданной системы уравнений."""
             # Создаем пространства ODL
-            measurement_space, spectrum_space = _create_odl_spaces(len(b_vector))
-            
+            measurement_space, spectrum_space = _create_odl_spaces(
+                len(b_vector)
+            )
+
             # Создаем оператор (матрицу чувствительности)
             operator = odl.MatrixOperator(
-                A_matrix, 
-                domain=spectrum_space, 
-                range=measurement_space
+                A_matrix, domain=spectrum_space, range=measurement_space
             )
-            
+
             y = measurement_space.element(b_vector)
             x = _initialize_spectrum(spectrum_space, initial_spectrum_vals)
-            
+
             # Запускаем алгоритм MLEM
             odl.solvers.mlem(
-                operator, 
-                x, 
-                y, 
-                niter=max_iterations, 
-                callback=callback
+                operator, x, y, niter=max_iterations, callback=callback
             )
-            
+
             return x.asarray(), A_matrix, b_vector
 
         # Инициализация
         callback = odl.solvers.CallbackPrintIteration()
-        
+
         # Валидация и подготовка данных
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
-        
+
+        # Нормализация начального спектра
+        normalized_initial = None
+        if initial_spectrum is not None:
+            normalized_initial = self._normalize_initial_spectrum(
+                initial_spectrum
+            )
+
         # Основной запуск MLEM
-        unfolded_spectrum, A, b = _run_mlem(A, b, initial_spectrum)
-        
+        unfolded_spectrum, A, b = _run_mlem(A, b, normalized_initial)
+
         # Создание основного результата
         output = self._standardize_output(
             spectrum=unfolded_spectrum,
@@ -816,24 +1035,29 @@ class Detector:
             method="MLEM (ODL)",
             iterations=max_iterations,
         )
-        
+
         # Monte-Carlo оценка неопределенности
         if calculate_errors:
-            print(f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples...")
-            
+            print(
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo "
+                "samples..."
+            )
+
             spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            
+
             for i in range(n_montecarlo):
                 # Добавляем шум к показаниям
                 noisy_readings = self._add_noise(readings, noise_level)
-                
+
                 # Перестраиваем систему с зашумленными данными
                 A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-                
+
                 # Запускаем MLEM с теми же параметрами
-                spectrum_sample, _, _ = _run_mlem(A_noisy, b_noisy, initial_spectrum)
+                spectrum_sample, _, _ = _run_mlem(
+                    A_noisy, b_noisy, normalized_initial
+                )
                 spectra_samples[i] = spectrum_sample
-            
+
             # Вычисляем статистики неопределенности
             uncertainty_stats = {
                 "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
@@ -841,16 +1065,20 @@ class Detector:
                 "spectrum_uncert_min": np.min(spectra_samples, axis=0),
                 "spectrum_uncert_max": np.max(spectra_samples, axis=0),
                 "spectrum_uncert_median": np.median(spectra_samples, axis=0),
-                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
-                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
+                "spectrum_uncert_percentile_5": np.percentile(
+                    spectra_samples, 5, axis=0
+                ),
+                "spectrum_uncert_percentile_95": np.percentile(
+                    spectra_samples, 95, axis=0
+                ),
                 "spectrum_uncert_all": spectra_samples,
                 "montecarlo_samples": n_montecarlo,
                 "noise_level": noise_level,
             }
-            
+
             output.update(uncertainty_stats)
             print("...uncertainty calculation completed.")
-        
+
         self._save_result(output)
         return output
 
@@ -883,7 +1111,8 @@ class Detector:
         """
         if not self.cc_icrp116:
             return {
-                geom: 0.0 for geom in ["AP", "PA", "LLAT", "RLAT", "ISO", "ROT"]
+                geom: 0.0
+                for geom in ["AP", "PA", "LLAT", "RLAT", "ISO", "ROT"]
             }
 
         doserates = {}
@@ -909,7 +1138,8 @@ class Detector:
             return ICRP116_COEFF_EFFECTIVE_DOSE
         except ImportError:
             warnings.warn(
-                "ICRP-116 coefficients not found. Dose calculations will return zeros."
+                "ICRP-116 coefficients not found. Dose calculations will "
+                "return zeros."
             )
             return {}
 
@@ -939,9 +1169,509 @@ class Detector:
             readings_noisy[key] = value * (1 + noise)
         return readings_noisy
 
+    def _normalize_initial_spectrum(
+        self,
+        initial_spectrum: Optional[Union[np.ndarray, Dict, pd.DataFrame]],
+    ) -> Optional[np.ndarray]:
+        """
+        Normalize initial spectrum to detector's energy grid.
+
+        If initial_spectrum is None, returns None.
+        If it's a numpy array, assumes it's already on self.E_MeV grid.
+        If lengths differ, raises ValueError (cannot interpolate without
+        energies).
+        If it's a dict or DataFrame, uses discretize_spectra to interpolate
+        onto self.E_MeV,
+        ensuring non-negative values.
+
+        Parameters
+        ----------
+        initial_spectrum : Optional[Union[np.ndarray, Dict, pd.DataFrame]]
+            Initial spectrum guess. Can be:
+            - None: returns None.
+            - np.ndarray: 1D array of length n_energy_bins (must match).
+            - dict: with 'E_MeV' and 'Phi' keys (or similar).
+            - pd.DataFrame: with 'E_MeV' column and at least one spectrum
+              column.
+
+        Returns
+        -------
+        Optional[np.ndarray]
+            Normalized spectrum as 1D numpy array of length self.n_energy_bins,
+            with negative values replaced by 0. Returns None if input is None.
+
+        Raises
+        ------
+        ValueError
+            If initial_spectrum is np.ndarray with wrong length, or if
+            dict/DataFrame
+            cannot be interpolated.
+        """
+        if initial_spectrum is None:
+            return None
+
+        # Case 1: numpy array
+        if isinstance(initial_spectrum, np.ndarray):
+            if len(initial_spectrum) != self.n_energy_bins:
+                raise ValueError(
+                    f"Initial spectrum length ({len(initial_spectrum)}) ",
+                    f"must match number of energy bins ({self.n_energy_bins}). ",
+                    "If you have a spectrum on a different energy grid, ",
+                    "provide it as a dict or DataFrame with 'E_MeV' column."
+                )
+            # Ensure non-negative
+            return np.maximum(initial_spectrum, 0)
+
+        # Case 2: dict or DataFrame
+        # Use existing discretize_spectra method which does PCHIP interpolation
+        # and replaces negatives with zero.
+        if isinstance(initial_spectrum, (dict, pd.DataFrame)):
+            # discretize_spectra returns DataFrame with columns 'E_MeV' and at
+            # least one spectrum column
+            discretized = self.discretize_spectra(initial_spectrum)
+            # Extract the first spectrum column (assuming single spectrum)
+            # If multiple columns, take the first non-energy column
+            if "Phi" in discretized.columns:
+                spectrum_col = "Phi"
+            else:
+                # Find first column that is not 'E_MeV'
+                non_energy_cols = [
+                    c for c in discretized.columns if c != "E_MeV"
+                ]
+                if not non_energy_cols:
+                    raise ValueError(
+                        "No spectrum column found in discretized result."
+                    )
+                spectrum_col = non_energy_cols[0]
+            spectrum = discretized[spectrum_col].values
+            # Ensure non-negative (already done by discretize_spectra, but
+            # double-check)
+            spectrum = np.maximum(spectrum, 0)
+            return spectrum
+
+        raise TypeError(
+            f"initial_spectrum must be None, np.ndarray, dict, or "
+            f"pd.DataFrame. "
+            f"Got {type(initial_spectrum)}"
+        )
+
+    def _select_regularization(
+        self,
+        A: np.ndarray,
+        b: np.ndarray,
+        method: str = "lcurve",
+        noise_var: Optional[float] = None,
+    ) -> float:
+        """
+        Select regularization parameter using pytikhonov methods.
+
+        Parameters
+        ----------
+        A : np.ndarray
+            Response matrix (m x n).
+        b : np.ndarray
+            Measurement vector (m,).
+        method : str, optional
+            Selection method: 'lcurve', 'dp', 'gcv', 'all'. Default 'lcurve'.
+        noise_var : float, optional
+            Noise variance (relative) for discrepancy principle.
+            If None, estimated from residual of unregularized solution.
+
+        Returns
+        -------
+        float
+            Selected regularization parameter (lambda).
+
+        Raises
+        ------
+        ValueError
+            If method is unknown or pytikhonov fails.
+        """
+        import pytikhonov as ptk
+
+        # Ensure L = I (identity) for standard Tikhonov
+        n = A.shape[1]
+        L = np.eye(n)
+
+        # Create Tikhonov family
+        try:
+            fam = ptk.TikhonovFamily(A, L, b)
+        except Exception as e:
+            raise ValueError(f"Failed to create TikhonovFamily: {e}")
+
+        if method == "lcurve":
+            result = ptk.lcorner(fam)
+            lam = result.get("opt_lambdah")
+            if lam is None:
+                raise ValueError("L-curner heuristic did not return lambda.")
+        elif method == "dp":
+            if noise_var is None:
+                # Estimate noise variance from residual of
+                # unregularized solution
+                # Use least squares solution (without regularization)
+                x_ls, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+                residual = b - A @ x_ls
+                noise_var = np.var(residual)
+            delta = np.sqrt(noise_var)  # standard deviation
+            result = ptk.discrepancy_principle(fam, delta=delta)
+            lam = result.get("opt_lambdah")
+            if lam is None:
+                raise ValueError(
+                    "Discrepancy principle did not return lambda."
+                )
+        elif method == "gcv":
+            result = ptk.gcvmin(fam)
+            lam = result.get("opt_lambdah")
+            if lam is None:
+                raise ValueError("GCV minimization did not return lambda.")
+        elif method == "all":
+            # Run all methods and return a dictionary
+            # For compatibility, we return the L-curve value
+            result = ptk.all_regparam_methods(fam)
+            # result is dict with keys 'lcurve_data', 'gcv_data'
+            # (DP not included)
+            lcurve_data = result.get("lcurve_data", {})
+            lam = lcurve_data.get("opt_lambdah")
+            if lam is None:
+                raise ValueError("All methods did not return lambda.")
+        else:
+            raise ValueError(
+                f"Unknown regularization selection method: {method}. "
+                "Choose from 'lcurve', 'dp', 'gcv', 'all'."
+            )
+
+        lam = float(lam)
+
+        # Clamp extreme values to avoid numerical issues
+        if lam > 1e6:
+            warnings.warn(
+                f"Selected regularization parameter ({lam:.3e}) is too "
+                f"large. Clamping to 1e6."
+            )
+            lam = 1e6
+        if lam < 1e-12:
+            warnings.warn(
+                f"Selected regularization parameter ({lam:.3e}) is too "
+                f"small. Clamping to 1e-12."
+            )
+            lam = 1e-12
+
+        return lam
+
+    def _compare_regularization_methods(
+        self,
+        A: np.ndarray,
+        b: np.ndarray,
+        noise_var: Optional[float] = None,
+        plot: bool = False,
+        plot_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Compare all regularization parameter selection methods.
+
+        Parameters
+        ----------
+        A : np.ndarray
+            Response matrix (m x n).
+        b : np.ndarray
+            Measurement vector (m,).
+        noise_var : float, optional
+            Noise variance for discrepancy principle.
+            If None, estimated from residual of unregularized solution.
+        plot : bool, optional
+            If True, generate comparison plot using "
+            "pytikhonov.plot_all_methods.
+        plot_path : str, optional
+            Path to save the plot. If None, plot is shown (if plot=True).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary with keys:
+            - 'lcurve': dict from fam.lcorner()
+            - 'dp': dict from fam.discrepancy_principle()
+            - 'gcv': dict from fam.gcvmin()
+            - 'all_data': dict from pytikhonov.all_regparam_methods()
+            - 'selected': dict mapping method name to selected lambda.
+        """
+
+        n = A.shape[1]
+        L = np.eye(n)
+        fam = ptk.TikhonovFamily(A, L, b)
+
+        # Compute each method
+        lc_res = ptk.lcorner(fam)
+        if noise_var is None:
+            x_ls, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+            noise_var = np.var(b - A @ x_ls)
+        delta = np.sqrt(noise_var)
+        dp_res = ptk.discrepancy_principle(fam, delta=delta)
+        gcv_res = ptk.gcvmin(fam)
+        all_data = ptk.all_regparam_methods(fam)
+
+        selected = {
+            "lcurve": lc_res.get("opt_lambdah"),
+            "dp": dp_res.get("opt_lambdah"),
+            "gcv": gcv_res.get("opt_lambdah"),
+        }
+
+        if plot:
+            ptk.plot_all_methods(all_data, plot_path=plot_path)
+
+        return {
+            "lcurve": lc_res,
+            "dp": dp_res,
+            "gcv": gcv_res,
+            "all_data": all_data,
+            "selected": selected,
+        }
+
+    def compare_regularization_methods(
+        self,
+        readings: Dict[str, float],
+        noise_var: Optional[float] = None,
+        plot: bool = False,
+        plot_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Public method to compare regularization selection methods for given
+        readings.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        noise_var : float, optional
+            Noise variance for discrepancy principle.
+            If None, estimated from residual of unregularized solution.
+        plot : bool, optional
+            If True, generate comparison plot.
+        plot_path : str, optional
+            Path to save the plot.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Comparison results as returned by _compare_regularization_methods.
+        """
+        readings = self._validate_readings(readings)
+        A, b, _ = self._build_system(readings)
+        return self._compare_regularization_methods(
+            A, b, noise_var=noise_var, plot=plot, plot_path=plot_path
+        )
+
+    def _randomization_experiment(
+        self,
+        A: np.ndarray,
+        b: np.ndarray,
+        noise_var: Optional[float] = None,
+        n_samples: int = 10,
+        rseed: int = 0,
+        methods: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run randomization experiments for regularization parameter selection.
+
+        Parameters
+        ----------
+        A : np.ndarray
+            Response matrix (m x n).
+        b : np.ndarray
+            Measurement vector (m,).
+        noise_var : float, optional
+            Noise variance for generating perturbed measurements.
+            If None, estimated from residual of unregularized solution.
+        n_samples : int, optional
+            Number of random samples for each method, default 10.
+        rseed : int, optional
+            Random seed for reproducibility, default 0.
+        methods : list of str, optional
+            List of methods to run: 'lcurve', 'dp', 'gcv', 'lcurve_full'.
+            If None, runs all four.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary with keys for each method, each containing:
+            - 'lambdas': array of selected lambdas per sample.
+            - 'mean': mean of lambdas.
+            - 'std': standard deviation.
+            - 'median': median.
+            - 'min', 'max': range.
+            - 'cv': coefficient of variation (std/mean).
+            - 'raw_result': raw output from pytikhonov function.
+        """
+        import pytikhonov as ptk
+
+        n = A.shape[1]
+        L = np.eye(n)
+
+        # Estimate noise variance if not provided
+        if noise_var is None:
+            x_ls, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+            noise_var = np.var(b - A @ x_ls)
+
+        # Create TikhonovFamily with btrue = b (assumed true signal)
+        fam = ptk.TikhonovFamily(A, L, b, btrue=b, noise_var=noise_var)
+
+        if methods is None:
+            methods = ["lcurve", "dp", "gcv", "lcurve_full"]
+
+        results = {}
+        for method in methods:
+            if method == "lcurve":
+                raw = ptk.rand_lcorner(fam, n_samples=n_samples, rseed=rseed)
+                lambdas = np.array(raw[0])  # first element is list of lambdas
+            elif method == "dp":
+                raw = ptk.rand_discrepancy_principle(
+                    fam, n_samples=n_samples, tau=1.01, rseed=rseed
+                )
+                lambdas = np.array(raw[0])
+            elif method == "gcv":
+                raw = ptk.rand_gcvmin(fam, n_samples=n_samples, rseed=rseed)
+                lambdas = np.array(raw[0])
+            elif method == "lcurve_full":
+                raw = ptk.rand_lcurve(
+                    fam, lambdahs=None, n_samples=n_samples, rseed=rseed
+                )
+                lambdas = np.array(raw[0])
+            else:
+                raise ValueError(f"Unknown randomization method: {method}")
+
+            # Compute statistics
+            mean = float(np.mean(lambdas))
+            std = float(np.std(lambdas))
+            median = float(np.median(lambdas))
+            min_val = float(np.min(lambdas))
+            max_val = float(np.max(lambdas))
+            cv = std / mean if mean != 0 else np.inf
+
+            results[method] = {
+                "lambdas": lambdas,
+                "mean": mean,
+                "std": std,
+                "median": median,
+                "min": min_val,
+                "max": max_val,
+                "cv": cv,
+                "raw_result": raw,
+            }
+
+        return results
+
+    def randomization_experiment(
+        self,
+        readings: Dict[str, float],
+        noise_var: Optional[float] = None,
+        n_samples: int = 10,
+        rseed: int = 0,
+        methods: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Public method to run randomization experiments for given readings.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        noise_var : float, optional
+            Noise variance for generating perturbed measurements.
+            If None, estimated from residual of unregularized solution.
+        n_samples : int, optional
+            Number of random samples for each method, default 10.
+        rseed : int, optional
+            Random seed for reproducibility, default 0.
+        methods : list of str, optional
+            List of methods to run: 'lcurve', 'dp', 'gcv', 'lcurve_full'.
+            If None, runs all four.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Results as returned by _randomization_experiment.
+        """
+        readings = self._validate_readings(readings)
+        A, b, _ = self._build_system(readings)
+        return self._randomization_experiment(
+            A,
+            b,
+            noise_var=noise_var,
+            n_samples=n_samples,
+            rseed=rseed,
+            methods=methods,
+        )
+
+    def _save_figure(
+        self,
+        fig: plt.Figure,
+        save_to: Optional[str] = None,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
+    ) -> None:
+        """
+        Save figure to file with support for multiple formats.
+
+        Parameters
+        ----------
+        fig : matplotlib.figure.Figure
+            Figure object to save.
+        save_to : str, optional
+            File path for saving. Supported extensions: .png, .jpg, .jpeg, "
+            ".eps, .pdf."
+            If None, figure is not saved.
+        dpi : int, optional
+            Resolution in dots per inch, default 300.
+        bbox_inches : str, optional
+            Bounding box inches, default "tight".
+        **savefig_kwargs : dict
+            Additional keyword arguments passed to fig.savefig().
+        """
+        if save_to is None:
+            return
+        # Validate extension
+        allowed_extensions = (".png", ".jpg", ".jpeg", ".eps", ".pdf")
+        if not any(
+            save_to.lower().endswith(ext) for ext in allowed_extensions
+        ):
+            raise ValueError(
+                f"Unsupported file extension. Allowed: {allowed_extensions}"
+            )
+        fig.savefig(
+            save_to,
+            dpi=dpi,
+            bbox_inches=bbox_inches,
+            **savefig_kwargs,
+        )
+        print(f"Figure saved to: {save_to}")
+
     # --- UTILS ---
-    def plot_response_functions(self):
-        """ plot all response functions"""
+    def plot_response_functions(
+        self,
+        save_to: Optional[str] = None,
+        show: bool = True,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
+    ) -> None:
+        """
+        Plot all response functions.
+
+        Parameters
+        ----------
+        save_to : str, optional
+            File path to save the figure. Supported extensions: .png, .jpg, "
+            ".jpeg, .eps, .pdf."
+            If None, figure is not saved.
+        show : bool, optional
+            If True, display the figure with plt.show().
+        dpi : int, optional
+            Resolution for saved figure, default 300.
+        bbox_inches : str, optional
+            Bounding box inches, default "tight".
+        **savefig_kwargs : dict
+            Additional keyword arguments passed to fig.savefig().
+        """
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
         for key, rf in self.sensitivities.items():
             ax.plot(
@@ -955,33 +1685,256 @@ class Detector:
         ax.legend()
         ax.grid(True, alpha=0.3)
         ax.set_title("Response functions of the detector")
-        plt.show()
+
+        # Save figure if requested
+        self._save_figure(
+            fig,
+            save_to=save_to,
+            dpi=dpi,
+            bbox_inches=bbox_inches,
+            **savefig_kwargs,
+        )
+
+        if show:
+            plt.show()
         plt.close()
 
-    def discretize_spectra(self, spectra):
-        '''
-        Interpolate spectra onto the target energy grid using PCHIP interpolation.
+    def plot_with_uncertainty(
+        self,
+        result: Optional[Dict[str, Any]] = None,
+        results: Optional[Dict[str, Dict[str, Any]]] = None,
+        reference_spectrum: Optional[Union[pd.DataFrame, Dict]] = None,
+        ax: Optional[plt.Axes] = None,
+        figsize: Tuple[int, int] = (12, 8),
+        colors: Optional[List[str]] = None,
+        title: Optional[str] = None,
+        show: bool = True,
+        save_to: Optional[str] = None,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
+    ) -> Tuple[plt.Figure, plt.Axes]:
+        """
+        Plot unfolded spectrum with uncertainty range.
+
+        Parameters
+        ----------
+        result : Dict[str, Any], optional
+            Single unfolding result dictionary (must contain 'energy',
+            'spectrum',
+            and optionally 'spectrum_uncert_min', 'spectrum_uncert_max').
+            If not provided, uses self.current_result.
+        results : Dict[str, Dict[str, Any]], optional
+            Dictionary of multiple results (key: method name, value: result
+            dict).
+            If provided, plots all spectra with uncertainty ranges.
+        reference_spectrum : pandas.DataFrame or dict, optional
+            Reference spectrum with columns 'E_MeV' and 'Phi'.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates new figure.
+        figsize : tuple, optional
+            Figure size (width, height) in inches, default (12, 8).
+        colors : list of str, optional
+            Colors for each spectrum (including reference). If None, uses
+            default palette.
+        title : str, optional
+            Plot title. If None, generates automatic title.
+        show : bool, optional
+            If True, calls plt.show().
+        save_to : str, optional
+            File path to save the figure. Supported extensions: .png, .jpg, "
+            ".jpeg, .eps, .pdf."
+            If None, figure is not saved.
+        dpi : int, optional
+            Resolution for saved figure, default 300.
+        bbox_inches : str, optional
+            Bounding box inches, default "tight".
+        **savefig_kwargs : dict
+            Additional keyword arguments passed to fig.savefig().
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            Figure object.
+        ax : matplotlib.axes.Axes
+            Axes object.
+
+        Examples
+        --------
+        >>> # Plot single result with uncertainty
+        >>> result = detector.unfold_cvxpy(readings, calculate_errors=True)
+        >>> detector.plot_with_uncertainty(result)
+        >>> # Plot multiple results
+        >>> results = {
+        ...     'MLEM': result_mlem,
+        ...     'cvxpy': result_cvxpy
+        ... }
+        >>> detector.plot_with_uncertainty(results=results)
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import pandas as pd
+
+        # Determine what to plot
+        if results is not None:
+            # Multiple results
+            plot_multiple = True
+            result_dict = results
+        else:
+            # Single result
+            plot_multiple = False
+            if result is None:
+                result = self.current_result
+                if result is None:
+                    raise ValueError(
+                        "No result provided and no current result available."
+                    )
+            result_dict = {"result": result}
+
+        # Prepare colors
+        if colors is None:
+            # Default palette: black for reference, then tab10
+            default_colors = [
+                "black",
+                "#1f77b4",
+                "#e68910",
+                "#589c43",
+                "indianred",
+                "#9467bd",
+                "#8c564b",
+                "#e377c2",
+                "#7f7f7f",
+                "#bcbd22",
+            ]
+            # If more spectra than colors, cycle
+            colors = default_colors
+
+        # Create figure if needed
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            fig = ax.figure
+
+        # Plot reference spectrum if provided
+        if reference_spectrum is not None:
+            if isinstance(reference_spectrum, pd.DataFrame):
+                ref_E = reference_spectrum["E_MeV"].values
+                ref_Phi = reference_spectrum["Phi"].values
+            elif isinstance(reference_spectrum, dict):
+                ref_E = reference_spectrum["E_MeV"]
+                ref_Phi = reference_spectrum["Phi"]
+            else:
+                raise TypeError("reference_spectrum must be DataFrame or dict")
+            ax.plot(
+                ref_E,
+                ref_Phi,
+                label="reference",
+                linewidth=1,
+                linestyle=":",
+                color=colors[0],
+            )
+
+        # Plot each result
+        for i, (method, res) in enumerate(result_dict.items()):
+            color_idx = i + 1 if reference_spectrum is not None else i
+            color = colors[color_idx % len(colors)]
+
+            # Extract data
+            energy = res.get("energy", self.E_MeV)
+            spectrum = res.get("spectrum")
+            if spectrum is None:
+                raise ValueError(
+                    f"Result for '{method}' missing 'spectrum' key."
+                )
+            # Uncertainty ranges
+            uncert_min = res.get("spectrum_uncert_min")
+            uncert_max = res.get("spectrum_uncert_max")
+
+            # Plot uncertainty region if available
+            if uncert_min is not None and uncert_max is not None:
+                ax.fill_between(
+                    energy,
+                    uncert_min,
+                    uncert_max,
+                    alpha=0.5,
+                    color=color,
+                    label=f"{method} uncertainty range",
+                )
+
+            # Plot spectrum line
+            ax.plot(
+                energy,
+                spectrum,
+                label=method,
+                color=color,
+                ls="-",
+                linewidth=0.8,
+                alpha=1,
+            )
+
+        # Set labels and scales
+        ax.set_xlabel("Energy, MeV")
+        ax.set_ylabel("Fluence per unit lethargy, F(E)E, neutron/(cm² ∙ s)")
+        ax.set_xscale("log")
+        # Adjust ylim
+        ymax = ax.get_ylim()[1]
+        if reference_spectrum is not None:
+            ymax = max(ymax, np.max(ref_Phi) * 1.5)
+        ax.set_ylim(0, ymax)
+        ax.legend(loc="upper left", borderaxespad=0.0, fontsize=8)
+        ax.grid(True, which="both", ls=":")
+
+        # Title
+        if title is None:
+            if plot_multiple:
+                title = "Unfolded spectra with uncertainty ranges"
+            else:
+                method = list(result_dict.keys())[0]
+                title = f"Unfolded spectrum ({method}) with uncertainty range"
+        ax.set_title(title, fontsize=14)
+
+        # Save figure if requested
+        self._save_figure(
+            fig,
+            save_to=save_to,
+            dpi=dpi,
+            bbox_inches=bbox_inches,
+            **savefig_kwargs,
+        )
+
+        if show:
+            plt.show()
+
+        return fig, ax
+
+    def discretize_spectra(
+        self, spectra: Union[pd.DataFrame, Dict]
+    ) -> pd.DataFrame:
+        """
+        Interpolate spectra onto the target energy grid using PCHIP
+        interpolation.
         Extrapolation is avoided and replaced with zeros.
-        
+
         Parameters:
         -----------
         spectra : pandas.DataFrame or dict
-            Input spectra to be discretized. If DataFrame, it should contain energy 
+            Input spectra to be discretized. If DataFrame, it should contain
+            energy
             values. If dict, it should have 'E_MeV' and 'Phi' keys.
-            
+
         Returns:
         --------
         pandas.DataFrame
             Discretized spectra with columns 'E_MeV' and 'Phi'
-        '''
+        """
         # Get target energy grid parameters
         Emin = np.min(self.E_MeV)
         new_ebins = self.E_MeV
-        
+
         # Initialize variables for input spectra
         energies = None
         spectre_data = None
-        
+
         # Handle dictionary input
         if isinstance(spectra, dict):
             # Convert dictionary to DataFrame for uniform processing
@@ -990,8 +1943,11 @@ class Detector:
         elif isinstance(spectra, pd.DataFrame):
             spectre_df = spectra.copy()
         else:
-            raise TypeError("Input spectra must be either a pandas DataFrame or a dictionary")
-        
+            raise TypeError(
+                "Input spectra must be either a pandas DataFrame or a "
+                "dictionary"
+            )
+
         # Extract energy values from the input
         if "E_MeV" in spectre_df.columns:
             energies = spectre_df["E_MeV"].values
@@ -1001,45 +1957,51 @@ class Detector:
             # Assume the first column contains energy values
             energies = spectre_df.iloc[:, 0].values
             spectre_data = spectre_df.iloc[:, 1:].values
-        
+
         # Convert string energy values to float if needed
         if len(energies) > 0 and isinstance(energies[0], str):
             energies = energies.astype(float)
-        
+
         # Check if target grid exceeds input grid bounds
         if new_ebins.min() < np.min(energies):
-            print("Warning: Target energy bins extend below the input grid minimum. Setting values to zero.")
-        
+            print(
+                "Warning: Target energy bins extend below the input grid "
+                "minimum. Setting values to zero."
+            )
+
         if new_ebins.max() > np.max(energies):
-            print("Warning: Target energy bins extend above the input grid maximum. Setting values to zero.")
-        
+            print(
+                "Warning: Target energy bins extend above the input grid "
+                "maximum. Setting values to zero."
+            )
+
         # Convert to logarithmic scale relative to minimum energy
         u = np.log10(energies / Emin)
         u_new = np.log10(new_ebins / Emin)  # New grid in log scale
-        
+
         # Initialize array for interpolated values
         interpolated_values = np.zeros((len(new_ebins), spectre_data.shape[1]))
-        
+
         # Interpolate each spectral component separately
         for i in range(spectre_data.shape[1]):
             # Create PCHIP interpolator for this spectral component
             interpolator = pchip(u, spectre_data[:, i])
-            
+
             # Interpolate onto new grid
             interp_vals = interpolator(u_new)
-            
+
             # Replace extrapolated values with zeros
             interp_vals[(u_new < u.min()) | (u_new > u.max())] = 0
-            
+
             # Replace negative values with zeros
             interp_vals[interp_vals < 0] = 0
-            
+
             interpolated_values[:, i] = interp_vals
-        
+
         # Create result DataFrame
         new_spectra = pd.DataFrame()
         new_spectra["E_MeV"] = new_ebins
-        
+
         # Add interpolated spectral components
         if spectre_data.shape[1] == 1:
             # Single spectrum case
@@ -1049,51 +2011,62 @@ class Detector:
             for i in range(spectre_data.shape[1]):
                 if isinstance(spectra, dict) and i == 0:
                     # For dictionary input, use the original column names
-                    if 'Phi' in spectra:
+                    if "Phi" in spectra:
                         new_spectra[f"Phi_{i}"] = interpolated_values[:, i]
                     else:
                         # Try to use original column names
-                        col_name = spectre_df.columns[1] if len(spectre_df.columns) > 1 else f"Phi_{i}"
+                        col_name = (
+                            spectre_df.columns[1]
+                            if len(spectre_df.columns) > 1
+                            else f"Phi_{i}"
+                        )
                         new_spectra[col_name] = interpolated_values[:, i]
                 else:
-                    # For multiple spectra from DataFrame, preserve original names
+                    # For multiple spectra from DataFrame, preserve original
+                    # names
                     if i < len(spectre_df.columns) - 1:
                         col_name = spectre_df.columns[i + 1]
                     else:
                         col_name = f"Phi_{i}"
                     new_spectra[col_name] = interpolated_values[:, i]
-        
+
         return new_spectra
-    
-    def get_effective_readings_for_spectra(self, spectra):
+
+    def get_effective_readings_for_spectra(
+        self, spectra: Union[pd.DataFrame, Dict]
+    ) -> Dict[str, float]:
         """
         Calculate effective readings for a given spectrum.
-        
-        This function interpolates the input spectrum onto the detector's energy grid,
-        then calculates what readings each detector sphere would measure for that spectrum
+
+        This function interpolates the input spectrum onto the detector's "
+        "energy grid,
+        then calculates what readings each detector sphere would measure for "
+        "that spectrum
         by integrating the product of the spectrum and response functions.
-        
+
         Parameters
         ----------
         spectra : pandas.DataFrame or dict
             Input spectra to calculate effective readings for.
-            - If DataFrame: Should contain 'E_MeV' column for energies and one or more 
+            - If DataFrame: Should contain 'E_MeV' column for energies and "
+            "one or more
             columns for spectral data (e.g., 'Phi').
             - If dict: Should have 'E_MeV' and spectral data keys.
-        
+
         Returns
         -------
         dict
-            Dictionary of effective readings for each detector sphere in the format:
+            Dictionary of effective readings for each detector sphere in the "
+            "format:
             {sphere_name: reading_value, ...}
-            
+
         Raises
         ------
         TypeError
             If input is not a pandas DataFrame or dictionary
         ValueError
             If energy grid doesn't match or spectrum has invalid shape
-        
+
         Examples
         --------
         >>> # Using DataFrame input
@@ -1102,14 +2075,15 @@ class Detector:
         ...     'Phi': [1.0, 0.8, 0.5, 0.3, 0.1]
         ... })
         >>> readings = detector.get_effective_readings_for_spectra(spectrum_df)
-        
+
         >>> # Using dictionary input
         >>> spectrum_dict = {
         ...     'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
         ...     'Phi': [1.0, 0.8, 0.5, 0.3, 0.1]
         ... }
-        >>> readings = detector.get_effective_readings_for_spectra(spectrum_dict)
-        """       
+        >>> readings = detector.get_effective_readings_for_spectra(
+        ...     spectrum_dict)
+        """
         # Handle dictionary input
         if isinstance(spectra, dict):
             # Convert dictionary to DataFrame for uniform processing
@@ -1119,31 +2093,30 @@ class Detector:
             spectra_df = spectra.copy()
         else:
             raise TypeError(
-                "Input spectra must be either a pandas DataFrame or a dictionary. "
-                f"Got type: {type(spectra)}"
+                "Input spectra must be either a pandas DataFrame or a "
+                f"dictionary. Got type: {type(spectra)}"
             )
-        
+
         # Check if input has the same energy grid as detector
         if "E_MeV" in spectra_df.columns:
             input_energies = spectra_df["E_MeV"].values
         else:
             # Assume first column is energy
             input_energies = spectra_df.iloc[:, 0].values
-        
+
         # Convert string energy values to float if needed
         if len(input_energies) > 0 and isinstance(input_energies[0], str):
             input_energies = input_energies.astype(float)
-        
+
         # Check if we need to interpolate
         need_interpolation = not np.array_equal(
-            np.round(input_energies, 12), 
-            np.round(self.E_MeV, 12)
+            np.round(input_energies, 12), np.round(self.E_MeV, 12)
         )
-        
+
         if need_interpolation:
             # Interpolate spectrum onto detector's energy grid
             interp_spectra_df = self.discretize_spectra(spectra)
-            
+
             # Extract spectrum values from the interpolated DataFrame
             if "Phi" in interp_spectra_df.columns:
                 spectrum_values = interp_spectra_df["Phi"].values
@@ -1167,31 +2140,32 @@ class Detector:
                         f"Got {spectra_df.shape[1]} columns."
                     )
                 spectrum_values = spectra_df.iloc[:, 1].values
-        
+
         # Ensure spectrum values have the right shape
         if len(spectrum_values) != len(self.E_MeV):
             raise ValueError(
                 f"Spectrum length ({len(spectrum_values)}) must match "
                 f"energy grid length ({len(self.E_MeV)})"
             )
-        
+
         # Calculate effective readings by integrating over energy
         # For each detector: reading = ∫ Φ(E) * R(E) dE
-        # where R(E) is the response function (already includes log steps in Amat)
-        
+        # where R(E) is the response function (already includes log steps in
+        # Amat)
+
         effective_readings = {}
-        
+
         for i, detector_name in enumerate(self.detector_names):
             # Get response function for this detector
             response_func = self.Amat[:, i]  # Already includes dlnE factor
-            
+
             # Calculate reading: dot product of spectrum and response function
             # This is equivalent to ∫ Φ(E) * R(E) dE over the energy grid
             reading = np.sum(spectrum_values * response_func)
-            
+
             # Ensure reading is non-negative (physical constraint)
             reading = max(0.0, reading)
-            
+
             effective_readings[detector_name] = float(reading)
-        
+
         return effective_readings
