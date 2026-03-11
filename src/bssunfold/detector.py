@@ -2430,7 +2430,7 @@ class Detector:
         
         if verbose:
             print(f"\n{'='*60}")
-            print(f"Запуск комбинированного метода с {len(pipeline)} этапами")
+            print(f"Combined algorithm, methods = {len(pipeline)} ")
             print(f"{'='*60}")
         
         for i, stage in enumerate(pipeline):
@@ -2441,43 +2441,30 @@ class Detector:
             
             if verbose:
                 print(f"\n{'='*60}")
-                print(f"Этап {i+1}/{len(pipeline)}: {method}")
+                print(f"Stage {i+1}/{len(pipeline)}: {method}")
                 print(f"{'='*60}")
-                print(f"Параметры: {params}")
+                print(f"Parameters: {params}")
             
             # Если есть текущий спектр, передаём его как начальное приближение
             if current_spectrum is not None and use_as_initial:
                 # Определяем, какой параметр отвечает за начальное приближение для каждого метода
                 initial_param_names = {
-                    'gravel': 'initial_spectrum',
                     'landweber': 'initial_spectrum',
                     'mlem': 'initial_spectrum',
-                    'doroshenko': 'initial_spectrum',
-                    'doroshenko_matrix': 'initial_spectrum',
-                    'kaczmarz': 'initial_spectrum',
-                    'kaczmarz2': 'initial_spectrum',
                     'cvxpy': 'initial_spectrum',
-                    'osqp': 'initial_spectrum',
-                    'cobyla': 'initial_spectrum',
                     'qpsolvers': 'initial_spectrum',
-                    'evolutionary': 'initial_spectrum',
-                    'bayes': 'initial_spectrum',
-                    'lmfit': 'initial_spectrum',
-                    'pyomo': 'initial_spectrum',
-                    'ampl': 'initial_spectrum',
-                    'modopt_ipopt': 'initial_spectrum',
                     'pytikhonov': 'initial_spectrum',
                 }
                 
                 if method in initial_param_names:
                     params[initial_param_names[method]] = current_spectrum.copy()
                     if verbose:
-                        print(f"  Используется результат предыдущего метода как начальное приближение")
+                        print(f" Previous results is used as initial spectrum")
             
             # Вызов соответствующего метода
             method_func = getattr(self, f'unfold_{method}', None)
             if method_func is None:
-                raise ValueError(f"Метод '{method}' не найден в классе Detector")
+                raise ValueError(f"Method '{method}'not found in Detector class")
             
             # Добавляем calculate_errors только для последнего метода, если нужно
             if i == len(pipeline) - 1 and calculate_errors:
@@ -2496,8 +2483,8 @@ class Detector:
             if 'spectrum' in result:
                 current_spectrum = result['spectrum'].copy()
                 if verbose:
-                    print(f"  Норма спектра: {np.linalg.norm(current_spectrum):.6f}")
-                    print(f"  Норма невязки: {result.get('residual norm', 'N/A')}")
+                    print(f" Spectrum norm: {np.linalg.norm(current_spectrum):.6f}")
+                    print(f" Residual normи: {result.get('residual norm', 'N/A')}")
             
             # Сохраняем промежуточный результат, если нужно
             if store_intermediate:
@@ -2508,8 +2495,8 @@ class Detector:
         
         if verbose:
             print(f"\n{'='*60}")
-            print(f"Комбинированный метод завершён")
-            print(f"Финальная норма невязки: {final_result.get('residual norm', 'N/A')}")
+            print(f"Combined method finished")
+            print(f"final residual norm: {final_result.get('residual norm', 'N/A')}")
             print(f"{'='*60}")
         
         # Формируем итоговый результат
