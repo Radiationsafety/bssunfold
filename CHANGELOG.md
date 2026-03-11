@@ -7,6 +7,22 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.3.0] - 2026-03-11
+### Added
+ - qpsolvers for QP open source solvers
+ - combined algorithm
+ - examples 6-8 for combined algorithm, plot with uncertainty, qpsolvers
+ - plot_with_uncertainty function
+ - save figure with response functions to png, pdf, eps, jpg
+ - automatic selection of regularization parameter via pytikhonov package
+
+ ### Changed
+ - docs updated
+
+## [0.2.0] - 2026-02-02
+### Added
+ - mlem algorithm via ODL, with example
+
 ## [0.1.3] - 2026-01-15
 
 ### Added
