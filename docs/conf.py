@@ -21,7 +21,7 @@ release = data["project"]["version"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "bssunfold"
-copyright = "2025, Konstantin Chizhov"
+copyright = "2026, Konstantin Chizhov"
 author = "Konstantin Chizhov"
 
 # -- General configuration ---------------------------------------------------

@@ -137,7 +137,7 @@ venv.bak/
 
 # Rope project settings
 .ropeproject
-
+.codeassistant
 # mkdocs documentation
 /site
 
@@ -187,3 +187,5 @@ CONTRIBUTING.pdf
 .config
 .DS_Store
 __marimo__
+.idea
+.gigaide
