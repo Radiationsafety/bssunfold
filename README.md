@@ -170,6 +170,42 @@ result = detector.unfold_mlem_odl(
 )
 ```
 
+### 4. `unfold_qpsolvers()`
+Iterative Maximum likelihood expectation maximization (MLEM).
+
+```python
+result = detector.unfold_qpsolvers(
+    readings,
+    solver="osqp",
+    regularization=1e-4,
+    noise_level=noise_level,
+    n_montecarlo=n_montecarlo,
+    save_result=False,
+    calculate_errors=True,
+)
+```
+### 5. `unfold_combined()`
+Combination (pipeline) of algorithms cvxpy → Landweber with selection of parameters for each method.
+```
+result = det.unfold_combined(
+    readings=readings,
+    pipeline=[
+        {
+            'method': 'cvxpy',
+            'params': {'regularization': 1e-4},
+        },
+        {
+            'method': 'landweber',
+            'params': {
+                'max_iterations': 2000,
+            },
+        },
+    ],
+    calculate_errors=False,
+    verbose=True,
+)
+```
+
 ## 📈 Output Data
 
 The package provides comprehensive output in standardized formats:
@@ -241,8 +277,6 @@ result = detector.unfold_cvxpy(
 
 # Access uncertainty data
 uncert_mean = result['spectrum_uncert_mean']
-uncert_std = result['spectrum_uncert_std']
-percentile_95 = result['spectrum_uncert_percentile_95']
 ```
 
 ## 📂 Project Structure
@@ -290,6 +324,8 @@ bssunfold/
 - Pandas
 - Matplotlib
 - odl
+- qpsolvers with open source solvers
+- pytikhonov
 
 Available package versions see in [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml).
 
