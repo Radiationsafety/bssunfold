@@ -39,6 +39,7 @@ dependencies = [
     "pandas>=2.2.3",
     "pytikhonov>=0.0.1",
     "pyzmq>=27.1.0",
+    "qpsolvers[open-source-solvers]>=4.10.0",
     "scipy>=1.16.3",
 ]
 
