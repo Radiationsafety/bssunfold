@@ -12,6 +12,10 @@ import warnings
 from datetime import datetime
 import pytikhonov as ptk
 
+# from pytikhonov import TikhonovFamily, lcorner
+
+from qpsolvers import available_solvers, solve_qp
+
 
 class Detector:
     """
@@ -1856,7 +1860,9 @@ class Detector:
                     energy,
                     uncert_min,
                     uncert_max,
-                    alpha=0.5,
+                    alpha=0.3,
+                    hatch='\\',
+                    facecolor=color,
                     color=color,
                     label=f"{method} uncertainty range",
                 )
@@ -1868,7 +1874,7 @@ class Detector:
                 label=method,
                 color=color,
                 ls="-",
-                linewidth=0.8,
+                linewidth=1.3,
                 alpha=1,
             )
 
@@ -2169,3 +2175,338 @@ class Detector:
             effective_readings[detector_name] = float(reading)
 
         return effective_readings
+
+    def unfold_qpsolvers(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        solver: str = "proxqp",  # Рекомендуемый солвер по умолчанию
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+    ) -> Dict:
+        """
+        Восстановление спектра с помощью библиотеки qpsolvers.
+
+        Параметры:
+        readings : Dict[str, float]
+            Показания детекторов
+        initial_spectrum : Optional[np.ndarray], optional
+            Начальное приближение спектра. Если None, используется равномерный спектр.
+        regularization : float, optional
+            Параметр регуляризации. По умолчанию 1e-4
+        norm : int, optional
+            Норма регуляризации (1 или 2). По умолчанию 2
+        solver : str, optional
+            Решатель QP из списка qpsolvers. По умолчанию "proxqp"
+        calculate_errors : bool, optional
+            Флаг расчета ошибок восстановления. По умолчанию False
+
+        Возвращает:
+        Dict
+            Словарь с результатами восстановления спектра.
+        """
+
+        def _solve_problem_qpsolvers(
+            A: np.ndarray, 
+            b: np.ndarray, 
+            alpha: float, 
+            norm_type: int,
+            solver_name: str,
+            x_init: Optional[np.ndarray] = None
+        ) -> np.ndarray:
+            """Решение задачи оптимизации с помощью qpsolvers."""
+            n_vars = A.shape[1]
+            m_meas = A.shape[0]
+
+            # Базовая задача МНК: 0.5 * ||Ax - b||^2 = 0.5 * x'(A'A)x - (b'A)x + const
+            P = A.T @ A  # Матрица квадратичной формы
+            q = -A.T @ b  # Вектор линейной части
+
+            # Проверка доступности солвера
+            if solver_name not in available_solvers:
+                raise ValueError(
+                    f"Солвер '{solver_name}' не доступен. "
+                    f"Установленные солверы: {available_solvers}. "
+                    f"Чтобы установить все открытые солверы: pip install qpsolvers[open_source_solvers]"
+                )
+
+            # Базовая настройка ограничений: x >= 0
+            G = -np.eye(n_vars)  # Для ограничений G @ x <= h
+            h = np.zeros(n_vars)
+
+            # Обработка разных типов регуляризации
+            if norm_type == 2:
+                # L2 регуляризация: добавляем alpha * ||x||^2 к целевой функции
+                P += alpha * np.eye(n_vars)
+
+                # Решение задачи QP
+                x = solve_qp(
+                    P=P,
+                    q=q,
+                    G=G,
+                    h=h,
+                    solver=solver_name,
+                    initvals=x_init,
+                    verbose=False
+                )
+
+            elif norm_type == 1:
+                # L1 регуляризация через расширение переменных
+                # Задача: min 0.5||Ax-b||^2 + alpha * sum(t), при -t <= x <= t, x >= 0
+                
+                n_extended = 2 * n_vars
+                P_ext = np.zeros((n_extended, n_extended))
+                P_ext[:n_vars, :n_vars] = P
+                q_ext = np.zeros(n_extended)
+                q_ext[:n_vars] = q
+                q_ext[n_vars:] = alpha * np.ones(n_vars)
+
+                # Ограничения: x - t <= 0, -x - t <= 0
+                G_ext = np.zeros((2 * n_vars, n_extended))
+                # x - t <= 0
+                G_ext[:n_vars, :n_vars] = np.eye(n_vars)
+                G_ext[:n_vars, n_vars:] = -np.eye(n_vars)
+                # -x - t <= 0
+                G_ext[n_vars:, :n_vars] = -np.eye(n_vars)
+                G_ext[n_vars:, n_vars:] = -np.eye(n_vars)
+                
+                h_ext = np.zeros(2 * n_vars)
+
+                # Дополнительное ограничение: x >= 0
+                G_x = np.zeros((n_vars, n_extended))
+                G_x[:, :n_vars] = -np.eye(n_vars)
+                G_ext = np.vstack([G_ext, G_x])
+                h_ext = np.append(h_ext, np.zeros(n_vars))
+
+                # Начальное приближение для расширенной задачи
+                x_init_ext = None
+                if x_init is not None:
+                    x_init_ext = np.concatenate([x_init, np.abs(x_init)])
+
+                x_ext = solve_qp(
+                    P=P_ext,
+                    q=q_ext,
+                    G=G_ext,
+                    h=h_ext,
+                    solver=solver_name,
+                    initvals=x_init_ext,
+                    verbose=False
+                )
+
+                if x_ext is None:
+                    return None
+                x = x_ext[:n_vars]
+
+            else:
+                raise ValueError(f"Неподдерживаемый тип нормы: {norm_type}")
+
+            if x is None:
+                print(f"Предупреждение: {solver_name} не нашел решение.")
+                return None
+
+            return x
+
+        # Валидация и основное решение
+        readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(readings)
+        n = A.shape[1]
+
+        # select regularization method
+        if regularization_method == "manual":
+            alpha = regularization
+        else:
+            try:
+                selected_lambda = self._select_regularization(
+                    A, b, method=regularization_method, noise_var=noise_var
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"Regularization selection failed: {e}. "
+                    "Consider using manual regularization.")
+            alpha = selected_lambda
+        # Основное решение
+        x_value = _solve_problem_qpsolvers(
+            A, b, alpha, norm, solver, 
+            x_init=initial_spectrum
+            )
+
+        if x_value is None:
+            # Если решение не найдено, возвращаем нулевой спектр
+            x_value = np.zeros(n)
+            print("Внимание: решение не найдено, возвращен нулевой спектр.")
+
+        computed_readings = A @ x_value
+        residual = b - computed_readings
+        residual_norm = np.linalg.norm(residual)
+        print(f"Норма невязки: {residual_norm:.6f}")
+
+        # Формирование основных результатов
+        output = self._standardize_output(
+            spectrum=x_value,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"qpsolvers_{solver}",
+            norm=norm,
+            regularization=regularization,
+        )
+
+        # Расчет погрешностей методом Монте-Карло (при необходимости)
+        if calculate_errors:
+            print("Calculating uncertainty with Monte-Carlo...")
+            
+            x_montecarlo = np.empty((n_montecarlo, n))
+            
+            for i in range(n_montecarlo):
+                readings_noisy = self._add_noise(readings,noise_level)
+                A_noisy, b_noisy, _ = self._build_system(readings_noisy)
+                x_i = _solve_problem_qpsolvers(
+                    A_noisy, b_noisy, regularization, norm, solver
+                )
+                if x_i is not None:
+                    x_montecarlo[i] = x_i
+                else:
+                    # Если решение не найдено, используем предыдущее или нули
+                    x_montecarlo[i] = x_montecarlo[i-1] if i > 0 else np.zeros(n)
+            
+            output.update(
+                {
+                    "spectrum_uncert_mean": np.mean(x_montecarlo, axis=0),
+                    "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
+                    "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
+                    "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
+                }
+            )
+            print("...uncertainty calculated.")
+
+        return output
+        
+    def unfold_combined(
+        self,
+        readings: Dict[str, float],
+        pipeline: List[Dict[str, Any]],
+        calculate_errors: bool = False,
+        verbose: bool = True,
+    ) -> Dict:
+        """
+        Комбинированный метод восстановления спектра, позволяющий последовательно
+        применять несколько методов, используя результат предыдущего как начальное 
+        приближение для следующего.
+        
+        Параметры:
+        readings : Dict[str, float]
+            Показания детекторов
+        pipeline : List[Dict[str, Any]]
+            Список методов для последовательного применения. Каждый элемент словаря должен содержать:
+            - 'method': str - название метода (например, 'cvxpy', 'landweber', 'gravel', и т.д.)
+            - 'params': dict - параметры для данного метода
+            - 'use_as_initial' : bool (опционально) - использовать ли результат как начальное 
+                                приближение для следующего метода (по умолчанию True)
+            - 'store_intermediate' : bool (опционально) - сохранять ли промежуточный результат
+                                    в выходном словаре (по умолчанию False)
+        calculate_errors : bool, optional
+            Флаг расчета ошибок восстановления для последнего метода
+        verbose : bool, optional
+            Флаг вывода отладочной информации
+        
+        Возвращает:
+        Dict
+            Словарь с результатами восстановления спектра, включая:
+            - 'final_result': результат последнего метода
+            - 'intermediate_results': словарь с промежуточными результатами (если store_intermediate=True)
+            - 'pipeline_info': информация о применённых методах
+        """
+        
+        readings = self._validate_readings(readings)
+        current_spectrum = None
+        intermediate_results = {}
+        final_result = None
+        
+        if verbose:
+            print(f"\n{'='*60}")
+            print(f"Combined algorithm, methods = {len(pipeline)} ")
+            print(f"{'='*60}")
+        
+        for i, stage in enumerate(pipeline):
+            method = stage['method']
+            params = stage.get('params', {}).copy()
+            use_as_initial = stage.get('use_as_initial', True)
+            store_intermediate = stage.get('store_intermediate', False)
+            
+            if verbose:
+                print(f"\n{'='*60}")
+                print(f"Stage {i+1}/{len(pipeline)}: {method}")
+                print(f"{'='*60}")
+                print(f"Parameters: {params}")
+            
+            # Если есть текущий спектр, передаём его как начальное приближение
+            if current_spectrum is not None and use_as_initial:
+                # Определяем, какой параметр отвечает за начальное приближение для каждого метода
+                initial_param_names = {
+                    'landweber': 'initial_spectrum',
+                    'mlem': 'initial_spectrum',
+                    'cvxpy': 'initial_spectrum',
+                    'qpsolvers': 'initial_spectrum',
+                    'pytikhonov': 'initial_spectrum',
+                }
+                
+                if method in initial_param_names:
+                    params[initial_param_names[method]] = current_spectrum.copy()
+                    if verbose:
+                        print(f" Previous results is used as initial spectrum")
+            
+            # Вызов соответствующего метода
+            method_func = getattr(self, f'unfold_{method}', None)
+            if method_func is None:
+                raise ValueError(f"Method '{method}'not found in Detector class")
+            
+            # Добавляем calculate_errors только для последнего метода, если нужно
+            if i == len(pipeline) - 1 and calculate_errors:
+                params['calculate_errors'] = True
+            else:
+                params['calculate_errors'] = False
+            
+            # Выполняем метод
+            try:
+                result = method_func(readings, **params)
+            except Exception as e:
+                print(f"Ошибка при выполнении метода {method}: {e}")
+                raise
+            
+            # Обновляем текущий спектр
+            if 'spectrum' in result:
+                current_spectrum = result['spectrum'].copy()
+                if verbose:
+                    print(f" Spectrum norm: {np.linalg.norm(current_spectrum):.6f}")
+                    print(f" Residual normи: {result.get('residual norm', 'N/A')}")
+            
+            # Сохраняем промежуточный результат, если нужно
+            if store_intermediate:
+                intermediate_results[f'stage_{i+1}_{method}'] = result.copy()
+            
+            # Запоминаем финальный результат
+            final_result = result
+        
+        if verbose:
+            print(f"\n{'='*60}")
+            print(f"Combined method finished")
+            print(f"final residual norm: {final_result.get('residual norm', 'N/A')}")
+            print(f"{'='*60}")
+        
+        # Формируем итоговый результат
+        output = final_result.copy()
+        output['pipeline_info'] = {
+            'stages': [stage['method'] for stage in pipeline],
+            'params': [stage.get('params', {}) for stage in pipeline]
+        }
+        
+        if intermediate_results:
+            output['intermediate_results'] = intermediate_results
+        
+        return output

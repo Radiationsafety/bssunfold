@@ -19,6 +19,7 @@
 - [Quick start](#-quick-start)
 - [Project structure](#-project-structure)
 - [Technical requirements](#-technical-requirements)
+- [Authors](#-authors)
 - [Citing](#-citation)
 - [Documentation](#-documentation)
 - [Publications](#--publications)
@@ -354,12 +355,19 @@ For questions, bug reports, or feature requests:
 
 - Open an issue on [GitHub](https://github.com/radiationsafety/bssunfold/issues)
 - Contact: kchizhov@jinr.ru
+ 
+## 💻 Authors
+
+- Konstantin Chizhov
+- Alexei Chizhov
+- Dmitry Borschev
+- Maria Akimochkina
 
 ## 🌐 Acknowledgments
 
 - ICRP and IAEA for data
 - Contributors and testers
-- Joint Institure for Nuclear Research
+- Joint Institure for Nuclear Research (JINR)
 - University "Dubna", School of Big Data Analytics
 
 ## 🎓  Publications

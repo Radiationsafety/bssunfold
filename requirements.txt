@@ -5,23 +5,46 @@ array-api-compat==1.14.0
 cffi==2.0.0
     # via clarabel
 clarabel==0.11.1
-    # via cvxpy
+    # via
+    #   cvxpy
+    #   qpsolvers
+cmeel==0.59.0
+    # via proxsuite
 contourpy==1.3.3
     # via matplotlib
+cvxopt==1.3.3
+    # via qpsolvers
 cvxpy==1.8.1
     # via bssunfold (pyproject.toml)
 cycler==0.12.1
     # via matplotlib
+daqp==0.7.2
+    # via qpsolvers
 easygsvd==0.0.4
     # via pytikhonov
 ecos==2.0.14
-    # via cvxpy
+    # via
+    #   cvxpy
+    #   qpsolvers
 fonttools==4.61.1
     # via matplotlib
 future==1.0.0
     # via odl
 highspy==1.13.1
-    # via cvxpy
+    # via
+    #   cvxpy
+    #   qpsolvers
+jax==0.9.1
+    # via
+    #   jaxopt
+    #   qpax
+jaxlib==0.9.1
+    # via
+    #   jax
+    #   jaxopt
+    #   qpax
+jaxopt==0.8.5
+    # via qpsolvers
 jinja2==3.1.6
     # via osqp
 joblib==1.5.3
@@ -34,6 +57,10 @@ matplotlib==3.10.8
     # via
     #   bssunfold (pyproject.toml)
     #   pytikhonov
+ml-dtypes==0.5.4
+    # via
+    #   jax
+    #   jaxlib
 numpy==2.4.2
     # via
     #   bssunfold (pyproject.toml)
@@ -42,17 +69,32 @@ numpy==2.4.2
     #   cvxpy
     #   ecos
     #   highspy
+    #   jax
+    #   jaxlib
+    #   jaxopt
     #   matplotlib
+    #   ml-dtypes
     #   odl
     #   osqp
     #   pandas
+    #   piqp
+    #   proxsuite
     #   pytikhonov
+    #   qpalm
+    #   qpsolvers
+    #   qtqp
+    #   quadprog
     #   scipy
     #   scs
+    #   sip-python
 odl==1.0.0b1
     # via bssunfold (pyproject.toml)
+opt-einsum==3.4.0
+    # via jax
 osqp==1.1.1
-    # via cvxpy
+    # via
+    #   cvxpy
+    #   qpsolvers
 packaging==26.0
     # via
     #   matplotlib
@@ -61,6 +103,10 @@ pandas==3.0.1
     # via bssunfold (pyproject.toml)
 pillow==12.1.1
     # via matplotlib
+piqp==0.6.2
+    # via qpsolvers
+proxsuite==0.7.2
+    # via qpsolvers
 pycparser==3.0
     # via cffi
 pyparsing==3.3.2
@@ -73,21 +119,46 @@ pytikhonov==0.0.1
     # via bssunfold (pyproject.toml)
 pyzmq==27.1.0
     # via bssunfold (pyproject.toml)
+qpalm==1.2.6
+    # via qpsolvers
+qpax==0.0.10
+    # via qpsolvers
+qpsolvers==4.10.0
+    # via bssunfold (pyproject.toml)
+qtqp==0.0.3
+    # via qpsolvers
+quadprog==0.1.13
+    # via qpsolvers
 scipy==1.17.1
     # via
     #   bssunfold (pyproject.toml)
     #   clarabel
     #   cvxpy
     #   ecos
+    #   jax
+    #   jaxlib
+    #   jaxopt
     #   odl
     #   osqp
+    #   piqp
+    #   proxsuite
     #   pytikhonov
+    #   qpalm
+    #   qpsolvers
+    #   qtqp
     #   scs
+    #   sip-python
 scs==3.2.11
-    # via cvxpy
+    # via
+    #   cvxpy
+    #   qpsolvers
 setuptools==82.0.0
     # via
     #   odl
     #   osqp
+sip-python==0.0.2
+    # via qpsolvers
 six==1.17.0
     # via python-dateutil
+tzdata==2025.3
+    # via pandas
