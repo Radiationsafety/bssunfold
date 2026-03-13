@@ -46,14 +46,21 @@
 
 ## 📥 Installation
 
+
+### Using uv (recommended)
+```bash
+uv add bssunfold
+```
+
+
 ### Using pip
 ```bash
 pip install bssunfold
 ```
 
-### Using uv (recommended)
+### Using conda
 ```bash
-uv add bssunfold
+conda install conda-forge::bssunfold
 ```
 
 ### From Source
@@ -185,7 +192,37 @@ result = detector.unfold_qpsolvers(
     calculate_errors=True,
 )
 ```
-### 5. `unfold_combined()`
+
+### 5. `unfold_doroshenko()`
+Iterative Doroshenko algorithm.
+
+```python
+result = detector.unfold_doroshenko(
+    readings
+)
+```
+
+### 6. `unfold_kaczmarz()`
+Iterative Kaczmarz algorithm.
+
+```python
+result = detector.unfold_kaczmarz(
+    readings
+)
+```
+
+### 7. `unfold_lmfit()`
+Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization,
+lmfit solver = leastsq, newton, tnc, cg, bfgs, lbfgsb.
+Regularization model: elastic, lasso, ridge, default: "elastic".
+
+```python
+result = detector.unfold_lmfit(
+    readings
+)
+```
+
+### 8. `unfold_combined()`
 Combination (pipeline) of algorithms cvxpy → Landweber with selection of parameters for each method.
 ```python
 result = det.unfold_combined(
@@ -327,6 +364,7 @@ bssunfold/
 - odl
 - qpsolvers with open source solvers
 - pytikhonov
+- lmfit
 
 Available package versions see in [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml).
 

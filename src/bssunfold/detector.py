@@ -2992,7 +2992,7 @@ class Detector:
         readings : Dict[str, float]
             Detector readings (counts or dose rates)
         method : str, optional
-            lmfit solver name (leastsq, newton, tnc, cg, bfgs, lbfgsb), default: "leastsq"
+            lmfit solver name (leastsq, newton, tnc, cg, bfgs, lbfgsb), default: "lbfgsb"
         model_name : str, optional
             Regularization model: elastic, lasso, ridge, default: "elastic"
         regularization : float, optional
