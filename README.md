@@ -109,8 +109,7 @@ result = detector.unfold_cvxpy(
 )
 
 # Visualize results
-detector.plot_spectrum(uncertainty=True)
-detector.plot_readings_comparison()
+detector.plot_with_uncertainty(result, plot_style == 'errorbar')
 
 # Calculate and display dose rates
 print("Dose rates [pcSv/s]:", result['doserates'])
