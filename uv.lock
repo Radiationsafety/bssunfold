@@ -319,7 +319,7 @@ requires-dist = [
     { name = "lmfit", specifier = ">=1.3.4" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.1" },
-    { name = "odl", specifier = ">=1.0.0b1" },
+    { name = "odl", specifier = ">=1.0.0" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "proxsuite", specifier = ">=0.7.2" },
     { name = "pytest", specifier = ">=9.0.2" },
@@ -2710,19 +2710,20 @@ wheels = [
 
 [[package]]
 name = "odl"
-version = "1.0.0b1"
+version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "array-api-compat" },
     { name = "future" },
     { name = "numpy" },
     { name = "packaging" },
+    { name = "pytest" },
     { name = "scipy" },
     { name = "setuptools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/82/eb/f3e83187d3f18b000f592f7ff4f4b5644c5e652fa13f55ae7d621595f3f4/odl-1.0.0b1.tar.gz", hash = "sha256:40cacb20b6692e2e1f05ab26b218d060c4f808f2658fd621f4a3394ba5a5e0f8", size = 666687, upload-time = "2025-11-17T14:02:38.406Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/fb/818471611eea06e4f9c94f98aed288b7330a06e563364e70b2b54c87b4de/odl-1.0.0.tar.gz", hash = "sha256:d0f43a03a9c1d3329c58c5a56117cc0e3dd933b52de9e034068308b55e0cab9c", size = 1422803, upload-time = "2026-03-11T14:57:05.487Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/57/0be050d00b3cbe1ca3ead48739e79f5d38330840fb9a9809678beba45e69/odl-1.0.0b1-py2.py3-none-any.whl", hash = "sha256:48547bcaeb329f7cb512cc44826fd561287975d5dd89bfd1015315cd830b36e0", size = 796102, upload-time = "2025-11-17T14:02:36.89Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/77/b6e9138a77b0f78139756f930cd50ecc7228e44b00c44d724bec4c2c053a/odl-1.0.0-py3-none-any.whl", hash = "sha256:b7ebf6725b3f200e5b4b86f60d219b78d0bfcb5c2ae6b621860f975441249f29", size = 824867, upload-time = "2026-03-11T14:57:03.471Z" },
 ]
 
 [[package]]
@@ -2998,11 +2999,11 @@ wheels = [
 
 [[package]]
 name = "pip"
-version = "25.3"
+version = "26.0.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fe/6e/74a3f0179a4a73a53d66ce57fdb4de0080a8baa1de0063de206d6167acc2/pip-25.3.tar.gz", hash = "sha256:8d0538dbbd7babbd207f261ed969c65de439f6bc9e5dbd3b3b9a77f25d95f343", size = 1803014, upload-time = "2025-10-25T00:55:41.394Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/83/0d7d4e9efe3344b8e2fe25d93be44f64b65364d3c8d7bc6dc90198d5422e/pip-26.0.1.tar.gz", hash = "sha256:c4037d8a277c89b320abe636d59f91e6d0922d08a05b60e85e53b296613346d8", size = 1812747, upload-time = "2026-02-05T02:20:18.702Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/3c/d717024885424591d5376220b5e836c2d5293ce2011523c9de23ff7bf068/pip-25.3-py3-none-any.whl", hash = "sha256:9655943313a94722b7774661c21049070f6bbb0a1516bf02f7c8d5d9201514cd", size = 1778622, upload-time = "2025-10-25T00:55:39.247Z" },
+    { url = "https://files.pythonhosted.org/packages/de/f0/c81e05b613866b76d2d1066490adf1a3dbc4ee9d9c839961c3fc8a6997af/pip-26.0.1-py3-none-any.whl", hash = "sha256:bdb1b08f4274833d62c1aa29e20907365a2ceb950410df15fc9521bad440122b", size = 1787723, upload-time = "2026-02-05T02:20:16.416Z" },
 ]
 
 [[package]]
