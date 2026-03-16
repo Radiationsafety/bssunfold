@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+
+## [0.4.0] - 2026-03-16
+### Added
+ - Doroshenko iterative method
+ - Karcmarz algorithm
+ - lmfit package 
+ - examples 9-10 for new methods
+ - error bar with std for plot_with_uncertainty function
+
+  ### Changed
+ - python 3.14 not supported because of proxsuite==0.7.2
+
 ## [0.3.0] - 2026-03-11
 ### Added
  - qpsolvers for QP open source solvers

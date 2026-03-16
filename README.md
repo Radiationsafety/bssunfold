@@ -354,7 +354,7 @@ bssunfold/
 ## 🔧 Technical Requirements
 
 ### Requirements
-- Python 3.11 - 3.14
+- Python 3.11 - 3.13
 - cvxpy[ecos]
 - NumPy
 - SciPy
