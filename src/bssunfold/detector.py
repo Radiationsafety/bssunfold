@@ -562,6 +562,67 @@ class Detector:
 
         return rf_matrix, energies, sphere_names, log_steps
 
+    # def _select_smoothness_parameter(self, A, b, smoothness_order=1):
+    #     """Выбор параметра гладкости методом L-кривой"""
+    #     n = A.shape[1]
+        
+    #     # Создаем матрицу для выбранного порядка производной
+    #     if smoothness_order == 1:
+    #         L = self._create_first_derivative_matrix(n)
+    #     elif smoothness_order == 2:
+    #         L = self._create_second_derivative_matrix(n)
+    #     else:
+    #         raise ValueError("smoothness_order должен быть 1 или 2")
+        
+    #     # Пробуем разные значения параметра регуляризации
+    #     alphas = np.logspace(-6, 2, 50)
+    #     residuals = []
+    #     smoothness_terms = []
+        
+    #     for alpha in alphas:
+    #         # Решаем задачу с регуляризацией гладкости
+    #         P = A.T @ A + alpha * (L.T @ L)
+    #         q = -A.T @ b
+            
+    #         # Решаем QP задачу
+    #         x = solve_qp(P=P, q=q, G=-np.eye(n), h=np.zeros(n), solver="proxqp", verbose=False)
+            
+    #         if x is not None:
+    #             residual = np.linalg.norm(A @ x - b)
+    #             smoothness = np.linalg.norm(L @ x)
+    #             residuals.append(residual)
+    #             smoothness_terms.append(smoothness)
+        
+    #     # Находим точку максимальной кривизны L-кривой
+    #     if len(residuals) > 2:
+    #         # Преобразуем в логарифмический масштаб
+    #         log_res = np.log(residuals)
+    #         log_smooth = np.log(smoothness_terms)
+            
+    #         # Вычисляем кривизну
+    #         from scipy import interpolate
+    #         from scipy.signal import savgol_filter
+            
+    #         # Интерполируем для равномерной параметризации
+    #         tck, u = interpolate.splprep([log_res, log_smooth], s=0)
+    #         unew = np.linspace(0, 1, 100)
+    #         out = interpolate.splev(unew, tck)
+            
+    #         # Вычисляем кривизну
+    #         dx = np.gradient(out[0])
+    #         dy = np.gradient(out[1])
+    #         ddx = np.gradient(dx)
+    #         ddy = np.gradient(dy)
+    #         curvature = np.abs(ddx*dy - ddy*dx) / (dx**2 + dy**2)**1.5
+            
+    #         # Выбираем alpha в точке максимальной кривизны
+    #         idx_max_curv = np.argmax(curvature)
+    #         alpha_optimal = alphas[min(idx_max_curv, len(alphas)-1)]
+            
+    #         return alpha_optimal
+        
+    #     return 1.0  # значение по умолчанию
+
     def unfold_cvxpy(
         self,
         readings: Dict[str, float],
@@ -2348,79 +2409,38 @@ class Detector:
         initial_spectrum: Optional[np.ndarray] = None,
         regularization: float = 1e-4,
         norm: int = 2,
-        solver: str = "proxqp",  # Рекомендуемый солвер по умолчанию
+        solver: str = "proxqp",
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = True,
         regularization_method: str = "manual",
         noise_var: Optional[float] = None,
+        smoothness_order: int = 0,  
+        smoothness_weight: float = 1.0, 
     ) -> Dict:
         """
         Восстановление спектра с помощью библиотеки qpsolvers.
-
-        Параметры:
-        ----------
-        readings : Dict[str, float]
-            Показания детекторов
-        initial_spectrum : Optional[np.ndarray], optional
-            Начальное приближение спектра. Если None, используется равномерный спектр.
-        regularization : float, optional
-            Параметр регуляризации. По умолчанию 1e-4. Используется только при
-            regularization_method='manual'.
-        norm : int, optional
-            Норма регуляризации (1 для L1, 2 для L2). По умолчанию 2.
-            Примечание: автоматические методы выбора регуляризации предполагают L2 норму.
-        solver : str, optional
-            Решатель QP из списка qpsolvers. По умолчанию "proxqp"
-        calculate_errors : bool, optional
-            Флаг расчета ошибок восстановления методом Монте-Карло. По умолчанию False
-        noise_level : float, optional
-            Уровень шума для оценки ошибок Монте-Карло. По умолчанию 0.01
-        n_montecarlo : int, optional
-            Количество выборок Монте-Карло для оценки ошибок. По умолчанию 100
-        save_result : bool, optional
-            Если True, сохраняет результат во внутреннюю историю. По умолчанию True
-        regularization_method : str, optional
-            Метод выбора параметра регуляризации. Варианты:
-            - 'manual': использовать параметр `regularization` (по умолчанию).
-            - 'lcurve': эвристика угла L-кривой.
-            - 'dp': принцип невязки.
-            - 'gcv': обобщённая перекрёстная проверка.
-            - 'all': запустить все методы и выбрать значение L-кривой.
-            - 'cosine': максимизация косинусного сходства с initial_spectrum.
-                Требует параметр `initial_spectrum`.
-        noise_var : float, optional
-            Дисперсия шума для принципа невязки. Если None, оценивается по
-            невязке нерегуляризованного решения. Используется только для метода 'dp'.
-
-        Возвращает:
-        --------
-        Dict
-            Словарь с результатами восстановления спектра, содержащий ключи:
-            - 'energy': энергетическая сетка [МэВ]
-            - 'spectrum': восстановленный спектр [счетов/бин]
-            - 'spectrum_absolute': абсолютный восстановленный спектр
-            - 'effective_readings': рассчитанные показания из восстановленного спектра
-            - 'residual': разница между измеренными и рассчитанными показаниями
-            - 'residual_norm': L2 норма невязки
-            - 'method': имя метода ('qpsolvers_{solver}')
-            - 'doserates': мощности доз для разных геометрий [пЗв/с]
-            - 'spectrum_uncert_*': оценки неопределённости (если calculate_errors=True)
-            - 'regularization_method': использованный метод выбора регуляризации.
-            - 'selected_regularization': выбранное значение параметра регуляризации.
-
-        Примеры:
-        --------
-        >>> readings = {'sphere_1': 150.2, 'sphere_2': 120.5, 'sphere_3': 95.7}
-        >>> result = detector.unfold_qpsolvers(
-        ...     readings,
-        ...     regularization=0.001,
-        ...     calculate_errors=True
-        ... )
-        >>> print(f"Длина спектра: {len(result['spectrum'])}")
-        >>> print(f"Норма невязки: {result['residual_norm']:.3f}")
+        ... (документация)
         """
+        
+        # Вспомогательные функции для создания матриц производных
+        def _create_first_derivative_matrix(n: int) -> np.ndarray:
+            """Создает матрицу первой разностной производной (n-1 x n)"""
+            L = np.zeros((n-1, n))
+            for i in range(n-1):
+                L[i, i] = -1
+                L[i, i+1] = 1
+            return L
+
+        def _create_second_derivative_matrix(n: int) -> np.ndarray:
+            """Создает матрицу второй разностной производной (n-2 x n)"""
+            L = np.zeros((n-2, n))
+            for i in range(n-2):
+                L[i, i] = 1
+                L[i, i+1] = -2
+                L[i, i+2] = 1
+            return L
 
         def _solve_problem_qpsolvers(
             A: np.ndarray, 
@@ -2428,32 +2448,43 @@ class Detector:
             alpha: float, 
             norm_type: int,
             solver_name: str,
-            x_init: Optional[np.ndarray] = None
+            x_init: Optional[np.ndarray] = None,
+            smoothness_order: int = 0,
+            smoothness_weight: float = 1.0
         ) -> np.ndarray:
-            """Решение задачи оптимизации с помощью qpsolvers."""
+            """Решение задачи оптимизации с поддержкой условий гладкости."""
             n_vars = A.shape[1]
-            m_meas = A.shape[0]
 
-            # Базовая задача МНК: 0.5 * ||Ax - b||^2 = 0.5 * x'(A'A)x - (b'A)x + const
-            P = A.T @ A  # Матрица квадратичной формы
-            q = -A.T @ b  # Вектор линейной части
+            # Базовая задача МНК: 0.5 * ||Ax - b||^2
+            P = A.T @ A
+            q = -A.T @ b
 
             # Проверка доступности солвера
             if solver_name not in available_solvers:
                 raise ValueError(
                     f"Солвер '{solver_name}' не доступен. "
-                    f"Установленные солверы: {available_solvers}. "
-                    f"Чтобы установить все открытые солверы: pip install qpsolvers[open_source_solvers]"
+                    f"Установленные солверы: {available_solvers}."
                 )
 
             # Базовая настройка ограничений: x >= 0
-            G = -np.eye(n_vars)  # Для ограничений G @ x <= h
+            G = -np.eye(n_vars)
             h = np.zeros(n_vars)
 
             # Обработка разных типов регуляризации
             if norm_type == 2:
-                # L2 регуляризация: добавляем alpha * ||x||^2 к целевой функции
-                P += alpha * np.eye(n_vars)
+                # L2 регуляризация с возможностью добавления гладкости
+                
+                # Создаем матрицу для регуляризации гладкости
+                if smoothness_order == 1:
+                    L = _create_first_derivative_matrix(n_vars)
+                    # Добавляем гладкость: alpha * ||Lx||^2
+                    P += alpha * smoothness_weight * (L.T @ L)
+                elif smoothness_order == 2:
+                    L = _create_second_derivative_matrix(n_vars)
+                    P += alpha * smoothness_weight * (L.T @ L)
+                else:
+                    # Стандартная регуляризация Тихонова
+                    P += alpha * np.eye(n_vars)
 
                 # Решение задачи QP
                 x = solve_qp(
@@ -2468,21 +2499,26 @@ class Detector:
 
             elif norm_type == 1:
                 # L1 регуляризация через расширение переменных
-                # Задача: min 0.5||Ax-b||^2 + alpha * sum(t), при -t <= x <= t, x >= 0
-                
                 n_extended = 2 * n_vars
                 P_ext = np.zeros((n_extended, n_extended))
                 P_ext[:n_vars, :n_vars] = P
+                
+                # Добавляем гладкость если нужно
+                if smoothness_order == 1:
+                    L = _create_first_derivative_matrix(n_vars)
+                    P_ext[:n_vars, :n_vars] += alpha * smoothness_weight * (L.T @ L)
+                elif smoothness_order == 2:
+                    L = _create_second_derivative_matrix(n_vars)
+                    P_ext[:n_vars, :n_vars] += alpha * smoothness_weight * (L.T @ L)
+                
                 q_ext = np.zeros(n_extended)
                 q_ext[:n_vars] = q
                 q_ext[n_vars:] = alpha * np.ones(n_vars)
 
                 # Ограничения: x - t <= 0, -x - t <= 0
                 G_ext = np.zeros((2 * n_vars, n_extended))
-                # x - t <= 0
                 G_ext[:n_vars, :n_vars] = np.eye(n_vars)
                 G_ext[:n_vars, n_vars:] = -np.eye(n_vars)
-                # -x - t <= 0
                 G_ext[n_vars:, :n_vars] = -np.eye(n_vars)
                 G_ext[n_vars:, n_vars:] = -np.eye(n_vars)
                 
@@ -2522,12 +2558,16 @@ class Detector:
 
             return x
 
+        # Основной код метода
+        import warnings
+        from qpsolvers import available_solvers, solve_qp
+        
         # Валидация и основное решение
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
         n = A.shape[1]
 
-        # select regularization method
+        # Выбор метода регуляризации
         if regularization_method == "manual":
             alpha = regularization
             selected_lambda = alpha
@@ -2536,40 +2576,34 @@ class Detector:
                 raise ValueError(
                     "For 'cosine' regularization method, initial_spectrum must be provided."
                 )
-            # Warn if norm != 2 (cosine method assumes L2 for consistency)
             if norm != 2:
                 warnings.warn(
                     f"Cosine regularization selection method assumes L2 "
                     f"norm, but norm={norm} was requested. Using L2 for "
                     f"selection."
                 )
-            # Normalize initial spectrum
             initial_spectrum_norm = self._normalize_initial_spectrum(initial_spectrum)
-            # Grid of alpha values
             alphas = np.logspace(-9, 2, 100)
             cosine_similarities = []
-            all_unfolded_spectra = []
-            # Temporary variable to store original alpha
-            original_alpha = alpha if 'alpha' in locals() else None
+            
             for alpha_val in alphas:
-                alpha = alpha_val
-                x_temp = _solve_problem_qpsolvers(A, b, alpha, norm, solver, x_init=initial_spectrum_norm)
-                all_unfolded_spectra.append(x_temp)
-                cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
-                cosine_similarities.append(cos_sim)
-            # Restore alpha (will be set to optimal later)
-            if original_alpha is not None:
-                alpha = original_alpha
-            # Find optimal alpha
+                x_temp = _solve_problem_qpsolvers(
+                    A, b, alpha_val, 2, solver, 
+                    x_init=initial_spectrum_norm,
+                    smoothness_order=smoothness_order,
+                    smoothness_weight=smoothness_weight
+                )
+                if x_temp is not None:
+                    cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
+                    cosine_similarities.append(cos_sim)
+                else:
+                    cosine_similarities.append(-1)  # штраф за не найденное решение
+            
             optimal_idx = np.argmax(cosine_similarities)
             selected_lambda = alphas[optimal_idx]
             alpha = selected_lambda
-            print(
-                f"Selected regularization (method=cosine): "
-                f"{selected_lambda:.3e}"
-            )
+            print(f"Selected regularization (method=cosine): {selected_lambda:.3e}")
         else:
-            # Warn if norm != 2 (automatic methods assume L2)
             if norm != 2:
                 warnings.warn(
                     f"Automatic regularization selection methods assume L2 "
@@ -2586,18 +2620,17 @@ class Detector:
                     "Consider using manual regularization."
                 )
             alpha = selected_lambda
-            print(
-                f"Selected regularization (method={regularization_method}): "
-                f"{selected_lambda:.3e}"
-            )
-        # Основное решение
+            print(f"Selected regularization (method={regularization_method}): {selected_lambda:.3e}")
+
+        # Основное решение с учетом гладкости
         x_value = _solve_problem_qpsolvers(
             A, b, alpha, norm, solver, 
-            x_init=initial_spectrum
-            )
+            x_init=initial_spectrum,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight
+        )
 
         if x_value is None:
-            # Если решение не найдено, возвращаем нулевой спектр
             x_value = np.zeros(n)
             print("Внимание: решение не найдено, возвращен нулевой спектр.")
 
@@ -2619,32 +2652,35 @@ class Detector:
             selected_regularization=selected_lambda,
         )
 
-        # Расчет погрешностей методом Монте-Карло (при необходимости)
+        # Добавляем информацию о гладкости в выходные данные
+        output['smoothness_order'] = smoothness_order
+        output['smoothness_weight'] = smoothness_weight
+
+        # Расчет погрешностей методом Монте-Карло
         if calculate_errors:
             print("Calculating uncertainty with Monte-Carlo...")
             
             x_montecarlo = np.empty((n_montecarlo, n))
             
             for i in range(n_montecarlo):
-                readings_noisy = self._add_noise(readings,noise_level)
+                readings_noisy = self._add_noise(readings, noise_level)
                 A_noisy, b_noisy, _ = self._build_system(readings_noisy)
                 x_i = _solve_problem_qpsolvers(
-                    A_noisy, b_noisy, regularization, norm, solver
+                    A_noisy, b_noisy, regularization, norm, solver,
+                    smoothness_order=smoothness_order,
+                    smoothness_weight=smoothness_weight
                 )
                 if x_i is not None:
                     x_montecarlo[i] = x_i
                 else:
-                    # Если решение не найдено, используем предыдущее или нули
                     x_montecarlo[i] = x_montecarlo[i-1] if i > 0 else np.zeros(n)
             
-            output.update(
-                {
-                    "spectrum_uncert_mean": np.mean(x_montecarlo, axis=0),
-                    "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
-                    "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
-                    "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
-                }
-            )
+            output.update({
+                "spectrum_uncert_mean": np.mean(x_montecarlo, axis=0),
+                "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
+                "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
+                "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
+            })
             print("...uncertainty calculated.")
 
         return output
@@ -2974,6 +3010,7 @@ class Detector:
     def unfold_lmfit(
         self,
         readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
         method: str = "lbfgsb",
         model_name: str = "elastic",
         regularization: float = 1e-4,
@@ -2991,6 +3028,8 @@ class Detector:
         ----------
         readings : Dict[str, float]
             Detector readings (counts or dose rates)
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, uniform spectrum based on mean readings is used
         method : str, optional
             lmfit solver name (leastsq, newton, tnc, cg, bfgs, lbfgsb), default: "lbfgsb"
         model_name : str, optional
@@ -3027,6 +3066,7 @@ class Detector:
             - 'message': Optimization status message
             - 'nfev': Number of function evaluations
             - 'doserates': Dose rates for different geometries [pSv/s]
+            - 'initial_spectrum': Initial spectrum used
             - 'spectrum_uncert_*': Monte-Carlo uncertainty estimates
                 (if calculate_errors=True)
 
@@ -3040,8 +3080,10 @@ class Detector:
         Examples
         --------
         >>> readings = {'sphere_1': 150.2, 'sphere_2': 120.5}
+        >>> initial_guess = np.ones(40) * 10.0
         >>> result = detector.unfold_lmfit(
         ...     readings,
+        ...     initial_spectrum=initial_guess,
         ...     method='lbfgsb',
         ...     model_name='elastic',
         ...     regularization=1e-3,
@@ -3056,6 +3098,7 @@ class Detector:
         def _lmfit_optimization(
             A: np.ndarray,
             b: np.ndarray,
+            x0: np.ndarray,
             method: str,
             model_name: str,
             reg: float,
@@ -3066,11 +3109,10 @@ class Detector:
             lmfit = self._import_optional("lmfit", "lmfit-based unfolding")
             m = A.shape[1]
 
-            # Initialize parameters
+            # Initialize parameters with initial spectrum
             params = lmfit.Parameters()
-            init_values = np.ones(m) * np.mean(b) / np.mean(A.sum(axis=1))
             for i in range(m):
-                params.add(f"x{i}", value=max(init_values[i], 1e-10), min=0.0)
+                params.add(f"x{i}", value=max(x0[i], 1e-10), min=0.0)
 
             # Define residual functions
             def residual_lasso(params, A, b, regularization):
@@ -3135,9 +3177,20 @@ class Detector:
         validated_readings = self._validate_readings(readings)
         A, b, selected = self._build_system(validated_readings)
 
+        # Set initial spectrum (normalize if needed)
+        if initial_spectrum is None:
+            # Default initialization: uniform spectrum based on mean readings
+            x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))
+        else:
+            x0 = self._normalize_initial_spectrum(initial_spectrum)
+            if x0 is None:
+                # Fallback to default if normalization fails
+                x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))
+                print("Warning: Initial spectrum normalization failed, using default initialization")
+
         # Main lmfit optimization
         x_opt, success, message, nfev = _lmfit_optimization(
-            A, b, method, model_name, regularization, regularization2, l1_weight
+            A, b, x0, method, model_name, regularization, regularization2, l1_weight
         )
 
         # Create standard output
@@ -3159,6 +3212,7 @@ class Detector:
                 "success": success,
                 "message": message,
                 "nfev": nfev,
+                "initial_spectrum": x0.copy(),  # Save initial spectrum used
             }
         )
 
@@ -3180,9 +3234,9 @@ class Detector:
                 # Rebuild system with noisy readings
                 A_noisy, b_noisy, _ = self._build_system(noisy_readings)
 
-                # Run lmfit with same parameters
+                # Run lmfit with same parameters and initial spectrum
                 x_sample, _, _, _ = _lmfit_optimization(
-                    A_noisy, b_noisy, method, model_name, 
+                    A_noisy, b_noisy, x0, method, model_name, 
                     regularization, regularization2, l1_weight
                 )
                 spectra_samples[i] = x_sample
