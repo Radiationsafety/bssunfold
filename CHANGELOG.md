@@ -10,10 +10,8 @@ and this project adheres to [Semantic Versioning].
 ## [0.4.1] - 2026-03-17
 ### Added
  - qpsolvers: smoothness with 1st and 2nd derivatives
-  - 11-QP_solvers_smooth.ipynb example for qpsolvers smooth
+ - 11-QP_solvers_smooth.ipynb example for qpsolvers smooth
  - lmfit initial_spectrum
-
-
 
 ## [0.4.0] - 2026-03-16
 ### Added
