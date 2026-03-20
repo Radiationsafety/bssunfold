@@ -12,11 +12,6 @@ import odl
 import warnings
 from datetime import datetime
 import pytikhonov as ptk
-import lmfit
-
-# from pytikhonov import TikhonovFamily, lcorner
-
-from qpsolvers import available_solvers, solve_qp
 
 
 class Detector:
@@ -1769,6 +1764,7 @@ class Detector:
     ) -> None:
         """
         Save figure to file with support for multiple formats.
+        Wrapper for the standalone save_figure function from bssunfold.plots.
 
         Parameters
         ----------
@@ -1785,23 +1781,8 @@ class Detector:
         **savefig_kwargs : dict
             Additional keyword arguments passed to fig.savefig().
         """
-        if save_to is None:
-            return
-        # Validate extension
-        allowed_extensions = (".png", ".jpg", ".jpeg", ".eps", ".pdf")
-        if not any(
-            save_to.lower().endswith(ext) for ext in allowed_extensions
-        ):
-            raise ValueError(
-                f"Unsupported file extension. Allowed: {allowed_extensions}"
-            )
-        fig.savefig(
-            save_to,
-            dpi=dpi,
-            bbox_inches=bbox_inches,
-            **savefig_kwargs,
-        )
-        print(f"Figure saved to: {save_to}")
+        from bssunfold.plots import save_figure
+        return save_figure(fig, save_to=save_to, dpi=dpi, bbox_inches=bbox_inches, **savefig_kwargs)
 
     # --- UTILS ---
     def plot_response_functions(
@@ -1830,32 +1811,8 @@ class Detector:
         **savefig_kwargs : dict
             Additional keyword arguments passed to fig.savefig().
         """
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-        for key, rf in self.sensitivities.items():
-            ax.plot(
-                self.E_MeV,
-                rf,
-                label=key,
-            )
-        ax.set_xscale("log")
-        ax.set_xlabel("Energy, MeV")
-        ax.set_ylabel("Response, cm²")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        ax.set_title("Response functions of the detector")
-
-        # Save figure if requested
-        self._save_figure(
-            fig,
-            save_to=save_to,
-            dpi=dpi,
-            bbox_inches=bbox_inches,
-            **savefig_kwargs,
-        )
-
-        if show:
-            plt.show()
-        plt.close()
+        from bssunfold.plots import plot_response_functions as plot_rf
+        plot_rf(self, save_to=save_to, show=show, dpi=dpi, bbox_inches=bbox_inches, **savefig_kwargs)
 
     def plot_with_uncertainty(
         self,
@@ -1899,7 +1856,7 @@ class Detector:
         title : str, optional
             Plot title. If None, generates automatic title.
         plot_style : str, optional
-            Style for uncertainty visualization: 
+            Style for uncertainty visualization:
             - 'fill_between' - filled region between min and max
             - 'errorbar' - error bars using standard deviation
             Default 'fill_between'.
@@ -1928,10 +1885,10 @@ class Detector:
         >>> # Plot single result with uncertainty as fill_between
         >>> result = detector.unfold_cvxpy(readings, calculate_errors=True)
         >>> detector.plot_with_uncertainty(result)
-        >>> 
+        >>>
         >>> # Plot with error bars using standard deviation
         >>> detector.plot_with_uncertainty(result, plot_style='errorbar')
-        >>> 
+        >>>
         >>> # Plot multiple results
         >>> results = {
         ...     'MLEM': result_mlem,
@@ -1939,206 +1896,23 @@ class Detector:
         ... }
         >>> detector.plot_with_uncertainty(results=results, plot_style='errorbar')
         """
-        import matplotlib.pyplot as plt
-        import numpy as np
-        import pandas as pd
-
-        # Validate plot_style
-        valid_styles = ['fill_between', 'errorbar']
-        if plot_style not in valid_styles:
-            raise ValueError(f"plot_style must be one of {valid_styles}, got '{plot_style}'")
-
-        # Determine what to plot
-        if results is not None:
-            # Multiple results
-            plot_multiple = True
-            result_dict = results
-        else:
-            # Single result
-            plot_multiple = False
-            if result is None:
-                result = self.current_result
-                if result is None:
-                    raise ValueError(
-                        "No result provided and no current result available."
-                    )
-            result_dict = {"result": result}
-
-        # Prepare colors
-        if colors is None:
-            # Default palette: black for reference, then tab10
-            default_colors = [
-                "black",
-                "#1f77b4",
-                "#e68910",
-                "#589c43",
-                "indianred",
-                "#9467bd",
-                "#8c564b",
-                "#e377c2",
-                "#7f7f7f",
-                "#bcbd22",
-            ]
-            # If more spectra than colors, cycle
-            colors = default_colors
-
-        # Create figure if needed
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
-        else:
-            fig = ax.figure
-
-        # Plot reference spectrum if provided
-        if reference_spectrum is not None:
-            if isinstance(reference_spectrum, pd.DataFrame):
-                ref_E = reference_spectrum["E_MeV"].values
-                ref_Phi = reference_spectrum["Phi"].values
-            elif isinstance(reference_spectrum, dict):
-                ref_E = reference_spectrum["E_MeV"]
-                ref_Phi = reference_spectrum["Phi"]
-            else:
-                raise TypeError("reference_spectrum must be DataFrame or dict")
-            ax.plot(
-                ref_E,
-                ref_Phi,
-                label="reference",
-                linewidth=1,
-                linestyle=":",
-                color=colors[0],
-            )
-
-        # Plot each result
-        for i, (method, res) in enumerate(result_dict.items()):
-            color_idx = i + 1 if reference_spectrum is not None else i
-            color = colors[color_idx % len(colors)]
-
-            # Extract data
-            energy = res.get("energy", self.E_MeV)
-            spectrum = res.get("spectrum")
-            if spectrum is None:
-                raise ValueError(
-                    f"Result for '{method}' missing 'spectrum' key."
-                )
-
-            # Plot uncertainty based on style
-            if plot_style == 'fill_between':
-                # Use min/max for fill_between
-                uncert_min = res.get("spectrum_uncert_min")
-                uncert_max = res.get("spectrum_uncert_max")
-                
-                if uncert_min is not None and uncert_max is not None:
-                    ax.fill_between(
-                        energy,
-                        uncert_min,
-                        uncert_max,
-                        alpha=0.3,
-                        hatch='\\',
-                        facecolor=color,
-                        color=color,
-                        label=f"{method} uncertainty range",
-                    )
-            
-            elif plot_style == 'errorbar':
-                # Use standard deviation for error bars
-                uncert_std = res.get("spectrum_uncert_std")
-                
-                if uncert_std is not None:
-                    # Calculate subsample for error bars to avoid overcrowding
-                    n_points = len(energy)
-                    if n_points > 50:  # If too many points, subsample
-                        step = n_points // 50
-                        indices = np.arange(0, n_points, step)
-                        if indices[-1] != n_points - 1:  # Ensure last point is included
-                            indices = np.append(indices, n_points - 1)
-                        
-                        e_plot = energy[indices]
-                        s_plot = spectrum[indices]
-                        err_plot = uncert_std[indices]
-                    else:
-                        e_plot = energy
-                        s_plot = spectrum
-                        err_plot = uncert_std
-                    
-                    # Plot error bars
-                    ax.errorbar(
-                        e_plot,
-                        s_plot,
-                        yerr=err_plot,
-                        fmt='none',  # No markers
-                        ecolor=color,
-                        capsize=2,
-                        capthick=1,
-                        alpha=0.5,
-                        label=f"{method} ±1σ" if len(result_dict) == 1 else None
-                    )
-
-            # Plot spectrum line
-            ax.plot(
-                energy,
-                spectrum,
-                label=method,
-                color=color,
-                ls="-",
-                linewidth=1.3,
-                alpha=1,
-            )
-
-        # Set labels and scales
-        ax.set_xlabel("Energy, MeV")
-        ax.set_ylabel("Fluence per unit lethargy, F(E)E, neutron/(cm² ∙ s)")
-        ax.set_xscale("log")
-        
-        # Adjust ylim
-        ymax = ax.get_ylim()[1]
-        if reference_spectrum is not None:
-            ymax = max(ymax, np.max(ref_Phi) * 1.5)
-        
-        # For errorbar style, consider adding some headroom for error bars
-        if plot_style == 'errorbar':
-            ymax *= 1.1
-            
-        ax.set_ylim(0, ymax)
-        
-        # Legend handling for errorbar style
-        if plot_style == 'errorbar' and len(result_dict) > 1:
-            # Don't show individual error bar labels for multiple results
-            handles, labels = ax.get_legend_handles_labels()
-            # Keep only spectrum lines and reference in legend
-            filtered_handles = []
-            filtered_labels = []
-            for h, l in zip(handles, labels):
-                if '±1σ' not in l:  # Skip error bar entries
-                    filtered_handles.append(h)
-                    filtered_labels.append(l)
-            ax.legend(filtered_handles, filtered_labels, loc="upper left", 
-                     borderaxespad=0.0, fontsize=8)
-        else:
-            ax.legend(loc="upper left", borderaxespad=0.0, fontsize=8)
-            
-        ax.grid(True, which="both", ls=":")
-
-        # Title
-        if title is None:
-            if plot_multiple:
-                title = f"Unfolded spectra with uncertainty ({plot_style})"
-            else:
-                method = list(result_dict.keys())[0]
-                title = f"Unfolded spectrum ({method}) with uncertainty ({plot_style})"
-        ax.set_title(title, fontsize=14)
-
-        # Save figure if requested
-        self._save_figure(
-            fig,
+        from bssunfold.plots import plot_with_uncertainty as plot_uncertainty
+        return plot_uncertainty(
+            self,
+            result=result,
+            results=results,
+            reference_spectrum=reference_spectrum,
+            ax=ax,
+            figsize=figsize,
+            colors=colors,
+            title=title,
+            plot_style=plot_style,
+            show=show,
             save_to=save_to,
             dpi=dpi,
             bbox_inches=bbox_inches,
             **savefig_kwargs,
         )
-
-        if show:
-            plt.show()
-
-        return fig, ax
 
     def discretize_spectra(
         self, spectra: Union[pd.DataFrame, Dict]
@@ -2423,6 +2197,8 @@ class Detector:
         Восстановление спектра с помощью библиотеки qpsolvers.
         ... (документация)
         """
+        import warnings
+        from qpsolvers import available_solvers, solve_qp
         
         # Вспомогательные функции для создания матриц производных
         def _create_first_derivative_matrix(n: int) -> np.ndarray:
@@ -2559,8 +2335,7 @@ class Detector:
             return x
 
         # Основной код метода
-        import warnings
-        from qpsolvers import available_solvers, solve_qp
+        
         
         # Валидация и основное решение
         readings = self._validate_readings(readings)
