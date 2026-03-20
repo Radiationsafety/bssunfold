@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
+## [0.4.2] - 2026-03-20
+### Added
+ - refactor of detector.py:
+    - utils folder and code
+    - constants folder and code
+    - plots folder and code
+
 
 ## [0.4.1] - 2026-03-17
 ### Added

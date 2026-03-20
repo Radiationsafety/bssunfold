@@ -12,6 +12,7 @@ import odl
 import warnings
 from datetime import datetime
 import pytikhonov as ptk
+from .utils.math_utils import cosine_similarity, create_first_derivative_matrix, create_second_derivative_matrix
 
 
 class Detector:
@@ -563,9 +564,9 @@ class Detector:
         
     #     # Создаем матрицу для выбранного порядка производной
     #     if smoothness_order == 1:
-    #         L = self._create_first_derivative_matrix(n)
+    #         L = create_first_derivative_matrix(n)
     #     elif smoothness_order == 2:
-    #         L = self._create_second_derivative_matrix(n)
+    #         L = create_second_derivative_matrix(n)
     #     else:
     #         raise ValueError("smoothness_order должен быть 1 или 2")
         
@@ -769,7 +770,7 @@ class Detector:
                 alpha = alpha_val
                 x_temp = _solve_problem(A, b, solver)
                 all_unfolded_spectra.append(x_temp)
-                cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
+                cos_sim = cosine_similarity(x_temp, initial_spectrum_norm)
                 cosine_similarities.append(cos_sim)
             # Restore alpha (will be set to optimal later)
             if original_alpha is not None:
@@ -1382,32 +1383,6 @@ class Detector:
             f"Got {type(initial_spectrum)}"
         )
 
-    def _cosine_similarity(
-        self, spectrum1: np.ndarray, spectrum2: np.ndarray
-    ) -> float:
-        """
-        Вычисление косинусного сходства между двумя спектрами.
-        
-        Parameters
-        ----------
-        spectrum1 : np.ndarray
-            Первый спектр
-        spectrum2 : np.ndarray
-            Второй спектр
-        
-        Returns
-        -------
-        float
-            Косинусное сходство (от -1 до 1)
-        """
-        # Нормализация спектров
-        norm1 = np.linalg.norm(spectrum1)
-        norm2 = np.linalg.norm(spectrum2)
-        
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-        
-        return np.dot(spectrum1, spectrum2) / (norm1 * norm2)
     def _select_regularization(
         self,
         A: np.ndarray,
@@ -2200,23 +2175,6 @@ class Detector:
         import warnings
         from qpsolvers import available_solvers, solve_qp
         
-        # Вспомогательные функции для создания матриц производных
-        def _create_first_derivative_matrix(n: int) -> np.ndarray:
-            """Создает матрицу первой разностной производной (n-1 x n)"""
-            L = np.zeros((n-1, n))
-            for i in range(n-1):
-                L[i, i] = -1
-                L[i, i+1] = 1
-            return L
-
-        def _create_second_derivative_matrix(n: int) -> np.ndarray:
-            """Создает матрицу второй разностной производной (n-2 x n)"""
-            L = np.zeros((n-2, n))
-            for i in range(n-2):
-                L[i, i] = 1
-                L[i, i+1] = -2
-                L[i, i+2] = 1
-            return L
 
         def _solve_problem_qpsolvers(
             A: np.ndarray, 
@@ -2252,11 +2210,11 @@ class Detector:
                 
                 # Создаем матрицу для регуляризации гладкости
                 if smoothness_order == 1:
-                    L = _create_first_derivative_matrix(n_vars)
+                    L = create_first_derivative_matrix(n_vars)
                     # Добавляем гладкость: alpha * ||Lx||^2
                     P += alpha * smoothness_weight * (L.T @ L)
                 elif smoothness_order == 2:
-                    L = _create_second_derivative_matrix(n_vars)
+                    L = create_second_derivative_matrix(n_vars)
                     P += alpha * smoothness_weight * (L.T @ L)
                 else:
                     # Стандартная регуляризация Тихонова
@@ -2281,10 +2239,10 @@ class Detector:
                 
                 # Добавляем гладкость если нужно
                 if smoothness_order == 1:
-                    L = _create_first_derivative_matrix(n_vars)
+                    L = create_first_derivative_matrix(n_vars)
                     P_ext[:n_vars, :n_vars] += alpha * smoothness_weight * (L.T @ L)
                 elif smoothness_order == 2:
-                    L = _create_second_derivative_matrix(n_vars)
+                    L = create_second_derivative_matrix(n_vars)
                     P_ext[:n_vars, :n_vars] += alpha * smoothness_weight * (L.T @ L)
                 
                 q_ext = np.zeros(n_extended)
@@ -2369,7 +2327,7 @@ class Detector:
                     smoothness_weight=smoothness_weight
                 )
                 if x_temp is not None:
-                    cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
+                    cos_sim = cosine_similarity(x_temp, initial_spectrum_norm)
                     cosine_similarities.append(cos_sim)
                 else:
                     cosine_similarities.append(-1)  # штраф за не найденное решение
