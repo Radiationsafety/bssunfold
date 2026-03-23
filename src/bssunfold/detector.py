@@ -1787,7 +1787,7 @@ class Detector:
             Additional keyword arguments passed to fig.savefig().
         """
         from bssunfold.plots import plot_response_functions as plot_rf
-        plot_rf(self, save_to=save_to, show=show, dpi=dpi, bbox_inches=bbox_inches, **savefig_kwargs)
+        plot_rf(self.E_MeV, self.sensitivities, save_to=save_to, show=show, dpi=dpi, bbox_inches=bbox_inches, **savefig_kwargs)
 
     def plot_with_uncertainty(
         self,
@@ -1873,7 +1873,7 @@ class Detector:
         """
         from bssunfold.plots import plot_with_uncertainty as plot_uncertainty
         return plot_uncertainty(
-            self,
+            self.E_MeV,
             result=result,
             results=results,
             reference_spectrum=reference_spectrum,
