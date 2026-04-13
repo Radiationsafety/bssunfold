@@ -115,7 +115,7 @@ packaging==26.0
     #   pytest
 pandas==3.0.1
     # via bssunfold (pyproject.toml)
-pillow==12.1.1
+pillow==12.2.0
     # via matplotlib
 piqp==0.6.2
     # via qpsolvers
