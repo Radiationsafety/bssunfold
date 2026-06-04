@@ -268,7 +268,6 @@ version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy", extra = ["ecos"] },
-    { name = "importlib" },
     { name = "lmfit" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -345,7 +344,6 @@ requires-dist = [
     { name = "bssunfold", extras = ["solvers-jax"], marker = "extra == 'windows'" },
     { name = "bssunfold", extras = ["solvers-proxqp"], marker = "extra == 'all-solvers'" },
     { name = "cvxpy", extras = ["ecos"], specifier = ">=1.7.5" },
-    { name = "importlib", specifier = ">=1.0.4" },
     { name = "jax", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxlib", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxopt", marker = "extra == 'solvers-jax'", specifier = ">=0.8.0" },
@@ -1263,12 +1261,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/a7/84/62473fb57d61e31fe
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/62/85c4c919272577931d407be5ba5d71c20f0b616d31a0befe0ae45bb79abd/imagesize-1.4.1-py2.py3-none-any.whl", hash = "sha256:0d8d18d08f840c19d0ee7ca1fd82490fdc3729b7ac93f49870406ddde8ef8d8b", size = 8769, upload-time = "2022-07-01T12:21:02.467Z" },
 ]
-
-[[package]]
-name = "importlib"
-version = "1.0.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/31/77/3781f65cafe55480b56914def99022a5d2965a4bb269655c89ef2f1de3cd/importlib-1.0.4.zip", hash = "sha256:b6ee7066fea66e35f8d0acee24d98006de1a0a8a94a8ce6efe73a9a23c8d9826", size = 7074, upload-time = "2016-08-31T19:40:00.728Z" }
 
 [[package]]
 name = "importlib-metadata"

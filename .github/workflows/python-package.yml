@@ -23,7 +23,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install uv
       uses: astral-sh/setup-uv@v5
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Generate coverage and upload to Codacy
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install uv
       uses: astral-sh/setup-uv@v5
@@ -87,7 +87,7 @@ jobs:
       id-token: write  # mandatory for Trusted Publishing
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install uv
       uses: astral-sh/setup-uv@v5
