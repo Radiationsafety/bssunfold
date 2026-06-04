@@ -17,13 +17,21 @@ from ..platform_check import get_recommended_solver
 from ..utils.validators import validate_readings as validate_readings_util
 from ..utils.converters import convert_to_dataframe, convert_sensitivities_to_matrix
 from ..utils.interpolation import interpolate_spectrum, discretize_spectra as discretize_spectra_util
+from ..utils.plotting import plot_spectrum, plot_response_functions as plot_rf_util, plot_with_uncertainty as plot_uncert_util
 from .dose_calculation import calculate_dose_rates, get_icrp116_coefficients
-from .regularization import select_regularization_parameter
+from .regularization import (
+    select_regularization_parameter,
+    compare_regularization_methods as compare_reg_util,
+    randomization_experiment as rand_exp_util,
+)
 from .unfolding_methods import (
     solve_cvxpy,
     solve_landweber,
     solve_mlem,
     solve_qpsolvers,
+    solve_doroshenko,
+    solve_kaczmarz,
+    solve_lmfit,
 )
 
 __all__ = ["Detector"]
@@ -757,3 +765,720 @@ class Detector:
             effective_readings[detector_name] = float(reading)
 
         return effective_readings
+
+    @staticmethod
+    def _import_optional(module_name: str, purpose: str) -> Any:
+        """Import optional dependency with informative error message."""
+        try:
+            return __import__(module_name)
+        except ImportError as e:
+            raise ImportError(
+                f"{module_name} is required for {purpose}. "
+                f"Install with: pip install {module_name}"
+            ) from e
+
+    def _save_figure(
+        self,
+        fig: "Any",
+        save_to: Optional[str] = None,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
+    ) -> None:
+        """Save figure to file with support for multiple formats."""
+        if save_to is None:
+            return
+        allowed_extensions = (".png", ".jpg", ".jpeg", ".eps", ".pdf")
+        if not any(
+            save_to.lower().endswith(ext) for ext in allowed_extensions
+        ):
+            raise ValueError(
+                f"Unsupported file extension. Allowed: {allowed_extensions}"
+            )
+        fig.savefig(
+            save_to,
+            dpi=dpi,
+            bbox_inches=bbox_inches,
+            **savefig_kwargs,
+        )
+        logger.info(f"Figure saved to: {save_to}")
+
+    def unfold_doroshenko(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        regularization: float = 0.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the Doroshenko coordinate update method.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings (counts or dose rates)
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, uniform spectrum is used
+        max_iterations : int, optional
+            Maximum number of iterations, default: 1000
+        tolerance : float, optional
+            Convergence tolerance for solution change, default: 1e-6
+        regularization : float, optional
+            Regularization strength to prevent division by zero, default: 0.0
+        calculate_errors : bool, optional
+            Flag to calculate uncertainty via Monte-Carlo, default: False
+        noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty calculation, default: 0.01
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100
+        save_result : bool, optional
+            If True, save result to internal history, default: True
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing unfolding results.
+        """
+        validated_readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(validated_readings)
+
+        if initial_spectrum is None:
+            x0 = np.ones(self.n_energy_bins)
+        else:
+            x0 = self._normalize_initial_spectrum(initial_spectrum)
+            if x0 is None:
+                x0 = np.ones(self.n_energy_bins)
+
+        x_opt, n_iter, converged = solve_doroshenko(
+            A, b, x0, max_iterations, tolerance, regularization
+        )
+
+        output = self._standardize_output(
+            spectrum=x_opt,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Doroshenko",
+            iterations=n_iter,
+            converged=converged,
+            tolerance=tolerance,
+            regularization=regularization,
+        )
+
+        if calculate_errors:
+            logger.info(
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+            )
+            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
+            for i in range(n_montecarlo):
+                noisy_readings = self._add_noise(validated_readings, noise_level)
+                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
+                x_sample, _, _ = solve_doroshenko(
+                    A_noisy, b_noisy, x0, max_iterations, tolerance, regularization
+                )
+                spectra_samples[i] = x_sample
+
+            output.update({
+                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
+                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
+                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
+                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
+                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
+                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
+                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
+                "spectrum_uncert_all": spectra_samples,
+                "montecarlo_samples": n_montecarlo,
+                "noise_level": noise_level,
+            })
+            logger.info("...uncertainty calculation completed.")
+
+        if save_result:
+            self._save_result(output)
+
+        return output
+
+    def unfold_kaczmarz(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 1000,
+        omega: float = 1.0,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the Kaczmarz algorithm (ART).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings (counts or dose rates)
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, zero spectrum is used
+        max_iterations : int, optional
+            Maximum number of iterations, default: 1000
+        omega : float, optional
+            Relaxation parameter (0 < omega <= 2), default: 1.0
+        tolerance : float, optional
+            Convergence tolerance for solution change, default: 1e-6
+        calculate_errors : bool, optional
+            Flag to calculate uncertainty via Monte-Carlo, default: False
+        noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty calculation, default: 0.01
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100
+        save_result : bool, optional
+            If True, save result to internal history, default: True
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing unfolding results.
+        """
+        validated_readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(validated_readings)
+
+        if initial_spectrum is None:
+            x0 = np.zeros(self.n_energy_bins)
+        else:
+            x0 = self._normalize_initial_spectrum(initial_spectrum)
+            if x0 is None:
+                x0 = np.zeros(self.n_energy_bins)
+
+        x_opt, n_iter, converged = solve_kaczmarz(
+            A, b, x0, max_iterations, omega, tolerance
+        )
+
+        output = self._standardize_output(
+            spectrum=x_opt,
+            A=A,
+            b=b,
+            selected=selected,
+            method="Kaczmarz",
+            iterations=n_iter,
+            converged=converged,
+            tolerance=tolerance,
+            omega=omega,
+        )
+
+        if calculate_errors:
+            logger.info(
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+            )
+            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
+            for i in range(n_montecarlo):
+                noisy_readings = self._add_noise(validated_readings, noise_level)
+                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
+                x_sample, _, _ = solve_kaczmarz(
+                    A_noisy, b_noisy, x0, max_iterations, omega, tolerance
+                )
+                spectra_samples[i] = x_sample
+
+            output.update({
+                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
+                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
+                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
+                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
+                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
+                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
+                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
+                "spectrum_uncert_all": spectra_samples,
+                "montecarlo_samples": n_montecarlo,
+                "noise_level": noise_level,
+            })
+            logger.info("...uncertainty calculation completed.")
+
+        if save_result:
+            self._save_result(output)
+
+        return output
+
+    def unfold_lmfit(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        method: str = "lbfgsb",
+        model_name: str = "elastic",
+        regularization: float = 1e-4,
+        regularization2: float = 1e-4,
+        l1_weight: float = 0.5,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings (counts or dose rates)
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, uniform spectrum based on mean readings
+        method : str, optional
+            lmfit solver name (leastsq, lbfgsb, etc.), default: "lbfgsb"
+        model_name : str, optional
+            Regularization model: elastic, lasso, ridge, default: "elastic"
+        regularization : float, optional
+            L1 regularization strength, default: 1e-4
+        regularization2 : float, optional
+            L2 regularization strength for elastic net, default: 1e-4
+        l1_weight : float, optional
+            L1 weight for elastic net (0=pure L2, 1=pure L1), default: 0.5
+        calculate_errors : bool, optional
+            Flag to calculate uncertainty via Monte-Carlo, default: False
+        noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty calculation, default: 0.01
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100
+        save_result : bool, optional
+            If True, save result to internal history, default: True
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing unfolding results.
+        """
+        validated_readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(validated_readings)
+
+        if initial_spectrum is None:
+            x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))
+        else:
+            x0 = self._normalize_initial_spectrum(initial_spectrum)
+            if x0 is None:
+                x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))
+
+        x_opt, success, message, nfev = solve_lmfit(
+            A, b, x0, method, model_name, regularization, regularization2, l1_weight
+        )
+
+        output = self._standardize_output(
+            spectrum=x_opt,
+            A=A,
+            b=b,
+            selected=selected,
+            method=f"lmfit ({method})",
+            model_name=model_name,
+        )
+
+        output.update({
+            "regularization": regularization,
+            "regularization2": regularization2 if model_name == "elastic" else None,
+            "l1_weight": l1_weight if model_name == "elastic" else None,
+            "success": success,
+            "message": message,
+            "nfev": nfev,
+            "initial_spectrum": x0.copy(),
+        })
+
+        if calculate_errors:
+            logger.info(
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+            )
+            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
+            for i in range(n_montecarlo):
+                noisy_readings = self._add_noise(validated_readings, noise_level)
+                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
+                x_sample, _, _, _ = solve_lmfit(
+                    A_noisy, b_noisy, x0, method, model_name,
+                    regularization, regularization2, l1_weight
+                )
+                spectra_samples[i] = x_sample
+
+            output.update({
+                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
+                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
+                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
+                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
+                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
+                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
+                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
+                "spectrum_uncert_all": spectra_samples,
+                "montecarlo_samples": n_montecarlo,
+                "noise_level": noise_level,
+            })
+            logger.info("...uncertainty calculation completed.")
+
+        if save_result:
+            self._save_result(output)
+
+        return output
+
+    def unfold_combined(
+        self,
+        readings: Dict[str, float],
+        pipeline: List[Dict[str, Any]],
+        calculate_errors: bool = False,
+        verbose: bool = True,
+    ) -> Dict:
+        """Combined unfolding method applying multiple methods sequentially.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings
+        pipeline : List[Dict[str, Any]]
+            List of methods for sequential application. Each dict should contain:
+            - 'method': str - method name (e.g., 'cvxpy', 'landweber', 'mlem')
+            - 'params': dict - parameters for the method
+            - 'use_as_initial': bool (optional) - use result as initial guess
+            - 'store_intermediate': bool (optional) - store intermediate result
+        calculate_errors : bool, optional
+            Flag to calculate errors for the last method
+        verbose : bool, optional
+            Flag to print debug information
+
+        Returns
+        -------
+        Dict
+            Dictionary with unfolding results.
+        """
+        readings = self._validate_readings(readings)
+        current_spectrum = None
+        intermediate_results = {}
+        final_result = None
+
+        if verbose:
+            logger.info(f"Combined algorithm, methods = {len(pipeline)}")
+
+        for i, stage in enumerate(pipeline):
+            method = stage['method']
+            params = stage.get('params', {}).copy()
+            use_as_initial = stage.get('use_as_initial', True)
+            store_intermediate = stage.get('store_intermediate', False)
+
+            if verbose:
+                logger.info(f"Stage {i+1}/{len(pipeline)}: {method}")
+
+            if current_spectrum is not None and use_as_initial:
+                initial_param_names = {
+                    'landweber': 'initial_spectrum',
+                    'mlem': 'initial_spectrum',
+                    'cvxpy': 'initial_spectrum',
+                    'qpsolvers': 'initial_spectrum',
+                    'doroshenko': 'initial_spectrum',
+                    'kaczmarz': 'initial_spectrum',
+                    'lmfit': 'initial_spectrum',
+                }
+                if method in initial_param_names:
+                    params[initial_param_names[method]] = current_spectrum.copy()
+                    if verbose:
+                        logger.info("Previous result used as initial spectrum")
+
+            method_func = getattr(self, f'unfold_{method}', None)
+            if method_func is None:
+                raise ValueError(f"Method '{method}' not found in Detector class")
+
+            if i == len(pipeline) - 1 and calculate_errors:
+                params['calculate_errors'] = True
+            else:
+                params['calculate_errors'] = False
+
+            try:
+                result = method_func(readings, **params)
+            except Exception as e:
+                logger.error(f"Error in method {method}: {e}")
+                raise
+
+            if 'spectrum' in result:
+                current_spectrum = result['spectrum'].copy()
+                if verbose:
+                    logger.info(
+                        f"  Spectrum norm: {np.linalg.norm(current_spectrum):.6f}"
+                    )
+
+            if store_intermediate:
+                intermediate_results[f'stage_{i+1}_{method}'] = result.copy()
+
+            final_result = result
+
+        if verbose:
+            logger.info("Combined method finished")
+
+        if final_result is None:
+            return None
+
+        output = final_result.copy()
+        output['pipeline_info'] = {
+            'stages': [stage['method'] for stage in pipeline],
+            'params': [stage.get('params', {}) for stage in pipeline]
+        }
+
+        if intermediate_results:
+            output['intermediate_results'] = intermediate_results
+
+        return output
+
+    def unfold_mlem_odl(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+    ) -> Dict:
+        """Unfold using MLEM with ODL (Operator Discretization Library).
+
+        Requires the 'odl' package to be installed.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum approximation. If None, uniform spectrum is used.
+        tolerance : float, optional
+            Convergence tolerance. Default is 1e-6.
+        max_iterations : int, optional
+            Maximum number of iterations. Default is 1000.
+        calculate_errors : bool, optional
+            Flag for calculating restoration errors. Default is False.
+        noise_level : float, optional
+            Noise level for error calculation. Default is 0.01.
+        n_montecarlo : int, optional
+            Number of Monte Carlo samples for error calculation. Default is 100.
+        save_result : bool, optional
+            If True, save result to internal history. Default is True.
+
+        Returns
+        -------
+        Dict
+            Dictionary containing the spectrum restoration results.
+        """
+        odl = self._import_optional("odl", "ODL-based MLEM unfolding")
+
+        validated_readings = self._validate_readings(readings)
+        A, b, selected = self._build_system(validated_readings)
+
+        # Create ODL spaces
+        # Ensure interval has positive length (len(b) >= 1)
+        meas_end = max(len(b), 1)
+        measurement_space = odl.uniform_discr(0, meas_end, len(b))
+        spectrum_space = odl.uniform_discr(
+            float(np.min(self.E_MeV)), float(np.max(self.E_MeV)), self.E_MeV.shape[0]
+        )
+
+        # Initialize spectrum
+        if initial_spectrum is None:
+            x = spectrum_space.element(0.5)
+        else:
+            x_init = self._normalize_initial_spectrum(initial_spectrum)
+            if x_init is None:
+                x = spectrum_space.element(0.5)
+            else:
+                x = spectrum_space.element(x_init)
+
+        # Create operator
+        operator = odl.MatrixOperator(
+            A, domain=spectrum_space, range=measurement_space
+        )
+
+        y = measurement_space.element(b)
+
+        # Run MLEM
+        odl.solvers.mlem(operator, x, y, niter=max_iterations)
+
+        # ODL 1.0 requires .data instead of np.asarray()
+        x_opt = np.asarray(x.data)
+        x_opt = np.maximum(x_opt, 0)
+
+        output = self._standardize_output(
+            spectrum=x_opt,
+            A=A,
+            b=b,
+            selected=selected,
+            method="MLEM (ODL)",
+            iterations=max_iterations,
+        )
+
+        if calculate_errors:
+            logger.info(
+                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
+            )
+            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
+            for i in range(n_montecarlo):
+                noisy_readings = self._add_noise(validated_readings, noise_level)
+                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
+
+                meas_end = max(len(b_noisy), 1)
+                meas_space = odl.uniform_discr(0, meas_end, len(b_noisy))
+                spec_space = odl.uniform_discr(
+                    float(np.min(self.E_MeV)), float(np.max(self.E_MeV)),
+                    self.E_MeV.shape[0]
+                )
+                op = odl.MatrixOperator(A_noisy, domain=spec_space, range=meas_space)
+                y_noisy = meas_space.element(b_noisy)
+                x_sample = spec_space.element(0.5)
+                odl.solvers.mlem(op, x_sample, y_noisy, niter=max_iterations)
+                spectra_samples[i] = np.asarray(x_sample.data)
+
+            output.update({
+                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
+                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
+                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
+                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
+                "montecarlo_samples": n_montecarlo,
+                "noise_level": noise_level,
+            })
+            logger.info("...uncertainty calculation completed.")
+
+        if save_result:
+            self._save_result(output)
+
+        return output
+
+    def plot_response_functions(
+        self,
+        save_to: Optional[str] = None,
+        show: bool = True,
+        dpi: int = 300,
+        bbox_inches: str = "tight",
+        **savefig_kwargs,
+    ) -> None:
+        """Plot all detector response functions."""
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+        for name in self.detector_names:
+            ax.plot(self.E_MeV, self.sensitivities[name], label=name)
+
+        ax.set_xlabel("Energy, MeV")
+        ax.set_ylabel("Response, cm²")
+        ax.set_xscale("log")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        ax.set_title("Response functions of the detector")
+
+        self._save_figure(fig, save_to, dpi, bbox_inches, **savefig_kwargs)
+
+        if show:
+            plt.show()
+        plt.close(fig)
+
+    def plot_with_uncertainty(
+        self,
+        result: Dict[str, Any],
+        reference_spectrum: Optional[Dict[str, np.ndarray]] = None,
+        save_to: Optional[str] = None,
+        show: bool = True,
+        **plot_kwargs,
+    ) -> Tuple["Any", "Any"]:
+        """Plot unfolded spectrum with uncertainty range.
+
+        Parameters
+        ----------
+        result : Dict[str, Any]
+            Unfolding result dictionary containing 'energy', 'spectrum',
+            and optionally 'spectrum_uncert_min', 'spectrum_uncert_max',
+            'spectrum_uncert_std'.
+        reference_spectrum : Dict[str, np.ndarray], optional
+            Reference spectrum with 'E_MeV' and 'Phi' keys.
+        save_to : str, optional
+            Path to save figure.
+        show : bool, optional
+            Call plt.show() (default: True).
+        **plot_kwargs : dict
+            Additional keyword arguments for plotting.
+
+        Returns
+        -------
+        Tuple[plt.Figure, plt.Axes]
+            Figure and axes objects.
+        """
+        E_MeV = result.get("energy", self.E_MeV)
+        spectrum = result.get("spectrum", np.zeros_like(E_MeV))
+        uncert_min = result.get("spectrum_uncert_min")
+        uncert_max = result.get("spectrum_uncert_max")
+        uncert_std = result.get("spectrum_uncert_std")
+
+        return plot_uncert_util(
+            E_MeV=E_MeV,
+            spectrum=spectrum,
+            uncert_min=uncert_min,
+            uncert_max=uncert_max,
+            uncert_std=uncert_std,
+            reference_spectrum=reference_spectrum,
+            save_to=save_to,
+            show=show,
+            **plot_kwargs,
+        )
+
+    def compare_regularization_methods(
+        self,
+        readings: Dict[str, float],
+        noise_var: Optional[float] = None,
+        plot: bool = False,
+        plot_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Compare regularization selection methods for given readings.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        noise_var : float, optional
+            Noise variance for discrepancy principle.
+        plot : bool, optional
+            If True, generate comparison plot.
+        plot_path : str, optional
+            Path to save the plot.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Comparison results.
+        """
+        readings = self._validate_readings(readings)
+        A, b, _ = self._build_system(readings)
+        return compare_reg_util(
+            A, b, noise_var=noise_var, plot=plot, plot_path=plot_path
+        )
+
+    def randomization_experiment(
+        self,
+        readings: Dict[str, float],
+        noise_var: Optional[float] = None,
+        n_samples: int = 10,
+        rseed: int = 0,
+        methods: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Run randomization experiments for given readings.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        noise_var : float, optional
+            Noise variance for generating perturbed measurements.
+        n_samples : int, optional
+            Number of random samples for each method, default 10.
+        rseed : int, optional
+            Random seed for reproducibility, default 0.
+        methods : list of str, optional
+            List of methods to run: 'lcurve', 'dp', 'gcv', 'lcurve_full'.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Randomization experiment results.
+        """
+        readings = self._validate_readings(readings)
+        A, b, _ = self._build_system(readings)
+        return rand_exp_util(
+            A, b,
+            noise_var=noise_var,
+            n_samples=n_samples,
+            rseed=rseed,
+            methods=methods,
+        )

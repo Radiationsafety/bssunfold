@@ -6,7 +6,7 @@ using various heuristics: L-curve, GCV, Discrepancy Principle.
 
 import numpy as np
 import warnings
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 
 __all__ = [
     "select_regularization_parameter",
@@ -14,6 +14,8 @@ __all__ = [
     "gcv_selection",
     "discrepancy_principle_selection",
     "cosine_similarity_selection",
+    "compare_regularization_methods",
+    "randomization_experiment",
 ]
 
 
@@ -434,3 +436,191 @@ def cosine_similarity_selection(
     
     idx_max = np.argmax(similarities)
     return float(alphas[idx_max])
+
+
+def compare_regularization_methods(
+    A: np.ndarray,
+    b: np.ndarray,
+    noise_var: Optional[float] = None,
+    plot: bool = False,
+    plot_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Compare regularization selection methods for given system.
+    
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    noise_var : float, optional
+        Noise variance for discrepancy principle.
+        If None, estimated from residual of unregularized solution.
+    plot : bool, optional
+        If True, generate comparison plot.
+    plot_path : str, optional
+        Path to save the plot.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with keys:
+        - 'lcurve': dict from lcorner()
+        - 'dp': dict from discrepancy_principle()
+        - 'gcv': dict from gcvmin()
+        - 'all_data': dict from pytikhonov.all_regparam_methods()
+        - 'selected': dict mapping method name to selected lambda.
+    
+    Raises
+    ------
+    ImportError
+        If pytikhonov is not available.
+    """
+    try:
+        import pytikhonov as ptk
+    except ImportError as e:
+        raise ImportError(
+            "pytikhonov is required for compare_regularization_methods. "
+            "Install with: pip install pytikhonov"
+        ) from e
+    
+    n = A.shape[1]
+    L = np.eye(n)
+    fam = ptk.TikhonovFamily(A, L, b)
+    
+    # Compute each method
+    lc_res = ptk.lcorner(fam)
+    if noise_var is None:
+        x_ls, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+        noise_var = np.var(b - A @ x_ls)
+    delta = np.sqrt(noise_var)
+    dp_res = ptk.discrepancy_principle(fam, delta=delta)
+    gcv_res = ptk.gcvmin(fam)
+    all_data = ptk.all_regparam_methods(fam)
+    
+    selected = {
+        "lcurve": lc_res.get("opt_lambdah"),
+        "dp": dp_res.get("opt_lambdah"),
+        "gcv": gcv_res.get("opt_lambdah"),
+    }
+    
+    if plot:
+        ptk.plot_all_methods(all_data, plot_path=plot_path)
+    
+    return {
+        "lcurve": lc_res,
+        "dp": dp_res,
+        "gcv": gcv_res,
+        "all_data": all_data,
+        "selected": selected,
+    }
+
+
+def randomization_experiment(
+    A: np.ndarray,
+    b: np.ndarray,
+    noise_var: Optional[float] = None,
+    n_samples: int = 10,
+    rseed: int = 0,
+    methods: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Run randomization experiments for regularization parameter selection.
+    
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    noise_var : float, optional
+        Noise variance for generating perturbed measurements.
+        If None, estimated from residual of unregularized solution.
+    n_samples : int, optional
+        Number of random samples for each method, default 10.
+    rseed : int, optional
+        Random seed for reproducibility, default 0.
+    methods : list of str, optional
+        List of methods to run: 'lcurve', 'dp', 'gcv', 'lcurve_full'.
+        If None, runs all four.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with keys for each method, each containing:
+        - 'lambdas': array of selected lambdas per sample.
+        - 'mean': mean of lambdas.
+        - 'std': standard deviation.
+        - 'median': median.
+        - 'min', 'max': range.
+        - 'cv': coefficient of variation (std/mean).
+        - 'raw_result': raw output from pytikhonov function.
+    
+    Raises
+    ------
+    ImportError
+        If pytikhonov is not available.
+    """
+    try:
+        import pytikhonov as ptk
+    except ImportError as e:
+        raise ImportError(
+            "pytikhonov is required for randomization_experiment. "
+            "Install with: pip install pytikhonov"
+        ) from e
+    
+    n = A.shape[1]
+    L = np.eye(n)
+    
+    # Estimate noise variance if not provided
+    if noise_var is None:
+        x_ls, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+        noise_var = np.var(b - A @ x_ls)
+    
+    # Create TikhonovFamily with btrue = b (assumed true signal)
+    fam = ptk.TikhonovFamily(A, L, b, btrue=b, noise_var=noise_var)
+    
+    if methods is None:
+        methods = ["lcurve", "dp", "gcv", "lcurve_full"]
+    
+    results = {}
+    for method in methods:
+        if method == "lcurve":
+            raw = ptk.rand_lcorner(fam, n_samples=n_samples, rseed=rseed)
+            lambdas = np.array(raw[0])  # first element is list of lambdas
+        elif method == "dp":
+            raw = ptk.rand_discrepancy_principle(
+                fam, n_samples=n_samples, tau=1.01, rseed=rseed
+            )
+            lambdas = np.array(raw[0])
+        elif method == "gcv":
+            raw = ptk.rand_gcvmin(fam, n_samples=n_samples, rseed=rseed)
+            lambdas = np.array(raw[0])
+        elif method == "lcurve_full":
+            raw = ptk.rand_lcurve(
+                fam, lambdahs=None, n_samples=n_samples, rseed=rseed
+            )
+            lambdas = np.array(raw[0])
+        else:
+            warnings.warn(f"Unknown method: {method}. Skipping.")
+            continue
+        
+        # Compute statistics
+        mean = float(np.mean(lambdas))
+        std = float(np.std(lambdas))
+        median = float(np.median(lambdas))
+        min_val = float(np.min(lambdas))
+        max_val = float(np.max(lambdas))
+        cv = std / mean if mean != 0 else np.inf
+        
+        results[method] = {
+            "lambdas": lambdas,
+            "mean": mean,
+            "std": std,
+            "median": median,
+            "min": min_val,
+            "max": max_val,
+            "cv": cv,
+            "raw_result": raw,
+        }
+    
+    return results

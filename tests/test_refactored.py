@@ -345,18 +345,38 @@ def test_core_imports():
     """Test that core modules are importable."""
     from bssunfold.core import (
         Detector,
-        unfold_cvxpy,
-        unfold_landweber,
-        unfold_mlem,
+        solve_cvxpy,
+        solve_landweber,
+        solve_mlem,
+        solve_qpsolvers,
+        solve_doroshenko,
+        solve_kaczmarz,
+        solve_lmfit,
         select_regularization_parameter,
+        lcurve_selection,
+        gcv_selection,
+        discrepancy_principle_selection,
+        cosine_similarity_selection,
+        compare_regularization_methods,
+        randomization_experiment,
         calculate_dose_rates,
     )
     
     assert Detector is not None
-    assert unfold_cvxpy is not None
-    assert unfold_landweber is not None
-    assert unfold_mlem is not None
+    assert solve_cvxpy is not None
+    assert solve_landweber is not None
+    assert solve_mlem is not None
+    assert solve_qpsolvers is not None
+    assert solve_doroshenko is not None
+    assert solve_kaczmarz is not None
+    assert solve_lmfit is not None
     assert select_regularization_parameter is not None
+    assert lcurve_selection is not None
+    assert gcv_selection is not None
+    assert discrepancy_principle_selection is not None
+    assert cosine_similarity_selection is not None
+    assert compare_regularization_methods is not None
+    assert randomization_experiment is not None
     assert calculate_dose_rates is not None
 
 
