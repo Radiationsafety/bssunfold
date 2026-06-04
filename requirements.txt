@@ -131,7 +131,7 @@ pygments==2.19.2
     # via pytest
 pyparsing==3.3.2
     # via matplotlib
-pytest==9.0.2
+pytest==9.0.3
     # via bssunfold (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via
