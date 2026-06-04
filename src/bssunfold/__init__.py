@@ -11,7 +11,6 @@ Backward Compatibility Note:
 """
 
 import importlib.metadata
-import warnings
 
 # Import main classes and constants for backward compatibility
 from .core.detector import Detector
@@ -27,8 +26,10 @@ from . import utils
 from . import core
 from .platform_check import (
     is_windows,
+    is_unix,
     JAX_AVAILABLE,
     PROXSUITE_AVAILABLE,
+    QPSOLVERS_EXTRA_AVAILABLE,
     get_available_solvers,
     get_recommended_solver,
 )
@@ -44,8 +45,10 @@ __all__ = [
     "RF_LANL",
     # Platform info
     "is_windows",
+    "is_unix",
     "JAX_AVAILABLE",
     "PROXSUITE_AVAILABLE",
+    "QPSOLVERS_EXTRA_AVAILABLE",
     "get_available_solvers",
     "get_recommended_solver",
     # Logging
@@ -60,12 +63,3 @@ try:
     __version__ = importlib.metadata.version("bssunfold")
 except importlib.metadata.PackageNotFoundError:
     __version__ = "0.1.0"
-
-# Show platform warning on import if running on Windows
-if is_windows:
-    warnings.warn(
-        "Running on Windows. Some solvers (proxqp via proxsuite) "
-        "are not available. Using fallback solvers (ECOS, OSQP, etc.).",
-        UserWarning,
-        stacklevel=2
-    )

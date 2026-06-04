@@ -76,6 +76,20 @@ pip install -e .
 
 ### Optional dependencies
 
+```bash
+# Basic installation (without additional solvers)
+pip install bssunfold
+
+# With additional cross-platform solvers (recommended)
+pip install "bssunfold[solvers-core]"
+
+# All solvers (Unix/Linux/macOS)
+pip install "bssunfold[all-solvers]"
+
+# Windows (all except proxsuite)
+pip install "bssunfold[windows]"
+```
+
 Install with all solvers (Unix/Linux/Mac):
 ```bash
 pip install bssunfold[all-solvers]
