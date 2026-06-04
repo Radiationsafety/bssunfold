@@ -643,18 +643,120 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = True,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
     ) -> Dict[str, Any]:
-        """Unfold using qpsolvers."""
+        """Unfold using qpsolvers with regularization selection.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess.
+        regularization : float, optional
+            Regularization parameter, default: 1e-4. Used only when
+            regularization_method='manual'.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        solver : str, optional
+            QP solver name, default: 'osqp'.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        regularization_method : str, optional
+            Method for selecting regularization parameter.
+            Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
+            Default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for smoothness term, default: 1.0.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
         readings = self._validate_readings(readings)
         A, b, selected = self._build_system(readings)
         n = A.shape[1]
 
+        # Select regularization parameter
+        if regularization_method == "manual":
+            alpha = regularization
+            selected_lambda = alpha
+        elif regularization_method == "cosine":
+            if initial_spectrum is None:
+                raise ValueError(
+                    "For 'cosine' regularization method, "
+                    "initial_spectrum must be provided."
+                )
+            if norm != 2:
+                warnings.warn(
+                    f"Cosine regularization selection method assumes L2 "
+                    f"norm, but norm={norm} was requested. Using L2 for "
+                    f"selection."
+                )
+            initial_spectrum_norm = self._normalize_initial_spectrum(initial_spectrum)
+            alphas = np.logspace(-9, 2, 100)
+            cosine_similarities = []
+
+            for alpha_val in alphas:
+                x_temp = solve_qpsolvers(
+                    A, b, alpha_val, 2, solver,
+                    x_init=initial_spectrum_norm,
+                    smoothness_order=smoothness_order,
+                    smoothness_weight=smoothness_weight,
+                )
+                if x_temp is not None:
+                    cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
+                    cosine_similarities.append(cos_sim)
+                else:
+                    cosine_similarities.append(-1)
+
+            optimal_idx = int(np.argmax(cosine_similarities))
+            selected_lambda = alphas[optimal_idx]
+            alpha = selected_lambda
+            print(
+                f"Selected regularization (method=cosine): "
+                f"{selected_lambda:.3e}"
+            )
+        else:
+            if norm != 2:
+                warnings.warn(
+                    f"Automatic regularization selection methods assume L2 "
+                    f"norm, but norm={norm} was requested. Using L2 for "
+                    f"selection."
+                )
+            try:
+                selected_lambda = select_regularization_parameter(
+                    A, b, method=regularization_method, noise_var=noise_var
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"Regularization selection failed: {e}. "
+                    "Consider using manual regularization."
+                )
+            alpha = selected_lambda
+            print(
+                f"Selected regularization (method={regularization_method}): "
+                f"{selected_lambda:.3e}"
+            )
+
         x_value = solve_qpsolvers(
             A,
             b,
-            regularization,
+            alpha,
             norm,
             solver,
             initial_spectrum,
@@ -674,6 +776,8 @@ class Detector:
             method=f"qpsolvers_{solver}",
             norm=norm,
             regularization=regularization,
+            regularization_method=regularization_method,
+            selected_regularization=selected_lambda,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
         )
@@ -686,7 +790,7 @@ class Detector:
                 x_i = solve_qpsolvers(
                     A_noisy,
                     b_noisy,
-                    regularization,
+                    alpha,
                     norm,
                     solver,
                     initial_spectrum,
