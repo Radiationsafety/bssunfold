@@ -1286,7 +1286,8 @@ class Detector:
                 params['calculate_errors'] = False
 
             try:
-                result = method_func(readings, **params)
+                if callable(method_func):
+                    result = method_func(readings, **params)
             except Exception as e:
                 logger.error(f"Error in method {method}: {e}")
                 raise
