@@ -14,7 +14,6 @@ from ..constants import RF_GSF
 from ..logging_config import get_logger
 from ..platform_check import get_recommended_solver
 from ..utils.validators import validate_readings as validate_readings_util
-from ..utils.converters import convert_to_dataframe
 from ..utils.interpolation import discretize_spectra as discretize_spectra_util
 from ..utils.plotting import plot_with_uncertainty as plot_uncert_util
 from .dose_calculation import calculate_dose_rates, get_icrp116_coefficients
@@ -1276,8 +1275,10 @@ class Detector:
                         logger.info("Previous result used as initial spectrum")
 
             method_func = getattr(self, f'unfold_{method}', None)
-            if method_func is None:
-                raise ValueError(f"Method '{method}' not found in Detector class")
+            if method_func is None or not callable(method_func):
+                raise ValueError(
+                    f"Method '{method}' not found or not callable in Detector class"
+                )
 
             if i == len(pipeline) - 1 and calculate_errors:
                 params['calculate_errors'] = True
