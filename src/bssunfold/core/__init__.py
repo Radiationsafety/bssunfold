@@ -24,6 +24,15 @@ from .regularization import (
     randomization_experiment,
 )
 from .dose_calculation import calculate_dose_rates
+from .unfold_cvxpy import unfold_cvxpy
+from .unfold_landweber import unfold_landweber
+from .unfold_mlem import unfold_mlem
+from .unfold_qpsolvers import unfold_qpsolvers
+from .unfold_doroshenko import unfold_doroshenko
+from .unfold_kaczmarz import unfold_kaczmarz
+from .unfold_lmfit import unfold_lmfit
+from .unfold_mlem_odl import unfold_mlem_odl
+from .unfold_combined import unfold_combined
 
 __all__ = [
     # detector
@@ -36,6 +45,16 @@ __all__ = [
     "solve_doroshenko",
     "solve_kaczmarz",
     "solve_lmfit",
+    # unfold modules
+    "unfold_cvxpy",
+    "unfold_landweber",
+    "unfold_mlem",
+    "unfold_qpsolvers",
+    "unfold_doroshenko",
+    "unfold_kaczmarz",
+    "unfold_lmfit",
+    "unfold_mlem_odl",
+    "unfold_combined",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

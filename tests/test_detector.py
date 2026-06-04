@@ -2,7 +2,13 @@ import pytest
 import numpy as np
 import pandas as pd
 from unittest.mock import patch
-from src.bssunfold import Detector
+import sys
+import os
+
+# Добавляем src в путь для импорта
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+from bssunfold import Detector
 
 
 @pytest.fixture
@@ -200,7 +206,7 @@ class TestDoseRateCalculation:
         # Мокаем calculate_dose_rates на уровне модуля core.detector,
         # т.к. в текущей реализации Detector нет метода _calculate_doserates
         with patch(
-            "src.bssunfold.core.detector.calculate_dose_rates",
+            "bssunfold.core.detector.calculate_dose_rates",
             return_value={
                 "AP": 1.0,
                 "PA": 2.0,
@@ -298,7 +304,7 @@ class TestDetectorInitializationVariants:
 
     def test_init_with_response_functions_rf_gsf(self):
         """Инициализация с response_functions=RF_GSF (старый способ)."""
-        from src.bssunfold.constants import RF_GSF
+        from bssunfold.constants import RF_GSF
         detector = Detector(response_functions=RF_GSF)
         assert detector.n_detectors > 0
         assert detector.n_energy_bins > 0
