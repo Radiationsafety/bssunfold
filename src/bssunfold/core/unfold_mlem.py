@@ -69,7 +69,9 @@ def unfold_mlem(
         Unfolding results dictionary.
     """
     def solve_wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0')
+        x0 = kwargs.pop('x0', None)
+        if x0 is None:
+            x0 = np.ones(A.shape[1]) * 0.5
         x_opt, n_iter, converged = solve_mlem(
             A, b, x0, max_iterations, tolerance
         )

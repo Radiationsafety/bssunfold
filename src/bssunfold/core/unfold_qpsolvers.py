@@ -165,6 +165,8 @@ def unfold_qpsolvers(
         )
 
     def solve_wrapper(A, b, **kwargs):
+        # qpsolvers doesn't use x0, but we need to accept it for consistency
+        kwargs.pop('x0', None)
         x = solve_qpsolvers(
             A, b, alpha, norm, solver,
             smoothness_order=smoothness_order,

@@ -84,7 +84,9 @@ def unfold_mlem_odl(
     A = np.array([sensitivities[name] for name in selected], dtype=float)
 
     def solve_wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0')
+        x0 = kwargs.pop('x0', None)
+        if x0 is None:
+            x0 = np.ones(A.shape[1]) * 0.5
         
         # Create ODL spaces
         meas_end = max(len(b), 1)
@@ -110,7 +112,8 @@ def unfold_mlem_odl(
         x_opt = np.asarray(x.data)
         x_opt = np.maximum(x_opt, 0)
         
-        return x_opt
+        # Return tuple with iterations and converged flag
+        return x_opt, max_iterations, True
 
     x0_default = np.ones(n_energy_bins) * 0.5
 

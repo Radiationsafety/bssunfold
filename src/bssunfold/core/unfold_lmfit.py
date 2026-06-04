@@ -87,13 +87,16 @@ def unfold_lmfit(
 
     def solve_wrapper(A, b, **kwargs):
         nonlocal initial_spec_for_output
-        x0 = kwargs.pop('x0')
+        x0 = kwargs.pop('x0', None)
+        if x0 is None:
+            x0 = np.ones(A.shape[1]) * np.mean(b) / np.mean(A.sum(axis=1))
         initial_spec_for_output = x0.copy()
         x_opt, success, message, nfev = solve_lmfit(
             A, b, x0, method, model_name,
             regularization, regularization2, l1_weight
         )
-        return x_opt
+        # Return tuple with success flag for run_unfolding to capture
+        return x_opt, nfev, success
 
     # Default initial spectrum based on mean readings
     x0_default = np.ones(n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))

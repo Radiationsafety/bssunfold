@@ -72,7 +72,9 @@ def unfold_kaczmarz(
         Dictionary containing unfolding results.
     """
     def solve_wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0')
+        x0 = kwargs.pop('x0', None)
+        if x0 is None:
+            x0 = np.zeros(A.shape[1])
         x_opt, n_iter, converged = solve_kaczmarz(
             A, b, x0, max_iterations, omega, tolerance
         )

@@ -106,11 +106,22 @@ def run_unfolding(
     solve_result = solve_func(A, b, **solve_kwargs_with_x0)
 
     # Handle both single return value and tuple returns
+    extra_meta = {}
     if isinstance(solve_result, tuple):
         spectrum = solve_result[0]
-        # Additional metadata (iterations, converged, etc.) will be in extra_output
+        # Extract additional metadata from tuple
+        if len(solve_result) >= 2:
+            extra_meta['iterations'] = int(solve_result[1])
+        if len(solve_result) >= 3:
+            extra_meta['converged'] = bool(solve_result[2])
     else:
         spectrum = solve_result
+
+    # Merge extra_meta with user-provided extra_output
+    if extra_output:
+        extra_output = {**extra_output, **extra_meta}
+    else:
+        extra_output = extra_meta if extra_meta else None
 
     # 4. Standardize output
     output = _standardize_output(
@@ -137,6 +148,7 @@ def run_unfolding(
             solve_kwargs=solve_kwargs,
             detector_names=detector_names,
             sensitivities=sensitivities,
+            x0=x0,
         )
 
     # 6. Save result
@@ -219,6 +231,7 @@ def _add_montecarlo_uncertainty(
     solve_kwargs: Dict[str, Any],
     detector_names: List[str],
     sensitivities: Dict[str, np.ndarray],
+    x0: np.ndarray,
 ) -> None:
     """Run Monte-Carlo uncertainty and update output dict in-place."""
     logger.info(
@@ -234,6 +247,8 @@ def _add_montecarlo_uncertainty(
         # Remove extra keys not meant for the solver
         solver_kw = {k: v for k, v in kwargs.items()
                      if k not in ("detector_names", "sensitivities")}
+        # Add x0 to solver kwargs
+        solver_kw['x0'] = x0
         result = solve_func(A_noisy, b_noisy, **solver_kw)
         # Extract spectrum from tuple if needed
         if isinstance(result, tuple):

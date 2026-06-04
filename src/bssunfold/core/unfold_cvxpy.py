@@ -115,6 +115,8 @@ def unfold_cvxpy(
         alpha = selected_lambda
 
     def solve_wrapper(A, b, **kwargs):
+        # cvxpy doesn't use x0, but we need to accept it for consistency
+        kwargs.pop('x0', None)
         x = solve_cvxpy(A, b, alpha, norm, solver)
         return x
 

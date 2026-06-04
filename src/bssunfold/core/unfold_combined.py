@@ -63,6 +63,7 @@ def unfold_combined(
     from .unfold_cvxpy import unfold_cvxpy
     from .unfold_landweber import unfold_landweber
     from .unfold_mlem import unfold_mlem
+    from .unfold_mlem_odl import unfold_mlem_odl
     from .unfold_qpsolvers import unfold_qpsolvers
     from .unfold_doroshenko import unfold_doroshenko
     from .unfold_kaczmarz import unfold_kaczmarz
@@ -94,6 +95,7 @@ def unfold_combined(
             'cvxpy': unfold_cvxpy,
             'landweber': unfold_landweber,
             'mlem': unfold_mlem,
+            'mlem_odl': unfold_mlem_odl,
             'qpsolvers': unfold_qpsolvers,
             'doroshenko': unfold_doroshenko,
             'kaczmarz': unfold_kaczmarz,
