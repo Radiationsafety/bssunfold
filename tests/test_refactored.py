@@ -6,11 +6,10 @@ These tests verify:
 3. Functional equivalence - results match before/after refactoring
 """
 
-import sys
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Test imports - backward compatibility
 def test_backward_compatibility_imports():
@@ -245,7 +244,7 @@ def test_detector_results_history():
     readings = {detector.detector_names[0]: 100.0}
     
     # First unfolding
-    result1 = detector.unfold_cvxpy(readings, save_result=True)
+    detector.unfold_cvxpy(readings, save_result=True)
     
     # Check history
     assert len(detector.list_results()) >= 1

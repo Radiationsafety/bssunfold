@@ -7,7 +7,7 @@ energy grids using PCHIP interpolation.
 import numpy as np
 import pandas as pd
 from scipy.interpolate import PchipInterpolator as pchip
-from typing import Union, Dict, Optional, Tuple, Any
+from typing import Union, Dict, Optional, Tuple
 
 __all__ = [
     "interpolate_spectrum",

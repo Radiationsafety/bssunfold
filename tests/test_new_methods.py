@@ -787,17 +787,17 @@ class TestEdgeCases:
         detector.clear_results()
         assert len(detector.list_results()) == 0
 
-        r1 = detector.unfold_doroshenko(
+        detector.unfold_doroshenko(
             readings, max_iterations=100, save_result=True
         )
         assert len(detector.list_results()) == 1
 
-        r2 = detector.unfold_kaczmarz(
+        detector.unfold_kaczmarz(
             readings, max_iterations=100, save_result=True
         )
         assert len(detector.list_results()) == 2
 
-        r3 = detector.unfold_lmfit(
+        detector.unfold_lmfit(
             readings,
             method='lbfgsb',
             model_name='elastic',

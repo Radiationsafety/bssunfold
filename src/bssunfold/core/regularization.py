@@ -151,7 +151,6 @@ def _lcurve_fallback(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback L-curve implementation without pytikhonov."""
-    from scipy import interpolate
     
     alphas = np.logspace(alpha_range[0], alpha_range[1], n_alphas)
     residuals = []

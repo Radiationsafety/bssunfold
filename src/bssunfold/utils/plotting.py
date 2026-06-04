@@ -6,7 +6,7 @@ and unfolding results.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Optional, Dict, Any, List, Tuple, Union
+from typing import Optional, Dict, List, Tuple
 
 __all__ = [
     "plot_spectrum",

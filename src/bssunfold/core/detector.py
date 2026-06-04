@@ -8,16 +8,15 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from typing import Dict, Optional, List, Tuple, Any, Union
-from scipy.interpolate import PchipInterpolator as pchip
 import warnings
 
-from ..constants import RF_GSF, ICRP116_COEFF_EFFECTIVE_DOSE
+from ..constants import RF_GSF
 from ..logging_config import get_logger
 from ..platform_check import get_recommended_solver
 from ..utils.validators import validate_readings as validate_readings_util
-from ..utils.converters import convert_to_dataframe, convert_sensitivities_to_matrix
-from ..utils.interpolation import interpolate_spectrum, discretize_spectra as discretize_spectra_util
-from ..utils.plotting import plot_spectrum, plot_response_functions as plot_rf_util, plot_with_uncertainty as plot_uncert_util
+from ..utils.converters import convert_to_dataframe
+from ..utils.interpolation import discretize_spectra as discretize_spectra_util
+from ..utils.plotting import plot_with_uncertainty as plot_uncert_util
 from .dose_calculation import calculate_dose_rates, get_icrp116_coefficients
 from .regularization import (
     select_regularization_parameter,

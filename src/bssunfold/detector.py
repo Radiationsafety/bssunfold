@@ -12,11 +12,6 @@ import odl
 import warnings
 from datetime import datetime
 import pytikhonov as ptk
-import lmfit
-
-# from pytikhonov import TikhonovFamily, lcorner
-
-from qpsolvers import available_solvers, solve_qp
 
 
 class Detector:
@@ -2106,10 +2101,10 @@ class Detector:
             # Keep only spectrum lines and reference in legend
             filtered_handles = []
             filtered_labels = []
-            for h, l in zip(handles, labels):
-                if '±1σ' not in l:  # Skip error bar entries
+            for h, label in zip(handles, labels):
+                if '±1σ' not in label:  # Skip error bar entries
                     filtered_handles.append(h)
-                    filtered_labels.append(l)
+                    filtered_labels.append(label)
             ax.legend(filtered_handles, filtered_labels, loc="upper left", 
                      borderaxespad=0.0, fontsize=8)
         else:
@@ -2757,7 +2752,7 @@ class Detector:
                 if method in initial_param_names:
                     params[initial_param_names[method]] = current_spectrum.copy()
                     if verbose:
-                        print(f" Previous results is used as initial spectrum")
+                        print(" Previous results is used as initial spectrum")
             
             # Вызов соответствующего метода
             method_func = getattr(self, f'unfold_{method}', None)
@@ -2793,7 +2788,7 @@ class Detector:
         
         if verbose:
             print(f"\n{'='*60}")
-            print(f"Combined method finished")
+            print("Combined method finished")
             print(f"final residual norm: {final_result.get('residual norm', 'N/A')}")
             print(f"{'='*60}")
         

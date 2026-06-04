@@ -5,10 +5,8 @@ algorithms that can be used independently of the Detector class.
 """
 
 import numpy as np
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Optional, Tuple
 import warnings
-
-from ..platform_check import check_proxsuite_availability
 
 __all__ = [
     "solve_cvxpy",

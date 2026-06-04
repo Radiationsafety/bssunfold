@@ -5,7 +5,6 @@ and proxsuite which are not available on Windows.
 """
 
 import sys
-import warnings
 from typing import Dict, Any
 
 __all__ = [
