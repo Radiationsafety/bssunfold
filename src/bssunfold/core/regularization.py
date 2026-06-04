@@ -8,6 +8,8 @@ import numpy as np
 import warnings
 from typing import Optional, Dict, Any, Tuple, List
 
+from ._matrix_utils import compute_svd_components
+
 __all__ = [
     "select_regularization_parameter",
     "lcurve_selection",
@@ -19,24 +21,19 @@ __all__ = [
 ]
 
 
-def _create_identity_matrix(n: int) -> np.ndarray:
-    """Create identity matrix of size n."""
-    return np.eye(n)
-
-
 def _estimate_noise_variance(
     A: np.ndarray,
     b: np.ndarray,
 ) -> float:
     """Estimate noise variance from least squares residual.
-    
+
     Parameters
     ----------
     A : np.ndarray
         Response matrix.
     b : np.ndarray
         Measurement vector.
-    
+
     Returns
     -------
     float
@@ -56,7 +53,7 @@ def select_regularization_parameter(
     **kwargs,
 ) -> float:
     """Select regularization parameter using specified method.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -71,12 +68,12 @@ def select_regularization_parameter(
         Initial spectrum for cosine similarity method.
     **kwargs : dict
         Additional method-specific arguments.
-    
+
     Returns
     -------
     float
         Selected regularization parameter (lambda).
-    
+
     Raises
     ------
     ValueError
@@ -104,7 +101,7 @@ def lcurve_selection(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using L-curve corner heuristic.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -115,7 +112,7 @@ def lcurve_selection(
         Number of alpha values to test (default: 50).
     alpha_range : Tuple[float, float], optional
         Range of alpha values (default: (1e-9, 1e2)).
-    
+
     Returns
     -------
     float
@@ -123,19 +120,19 @@ def lcurve_selection(
     """
     try:
         import pytikhonov as ptk
-        
+
         n = A.shape[1]
-        L = _create_identity_matrix(n)
-        
+        L = np.eye(n)
+
         fam = ptk.TikhonovFamily(A, L, b)
         result = ptk.lcorner(fam)
         lam = result.get("opt_lambdah")
-        
+
         if lam is None:
             raise ValueError("L-curve heuristic did not return lambda.")
-        
+
         return float(lam)
-    
+
     except ImportError:
         warnings.warn(
             "pytikhonov not available. Using fallback L-curve implementation.",
@@ -151,47 +148,48 @@ def _lcurve_fallback(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback L-curve implementation without pytikhonov."""
-    
-    alphas = np.logspace(alpha_range[0], alpha_range[1], n_alphas)
+    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
     residuals = []
     norms = []
-    
+
+    n = A.shape[1]
+    L = np.eye(n)
+    ATA = A.T @ A
+    ATb = A.T @ b
+    LTL = L.T @ L
+
     for alpha in alphas:
-        # Solve regularized problem
-        n = A.shape[1]
-        L = _create_identity_matrix(n)
-        P = A.T @ A + alpha * (L.T @ L)
-        q = -A.T @ b
-        
+        P = ATA + alpha * LTL
+
         try:
-            x = np.linalg.solve(P, -q)
+            x = np.linalg.solve(P, ATb)
             x = np.maximum(x, 0)  # Non-negativity
             residual = np.linalg.norm(A @ x - b)
-            norm = np.linalg.norm(L @ x)
+            norm_val = np.linalg.norm(L @ x)
             residuals.append(residual)
-            norms.append(norm)
+            norms.append(norm_val)
         except np.linalg.LinAlgError:
             continue
-    
+
     if len(residuals) < 3:
         return 1.0  # Default value
-    
+
     # Find corner using maximum curvature
     log_res = np.log(residuals)
     log_norm = np.log(norms)
-    
+
     # Simple corner detection: point with maximum distance from line
     # connecting endpoints
     p1 = np.array([log_res[0], log_norm[0]])
     p2 = np.array([log_res[-1], log_norm[-1]])
-    
+
     distances = []
     for i in range(len(residuals)):
         p = np.array([log_res[i], log_norm[i]])
         # Distance from point to line
         d = np.abs(np.cross(p2 - p1, p1 - p)) / np.linalg.norm(p2 - p1)
         distances.append(d)
-    
+
     idx_max = np.argmax(distances)
     return float(alphas[idx_max])
 
@@ -203,7 +201,7 @@ def gcv_selection(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using Generalized Cross Validation.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -214,7 +212,7 @@ def gcv_selection(
         Number of alpha values to test (default: 50).
     alpha_range : Tuple[float, float], optional
         Range of alpha values (default: (1e-9, 1e2)).
-    
+
     Returns
     -------
     float
@@ -222,19 +220,19 @@ def gcv_selection(
     """
     try:
         import pytikhonov as ptk
-        
+
         n = A.shape[1]
-        L = _create_identity_matrix(n)
-        
+        L = np.eye(n)
+
         fam = ptk.TikhonovFamily(A, L, b)
         result = ptk.gcvmin(fam)
         lam = result.get("opt_lambdah")
-        
+
         if lam is None:
             raise ValueError("GCV minimization did not return lambda.")
-        
+
         return float(lam)
-    
+
     except ImportError:
         warnings.warn(
             "pytikhonov not available. Using fallback GCV implementation.",
@@ -249,36 +247,39 @@ def _gcv_fallback(
     n_alphas: int = 50,
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
-    """Fallback GCV implementation without pytikhonov."""
-    alphas = np.logspace(alpha_range[0], alpha_range[1], n_alphas)
-    gcv_values = []
-    
+    """Fallback GCV implementation without pytikhonov.
+
+    Uses precomputed SVD for efficiency: SVD is computed once and reused
+    across all alpha values instead of solving a linear system per alpha.
+    """
+    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
     m, n = A.shape
-    
+
+    # Precompute SVD once
+    U, s, Vt, s_sq = compute_svd_components(A)
+    UTb = U.T @ b  # Precompute projection of b onto left singular vectors
+
+    gcv_values = []
+
     for alpha in alphas:
-        # Compute GCV function
         # GCV(alpha) = ||A x_alpha - b||^2 / (m - trace(A A^+_alpha))^2
-        try:
-            L = _create_identity_matrix(n)
-            P = A.T @ A + alpha * (L.T @ L)
-            x = np.linalg.solve(P, A.T @ b)
-            x = np.maximum(x, 0)
-            
-            residual = np.linalg.norm(A @ x - b) ** 2
-            
-            # Approximate trace of influence matrix
-            # Using simplified formula for Tikhonov regularization
-            U, s, Vt = np.linalg.svd(A, full_matrices=False)
-            trace_term = np.sum(s**2 / (s**2 + alpha))
-            
-            gcv = residual / (m - trace_term) ** 2
-            gcv_values.append(gcv)
-        except (np.linalg.LinAlgError, ValueError):
-            gcv_values.append(np.inf)
-    
+        # For Tikhonov: x_alpha = V diag(s/(s^2+alpha)) U^T b
+        # residual = b - A x_alpha = U diag(alpha/(s^2+alpha)) U^T b
+        # trace = sum(s^2 / (s^2 + alpha))
+
+        filt = s_sq / (s_sq + alpha)  # filter factors
+        residual_coeff = alpha / (s_sq + alpha)  # residual coefficients
+
+        # ||residual||^2 = sum((residual_coeff * UTb)^2)
+        residual_sq = np.sum((residual_coeff * UTb) ** 2)
+        trace_term = np.sum(filt)
+
+        gcv = residual_sq / (m - trace_term) ** 2
+        gcv_values.append(gcv)
+
     if not gcv_values or all(v == np.inf for v in gcv_values):
         return 1.0  # Default value
-    
+
     idx_min = np.argmin(gcv_values)
     return float(alphas[idx_min])
 
@@ -291,7 +292,7 @@ def discrepancy_principle_selection(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using Discrepancy Principle.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -304,7 +305,7 @@ def discrepancy_principle_selection(
         Number of alpha values to test (default: 50).
     alpha_range : Tuple[float, float], optional
         Range of alpha values (default: (1e-9, 1e2)).
-    
+
     Returns
     -------
     float
@@ -312,24 +313,24 @@ def discrepancy_principle_selection(
     """
     try:
         import pytikhonov as ptk
-        
+
         n = A.shape[1]
-        L = _create_identity_matrix(n)
-        
+        L = np.eye(n)
+
         if noise_var is None:
             noise_var = _estimate_noise_variance(A, b)
-        
+
         delta = np.sqrt(noise_var)
-        
+
         fam = ptk.TikhonovFamily(A, L, b)
         result = ptk.discrepancy_principle(fam, delta=delta)
         lam = result.get("opt_lambdah")
-        
+
         if lam is None:
             raise ValueError("Discrepancy principle did not return lambda.")
-        
+
         return float(lam)
-    
+
     except ImportError:
         warnings.warn(
             "pytikhonov not available. Using fallback DP implementation.",
@@ -348,30 +349,32 @@ def _dp_fallback(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback Discrepancy Principle implementation."""
-    alphas = np.logspace(alpha_range[0], alpha_range[1], n_alphas)
+    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
     delta = np.sqrt(noise_var)
     m = len(b)
     target_residual = delta * np.sqrt(m)
-    
+
+    n = A.shape[1]
+    ATA = A.T @ A
+    ATb = A.T @ b
+
     residuals = []
-    
+
     for alpha in alphas:
-        n = A.shape[1]
-        L = _create_identity_matrix(n)
-        P = A.T @ A + alpha * (L.T @ L)
-        
+        P = ATA + alpha * np.eye(n)
+
         try:
-            x = np.linalg.solve(P, A.T @ b)
+            x = np.linalg.solve(P, ATb)
             x = np.maximum(x, 0)
             residual = np.linalg.norm(A @ x - b)
             residuals.append(residual)
         except np.linalg.LinAlgError:
             residuals.append(np.inf)
-    
+
     # Find alpha where residual is closest to target
     residuals = np.array(residuals)
     idx = np.argmin(np.abs(residuals - target_residual))
-    
+
     return float(alphas[idx])
 
 
@@ -384,7 +387,9 @@ def cosine_similarity_selection(
     norm: int = 2,
 ) -> float:
     """Select regularization parameter by maximizing cosine similarity.
-    
+
+    Uses precomputed SVD for efficient evaluation across alpha values.
+
     Parameters
     ----------
     A : np.ndarray
@@ -399,7 +404,7 @@ def cosine_similarity_selection(
         Log range of alpha values (default: (-9, 2)).
     norm : int, optional
         Norm type for regularization (default: 2).
-    
+
     Returns
     -------
     float
@@ -407,32 +412,31 @@ def cosine_similarity_selection(
     """
     alphas = np.logspace(alpha_range[0], alpha_range[1], n_alphas)
     similarities = []
-    
+
     # Normalize initial spectrum
     norm_init = np.linalg.norm(initial_spectrum)
     if norm_init == 0:
         raise ValueError("Initial spectrum has zero norm.")
     initial_normalized = initial_spectrum / norm_init
-    
+
+    # Precompute SVD for efficient Tikhonov solutions
+    U, s, Vt, s_sq = compute_svd_components(A)
+    UTb = U.T @ b
+
     for alpha in alphas:
-        try:
-            n = A.shape[1]
-            L = _create_identity_matrix(n)
-            P = A.T @ A + alpha * (L.T @ L)
-            
-            x = np.linalg.solve(P, A.T @ b)
-            x = np.maximum(x, 0)
-            
-            # Compute cosine similarity
-            norm_x = np.linalg.norm(x)
-            if norm_x == 0:
-                similarities.append(0.0)
-            else:
-                sim = np.dot(x, initial_normalized) / norm_x
-                similarities.append(sim)
-        except np.linalg.LinAlgError:
-            similarities.append(-1.0)
-    
+        # Tikhonov solution via SVD: x = V diag(s/(s^2+alpha)) U^T b
+        filt = s / (s_sq + alpha)
+        x = Vt.T @ (filt * UTb)
+        x = np.maximum(x, 0)
+
+        # Compute cosine similarity
+        norm_x = np.linalg.norm(x)
+        if norm_x == 0:
+            similarities.append(0.0)
+        else:
+            sim = np.dot(x, initial_normalized) / norm_x
+            similarities.append(sim)
+
     idx_max = np.argmax(similarities)
     return float(alphas[idx_max])
 
@@ -445,7 +449,7 @@ def compare_regularization_methods(
     plot_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Compare regularization selection methods for given system.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -459,7 +463,7 @@ def compare_regularization_methods(
         If True, generate comparison plot.
     plot_path : str, optional
         Path to save the plot.
-    
+
     Returns
     -------
     Dict[str, Any]
@@ -469,7 +473,7 @@ def compare_regularization_methods(
         - 'gcv': dict from gcvmin()
         - 'all_data': dict from pytikhonov.all_regparam_methods()
         - 'selected': dict mapping method name to selected lambda.
-    
+
     Raises
     ------
     ImportError
@@ -482,11 +486,11 @@ def compare_regularization_methods(
             "pytikhonov is required for compare_regularization_methods. "
             "Install with: pip install pytikhonov"
         ) from e
-    
+
     n = A.shape[1]
     L = np.eye(n)
     fam = ptk.TikhonovFamily(A, L, b)
-    
+
     # Compute each method
     lc_res = ptk.lcorner(fam)
     if noise_var is None:
@@ -496,16 +500,16 @@ def compare_regularization_methods(
     dp_res = ptk.discrepancy_principle(fam, delta=delta)
     gcv_res = ptk.gcvmin(fam)
     all_data = ptk.all_regparam_methods(fam)
-    
+
     selected = {
         "lcurve": lc_res.get("opt_lambdah"),
         "dp": dp_res.get("opt_lambdah"),
         "gcv": gcv_res.get("opt_lambdah"),
     }
-    
+
     if plot:
         ptk.plot_all_methods(all_data, plot_path=plot_path)
-    
+
     return {
         "lcurve": lc_res,
         "dp": dp_res,
@@ -524,7 +528,7 @@ def randomization_experiment(
     methods: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Run randomization experiments for regularization parameter selection.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -541,7 +545,7 @@ def randomization_experiment(
     methods : list of str, optional
         List of methods to run: 'lcurve', 'dp', 'gcv', 'lcurve_full'.
         If None, runs all four.
-    
+
     Returns
     -------
     Dict[str, Any]
@@ -553,7 +557,7 @@ def randomization_experiment(
         - 'min', 'max': range.
         - 'cv': coefficient of variation (std/mean).
         - 'raw_result': raw output from pytikhonov function.
-    
+
     Raises
     ------
     ImportError
@@ -566,21 +570,21 @@ def randomization_experiment(
             "pytikhonov is required for randomization_experiment. "
             "Install with: pip install pytikhonov"
         ) from e
-    
+
     n = A.shape[1]
     L = np.eye(n)
-    
+
     # Estimate noise variance if not provided
     if noise_var is None:
         x_ls, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
         noise_var = np.var(b - A @ x_ls)
-    
+
     # Create TikhonovFamily with btrue = b (assumed true signal)
     fam = ptk.TikhonovFamily(A, L, b, btrue=b, noise_var=noise_var)
-    
+
     if methods is None:
         methods = ["lcurve", "dp", "gcv", "lcurve_full"]
-    
+
     results = {}
     for method in methods:
         if method == "lcurve":
@@ -602,7 +606,7 @@ def randomization_experiment(
         else:
             warnings.warn(f"Unknown method: {method}. Skipping.")
             continue
-        
+
         # Compute statistics
         mean = float(np.mean(lambdas))
         std = float(np.std(lambdas))
@@ -610,7 +614,7 @@ def randomization_experiment(
         min_val = float(np.min(lambdas))
         max_val = float(np.max(lambdas))
         cv = std / mean if mean != 0 else np.inf
-        
+
         results[method] = {
             "lambdas": lambdas,
             "mean": mean,
@@ -621,5 +625,5 @@ def randomization_experiment(
             "cv": cv,
             "raw_result": raw,
         }
-    
+
     return results

@@ -12,25 +12,23 @@ import warnings
 
 from ..constants import RF_GSF
 from ..logging_config import get_logger
-from ..platform_check import get_recommended_solver
-from ..utils.validators import validate_readings as validate_readings_util
-from ..utils.interpolation import discretize_spectra as discretize_spectra_util
-from ..utils.plotting import plot_with_uncertainty as plot_uncert_util
+from ..utils.validators import validate_readings
+from ..utils.interpolation import discretize_spectra
+from ..utils.plotting import plot_with_uncertainty
 from .dose_calculation import calculate_dose_rates, get_icrp116_coefficients
 from .regularization import (
-    select_regularization_parameter,
     compare_regularization_methods as compare_reg_util,
     randomization_experiment as rand_exp_util,
 )
-from .unfolding_methods import (
-    solve_cvxpy,
-    solve_landweber,
-    solve_mlem,
-    solve_qpsolvers,
-    solve_doroshenko,
-    solve_kaczmarz,
-    solve_lmfit,
-)
+from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
+from .unfold_landweber import unfold_landweber as unfold_landweber_impl
+from .unfold_mlem import unfold_mlem as unfold_mlem_impl
+from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
+from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
+from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
+from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
+from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
+from .unfold_combined import unfold_combined as unfold_combined_impl
 
 __all__ = ["Detector"]
 
@@ -227,7 +225,7 @@ class Detector:
         self, readings: Dict[str, float]
     ) -> Dict[str, float]:
         """Validate detector readings."""
-        return validate_readings_util(readings, self.detector_names)
+        return validate_readings(readings, self.detector_names)
 
     def _build_system(
         self, readings: Dict[str, float]
@@ -290,13 +288,11 @@ class Detector:
         n_points = len(energies)
         log_steps = np.zeros(n_points)
 
+        # Vectorized computation of logarithmic steps
         log_steps[0] = log_energies[1] - log_energies[0]
         log_steps[-1] = log_energies[-1] - log_energies[-2]
-
-        for i in range(1, n_points - 1):
-            left_step = log_energies[i] - log_energies[i - 1]
-            right_step = log_energies[i + 1] - log_energies[i]
-            log_steps[i] = (left_step + right_step) / 2
+        # Central differences for interior points: (E[i+1] - E[i-1]) / 2
+        log_steps[1:-1] = (log_energies[2:] - log_energies[:-2]) / 2
 
         ln_steps = log_steps * np.log(10)
         rf_matrix = rf_array * ln_steps[:, np.newaxis]
@@ -383,16 +379,34 @@ class Detector:
         return float(np.dot(spectrum1, spectrum2) / (norm1 * norm2))
 
     def _add_noise(
-        self, readings: Dict[str, float], noise_level: float = 0.01
+        self,
+        readings: Dict[str, float],
+        noise_level: float = 0.01,
+        random_state: Optional[int] = None,
     ) -> Dict[str, float]:
-        """Add Gaussian noise to readings."""
-        readings_noisy = {}
-        for key, value in readings.items():
-            noise = np.random.normal(loc=0, scale=noise_level)
-            readings_noisy[key] = value * (1 + noise)
-        return readings_noisy
+        """Add Gaussian noise to readings.
 
-    # Public methods delegated to unfolding_methods
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Original readings.
+        noise_level : float, optional
+            Relative noise level (default: 0.01).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, float]
+            Noisy readings.
+        """
+        rng = np.random.default_rng(random_state)
+        return {
+            key: value * (1 + rng.normal(loc=0, scale=noise_level))
+            for key, value in readings.items()
+        }
+
+    # Public methods delegated to unfolding modules
     def unfold_cvxpy(
         self,
         readings: Dict[str, float],
@@ -406,6 +420,7 @@ class Detector:
         save_result: bool = True,
         regularization_method: str = "manual",
         noise_var: Optional[float] = None,
+        random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using convex optimization (cvxpy).
 
@@ -433,78 +448,34 @@ class Detector:
             Method for selecting regularization parameter.
         noise_var : float, optional
             Noise variance for discrepancy principle.
+        random_state : int, optional
+            Random seed for reproducibility.
 
         Returns
         -------
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        if solver == "default":
-            solver = get_recommended_solver()
-
-        readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(readings)
-
-        # Handle regularization selection
-        if regularization_method == "manual":
-            alpha = regularization
-        elif regularization_method == "cosine":
-            if initial_spectrum is None:
-                raise ValueError(
-                    "For 'cosine' method, initial_spectrum must be provided."
-                )
-            initial_spectrum_norm = self._normalize_initial_spectrum(
-                initial_spectrum
-            )
-            alpha = select_regularization_parameter(
-                A, b, method="cosine", initial_spectrum=initial_spectrum_norm
-            )
-        else:
-            alpha = select_regularization_parameter(
-                A, b, method=regularization_method, noise_var=noise_var
-            )
-
-        # Solve using cvxpy
-        x_value = solve_cvxpy(A, b, alpha, norm, solver)
-
-        # Create output
-        output = self._standardize_output(
-            spectrum=x_value,
-            A=A,
-            b=b,
-            selected=selected,
-            method="cvxpy",
+        return unfold_cvxpy_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
             norm=norm,
             solver=solver,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
             regularization_method=regularization_method,
-            selected_regularization=alpha,
+            noise_var=noise_var,
+            random_state=random_state,
         )
-
-        # Monte-Carlo error estimation
-        if calculate_errors:
-            n = A.shape[1]
-            x_montecarlo = np.empty((n_montecarlo, n))
-
-            for i in range(n_montecarlo):
-                readings_noisy = self._add_noise(readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(readings_noisy)
-                x_montecarlo[i] = solve_cvxpy(A_noisy, b_noisy, alpha, norm, solver)
-
-            output.update(
-                {
-                    "spectrum_uncert_mean": np.mean(x_montecarlo, axis=0),
-                    "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
-                    "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
-                    "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
-                    "montecarlo_samples": n_montecarlo,
-                    "noise_level": noise_level,
-                }
-            )
-
-        if save_result:
-            self._save_result(output)
-
-        return output
 
     def unfold_landweber(
         self,
@@ -516,57 +487,53 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = True,
+        random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Unfold using Landweber iteration method."""
-        readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(readings)
+        """Unfold using Landweber iteration method.
 
-        if initial_spectrum is None:
-            x0 = np.zeros(self.n_energy_bins)
-        else:
-            x0 = self._normalize_initial_spectrum(initial_spectrum)
-            if x0 is None:
-                x0 = np.zeros(self.n_energy_bins)
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations (default: 1000).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
 
-        x_opt, n_iter, converged = solve_landweber(
-            A, b, x0, max_iterations, tolerance
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_landweber_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
         )
-
-        output = self._standardize_output(
-            spectrum=x_opt,
-            A=A,
-            b=b,
-            selected=selected,
-            method="Landweber",
-            iterations=n_iter,
-            converged=converged,
-        )
-
-        if calculate_errors:
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            for i in range(n_montecarlo):
-                noisy_readings = self._add_noise(readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-                x_sample, _, _ = solve_landweber(
-                    A_noisy, b_noisy, x0, max_iterations, tolerance
-                )
-                spectra_samples[i] = x_sample
-
-            output.update(
-                {
-                    "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                    "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                    "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                    "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                    "montecarlo_samples": n_montecarlo,
-                    "noise_level": noise_level,
-                }
-            )
-
-        if save_result:
-            self._save_result(output)
-
-        return output
 
     def unfold_mlem(
         self,
@@ -578,57 +545,53 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = True,
+        random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Unfold using MLEM algorithm."""
-        readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(readings)
+        """Unfold using MLEM algorithm.
 
-        if initial_spectrum is None:
-            x0 = np.ones(self.n_energy_bins) * 0.5
-        else:
-            x0 = self._normalize_initial_spectrum(initial_spectrum)
-            if x0 is None:
-                x0 = np.ones(self.n_energy_bins) * 0.5
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations (default: 1000).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
 
-        x_opt, n_iter, converged = solve_mlem(
-            A, b, x0, max_iterations, tolerance
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_mlem_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
         )
-
-        output = self._standardize_output(
-            spectrum=x_opt,
-            A=A,
-            b=b,
-            selected=selected,
-            method="MLEM",
-            iterations=n_iter,
-            converged=converged,
-        )
-
-        if calculate_errors:
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            for i in range(n_montecarlo):
-                noisy_readings = self._add_noise(readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-                x_sample, _, _ = solve_mlem(
-                    A_noisy, b_noisy, x0, max_iterations, tolerance
-                )
-                spectra_samples[i] = x_sample
-
-            output.update(
-                {
-                    "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                    "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                    "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                    "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                    "montecarlo_samples": n_montecarlo,
-                    "noise_level": noise_level,
-                }
-            )
-
-        if save_result:
-            self._save_result(output)
-
-        return output
 
     def unfold_qpsolvers(
         self,
@@ -645,6 +608,7 @@ class Detector:
         noise_var: Optional[float] = None,
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
+        random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold using qpsolvers with regularization selection.
 
@@ -655,8 +619,7 @@ class Detector:
         initial_spectrum : np.ndarray, optional
             Initial spectrum guess.
         regularization : float, optional
-            Regularization parameter, default: 1e-4. Used only when
-            regularization_method='manual'.
+            Regularization parameter, default: 1e-4.
         norm : int, optional
             Norm type (1 for L1, 2 for L2), default: 2.
         solver : str, optional
@@ -672,151 +635,217 @@ class Detector:
         regularization_method : str, optional
             Method for selecting regularization parameter.
             Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
-            Default: 'manual'.
         noise_var : float, optional
             Noise variance for discrepancy principle ('dp' method).
         smoothness_order : int, optional
             Smoothness constraint order (0, 1, or 2), default: 0.
         smoothness_weight : float, optional
             Weight for smoothness term, default: 1.0.
+        random_state : int, optional
+            Random seed for reproducibility.
 
         Returns
         -------
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(readings)
-        n = A.shape[1]
-
-        # Select regularization parameter
-        if regularization_method == "manual":
-            alpha = regularization
-            selected_lambda = alpha
-        elif regularization_method == "cosine":
-            if initial_spectrum is None:
-                raise ValueError(
-                    "For 'cosine' regularization method, "
-                    "initial_spectrum must be provided."
-                )
-            if norm != 2:
-                warnings.warn(
-                    f"Cosine regularization selection method assumes L2 "
-                    f"norm, but norm={norm} was requested. Using L2 for "
-                    f"selection."
-                )
-            initial_spectrum_norm = self._normalize_initial_spectrum(initial_spectrum)
-            alphas = np.logspace(-9, 2, 100)
-            cosine_similarities = []
-
-            for alpha_val in alphas:
-                x_temp = solve_qpsolvers(
-                    A, b, alpha_val, 2, solver,
-                    x_init=initial_spectrum_norm,
-                    smoothness_order=smoothness_order,
-                    smoothness_weight=smoothness_weight,
-                )
-                if x_temp is not None:
-                    cos_sim = self._cosine_similarity(x_temp, initial_spectrum_norm)
-                    cosine_similarities.append(cos_sim)
-                else:
-                    cosine_similarities.append(-1)
-
-            optimal_idx = int(np.argmax(cosine_similarities))
-            selected_lambda = alphas[optimal_idx]
-            alpha = selected_lambda
-            print(
-                f"Selected regularization (method=cosine): "
-                f"{selected_lambda:.3e}"
-            )
-        else:
-            if norm != 2:
-                warnings.warn(
-                    f"Automatic regularization selection methods assume L2 "
-                    f"norm, but norm={norm} was requested. Using L2 for "
-                    f"selection."
-                )
-            try:
-                selected_lambda = select_regularization_parameter(
-                    A, b, method=regularization_method, noise_var=noise_var
-                )
-            except Exception as e:
-                raise ValueError(
-                    f"Regularization selection failed: {e}. "
-                    "Consider using manual regularization."
-                )
-            alpha = selected_lambda
-            print(
-                f"Selected regularization (method={regularization_method}): "
-                f"{selected_lambda:.3e}"
-            )
-
-        x_value = solve_qpsolvers(
-            A,
-            b,
-            alpha,
-            norm,
-            solver,
-            initial_spectrum,
-            smoothness_order,
-            smoothness_weight,
-        )
-
-        if x_value is None:
-            x_value = np.zeros(n)
-            warnings.warn("Solution not found, returning zero spectrum.")
-
-        output = self._standardize_output(
-            spectrum=x_value,
-            A=A,
-            b=b,
-            selected=selected,
-            method=f"qpsolvers_{solver}",
-            norm=norm,
+        return unfold_qpsolvers_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
             regularization=regularization,
+            norm=norm,
+            solver=solver,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
             regularization_method=regularization_method,
-            selected_regularization=selected_lambda,
+            noise_var=noise_var,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            random_state=random_state,
         )
 
-        if calculate_errors:
-            x_montecarlo = np.empty((n_montecarlo, n))
-            for i in range(n_montecarlo):
-                readings_noisy = self._add_noise(readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(readings_noisy)
-                x_i = solve_qpsolvers(
-                    A_noisy,
-                    b_noisy,
-                    alpha,
-                    norm,
-                    solver,
-                    initial_spectrum,
-                    smoothness_order,
-                    smoothness_weight,
-                )
-                x_montecarlo[i] = x_i if x_i is not None else np.zeros(n)
+    def unfold_lmfit(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        method: str = "lbfgsb",
+        model_name: str = "elastic",
+        regularization: float = 1e-4,
+        regularization2: float = 1e-4,
+        l1_weight: float = 0.5,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
 
-            output.update(
-                {
-                    "spectrum_uncert_mean": np.mean(x_montecarlo, axis=0),
-                    "spectrum_uncert_min": np.min(x_montecarlo, axis=0),
-                    "spectrum_uncert_max": np.max(x_montecarlo, axis=0),
-                    "spectrum_uncert_std": np.std(x_montecarlo, axis=0),
-                }
-            )
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings (counts or dose rates)
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        method : str, optional
+            lmfit solver name (leastsq, lbfgsb, etc.), default: "lbfgsb".
+        model_name : str, optional
+            Regularization model: elastic, lasso, ridge, default: "elastic".
+        regularization : float, optional
+            L1 regularization strength, default: 1e-4.
+        regularization2 : float, optional
+            L2 regularization strength for elastic net, default: 1e-4.
+        l1_weight : float, optional
+            L1 weight for elastic net (0=pure L2, 1=pure L1), default: 0.5.
+        calculate_errors : bool, optional
+            Flag to calculate uncertainty via Monte-Carlo, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty calculation, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples for error estimation, default: 100.
+        save_result : bool, optional
+            If True, save result to internal history, default: True.
+        random_state : int, optional
+            Random seed for reproducibility.
 
-        if save_result:
-            self._save_result(output)
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing unfolding results.
+        """
+        return unfold_lmfit_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            method=method,
+            model_name=model_name,
+            regularization=regularization,
+            regularization2=regularization2,
+            l1_weight=l1_weight,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
 
-        return output
+    def unfold_mlem_odl(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using MLEM with ODL (Operator Discretization Library).
+
+        Requires the 'odl' package to be installed.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum approximation.
+        tolerance : float, optional
+            Convergence tolerance. Default is 1e-6.
+        max_iterations : int, optional
+            Maximum number of iterations. Default is 1000.
+        calculate_errors : bool, optional
+            Flag for calculating restoration errors. Default is False.
+        noise_level : float, optional
+            Noise level for error calculation. Default is 0.01.
+        n_montecarlo : int, optional
+            Number of Monte Carlo samples for error calculation. Default is 100.
+        save_result : bool, optional
+            If True, save result to internal history. Default is True.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict
+            Dictionary containing the spectrum restoration results.
+        """
+        return unfold_mlem_odl_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_combined(
+        self,
+        readings: Dict[str, float],
+        pipeline: List[Dict[str, Any]],
+        calculate_errors: bool = False,
+        verbose: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        """Combined unfolding method applying multiple methods sequentially.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings
+        pipeline : List[Dict[str, Any]]
+            List of methods for sequential application.
+        calculate_errors : bool, optional
+            Flag to calculate errors for the last method.
+        verbose : bool, optional
+            Flag to print debug information.
+
+        Returns
+        -------
+        Dict
+            Dictionary with unfolding results.
+        """
+        return unfold_combined_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            pipeline=pipeline,
+            calculate_errors=calculate_errors,
+            verbose=verbose,
+        )
 
     # Utility methods
     def discretize_spectra(
         self, spectra: Union[pd.DataFrame, Dict]
     ) -> pd.DataFrame:
         """Interpolate spectra onto target energy grid."""
-        return discretize_spectra_util(spectra, self.E_MeV)
+        return discretize_spectra(spectra, self.E_MeV)
 
     def get_effective_readings_for_spectra(
         self, spectra: Union[pd.DataFrame, Dict]
@@ -916,6 +945,7 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = True,
+        random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the Doroshenko coordinate update method.
 
@@ -939,69 +969,32 @@ class Detector:
             Number of Monte-Carlo samples for error estimation, default: 100
         save_result : bool, optional
             If True, save result to internal history, default: True
+        random_state : int, optional
+            Random seed for reproducibility.
 
         Returns
         -------
         Dict[str, Any]
             Dictionary containing unfolding results.
         """
-        validated_readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(validated_readings)
-
-        if initial_spectrum is None:
-            x0 = np.ones(self.n_energy_bins)
-        else:
-            x0 = self._normalize_initial_spectrum(initial_spectrum)
-            if x0 is None:
-                x0 = np.ones(self.n_energy_bins)
-
-        x_opt, n_iter, converged = solve_doroshenko(
-            A, b, x0, max_iterations, tolerance, regularization
-        )
-
-        output = self._standardize_output(
-            spectrum=x_opt,
-            A=A,
-            b=b,
-            selected=selected,
-            method="Doroshenko",
-            iterations=n_iter,
-            converged=converged,
+        return unfold_doroshenko_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
             tolerance=tolerance,
             regularization=regularization,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
         )
-
-        if calculate_errors:
-            logger.info(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
-            )
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            for i in range(n_montecarlo):
-                noisy_readings = self._add_noise(validated_readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-                x_sample, _, _ = solve_doroshenko(
-                    A_noisy, b_noisy, x0, max_iterations, tolerance, regularization
-                )
-                spectra_samples[i] = x_sample
-
-            output.update({
-                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
-                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
-                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
-                "spectrum_uncert_all": spectra_samples,
-                "montecarlo_samples": n_montecarlo,
-                "noise_level": noise_level,
-            })
-            logger.info("...uncertainty calculation completed.")
-
-        if save_result:
-            self._save_result(output)
-
-        return output
 
     def unfold_kaczmarz(
         self,
@@ -1014,6 +1007,7 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = True,
+        random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the Kaczmarz algorithm (ART).
 
@@ -1037,407 +1031,32 @@ class Detector:
             Number of Monte-Carlo samples for error estimation, default: 100
         save_result : bool, optional
             If True, save result to internal history, default: True
+        random_state : int, optional
+            Random seed for reproducibility.
 
         Returns
         -------
         Dict[str, Any]
             Dictionary containing unfolding results.
         """
-        validated_readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(validated_readings)
-
-        if initial_spectrum is None:
-            x0 = np.zeros(self.n_energy_bins)
-        else:
-            x0 = self._normalize_initial_spectrum(initial_spectrum)
-            if x0 is None:
-                x0 = np.zeros(self.n_energy_bins)
-
-        x_opt, n_iter, converged = solve_kaczmarz(
-            A, b, x0, max_iterations, omega, tolerance
-        )
-
-        output = self._standardize_output(
-            spectrum=x_opt,
-            A=A,
-            b=b,
-            selected=selected,
-            method="Kaczmarz",
-            iterations=n_iter,
-            converged=converged,
-            tolerance=tolerance,
+        return unfold_kaczmarz_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
             omega=omega,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
         )
-
-        if calculate_errors:
-            logger.info(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
-            )
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            for i in range(n_montecarlo):
-                noisy_readings = self._add_noise(validated_readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-                x_sample, _, _ = solve_kaczmarz(
-                    A_noisy, b_noisy, x0, max_iterations, omega, tolerance
-                )
-                spectra_samples[i] = x_sample
-
-            output.update({
-                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
-                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
-                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
-                "spectrum_uncert_all": spectra_samples,
-                "montecarlo_samples": n_montecarlo,
-                "noise_level": noise_level,
-            })
-            logger.info("...uncertainty calculation completed.")
-
-        if save_result:
-            self._save_result(output)
-
-        return output
-
-    def unfold_lmfit(
-        self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        method: str = "lbfgsb",
-        model_name: str = "elastic",
-        regularization: float = 1e-4,
-        regularization2: float = 1e-4,
-        l1_weight: float = 0.5,
-        calculate_errors: bool = False,
-        noise_level: float = 0.01,
-        n_montecarlo: int = 100,
-        save_result: bool = True,
-    ) -> Dict[str, Any]:
-        """Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
-
-        Parameters
-        ----------
-        readings : Dict[str, float]
-            Detector readings (counts or dose rates)
-        initial_spectrum : Optional[np.ndarray], optional
-            Initial spectrum guess. If None, uniform spectrum based on mean readings
-        method : str, optional
-            lmfit solver name (leastsq, lbfgsb, etc.), default: "lbfgsb"
-        model_name : str, optional
-            Regularization model: elastic, lasso, ridge, default: "elastic"
-        regularization : float, optional
-            L1 regularization strength, default: 1e-4
-        regularization2 : float, optional
-            L2 regularization strength for elastic net, default: 1e-4
-        l1_weight : float, optional
-            L1 weight for elastic net (0=pure L2, 1=pure L1), default: 0.5
-        calculate_errors : bool, optional
-            Flag to calculate uncertainty via Monte-Carlo, default: False
-        noise_level : float, optional
-            Noise level for Monte-Carlo uncertainty calculation, default: 0.01
-        n_montecarlo : int, optional
-            Number of Monte-Carlo samples for error estimation, default: 100
-        save_result : bool, optional
-            If True, save result to internal history, default: True
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dictionary containing unfolding results.
-        """
-        validated_readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(validated_readings)
-
-        if initial_spectrum is None:
-            x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))
-        else:
-            x0 = self._normalize_initial_spectrum(initial_spectrum)
-            if x0 is None:
-                x0 = np.ones(self.n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))
-
-        x_opt, success, message, nfev = solve_lmfit(
-            A, b, x0, method, model_name, regularization, regularization2, l1_weight
-        )
-
-        output = self._standardize_output(
-            spectrum=x_opt,
-            A=A,
-            b=b,
-            selected=selected,
-            method=f"lmfit ({method})",
-            model_name=model_name,
-        )
-
-        output.update({
-            "regularization": regularization,
-            "regularization2": regularization2 if model_name == "elastic" else None,
-            "l1_weight": l1_weight if model_name == "elastic" else None,
-            "success": success,
-            "message": message,
-            "nfev": nfev,
-            "initial_spectrum": x0.copy(),
-        })
-
-        if calculate_errors:
-            logger.info(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
-            )
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            for i in range(n_montecarlo):
-                noisy_readings = self._add_noise(validated_readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-                x_sample, _, _, _ = solve_lmfit(
-                    A_noisy, b_noisy, x0, method, model_name,
-                    regularization, regularization2, l1_weight
-                )
-                spectra_samples[i] = x_sample
-
-            output.update({
-                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                "spectrum_uncert_median": np.median(spectra_samples, axis=0),
-                "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
-                "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
-                "spectrum_uncert_all": spectra_samples,
-                "montecarlo_samples": n_montecarlo,
-                "noise_level": noise_level,
-            })
-            logger.info("...uncertainty calculation completed.")
-
-        if save_result:
-            self._save_result(output)
-
-        return output
-
-    def unfold_combined(
-        self,
-        readings: Dict[str, float],
-        pipeline: List[Dict[str, Any]],
-        calculate_errors: bool = False,
-        verbose: bool = True,
-    ) -> Dict:
-        """Combined unfolding method applying multiple methods sequentially.
-
-        Parameters
-        ----------
-        readings : Dict[str, float]
-            Detector readings
-        pipeline : List[Dict[str, Any]]
-            List of methods for sequential application. Each dict should contain:
-            - 'method': str - method name (e.g., 'cvxpy', 'landweber', 'mlem')
-            - 'params': dict - parameters for the method
-            - 'use_as_initial': bool (optional) - use result as initial guess
-            - 'store_intermediate': bool (optional) - store intermediate result
-        calculate_errors : bool, optional
-            Flag to calculate errors for the last method
-        verbose : bool, optional
-            Flag to print debug information
-
-        Returns
-        -------
-        Dict
-            Dictionary with unfolding results.
-        """
-        readings = self._validate_readings(readings)
-        current_spectrum = None
-        intermediate_results = {}
-        final_result = None
-
-        if verbose:
-            logger.info(f"Combined algorithm, methods = {len(pipeline)}")
-
-        for i, stage in enumerate(pipeline):
-            method = stage['method']
-            params = stage.get('params', {}).copy()
-            use_as_initial = stage.get('use_as_initial', True)
-            store_intermediate = stage.get('store_intermediate', False)
-
-            if verbose:
-                logger.info(f"Stage {i+1}/{len(pipeline)}: {method}")
-
-            if current_spectrum is not None and use_as_initial:
-                initial_param_names = {
-                    'landweber': 'initial_spectrum',
-                    'mlem': 'initial_spectrum',
-                    'cvxpy': 'initial_spectrum',
-                    'qpsolvers': 'initial_spectrum',
-                    'doroshenko': 'initial_spectrum',
-                    'kaczmarz': 'initial_spectrum',
-                    'lmfit': 'initial_spectrum',
-                }
-                if method in initial_param_names:
-                    params[initial_param_names[method]] = current_spectrum.copy()
-                    if verbose:
-                        logger.info("Previous result used as initial spectrum")
-
-                method_func = getattr(self, f'unfold_{method}', None)
-
-                if not callable(method_func):
-                    raise ValueError(
-                        f"Method 'unfold_{method}' not found or not callable in Detector class"
-                    )
-
-                params['calculate_errors'] = (i == len(pipeline) - 1 and calculate_errors)
-
-                try:
-                    result = method_func(readings, **params)
-                except Exception as e:
-                    logger.error(f"Error in method {method}: {e}")
-                    raise
-
-            if 'spectrum' in result:
-                current_spectrum = result['spectrum'].copy()
-                if verbose:
-                    logger.info(
-                        f"  Spectrum norm: {np.linalg.norm(current_spectrum):.6f}"
-                    )
-
-            if store_intermediate:
-                intermediate_results[f'stage_{i+1}_{method}'] = result.copy()
-
-            final_result = result
-
-        if verbose:
-            logger.info("Combined method finished")
-
-        if final_result is None:
-            return None
-
-        output = final_result.copy()
-        output['pipeline_info'] = {
-            'stages': [stage['method'] for stage in pipeline],
-            'params': [stage.get('params', {}) for stage in pipeline]
-        }
-
-        if intermediate_results:
-            output['intermediate_results'] = intermediate_results
-
-        return output
-
-    def unfold_mlem_odl(
-        self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        tolerance: float = 1e-6,
-        max_iterations: int = 1000,
-        calculate_errors: bool = False,
-        noise_level: float = 0.01,
-        n_montecarlo: int = 100,
-        save_result: bool = True,
-    ) -> Dict:
-        """Unfold using MLEM with ODL (Operator Discretization Library).
-
-        Requires the 'odl' package to be installed.
-
-        Parameters
-        ----------
-        readings : Dict[str, float]
-            Detector readings.
-        initial_spectrum : Optional[np.ndarray], optional
-            Initial spectrum approximation. If None, uniform spectrum is used.
-        tolerance : float, optional
-            Convergence tolerance. Default is 1e-6.
-        max_iterations : int, optional
-            Maximum number of iterations. Default is 1000.
-        calculate_errors : bool, optional
-            Flag for calculating restoration errors. Default is False.
-        noise_level : float, optional
-            Noise level for error calculation. Default is 0.01.
-        n_montecarlo : int, optional
-            Number of Monte Carlo samples for error calculation. Default is 100.
-        save_result : bool, optional
-            If True, save result to internal history. Default is True.
-
-        Returns
-        -------
-        Dict
-            Dictionary containing the spectrum restoration results.
-        """
-        odl = self._import_optional("odl", "ODL-based MLEM unfolding")
-
-        validated_readings = self._validate_readings(readings)
-        A, b, selected = self._build_system(validated_readings)
-
-        # Create ODL spaces
-        # Ensure interval has positive length (len(b) >= 1)
-        meas_end = max(len(b), 1)
-        measurement_space = odl.uniform_discr(0, meas_end, len(b))
-        spectrum_space = odl.uniform_discr(
-            float(np.min(self.E_MeV)), float(np.max(self.E_MeV)), self.E_MeV.shape[0]
-        )
-
-        # Initialize spectrum
-        if initial_spectrum is None:
-            x = spectrum_space.element(0.5)
-        else:
-            x_init = self._normalize_initial_spectrum(initial_spectrum)
-            if x_init is None:
-                x = spectrum_space.element(0.5)
-            else:
-                x = spectrum_space.element(x_init)
-
-        # Create operator
-        operator = odl.MatrixOperator(
-            A, domain=spectrum_space, range=measurement_space
-        )
-
-        y = measurement_space.element(b)
-
-        # Run MLEM
-        odl.solvers.mlem(operator, x, y, niter=max_iterations)
-
-        # ODL 1.0 requires .data instead of np.asarray()
-        x_opt = np.asarray(x.data)
-        x_opt = np.maximum(x_opt, 0)
-
-        output = self._standardize_output(
-            spectrum=x_opt,
-            A=A,
-            b=b,
-            selected=selected,
-            method="MLEM (ODL)",
-            iterations=max_iterations,
-        )
-
-        if calculate_errors:
-            logger.info(
-                f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
-            )
-            spectra_samples = np.zeros((n_montecarlo, self.n_energy_bins))
-            for i in range(n_montecarlo):
-                noisy_readings = self._add_noise(validated_readings, noise_level)
-                A_noisy, b_noisy, _ = self._build_system(noisy_readings)
-
-                meas_end = max(len(b_noisy), 1)
-                meas_space = odl.uniform_discr(0, meas_end, len(b_noisy))
-                spec_space = odl.uniform_discr(
-                    float(np.min(self.E_MeV)), float(np.max(self.E_MeV)),
-                    self.E_MeV.shape[0]
-                )
-                op = odl.MatrixOperator(A_noisy, domain=spec_space, range=meas_space)
-                y_noisy = meas_space.element(b_noisy)
-                x_sample = spec_space.element(0.5)
-                odl.solvers.mlem(op, x_sample, y_noisy, niter=max_iterations)
-                spectra_samples[i] = np.asarray(x_sample.data)
-
-            output.update({
-                "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
-                "spectrum_uncert_std": np.std(spectra_samples, axis=0),
-                "spectrum_uncert_min": np.min(spectra_samples, axis=0),
-                "spectrum_uncert_max": np.max(spectra_samples, axis=0),
-                "montecarlo_samples": n_montecarlo,
-                "noise_level": noise_level,
-            })
-            logger.info("...uncertainty calculation completed.")
-
-        if save_result:
-            self._save_result(output)
-
-        return output
 
     def plot_response_functions(
         self,
@@ -1504,7 +1123,7 @@ class Detector:
         uncert_max = result.get("spectrum_uncert_max")
         uncert_std = result.get("spectrum_uncert_std")
 
-        return plot_uncert_util(
+        return plot_with_uncertainty(
             E_MeV=E_MeV,
             spectrum=spectrum,
             uncert_min=uncert_min,
