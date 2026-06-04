@@ -4,6 +4,8 @@ This module provides functions for validating input data such as
 detector readings, energy grids, and spectra.
 """
 
+import warnings
+
 import numpy as np
 from typing import Dict, Tuple, Optional, Union, List
 
