@@ -1,0 +1,101 @@
+# ─────────────────────────────────────────────────────────────
+# Publish to GitHub Releases
+#
+# Triggers:
+#   - push tags v* — create a GitHub Release on tag push
+#
+# Extracts the release body from CHANGELOG.md by matching
+# the version tag (e.g. v0.5.9 → section "## [0.5.9]").
+# Also attaches the built wheel and source distribution.
+# ─────────────────────────────────────────────────────────────
+name: Publish to GitHub Releases
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed to create a Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Build package
+      run: uv build
+
+    - name: Extract version from tag
+      id: version
+      shell: python
+      run: |
+        import os
+        tag = "${{ github.ref_name }}"
+        version = tag.removeprefix("v")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"version={version}\n")
+            f.write(f"tag={tag}\n")
+
+    - name: Extract release notes from CHANGELOG.md
+      id: changelog
+      shell: python
+      run: |
+        import os, re, sys
+
+        version = "${{ steps.version.outputs.version }}"
+        with open("CHANGELOG.md", encoding="utf-8") as f:
+            text = f.read()
+
+        # Match the section header, e.g. "## [0.5.9]" or "## [0.5.9] - 2026-06-04"
+        pattern = rf"^##\s*\[{re.escape(version)}\]"
+        lines = text.splitlines()
+        start = None
+        for i, line in enumerate(lines):
+            if re.match(pattern, line.strip()):
+                start = i
+                break
+
+        if start is None:
+            print(f"::error::Section for version {version} not found in CHANGELOG.md")
+            sys.exit(1)
+
+        # Collect lines until the next "## " header
+        body_lines = []
+        for line in lines[start + 1:]:
+            if line.startswith("## "):
+                break
+            body_lines.append(line)
+
+        body = "\n".join(body_lines).strip()
+        if not body:
+            body = f"Release version {version}"
+
+        # Write to a file to avoid quoting issues with multiline strings
+        with open("RELEASE_BODY.md", "w", encoding="utf-8") as f:
+            f.write(body)
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        body_path: RELEASE_BODY.md
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
+        draft: false
+        prerelease: false
