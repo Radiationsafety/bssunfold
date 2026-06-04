@@ -127,7 +127,7 @@ proxsuite==0.7.2
     #   qpsolvers
 pycparser==3.0
     # via cffi
-pygments==2.19.2
+pygments==2.20.0
     # via pytest
 pyparsing==3.3.2
     # via matplotlib
