@@ -74,6 +74,18 @@ cd bssunfold
 pip install -e .
 ```
 
+### Optional dependencies
+
+Install with all solvers (Unix/Linux/Mac):
+```bash
+pip install bssunfold[all-solvers]
+```
+
+For Windows is recommended to use the following command because of the problem with proxsuite:
+```bash
+pip install bssunfold[windows]
+```
+
 ## 🎯 Quick Start
 
 Open in interactive notebooks:
