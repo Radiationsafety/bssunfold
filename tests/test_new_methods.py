@@ -351,7 +351,7 @@ class TestUnfoldCombined:
         pipeline = [
             {'method': 'nonexistent_method', 'params': {}},
         ]
-        with pytest.raises(ValueError, match="not found in Detector class"):
+        with pytest.raises(ValueError, match="not found or not callable"):
             detector.unfold_combined(readings, pipeline=pipeline)
 
     def test_small_system(self, small_detector, small_readings):

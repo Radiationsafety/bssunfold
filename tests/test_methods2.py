@@ -360,7 +360,7 @@ class TestUnfoldLmfit:
     def test_lmfit_invalid_model(self, detector):
         """Тест с некорректным названием модели"""
         try:
-            with pytest.raises(ValueError, match="model_name must be one of"):
+            with pytest.raises(ValueError, match="Unknown model_name"):
                 detector.unfold_lmfit(
                     BASE_READINGS,
                     model_name="invalid_model"

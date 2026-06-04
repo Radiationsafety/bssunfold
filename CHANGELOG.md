@@ -7,7 +7,12 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [0.5.9] - 2026-06-04
+## [0.5.0] - 2026-06-04
+
+### Added
+- github actions
+- github releases
+
 ### Changed
 - `solvers-jax` group — now includes `solvers-core` + `solvers-jax`.`proxsuite` and `open-source-solvers` have been removed from core dependencies. `qpsolvers[open-source-solvers]` was pulling `proxsuite` as a required dependency, which is not available on Windows, causing the package to fail installation.
 
