@@ -1274,23 +1274,20 @@ class Detector:
                     if verbose:
                         logger.info("Previous result used as initial spectrum")
 
-            method_func = getattr(self, f'unfold_{method}', None)
-            if method_func is None or not callable(method_func):
-                raise ValueError(
-                    f"Method '{method}' not found or not callable in Detector class"
-                )
+                method_func = getattr(self, f'unfold_{method}', None)
 
-            if i == len(pipeline) - 1 and calculate_errors:
-                params['calculate_errors'] = True
-            else:
-                params['calculate_errors'] = False
+                if not callable(method_func):
+                    raise ValueError(
+                        f"Method 'unfold_{method}' not found or not callable in Detector class"
+                    )
 
-            try:
-                if callable(method_func):
+                params['calculate_errors'] = (i == len(pipeline) - 1 and calculate_errors)
+
+                try:
                     result = method_func(readings, **params)
-            except Exception as e:
-                logger.error(f"Error in method {method}: {e}")
-                raise
+                except Exception as e:
+                    logger.error(f"Error in method {method}: {e}")
+                    raise
 
             if 'spectrum' in result:
                 current_spectrum = result['spectrum'].copy()
