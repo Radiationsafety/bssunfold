@@ -21,6 +21,31 @@ from ._montecarlo import monte_carlo_uncertainty
 logger = get_logger("detector")
 
 
+def make_solve_wrapper(solve_func, **fixed_params):
+    """Create a standard solve_wrapper for unfolding methods.
+
+    The wrapped function accepts (A, b, **kwargs), extracts x0 from kwargs,
+    and delegates to solve_func(A, b, x0, **fixed_params).
+
+    Parameters
+    ----------
+    solve_func : callable
+        Core solver function with signature (A, b, x0, **params).
+    **fixed_params
+        Additional keyword arguments forwarded to solve_func.
+
+    Returns
+    -------
+    callable
+        Wrapper compatible with run_unfolding's solve_func interface.
+    """
+    def wrapper(A, b, **kwargs):
+        x0 = kwargs.pop('x0', None)
+        return solve_func(A, b, x0=x0, **fixed_params)
+    wrapper.__name__ = f"{solve_func.__name__}_wrapper"
+    return wrapper
+
+
 def run_unfolding(
     *,
     # Detector instance data (passed from self)

@@ -1,25 +1,27 @@
-"""Landweber iteration unfolding method for neutron spectrum reconstruction.
+"""GRAVEL unfolding method for neutron spectrum reconstruction.
 
-This module provides the core solve_landweber solver and the unfold_landweber
+This module provides the core solve_gravel solver and the unfold_gravel
 wrapper for use with the Detector class.
 """
 
 import numpy as np
+from numpy import log, exp
 from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
 
-__all__ = ["solve_landweber", "unfold_landweber"]
+__all__ = ["solve_gravel", "unfold_gravel"]
 
 
-def solve_landweber(
+def solve_gravel(
     A: np.ndarray,
     b: np.ndarray,
     x0: np.ndarray,
+    tolerance: float = 1e-8,
     max_iterations: int = 1000,
-    tolerance: float = 1e-6,
+    regularization: float = 0.0,
 ) -> Tuple[np.ndarray, int, bool]:
-    """Solve unfolding problem using Landweber iteration.
+    """Solve unfolding problem using the GRAVEL algorithm.
 
     Parameters
     ----------
@@ -28,50 +30,78 @@ def solve_landweber(
     b : np.ndarray
         Measurement vector (m,).
     x0 : np.ndarray
-        Initial guess (n,).
+        Initial spectrum guess (n,).
+    tolerance : float, optional
+        Convergence tolerance (default: 1e-8).
     max_iterations : int, optional
         Maximum iterations (default: 1000).
-    tolerance : float, optional
-        Convergence tolerance (default: 1e-6).
+    regularization : float, optional
+        Regularization parameter (default: 0.0).
 
     Returns
     -------
     Tuple[np.ndarray, int, bool]
         Tuple of (solution, iterations, converged).
     """
-    import warnings
-    x = x0.copy()
-    sigma_max = np.linalg.norm(A, 2)
+    M, N = A.shape
+    x = x0.copy().astype(np.float64)
+    b = b.astype(np.float64)
 
-    if sigma_max == 0:
-        warnings.warn("Response matrix has zero norm. Returning initial guess.")
-        return x, 0, False
+    valid = b > 0
+    if np.sum(valid) == 0:
+        raise ValueError("All measurements are zero or negative")
 
-    step_size = 1.0 / (sigma_max ** 2)
-    AT = A.T
+    A_valid = A[valid]
+    b_valid = b[valid]
 
-    converged = False
-    iterations = 0
+    J_prev = 0.0
+    dJ_prev = 1.0
 
-    for i in range(max_iterations):
-        residual = A @ x - b
-        residual_norm = np.linalg.norm(residual)
+    for iteration in range(1, max_iterations + 1):
+        computed = A_valid @ x
 
-        if residual_norm < tolerance:
-            converged = True
-            iterations = i
-            break
+        W = np.zeros((len(b_valid), N))
+        for j in range(N):
+            for i in range(len(b_valid)):
+                if computed[i] > 0 and x[j] > 0:
+                    W[i, j] = b_valid[i] * A_valid[i, j] * x[j] / computed[i]
 
-        x = x - step_size * (AT @ residual)
-        x = np.maximum(x, 0)
+            numerator = 0.0
+            denominator = 0.0
+            for i in range(len(b_valid)):
+                if (
+                    computed[i] > 0
+                    and b_valid[i] > 0
+                    and W[i, j] > 0
+                    and A_valid[i, j] > 0
+                ):
+                    log_ratio = log(b_valid[i] / computed[i])
+                    numerator += W[i, j] * log_ratio
+                    denominator += W[i, j]
 
-    if not converged:
-        iterations = max_iterations
+            if denominator > 0:
+                reg_term = regularization * log(x[j] + 1e-10)
+                update = exp((numerator - reg_term) / denominator)
+                x[j] *= update
 
-    return x, iterations, converged
+        computed_final = A_valid @ x
+        chi_sq = np.sum(
+            (computed_final - b_valid) ** 2 / np.maximum(b_valid, 1e-10)
+        )
+        J = chi_sq / np.sum(computed_final)
+        dJ = J_prev - J
+        ddJ = abs(dJ - dJ_prev)
+
+        if ddJ <= tolerance:
+            return x, iteration, True
+
+        J_prev = J
+        dJ_prev = dJ
+
+    return x, max_iterations, False
 
 
-def unfold_landweber(
+def unfold_gravel(
     detector_names: List[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
@@ -80,15 +110,16 @@ def unfold_landweber(
     save_result_callback,
     readings: Dict[str, float],
     initial_spectrum: Optional[np.ndarray] = None,
+    tolerance: float = 1e-8,
     max_iterations: int = 1000,
-    tolerance: float = 1e-6,
+    regularization: float = 0.0,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = True,
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Unfold using Landweber iteration method.
+    """Unfold neutron spectrum using the GRAVEL algorithm.
 
     Parameters
     ----------
@@ -108,10 +139,12 @@ def unfold_landweber(
         Detector readings.
     initial_spectrum : Optional[np.ndarray], optional
         Initial spectrum guess.
+    tolerance : float, optional
+        Convergence tolerance (default: 1e-8).
     max_iterations : int, optional
         Maximum iterations (default: 1000).
-    tolerance : float, optional
-        Convergence tolerance (default: 1e-6).
+    regularization : float, optional
+        Regularization parameter (default: 0.0).
     calculate_errors : bool, optional
         Calculate Monte-Carlo errors (default: False).
     noise_level : float, optional
@@ -128,7 +161,7 @@ def unfold_landweber(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    x0_default = np.zeros(n_energy_bins)
+    x0_default = np.ones(n_energy_bins)/2
 
     return run_unfolding(
         detector_names=detector_names,
@@ -141,13 +174,17 @@ def unfold_landweber(
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
         solve_func=make_solve_wrapper(
-            solve_landweber,
-            max_iterations=max_iterations,
+            solve_gravel,
             tolerance=tolerance,
+            max_iterations=max_iterations,
+            regularization=regularization,
         ),
         solve_kwargs={},
-        method_name="Landweber",
-        extra_output={},
+        method_name="GRAVEL",
+        extra_output={
+            "tolerance": tolerance,
+            "regularization": regularization,
+        },
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

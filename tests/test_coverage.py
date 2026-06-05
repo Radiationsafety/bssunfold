@@ -741,7 +741,7 @@ class TestPlotting:
 
 class TestUnfoldingMethodsEdgeCases:
     def test_solve_landweber_zero_norm_A(self):
-        from bssunfold.core.unfolding_methods import solve_landweber
+        from bssunfold.core import solve_landweber
         A = np.zeros((3, 5))
         b = np.zeros(3)
         x0 = np.ones(5)
@@ -750,7 +750,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert np.allclose(x, x0)
 
     def test_solve_mlem_zero_b(self):
-        from bssunfold.core.unfolding_methods import solve_mlem
+        from bssunfold.core import solve_mlem
         np.random.seed(42)
         A = np.random.rand(5, 10)
         b = np.zeros(5)
@@ -760,7 +760,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert np.all(x >= 0)
 
     def test_solve_kaczmarz_with_zero_rows(self):
-        from bssunfold.core.unfolding_methods import solve_kaczmarz
+        from bssunfold.core import solve_kaczmarz
         A = np.array([[1.0, 0.0], [0.0, 0.0]])
         b = np.array([1.0, 0.0])
         x0 = np.zeros(2)
@@ -768,7 +768,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (2,)
 
     def test_solve_kaczmarz_omega_warning(self):
-        from bssunfold.core.unfolding_methods import solve_kaczmarz
+        from bssunfold.core import solve_kaczmarz
         A = np.random.rand(5, 10)
         x_true = np.random.rand(10)
         b = A @ x_true
@@ -778,7 +778,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_doroshenko_denominator_zero(self):
-        from bssunfold.core.unfolding_methods import solve_doroshenko
+        from bssunfold.core import solve_doroshenko
         A = np.array([[0.0, 1.0], [0.0, 1.0]])
         b = np.array([1.0, 2.0])
         x0 = np.array([0.0, 0.0])
@@ -786,7 +786,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (2,)
 
     def test_solve_cvxpy_default_solver(self):
-        from bssunfold.core.unfolding_methods import solve_cvxpy
+        from bssunfold.core import solve_cvxpy
         np.random.seed(42)
         A = np.random.rand(3, 5)
         b = np.random.rand(3)
@@ -794,7 +794,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (5,)
 
     def test_solve_qpsolvers_L1_norm(self):
-        from bssunfold.core.unfolding_methods import solve_qpsolvers
+        from bssunfold.core import solve_qpsolvers
         np.random.seed(42)
         A = np.random.rand(5, 10)
         x_true = np.random.rand(10)
@@ -804,7 +804,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_qpsolvers_smoothness_order_1(self):
-        from bssunfold.core.unfolding_methods import solve_qpsolvers
+        from bssunfold.core import solve_qpsolvers
         np.random.seed(42)
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
@@ -814,7 +814,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_qpsolvers_smoothness_order_2(self):
-        from bssunfold.core.unfolding_methods import solve_qpsolvers
+        from bssunfold.core import solve_qpsolvers
         np.random.seed(42)
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
@@ -824,7 +824,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_qpsolvers_L1_smoothness(self):
-        from bssunfold.core.unfolding_methods import solve_qpsolvers
+        from bssunfold.core import solve_qpsolvers
         np.random.seed(42)
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
@@ -834,7 +834,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_qpsolvers_unavailable_solver(self):
-        from bssunfold.core.unfolding_methods import solve_qpsolvers
+        from bssunfold.core import solve_qpsolvers
         from qpsolvers import available_solvers
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
@@ -845,7 +845,7 @@ class TestUnfoldingMethodsEdgeCases:
             assert x is None
 
     def test_solve_lmfit_leastsq(self):
-        from bssunfold.core.unfolding_methods import solve_lmfit
+        from bssunfold.core import solve_lmfit
         np.random.seed(42)
         A = np.random.rand(5, 10)
         x_true = np.random.rand(10)
@@ -859,7 +859,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert np.all(x >= 0)
 
     def test_solve_lmfit_lasso_leastsq(self):
-        from bssunfold.core.unfolding_methods import solve_lmfit
+        from bssunfold.core import solve_lmfit
         np.random.seed(42)
         A = np.random.rand(5, 10)
         x_true = np.random.rand(10)
@@ -871,7 +871,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_lmfit_ridge_leastsq(self):
-        from bssunfold.core.unfolding_methods import solve_lmfit
+        from bssunfold.core import solve_lmfit
         np.random.seed(42)
         A = np.random.rand(5, 10)
         x_true = np.random.rand(10)
@@ -883,7 +883,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_lmfit_invalid_model(self):
-        from bssunfold.core.unfolding_methods import solve_lmfit
+        from bssunfold.core import solve_lmfit
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
         x0 = np.ones(10)
@@ -892,7 +892,7 @@ class TestUnfoldingMethodsEdgeCases:
 
     def test_solve_cvxpy_exception(self):
         with patch('cvxpy.Problem.solve', side_effect=Exception("Solver error")):
-            from bssunfold.core.unfolding_methods import solve_cvxpy
+            from bssunfold.core import solve_cvxpy
             A = np.random.rand(5, 10)
             b = np.random.rand(5)
             with pytest.warns(UserWarning, match="CVXPY solving failed"):
@@ -902,14 +902,14 @@ class TestUnfoldingMethodsEdgeCases:
 
     def test_solve_qpsolvers_L1_no_solution(self):
         with patch('qpsolvers.solve_qp', return_value=None):
-            from bssunfold.core.unfolding_methods import solve_qpsolvers
+            from bssunfold.core import solve_qpsolvers
             A = np.random.rand(5, 10)
             b = np.random.rand(5)
             x = solve_qpsolvers(A, b, alpha=1e-4, norm=1, solver='osqp')
             assert x is None
 
     def test_solve_qpsolvers_invalid_norm(self):
-        from bssunfold.core.unfolding_methods import solve_qpsolvers
+        from bssunfold.core import solve_qpsolvers
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
         with pytest.raises(ValueError, match="Unsupported norm type"):
@@ -917,7 +917,7 @@ class TestUnfoldingMethodsEdgeCases:
 
     def test_solve_qpsolvers_none_result(self):
         with patch('qpsolvers.solve_qp', return_value=None):
-            from bssunfold.core.unfolding_methods import solve_qpsolvers
+            from bssunfold.core import solve_qpsolvers
             A = np.random.rand(5, 10)
             b = np.random.rand(5)
             with pytest.warns(UserWarning, match="did not find a solution"):

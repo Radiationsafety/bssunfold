@@ -5,15 +5,21 @@ unfolding, including the Detector class and unfolding methods.
 """
 
 from .detector import Detector
-from .unfolding_methods import (
-    solve_cvxpy,
-    solve_landweber,
-    solve_mlem,
-    solve_qpsolvers,
-    solve_doroshenko,
-    solve_kaczmarz,
-    solve_lmfit,
-)
+from .unfold_landweber import solve_landweber
+from .unfold_mlem import solve_mlem
+from .unfold_kaczmarz import solve_kaczmarz
+from .unfold_doroshenko import solve_doroshenko
+from .unfold_cvxpy import solve_cvxpy
+from .unfold_qpsolvers import solve_qpsolvers
+from .unfold_lmfit import solve_lmfit
+from .unfold_gravel import solve_gravel
+from .unfold_maxed import solve_maxed
+from .unfold_tikhonov_legendre import solve_tikhonov_legendre
+from .unfold_bayes import solve_bayes
+from .unfold_bayes_spline_regularization import solve_bayes_spline
+from .unfold_statreg import solve_statreg
+from .unfold_scipy_direct_method import solve_scipy_direct
+from .unfold_tsvd import solve_tsvd
 from .regularization import (
     select_regularization_parameter,
     lcurve_selection,
@@ -33,6 +39,14 @@ from .unfold_kaczmarz import unfold_kaczmarz
 from .unfold_lmfit import unfold_lmfit
 from .unfold_mlem_odl import unfold_mlem_odl
 from .unfold_combined import unfold_combined
+from .unfold_gravel import unfold_gravel
+from .unfold_maxed import unfold_maxed
+from .unfold_tikhonov_legendre import unfold_tikhonov_legendre
+from .unfold_bayes import unfold_bayes
+from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularization
+from .unfold_statreg import unfold_statreg
+from .unfold_scipy_direct_method import unfold_scipy_direct_method
+from .unfold_tsvd import unfold_tsvd
 
 __all__ = [
     # detector
@@ -45,6 +59,14 @@ __all__ = [
     "solve_doroshenko",
     "solve_kaczmarz",
     "solve_lmfit",
+    "solve_gravel",
+    "solve_maxed",
+    "solve_tikhonov_legendre",
+    "solve_bayes",
+    "solve_bayes_spline",
+    "solve_statreg",
+    "solve_scipy_direct",
+    "solve_tsvd",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
@@ -55,6 +77,14 @@ __all__ = [
     "unfold_lmfit",
     "unfold_mlem_odl",
     "unfold_combined",
+    "unfold_gravel",
+    "unfold_maxed",
+    "unfold_tikhonov_legendre",
+    "unfold_bayes",
+    "unfold_bayes_spline_regularization",
+    "unfold_statreg",
+    "unfold_scipy_direct_method",
+    "unfold_tsvd",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

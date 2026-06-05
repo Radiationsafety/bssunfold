@@ -264,7 +264,7 @@ wheels = [
 
 [[package]]
 name = "bssunfold"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy", extra = ["ecos"] },
@@ -281,7 +281,9 @@ all = [
     { name = "odl" },
     { name = "pytest" },
     { name = "pytikhonov" },
+    { name = "pyunfold" },
     { name = "qpsolvers" },
+    { name = "statreg" },
 ]
 all-solvers = [
     { name = "jax" },
@@ -289,6 +291,9 @@ all-solvers = [
     { name = "jaxopt" },
     { name = "proxsuite" },
     { name = "qpsolvers", extra = ["clarabel", "ecos", "osqp", "piqp", "qpalm", "scs"] },
+]
+bayes = [
+    { name = "pyunfold" },
 ]
 lmfit = [
     { name = "lmfit" },
@@ -309,6 +314,9 @@ solvers-jax = [
 ]
 solvers-proxqp = [
     { name = "proxsuite" },
+]
+statreg = [
+    { name = "statreg" },
 ]
 test = [
     { name = "pytest" },
@@ -356,6 +364,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "bssunfold", extras = ["bayes"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mlem"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["qpsolvers"], marker = "extra == 'all'" },
@@ -364,6 +373,7 @@ requires-dist = [
     { name = "bssunfold", extras = ["solvers-jax"], marker = "extra == 'all-solvers'" },
     { name = "bssunfold", extras = ["solvers-jax"], marker = "extra == 'windows'" },
     { name = "bssunfold", extras = ["solvers-proxqp"], marker = "extra == 'all-solvers'" },
+    { name = "bssunfold", extras = ["statreg"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["test"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["tikhonov"], marker = "extra == 'all'" },
     { name = "cvxpy", extras = ["ecos"], specifier = ">=1.7.5" },
@@ -378,12 +388,14 @@ requires-dist = [
     { name = "proxsuite", marker = "extra == 'solvers-proxqp'", specifier = ">=0.7.2" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.2" },
     { name = "pytikhonov", marker = "extra == 'tikhonov'", specifier = ">=0.0.1" },
+    { name = "pyunfold", marker = "extra == 'bayes'", specifier = ">=0.5.0" },
     { name = "pyzmq", specifier = ">=27.1.0" },
     { name = "qpsolvers", marker = "extra == 'qpsolvers'", specifier = ">=4.10.0" },
     { name = "qpsolvers", extras = ["osqp", "piqp", "qpalm", "ecos", "scs", "clarabel"], marker = "extra == 'solvers-core'", specifier = ">=4.10.0" },
     { name = "scipy", specifier = ">=1.16.3" },
+    { name = "statreg", marker = "extra == 'statreg'", git = "https://github.com/Radiationsafety/statreg-py.git" },
 ]
-provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "statreg", "bayes", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3375,6 +3387,21 @@ wheels = [
 ]
 
 [[package]]
+name = "pyunfold"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/37/d9/590cfd205fb6fb4f17e9d04ede047c599669381114177b6c66c6d2921ee7/PyUnfold-0.5.0.tar.gz", hash = "sha256:d3e7d7da9fa03d218b117780e8f6894f2fba1452f6f8e1cab1e556e46242d980", size = 42550, upload-time = "2018-11-19T04:52:24.23Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/7c/094c724c345a095a6aee95a9d639480ba383f986cff166d3e4e589894ce4/PyUnfold-0.5.0-py2.py3-none-any.whl", hash = "sha256:3f2f9ddcb25255cbface40bc853d14ee7563703da8833f825216bb0327b4f04d", size = 25250, upload-time = "2018-11-19T04:52:22.315Z" },
+]
+
+[[package]]
 name = "pywin32-ctypes"
 version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
@@ -4335,6 +4362,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e7/65/5a1fadcc40c5fdc7df421a7506b79633af8f5d5e3a95c3e72acacec644b9/starlette-0.51.0.tar.gz", hash = "sha256:4c4fda9b1bc67f84037d3d14a5112e523509c369d9d47b111b2f984b0cc5ba6c", size = 2647658, upload-time = "2026-01-10T20:23:15.043Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/18/c4/09985a03dba389d4fe16a9014147a7b02fa76ef3519bf5846462a485876d/starlette-0.51.0-py3-none-any.whl", hash = "sha256:fb460a3d6fd3c958d729fdd96aee297f89a51b0181f16401fe8fd4cb6129165d", size = 74133, upload-time = "2026-01-10T20:23:13.445Z" },
+]
+
+[[package]]
+name = "statreg"
+version = "0.0.1.dev1"
+source = { git = "https://github.com/Radiationsafety/statreg-py.git#c700aa7211c2c669f198bb2b95bc215dc65fca8b" }
+dependencies = [
+    { name = "numpy" },
+    { name = "scipy" },
 ]
 
 [[package]]

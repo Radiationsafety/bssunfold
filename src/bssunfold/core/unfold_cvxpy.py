@@ -1,16 +1,93 @@
 """CVXPY-based unfolding method for neutron spectrum reconstruction.
 
-This module provides the `unfold_cvxpy` function which wraps the convex
-optimization solver for use with the Detector class.
+This module provides the core solve_cvxpy solver and the unfold_cvxpy
+wrapper with regularization selection for use with the Detector class.
 """
 
+import warnings
 import numpy as np
 from typing import Dict, Optional, Any, List
 
 from ..platform_check import get_recommended_solver
 from .regularization import select_regularization_parameter
-from .unfolding_methods import solve_cvxpy
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, make_solve_wrapper
+
+__all__ = ["solve_cvxpy", "unfold_cvxpy"]
+
+
+def _solve_cvxpy_problem(
+    A: np.ndarray,
+    b: np.ndarray,
+    alpha: float,
+    norm: int = 2,
+    solver: str = "ECOS",
+) -> np.ndarray:
+    """Solve cvxpy optimization problem."""
+    try:
+        import cvxpy as cp
+    except ImportError as e:
+        raise ImportError(
+            "cvxpy is required for unfold_cvxpy. Install with: pip install cvxpy"
+        ) from e
+
+    n = A.shape[1]
+    x = cp.Variable(n, nonneg=True)
+    objective = cp.Minimize(
+        cp.norm(A @ x - b, 2) + alpha * cp.norm(x, norm)
+    )
+    problem = cp.Problem(objective)
+
+    try:
+        problem.solve(solver=solver)
+        status = problem.status
+        if status not in ["optimal", "optimal_inaccurate"]:
+            warnings.warn(
+                f"Problem status is not optimal: {status}. "
+                "Solution may be inaccurate."
+            )
+        if x.value is None:
+            warnings.warn(
+                f"Solution variable is None. Status: {status}. "
+                "Returning zero vector."
+            )
+            return np.zeros(n)
+        return np.asarray(x.value)
+    except Exception as e:
+        warnings.warn(f"CVXPY solving failed: {e}. Returning zero vector.")
+        return np.zeros(n)
+
+
+def solve_cvxpy(
+    A: np.ndarray,
+    b: np.ndarray,
+    alpha: float,
+    norm: int = 2,
+    solver: str = "ECOS",
+    x0: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Solve unfolding problem using cvxpy.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    alpha : float
+        Regularization parameter.
+    norm : int, optional
+        Norm type (1 for L1, 2 for L2).
+    solver : str, optional
+        CVXPY solver name.
+    x0 : np.ndarray, optional
+        Not used (provided for API compatibility).
+
+    Returns
+    -------
+    np.ndarray
+        Unfolded spectrum (n,).
+    """
+    return _solve_cvxpy_problem(A, b, alpha=alpha, norm=norm, solver=solver)
 
 
 def unfold_cvxpy(
@@ -82,12 +159,10 @@ def unfold_cvxpy(
     if solver == "default":
         solver = get_recommended_solver()
 
-    # Build system for regularization selection
     selected = [name for name in detector_names if name in readings]
     b = np.array([readings[name] for name in selected], dtype=float)
     A = np.array([sensitivities[name] for name in selected], dtype=float)
 
-    # Handle regularization selection
     if regularization_method == "manual":
         alpha = regularization
         selected_lambda = alpha
@@ -114,12 +189,6 @@ def unfold_cvxpy(
         )
         alpha = selected_lambda
 
-    def solve_wrapper(A, b, **kwargs):
-        # cvxpy doesn't use x0, but we need to accept it for consistency
-        kwargs.pop('x0', None)
-        x = solve_cvxpy(A, b, alpha, norm, solver)
-        return x
-
     x0_default = np.zeros(n_energy_bins)
 
     return run_unfolding(
@@ -132,7 +201,12 @@ def unfold_cvxpy(
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
-        solve_func=solve_wrapper,
+        solve_func=make_solve_wrapper(
+            solve_cvxpy,
+            alpha=alpha,
+            norm=norm,
+            solver=solver,
+        ),
         solve_kwargs={},
         method_name="cvxpy",
         extra_output={
