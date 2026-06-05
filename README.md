@@ -32,10 +32,14 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms**:
-  - Tikhonov regularization with convex optimization (CVXPY)
-  - Landweber iterative method
-  - Combined approach for improved accuracy
+- **Multiple Unfolding Algorithms** (17 methods):
+  - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD)
+  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
+  - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
+  - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
+  - **Statistical Regularization**: Turchin's method (StatReg)
+  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR)
+  - **Pipeline**: Combined approach for chaining multiple methods
 
 - **Radiation Dose Calculations**:
   - Effective dose calculations for different irradiation types based on  conversion coefficients from 116 publication of International commission on radiological protection (ICRP)
@@ -208,7 +212,7 @@ result = detector.unfold_mlem_odl(
 ```
 
 ### 4. `unfold_qpsolvers()`
-Iterative Maximum likelihood expectation maximization (MLEM).
+Quadratic programming unfolding via qpsolvers with L1/L2/smoothness norms.
 
 ```python
 result = detector.unfold_qpsolvers(
@@ -270,6 +274,123 @@ result = det.unfold_combined(
     ],
     calculate_errors=False,
     verbose=True,
+)
+```
+
+### 9. `unfold_mlem()`
+Pure-NumPy MLEM (Maximum Likelihood Expectation Maximisation).
+
+```python
+result = detector.unfold_mlem(
+    readings,
+    max_iterations=1000,
+    tolerance=1e-6,
+    calculate_errors=True,
+    save_result=True,
+)
+```
+
+### 10. `unfold_gravel()`
+GRAVEL iterative algorithm with relative entropy weighting.
+
+```python
+result = detector.unfold_gravel(
+    readings,
+    max_iterations=200,
+    tolerance=1e-6,
+    calculate_errors=True,
+    save_result=True,
+)
+```
+
+### 11. `unfold_maxed()`
+Maximum Entropy Deconvolution (Reginatto & Goldhagen) — primal log-space minimisation.
+
+```python
+result = detector.unfold_maxed(
+    readings,
+    sigma_factor=0.1,
+    max_iterations=5000,
+    tolerance=1e-6,
+)
+```
+
+### 12. `unfold_tikhonov_legendre()`
+Tikhonov regularisation with Legendre polynomial basis expansion.
+
+```python
+result = detector.unfold_tikhonov_legendre(
+    readings,
+    delta=0.05,
+    n_polynomials=15,
+    calculate_errors=True,
+    save_result=True,
+)
+```
+
+### 13. `unfold_bayes()`
+Bayesian iterative unfolding (D'Agostini) with column-normalised response.
+
+```python
+result = detector.unfold_bayes(
+    readings,
+    max_iterations=1000,
+    tolerance=1e-6,
+    calculate_errors=True,
+    save_result=True,
+)
+```
+
+### 14. `unfold_bayes_spline_regularization()`
+Bayesian D'Agostini iteration with spline smoothing on log10-spectrum.
+
+```python
+result = detector.unfold_bayes_spline_regularization(
+    readings,
+    max_iterations=1000,
+    tolerance=1e-6,
+    spline_degree=3,
+    spline_smooth=0.1,
+    calculate_errors=True,
+    save_result=True,
+)
+```
+
+### 15. `unfold_statreg()`
+Turchin's statistical regularisation with L-curve α selection (EmpiricalBayes) or user-specified α.
+
+```python
+result = detector.unfold_statreg(
+    readings,
+    unfoldermethod="EmpiricalBayes",
+    regularization=None,
+    calculate_errors=True,
+    save_result=True,
+)
+```
+
+### 16. `unfold_scipy_direct_method()`
+Direct linear solvers from SciPy: CG, GMRES, LSQR, LSMR, MINRES.
+
+```python
+result = detector.unfold_scipy_direct_method(
+    readings,
+    method="lsqr",
+    calculate_errors=True,
+    save_result=True,
+)
+```
+
+### 17. `unfold_tsvd()`
+Truncated Singular Value Decomposition with automatic k-selection (L-curve, GCV, discrepancy, energy, median, Donoho).
+
+```python
+result = detector.unfold_tsvd(
+    readings,
+    k=5,
+    method="l_curve",
+    calculate_errors=True,
+    save_result=True,
 )
 ```
 
@@ -359,6 +480,7 @@ bssunfold/
 ├── docs
 │   ├── conf.py
 │   ├── detector.rst
+│   ├── detector_fixed.rst
 │   ├── examples.rst
 │   ├── index.rst
 │   ├── make.bat
@@ -369,33 +491,72 @@ bssunfold/
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
-├── requirements.txt
 ├── src
 │   └── bssunfold
-│       ├── constants.py
-│       ├── detector.py
 │       ├── __init__.py
+│       ├── constants.py
+│       ├── logging_config.py
+│       ├── platform_check.py
+│       ├── core
+│       │   ├── __init__.py
+│       │   ├── _base_unfolder.py
+│       │   ├── _matrix_utils.py
+│       │   ├── _montecarlo.py
+│       │   ├── detector.py
+│       │   ├── regularization.py
+│       │   ├── unfold_bayes.py
+│       │   ├── unfold_bayes_spline_regularization.py
+│       │   ├── unfold_combined.py
+│       │   ├── unfold_cvxpy.py
+│       │   ├── unfold_doroshenko.py
+│       │   ├── unfold_gravel.py
+│       │   ├── unfold_kaczmarz.py
+│       │   ├── unfold_landweber.py
+│       │   ├── unfold_lmfit.py
+│       │   ├── unfold_maxed.py
+│       │   ├── unfold_mlem.py
+│       │   ├── unfold_mlem_odl.py
+│       │   ├── unfold_qpsolvers.py
+│       │   ├── unfold_scipy_direct_method.py
+│       │   ├── unfold_statreg.py
+│       │   ├── unfold_tikhonov_legendre.py
+│       │   └── unfold_tsvd.py
+│       └── utils
+│           ├── __init__.py
+│           ├── converters.py
+│           ├── interpolation.py
+│           ├── plotting.py
+│           └── validators.py
 ├── tests
 │   ├── __init__.py
-│   └── test_detector.py
+│   ├── test_all.py
+│   ├── test_coverage.py
+│   ├── test_detector.py
+│   ├── test_methods2.py
+│   ├── test_mlem.py
+│   ├── test_new_methods.py
+│   ├── test_new_methods_fixed.py
+│   ├── test_readings.py
+│   └── test_refactored_fixed.py
 └── uv.lock
 ```
 
 ## 🔧 Technical Requirements
 
-### Requirements
-- Python 3.11 - 3.13
-- cvxpy[ecos]
-- NumPy
-- SciPy
-- Pandas
-- Matplotlib
-- odl
-- qpsolvers with open source solvers
-- pytikhonov
-- lmfit
+### Core Requirements
+- Python 3.11+
+- NumPy, SciPy, Pandas, Matplotlib
+- cvxpy[ecos] — convex optimisation framework (CVXPY-based methods)
 
-Available package versions see in [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml).
+### Optional Backends
+- `pytikhonov` — L-curve / GCV / DP regularisation (Tikhonov-type methods)
+- `qpsolvers[solvers-core]` — QP solvers (unfold_qpsolvers)
+- `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
+- `odl` — Operator Discretization Library (unfold_mlem_odl)
+
+All other methods (GRAVEL, MAXED, Bayes, StatReg, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre) have **no extra dependencies** beyond NumPy/SciPy.
+
+See [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml) for version constraints.
 
 ## Performance
 
