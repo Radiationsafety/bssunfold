@@ -268,25 +268,36 @@ version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy", extra = ["ecos"] },
-    { name = "lmfit" },
     { name = "matplotlib" },
     { name = "numpy" },
-    { name = "odl" },
     { name = "pandas" },
-    { name = "pytest" },
-    { name = "pytikhonov" },
     { name = "pyzmq" },
-    { name = "qpsolvers" },
     { name = "scipy" },
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "lmfit" },
+    { name = "odl" },
+    { name = "pytest" },
+    { name = "pytikhonov" },
+    { name = "qpsolvers" },
+]
 all-solvers = [
     { name = "jax" },
     { name = "jaxlib" },
     { name = "jaxopt" },
     { name = "proxsuite" },
     { name = "qpsolvers", extra = ["clarabel", "ecos", "osqp", "piqp", "qpalm", "scs"] },
+]
+lmfit = [
+    { name = "lmfit" },
+]
+mlem = [
+    { name = "odl" },
+]
+qpsolvers = [
+    { name = "qpsolvers" },
 ]
 solvers-core = [
     { name = "qpsolvers", extra = ["clarabel", "ecos", "osqp", "piqp", "qpalm", "scs"] },
@@ -298,6 +309,12 @@ solvers-jax = [
 ]
 solvers-proxqp = [
     { name = "proxsuite" },
+]
+test = [
+    { name = "pytest" },
+]
+tikhonov = [
+    { name = "pytikhonov" },
 ]
 windows = [
     { name = "jax" },
@@ -339,29 +356,34 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["mlem"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["qpsolvers"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["solvers-core"], marker = "extra == 'all-solvers'" },
     { name = "bssunfold", extras = ["solvers-core"], marker = "extra == 'windows'" },
     { name = "bssunfold", extras = ["solvers-jax"], marker = "extra == 'all-solvers'" },
     { name = "bssunfold", extras = ["solvers-jax"], marker = "extra == 'windows'" },
     { name = "bssunfold", extras = ["solvers-proxqp"], marker = "extra == 'all-solvers'" },
+    { name = "bssunfold", extras = ["test"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["tikhonov"], marker = "extra == 'all'" },
     { name = "cvxpy", extras = ["ecos"], specifier = ">=1.7.5" },
     { name = "jax", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxlib", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxopt", marker = "extra == 'solvers-jax'", specifier = ">=0.8.0" },
-    { name = "lmfit", specifier = ">=1.3.4" },
+    { name = "lmfit", marker = "extra == 'lmfit'", specifier = ">=1.3.4" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.1" },
-    { name = "odl", specifier = ">=1.0.0" },
+    { name = "odl", marker = "extra == 'mlem'", specifier = ">=1.0.0" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "proxsuite", marker = "extra == 'solvers-proxqp'", specifier = ">=0.7.2" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytikhonov", specifier = ">=0.0.1" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.2" },
+    { name = "pytikhonov", marker = "extra == 'tikhonov'", specifier = ">=0.0.1" },
     { name = "pyzmq", specifier = ">=27.1.0" },
-    { name = "qpsolvers", specifier = ">=4.10.0" },
+    { name = "qpsolvers", marker = "extra == 'qpsolvers'", specifier = ">=4.10.0" },
     { name = "qpsolvers", extras = ["osqp", "piqp", "qpalm", "ecos", "scs", "clarabel"], marker = "extra == 'solvers-core'", specifier = ">=4.10.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
-provides-extras = ["solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
