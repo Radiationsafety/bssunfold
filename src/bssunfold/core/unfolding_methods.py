@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 
 import warnings
 
-from scipy.sparse import csc_matrix, diags
+from scipy.sparse import csc_matrix
 from ._matrix_utils import create_derivative_matrix
 
 __all__ = [
