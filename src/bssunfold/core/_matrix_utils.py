@@ -5,10 +5,11 @@ and regularization modules, avoiding code duplication.
 """
 
 import numpy as np
+from scipy.sparse import csc_matrix, diags
 
 
-def create_derivative_matrix(n: int, order: int) -> np.ndarray:
-    """Create finite difference derivative matrix.
+def create_derivative_matrix(n: int, order: int) -> csc_matrix:
+    """Create finite difference derivative matrix in csc format.
 
     Parameters
     ----------
@@ -19,8 +20,9 @@ def create_derivative_matrix(n: int, order: int) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
-        Derivative matrix of shape (n-1, n) for order=1 or (n-2, n) for order=2.
+    csc_matrix
+        Derivative matrix in csc format of shape (n-1, n) for order=1 
+        or (n-2, n) for order=2.
 
     Raises
     ------
@@ -28,15 +30,15 @@ def create_derivative_matrix(n: int, order: int) -> np.ndarray:
         If order is not 1 or 2.
     """
     if order == 1:
-        L = np.zeros((n - 1, n))
-        np.fill_diagonal(L, -1)
-        np.fill_diagonal(L[:, 1:], 1)
+        # First derivative: [-1, 1] on diagonals
+        data = np.concatenate([[-1] * (n - 1), [1] * (n - 1)])
+        row = np.arange(2 * (n - 1)) // 2
+        col = np.concatenate([np.arange(n - 1), np.arange(1, n)])
+        L = csc_matrix((data, (row, col)), shape=(n - 1, n))
         return L
     elif order == 2:
-        L = np.zeros((n - 2, n))
-        np.fill_diagonal(L, 1)
-        np.fill_diagonal(L[:, 1:], -2)
-        np.fill_diagonal(L[:, 2:], 1)
+        # Second derivative: [1, -2, 1] on diagonals - more efficient with diags
+        L = diags([1, -2, 1], [0, 1, 2], shape=(n - 2, n), format='csc')
         return L
     else:
         raise ValueError(f"Unsupported derivative order: {order}. Use 1 or 2.")

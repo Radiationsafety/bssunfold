@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 
 import warnings
 
+from scipy.sparse import csc_matrix, diags
 from ._matrix_utils import create_derivative_matrix
 
 __all__ = [
@@ -268,7 +269,8 @@ def solve_qpsolvers(
     n = A.shape[1]
 
     # Base QP: min 0.5 * ||Ax - b||^2 = 0.5 * x^T (A^T A) x - (A^T b)^T x
-    P_base = A.T @ A
+    # Create P as csc_matrix for efficiency with osqp
+    P_base = csc_matrix(A.T @ A)
     q_base = -A.T @ b
 
     if norm == 2:
@@ -282,11 +284,11 @@ def solve_qpsolvers(
             L = create_derivative_matrix(n, 2)
             P += alpha * smoothness_weight * (L.T @ L)
         else:
-            # Standard Tikhonov
-            P += alpha * np.eye(n)
+            # Standard Tikhonov - use sparse identity for efficiency
+            P += alpha * csc_matrix(np.eye(n))
 
-        # Constraints: x >= 0
-        G = -np.eye(n)
+        # Constraints: x >= 0 - create as csc_matrix
+        G = csc_matrix(-np.eye(n))
         h = np.zeros(n)
 
         x = solve_qp(
@@ -304,8 +306,8 @@ def solve_qpsolvers(
         # |x| = sum(x_plus + x_minus) where x_plus >= 0, x_minus >= 0
         n_ext = 2 * n
 
-        # Extended P matrix: [P_base  0; 0 0]
-        P_ext = np.zeros((n_ext, n_ext))
+        # Extended P matrix: [P_base  0; 0 0] - use sparse block construction
+        P_ext = csc_matrix((n_ext, n_ext))
         P_ext[:n, :n] = P_base
 
         # Add smoothness if needed
@@ -324,16 +326,16 @@ def solve_qpsolvers(
         # Constraints:
         # x_plus >= 0, x_minus >= 0
         # x = x_plus - x_minus, so x_plus - x_minus >= 0 (non-negativity)
-        G_ext = np.zeros((3 * n, n_ext))
+        G_ext = csc_matrix((3 * n, n_ext))
         h_ext = np.zeros(3 * n)
 
         # x_plus >= 0: -x_plus <= 0
-        G_ext[:n, :n] = -np.eye(n)
+        G_ext[:n, :n] = -csc_matrix(np.eye(n))
         # x_minus >= 0: -x_minus <= 0
-        G_ext[n:2 * n, n:] = -np.eye(n)
+        G_ext[n:2 * n, n:] = -csc_matrix(np.eye(n))
         # x_plus - x_minus >= 0: -(x_plus - x_minus) <= 0
-        G_ext[2 * n:3 * n, :n] = -np.eye(n)
-        G_ext[2 * n:3 * n, n:] = np.eye(n)
+        G_ext[2 * n:3 * n, :n] = -csc_matrix(np.eye(n))
+        G_ext[2 * n:3 * n, n:] = csc_matrix(np.eye(n))
 
         # Initial values for extended problem
         x_init_ext = None
