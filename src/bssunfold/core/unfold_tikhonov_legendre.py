@@ -6,7 +6,7 @@ unfold_tikhonov_legendre wrapper for use with the Detector class.
 
 import numpy as np
 from numpy.polynomial.legendre import Legendre
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Dict, Optional, Any, List
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
 from ._matrix_utils import create_derivative_matrix

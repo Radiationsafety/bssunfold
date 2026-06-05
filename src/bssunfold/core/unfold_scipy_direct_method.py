@@ -5,7 +5,7 @@ unfold_scipy_direct_method wrapper for use with the Detector class.
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Dict, Optional, Any, List
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
 
