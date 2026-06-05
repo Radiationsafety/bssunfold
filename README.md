@@ -475,18 +475,7 @@ bssunfold/
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── data
-│   └── response_functions
-│       └── rf_GSF.csv
 ├── docs
-│   ├── conf.py
-│   ├── detector.rst
-│   ├── detector_fixed.rst
-│   ├── examples.rst
-│   ├── index.rst
-│   ├── make.bat
-│   ├── makefile
-│   └── requirements.txt
 ├── examples
 ├── favicon.ico
 ├── LICENSE
@@ -529,16 +518,6 @@ bssunfold/
 │           ├── plotting.py
 │           └── validators.py
 ├── tests
-│   ├── __init__.py
-│   ├── test_all.py
-│   ├── test_coverage.py
-│   ├── test_detector.py
-│   ├── test_methods2.py
-│   ├── test_mlem.py
-│   ├── test_new_methods.py
-│   ├── test_new_methods_fixed.py
-│   ├── test_readings.py
-│   └── test_refactored_fixed.py
 └── uv.lock
 ```
 
