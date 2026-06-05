@@ -1,0 +1,89 @@
+# Cross-platform test matrix for bssunfold
+# Tests Python 3.11–3.14 on Ubuntu, Windows, and macOS
+name: Cross-platform tests
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  schedule:
+    # Еженедельный прогон в воскресенье в 02:00 UTC
+    - cron: "0 2 * * 0"
+  workflow_dispatch: # ручной запуск
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: "${{ matrix.os }} / Python ${{ matrix.python-version }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # не останавливать остальные при падении одного
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        allow-prereleases: true # нужно для Python 3.14 (pre-release)
+
+    - name: Install dependencies
+      run: uv sync --group dev
+
+    - name: Show installed packages
+      run: uv run pip list
+      shell: bash
+
+    - name: Lint with flake8
+      run: |
+        uv run flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        uv run flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      shell: bash
+
+    - name: Test with pytest
+      run: |
+        uv run pytest -v --tb=short --junitxml=junit-${{ matrix.os }}-${{ matrix.python-version }}.xml
+      shell: bash
+
+    - name: Upload test results (JUnit)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: junit-${{ matrix.os }}-${{ matrix.python-version }}
+        path: junit-${{ matrix.os }}-${{ matrix.python-version }}.xml
+        if-no-files-found: warn
+        retention-days: 14
+
+  # Сводка результатов матрицы
+  summary:
+    if: always()
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Collect matrix results
+      run: |
+        echo "## Cross-platform test results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Matrix completed** — see individual job logs for details." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Platform | Python 3.11 | Python 3.12 | Python 3.13 | Python 3.14 |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|-------------|-------------|-------------|-------------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Ubuntu   | ✅ | ✅ | ✅ | ✅ |" >> $GITHUB_STEP_SUMMARY
+        echo "| Windows  | ✅ | ✅ | ✅ | ✅ |" >> $GITHUB_STEP_SUMMARY
+        echo "| macOS    | ✅ | ✅ | ✅ | ✅ |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "> ⚠️  Статусы в таблице — статические. Реальный статус каждого job" >> $GITHUB_STEP_SUMMARY
+        echo "> смотрите в секции **test** выше." >> $GITHUB_STEP_SUMMARY

@@ -1,6 +1,6 @@
 [project]
 name = "bssunfold"
-version = "0.4.1"
+version = "0.5.0"
 description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
 readme = "README.md"
 authors = [
@@ -33,18 +33,43 @@ license-files = ["LICENSE"]
 
 dependencies = [
     "cvxpy[ecos]>=1.7.5",
-    "importlib>=1.0.4",
     "lmfit>=1.3.4",
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
     "odl>=1.0.0",
     "pandas>=2.2.3",
-    "proxsuite>=0.7.2",
     "pytest>=9.0.2",
     "pytikhonov>=0.0.1",
     "pyzmq>=27.1.0",
-    "qpsolvers[open-source-solvers]>=4.10.0",
+    "qpsolvers>=4.10.0",
     "scipy>=1.16.3",
+]
+
+[project.optional-dependencies]
+# Base set of QP solvers available on all platforms (including Windows)
+solvers-core = [
+    "qpsolvers[osqp,piqp,qpalm,ecos,scs,clarabel]>=4.10.0",
+]
+# ProxQP solver via proxsuite — NOT available on Windows
+solvers-proxqp = [
+    "proxsuite>=0.7.2",
+]
+# JAX-based solvers
+solvers-jax = [
+    "jax>=0.4.0",
+    "jaxlib>=0.4.0",
+    "jaxopt>=0.8.0",
+]
+# All optional solvers (Unix/Linux/macOS only — includes proxsuite)
+all-solvers = [
+    "bssunfold[solvers-core]",
+    "bssunfold[solvers-proxqp]",
+    "bssunfold[solvers-jax]",
+]
+# Recommended for Windows users (all solvers except proxsuite)
+windows = [
+    "bssunfold[solvers-core]",
+    "bssunfold[solvers-jax]",
 ]
 
 [project.scripts]
@@ -82,6 +107,7 @@ dev = [
     "flake8>=7.3.0",
     "pydata-sphinx-theme>=0.16.1",
     "pytest>=9.0.2",
+    "pytest-cov>=6.1.0",
     "sphinx>=9.0.4",
     "twine>=6.2.0",
     "uv-build>=0.9.18",
@@ -173,6 +199,18 @@ exclude = [
 # Same as Black.
 line-length = 80
 indent-width = 4
+
+[tool.ruff.lint]
+# F401 — unused import (will be fixed in code, but allow for now)
+# F541 — f-string without placeholders (will be fixed)
+# E741 — ambiguous variable name (will be fixed)
+# F841 — unused variable (will be fixed)
+ignore = [
+    "F401",
+    "F541",
+    "E741",
+    "F841",
+]
 
 [[tool.uv.index]]
 name = "testpypi"

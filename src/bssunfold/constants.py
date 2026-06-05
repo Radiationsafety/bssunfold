@@ -1,5 +1,15 @@
 # constants.py
 
+# Default parameters for unfolding and dose calculations
+DEFAULT_ALPHA_RANGE = (1e-9, 1e2)
+DEFAULT_N_ALPHAS = 50
+DEFAULT_EMIN = 1e-9
+DEFAULT_DLNE = 0.2
+DEFAULT_NOISE_LEVEL = 0.01
+DEFAULT_MONTECARLO_SAMPLES = 100
+DEFAULT_MAX_ITERATIONS = 1000
+DEFAULT_TOLERANCE = 1e-6
+
 ICRP116_COEFF_EFFECTIVE_DOSE = {
     "E_MeV": [
         1e-09,

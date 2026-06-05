@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────
+# Publish to TestPyPI
+#
+# Triggers:
+#   - workflow_dispatch (manual) — publish any branch/tag
+#   - push tags v* — automatic publish on version tags
+#
+# Uses Trusted Publishing (OIDC) — no API token required.
+# Before first use, register a trusted publisher at:
+#   https://test.pypi.org/manage/account/publishing/
+#   PyPI Project:  bssunfold
+#   Workflow:      publish-testpypi.yml
+#   Environment:   testpypi
+# ─────────────────────────────────────────────────────────────
+name: Publish to TestPyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'TestPyPI environment'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write  # needed for Trusted Publishing (OIDC)
+
+jobs:
+  test-publish:
+    runs-on: ubuntu-latest
+    environment: testpypi
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Build package
+      run: uv build
+
+    - name: Publish to TestPyPI
+      run: uv publish --publish-url https://test.pypi.org/legacy/

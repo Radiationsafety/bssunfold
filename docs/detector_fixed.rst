@@ -6,7 +6,7 @@ Detector Class
    :undoc-members:
    :show-inheritance:
    :special-members: __init__, __str__, __repr__
-   
+
 Unfold Methods
 ==============
 
@@ -61,4 +61,3 @@ Regularization Selection
 .. autofunction:: bssunfold.core.regularization.discrepancy_principle_selection
 
 .. autofunction:: bssunfold.core.regularization.cosine_similarity_selection
-   

@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────
+# Publish to GitHub Packages (GHCR — PyPI-compatible registry)
+#
+# Triggers:
+#   - push tags v* — publish the package to GitHub Packages
+#
+# GitHub Packages for Python uses the same PyPI protocol.
+# Package will be available at:
+#   https://github.com/<owner>/<repo>/pkgs/container/<package-name>
+#
+# Install with:
+#   pip install --index-url https://ghcr.io/ghcr.io/ bssunfold
+# ─────────────────────────────────────────────────────────────
+name: Publish to GitHub Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write   # needed to publish to GitHub Packages
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Build package
+      run: uv build
+
+    - name: Publish to GitHub Packages
+      run: |
+        uv publish \
+          --publish-url https://ghcr.io/ghcr.io/ \
+          --token "${{ secrets.GITHUB_TOKEN }}"
