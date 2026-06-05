@@ -1,13 +1,8 @@
 """Bayesian iterative unfolding method (D'Agostini) for neutron spectrum reconstruction.
 
-This module provides the solve_bayes solver and unfold_bayes wrapper
-using PyUnfold's iterative_unfold implementation.
-
-The response matrix is column-normalized (each column sums to 1)
-before passing to pyunfold, because the D'Agostini algorithm treats
-the response as a conditional probability matrix P(D_j | E_i).
-After unfolding, the result is divided by the column sums to restore
-physical units.
+Implements the D'Agostini iterative Bayesian unfolding from scratch.
+The response matrix is column-normalised so the algorithm works in
+effective-count space, then the result is rescaled to physical units.
 """
 
 import numpy as np
@@ -27,10 +22,10 @@ def solve_bayes(
 ) -> np.ndarray:
     """Solve unfolding problem using Bayesian iterative unfolding (D'Agostini).
 
-    Uses PyUnfold's iterative_unfold implementation. The response matrix is
-    column-normalized to satisfy the probability normalization P(D_j|E_i)
-    required by the D'Agostini algorithm, then the result is rescaled back
-    to physical units.
+    Pure numpy implementation of the D'Agostini algorithm.  The response
+    matrix is column-normalised so each column sums to 1 (conditional
+    probability P(D_j | E_i)), then the result is rescaled to physical
+    units via division by the column sums.
 
     Parameters
     ----------
@@ -43,65 +38,57 @@ def solve_bayes(
     max_iterations : int, optional
         Maximum iterations (default: 4000).
     tolerance : float, optional
-        Convergence tolerance (default: 1e-3).
+        Relative L2 convergence tolerance (default: 1e-3).
 
     Returns
     -------
     np.ndarray
         Unfolded spectrum (n,) in physical units.
     """
-    try:
-        from pyunfold import iterative_unfold
-        from pyunfold.callbacks import Logger
-    except ImportError as e:
-        raise ImportError(
-            "pyunfold is required for unfold_bayes. "
-            "Install with: pip install pyunfold"
-        ) from e
-
     n_detectors, n_energy = A.shape
 
-    # Column-normalize response matrix so each column sums to 1.
-    # The D'Agostini algorithm requires P(D_j|E_i) as the response —
-    # a conditional probability matrix.  The raw matrix A has arbitrary
-    # column sums (physical units); we decompose A_ji = C_i * P_ji
-    # where C_i = sum_j A_ji.
+    # Column-normalise response so each column sums to 1.
     column_sums = np.sum(A, axis=0)
-    column_sums = np.where(column_sums > 0, column_sums, 1.0)
-    P = A / column_sums  # P_ji = P(D_j | E_i), columns sum to 1
+    column_sums_safe = np.where(column_sums > 0, column_sums, 1.0)
+    P = A / column_sums_safe  # P(D_j | E_i), columns sum to 1
 
-    # Prepare pyunfold inputs
-    efficiencies = [1.0] * n_energy
-    response_err = np.zeros_like(A)
-    efficiencies_err = [0.05] * n_energy
-    data_err = [0.05] * n_detectors
+    # Bins with zero sensitivity cannot be constrained by data.
+    zero_sens = column_sums <= 0
 
-    # Normalize prior to sum to 1 (pyunfold expects a probability)
-    if x0 is not None:
-        x0_sum = np.sum(x0)
-        prior = x0 / x0_sum if x0_sum > 0 else None
+    # Prior in effective-count space
+    if x0 is not None and np.sum(x0) > 0:
+        prior = x0 / np.sum(x0)
     else:
-        prior = None
+        prior = np.ones(n_energy) / n_energy
 
-    result = iterative_unfold(
-        data=b,
-        data_err=data_err,
-        response=P,
-        response_err=response_err,
-        efficiencies=efficiencies,
-        efficiencies_err=efficiencies_err,
-        max_iter=max_iterations,
-        callbacks=[Logger()],
-        prior=prior,
-        ts_stopping=tolerance,
-    )
+    total_counts = np.sum(b)
+    y = total_counts * prior  # initial effective counts
 
-    # pyunfold returns y = effective counts where P @ y = b.
-    # Convert to physical spectrum: x_i = y_i / C_i
-    y = np.asarray(result["unfolded"], dtype=float)
-    spectrum = y / column_sums
+    for iteration in range(max_iterations):
+        y_old = y.copy()
 
-    return spectrum
+        # Forward fold
+        f_norm = P @ y
+        f_norm_safe = np.where(f_norm > 0, f_norm, 1e-300)
+
+        # D'Agostini update in effective-count space:
+        #   y_i^(new) = y_i^(old) * sum_j b_j * P_ji / (P @ y)_j
+        weight = b[:, np.newaxis] * P / f_norm_safe[:, np.newaxis]
+        y = y_old * np.sum(weight, axis=0)
+
+        # Zero-sensitivity bins stay at the prior.
+        if np.any(zero_sens):
+            y[zero_sens] = prior[zero_sens] * total_counts
+
+        # Convert to physical spectrum for convergence check
+        x = y / column_sums_safe
+
+        # Convergence check (in y-space for consistency)
+        denom = max(1.0, np.linalg.norm(y_old))
+        if np.linalg.norm(y - y_old) / denom < tolerance:
+            break
+
+    return x
 
 
 def unfold_bayes(

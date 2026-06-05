@@ -57,9 +57,6 @@ qpsolvers = [
 statreg = [
     "statreg",
 ]
-bayes = [
-    "pyunfold>=0.5.0",
-]
 test = [
     "pytest>=9.0.2",
 ]
@@ -70,7 +67,6 @@ all = [
     "bssunfold[tikhonov]",
     "bssunfold[qpsolvers]",
     "bssunfold[statreg]",
-    "bssunfold[bayes]",
     "bssunfold[test]",
 ]
 # Base set of QP solvers available on all platforms (including Windows)

@@ -340,7 +340,7 @@ class TestUnfoldGravel:
 class TestUnfoldMaxed:
     def test_unfold_maxed_basic(self, detector, readings):
         result = detector.unfold_maxed(
-            readings, max_iterations=50, tolerance=0.1, seed=42
+            readings, max_iterations=50, tolerance=0.1
         )
         assert 'spectrum' in result
         assert 'doserates' in result

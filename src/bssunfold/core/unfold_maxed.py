@@ -1,11 +1,17 @@
 """MAXED unfolding method for neutron spectrum reconstruction.
 
-This module provides the core solve_maxed solver and the unfold_maxed
-wrapper for use with the Detector class.
+Implements Maximum Entropy Deconvolution (Reginatto & Goldhagen 1999)
+by minimising the primal function in log-space:
+
+    f(x) = -S(x) + ½ Σ_j (b_j - (A@x)_j)² / σ_j²
+
+where S(x) = -Σ_i x_i ln(x_i/x0_i) + Σ_i x_i - Σ_i x0_i is the Shannon
+entropy relative to the reference spectrum x0.
+
+The log transform y_i = ln(x_i) ensures positivity and good numerical
+conditioning.
 """
 
-import math
-import random
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
@@ -14,31 +20,13 @@ from ._base_unfolder import run_unfolding, make_solve_wrapper
 __all__ = ["solve_maxed", "unfold_maxed"]
 
 
-def _default_phi_0(n_energy: int) -> np.ndarray:
-    """Create default reference spectrum with two Gaussian peaks."""
-    phi_0 = np.zeros(n_energy)
-    pos1 = n_energy // 8
-    pos2 = 2 * n_energy // 4
-    sigma = max(1, n_energy // 10)
-    for i in range(n_energy):
-        gauss1 = np.exp(-0.5 * ((i - pos1) / sigma) ** 2)
-        gauss2 = np.exp(-0.5 * ((i - pos2) / sigma) ** 2)
-        phi_0[i] = gauss1 + gauss2
-    if np.max(phi_0) > 0:
-        phi_0 = phi_0 / np.max(phi_0)
-    return phi_0
-
-
 def solve_maxed(
     A: np.ndarray,
     b: np.ndarray,
     x0: np.ndarray,
-    sigma_factor: float = 0.01,
-    omega: float = 1.0,
-    mu: float = 1.0,
+    sigma_factor: float = 0.1,
     max_iterations: int = 5000,
     tolerance: float = 1e-6,
-    seed: int = 42,
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using MAXED (Maximum Entropy Deconvolution).
 
@@ -49,100 +37,68 @@ def solve_maxed(
     b : np.ndarray
         Measurement vector (m,).
     x0 : np.ndarray
-        Initial (reference) spectrum (n,).
+        Reference (prior) spectrum (n,).
     sigma_factor : float, optional
-        Measurement error factor (default: 0.01).
-    omega : float, optional
-        Chi-square constraint parameter (default: 1.0).
-    mu : float, optional
-        Lagrange multiplier for constraint (default: 1.0).
+        Relative measurement uncertainty (default: 0.1).
+        Larger values → smoother spectrum (weaker data term).
     max_iterations : int, optional
-        Maximum annealing iterations (default: 5000).
+        Maximum L-BFGS-B iterations (default: 5000).
     tolerance : float, optional
-        Convergence tolerance (default: 1e-6).
-    seed : int, optional
-        Random seed (default: 42).
+        Gradient convergence tolerance (default: 1e-6).
 
     Returns
     -------
     Tuple[np.ndarray, int, bool]
-        Tuple of (solution, iterations, converged).
+        (solution spectrum, iterations used, converged flag).
     """
-    n_energy = A.shape[1]
-    phi_0 = x0.copy()
-    dlnE = np.full(n_energy, 1.0 / n_energy)
+    from scipy.optimize import minimize
 
-    Q_j_nonzero = np.where(b == 0, 1.0, b)
-    sigma_j = sigma_factor * Q_j_nonzero
-    K_j = A
+    n_det, n_ene = A.shape
 
-    def calc_phi(lam):
-        exp_term = -np.dot(K_j.T, lam)
-        phi = phi_0 * np.exp(exp_term)
-        return np.maximum(phi, 1e-20)
+    # Measurement uncertainties (relative with floor).
+    b_safe = np.maximum(b, 1e-300)
+    sigma = sigma_factor * b_safe
+    sigma2_inv = 1.0 / (sigma ** 2)
 
-    def calc_predicted(phi):
-        return (phi * dlnE) @ K_j.T
+    # Reference spectrum (must be strictly positive).
+    phi_0 = np.maximum(x0, 1e-300)
+    log_phi_0 = np.log(phi_0)
 
-    def dual_Z(lam):
-        try:
-            phi = calc_phi(lam)
-            C_pred = calc_predicted(phi)
+    # Objective and gradient in log-space: y_i = ln(x_i).
+    # f(y) = Σ [e^yi (yi - ln x0_i) - e^yi + x0_i]
+    #       + ½ Σ (b_j - Σ A_ji e^yi)² / σ_j²
 
-            ratio = np.where(phi > 1e-20, phi / np.maximum(phi_0, 1e-20), 1.0)
-            term1 = phi * np.log(ratio)
-            term2 = phi_0 - phi
-            entropy = -np.sum((term1 + term2) * dlnE)
+    def _f_and_g(y: np.ndarray):
+        x = np.exp(y)
+        folded = A @ x
+        residual = b - folded
 
-            chi_sq = np.sum(((C_pred - b) / sigma_j) ** 2)
-            constraint = 0.5 * mu * max(0.0, chi_sq - omega)
+        # Entropy part of f
+        f_ent = np.sum(x * (y - log_phi_0) - x + phi_0)
 
-            linear = np.dot(lam, C_pred - b)
+        # Chi-squared part of f
+        f_chi = 0.5 * np.sum(residual ** 2 * sigma2_inv)
 
-            return entropy - linear - constraint
-        except Exception:
-            return -1e10
+        # Gradient: df/dy_i = x_i * [ln(x_i/x0_i) - Aᵀ(r/σ²)_i]
+        AT_resid_over_sigma2 = A.T @ (residual * sigma2_inv)
+        g = x * (y - log_phi_0 - AT_resid_over_sigma2)
 
-    rng = np.random.default_rng(seed)
-    lam = np.zeros(len(b))
-    Z = dual_Z(lam)
+        return f_ent + f_chi, g
 
-    best_lam = lam.copy()
-    best_Z = Z
-    T = 10.0
-    cooling = 0.95
-    min_T = 1e-8
-    steps_per_T = 50
-    converged = False
+    y0 = np.log(phi_0)
 
-    for iter_count in range(max_iterations):
-        for _ in range(steps_per_T):
-            step = 0.5 * T * (1 + iter_count / 500)
-            trial_lam = lam + rng.normal(0, step, size=lam.shape)
-            trial_lam = np.clip(trial_lam, -50, 50)
-            trial_Z = dual_Z(trial_lam)
+    result = minimize(
+        _f_and_g, y0,
+        jac=True,
+        method='L-BFGS-B',
+        options={'maxiter': max_iterations, 'gtol': tolerance, 'ftol': 0},
+    )
 
-            dZ = trial_Z - Z
-            if dZ > 0 or (T > 1e-12 and random.random() < math.exp(dZ / T)):
-                lam = trial_lam
-                Z = trial_Z
-                if Z > best_Z:
-                    best_lam = lam.copy()
-                    best_Z = Z
+    x_opt = np.exp(result.x)
+    iterations = result.nit if hasattr(result, 'nit') else 0
+    converged = result.success or result.status == 0
 
-        T *= cooling
-        if T < min_T or (iter_count > 200 and abs(best_Z - Z) < tolerance):
-            converged = True
-            break
-
-    phi_opt = calc_phi(best_lam)
-    C_pred = calc_predicted(phi_opt)
-
-    if np.sum(C_pred) > 0 and np.sum(b) > 0:
-        A_scale = np.sum(b * C_pred) / np.sum(C_pred ** 2)
-        phi_opt *= A_scale
-
-    return phi_opt, iter_count + 1, converged
+    return x_opt, iterations, converged
 
 
 def unfold_maxed(
@@ -154,12 +110,9 @@ def unfold_maxed(
     save_result_callback,
     readings: Dict[str, float],
     initial_spectrum: Optional[np.ndarray] = None,
-    sigma_factor: float = 0.01,
-    omega: float = 1.0,
-    mu: float = 1.0,
+    sigma_factor: float = 0.1,
     max_iterations: int = 5000,
     tolerance: float = 1e-6,
-    seed: int = 42,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -185,19 +138,14 @@ def unfold_maxed(
     readings : Dict[str, float]
         Detector readings.
     initial_spectrum : Optional[np.ndarray], optional
-        Reference spectrum. If None, default two-Gaussian spectrum.
+        Reference spectrum. If None, a flat reference is used.
     sigma_factor : float, optional
-        Measurement error factor (default: 0.01).
-    omega : float, optional
-        Chi-square constraint (default: 1.0).
-    mu : float, optional
-        Lagrange multiplier (default: 1.0).
+        Relative measurement uncertainty (default: 0.1).
+        Larger values → smoother spectrum.
     max_iterations : int, optional
-        Maximum iterations (default: 5000).
+        Maximum L-BFGS-B iterations (default: 5000).
     tolerance : float, optional
         Convergence tolerance (default: 1e-6).
-    seed : int, optional
-        Random seed (default: 42).
     calculate_errors : bool, optional
         Calculate Monte-Carlo errors (default: False).
     noise_level : float, optional
@@ -217,7 +165,7 @@ def unfold_maxed(
     if initial_spectrum is not None:
         x0_ref = np.asarray(initial_spectrum, dtype=float)
     else:
-        x0_ref = _default_phi_0(n_energy_bins)
+        x0_ref = np.ones(n_energy_bins)
 
     return run_unfolding(
         detector_names=detector_names,
@@ -228,21 +176,16 @@ def unfold_maxed(
         save_result_callback=save_result_callback,
         readings=readings,
         initial_spectrum=x0_ref,
-        default_initial=_default_phi_0(n_energy_bins),
+        default_initial=np.ones(n_energy_bins),
         solve_func=make_solve_wrapper(
             solve_maxed,
             sigma_factor=sigma_factor,
-            omega=omega,
-            mu=mu,
             max_iterations=max_iterations,
             tolerance=tolerance,
-            seed=seed,
         ),
         solve_kwargs={},
         method_name="MAXED",
         extra_output={
-            "omega": omega,
-            "mu": mu,
             "sigma_factor": sigma_factor,
         },
         calculate_errors=calculate_errors,

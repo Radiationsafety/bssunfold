@@ -1,7 +1,10 @@
 """Bayesian iterative unfolding with spline regularization.
 
-This module provides the solve_bayes_spline solver and unfold_bayes_spline_regularization
-wrapper using PyUnfold with SplineRegularizer.
+Implements the D'Agostini iterative Bayesian unfolding with
+UnivariateSpline smoothing applied to the physical spectrum rather
+than the effective-counts space. This prevents boundary artifacts
+in low-sensitivity bins from being amplified by the column-sum
+rescaling step.
 """
 
 import numpy as np
@@ -23,7 +26,12 @@ def solve_bayes_spline(
 ) -> np.ndarray:
     """Solve unfolding problem using Bayes with spline regularization.
 
-    Uses PyUnfold's iterative_unfold with SplineRegularizer callback.
+    Implements the D'Agostini iterative Bayesian unfolding from scratch.
+    The response matrix is column-normalised (each column sums to 1)
+    so the algorithm works in effective-count space, but the
+    UnivariateSpline smoother is applied to the physical spectrum to
+    avoid boundary artifacts that appear when rescaling low-sensitivity
+    bins back to physical units.
 
     Parameters
     ----------
@@ -36,7 +44,7 @@ def solve_bayes_spline(
     max_iterations : int, optional
         Maximum iterations (default: 4000).
     tolerance : float, optional
-        Convergence tolerance (default: 1e-3).
+        Relative L2 convergence tolerance (default: 1e-3).
     spline_degree : int, optional
         Spline degree (default: 3).
     spline_smooth : float, optional
@@ -47,55 +55,74 @@ def solve_bayes_spline(
     np.ndarray
         Unfolded spectrum (n,).
     """
-    try:
-        from pyunfold import iterative_unfold
-        from pyunfold.callbacks import Logger
-        from pyunfold.callbacks import SplineRegularizer
-    except ImportError as e:
-        raise ImportError(
-            "pyunfold is required for unfold_bayes_spline_regularization. "
-            "Install with: pip install pyunfold"
-        ) from e
+    from scipy.interpolate import UnivariateSpline
 
     n_detectors, n_energy = A.shape
 
-    # Column-normalize response so each column sums to 1.
-    # The D'Agostini algorithm requires P(D_j|E_i) as the response.
+    # Column-normalise response so each column sums to 1.
     column_sums = np.sum(A, axis=0)
-    column_sums = np.where(column_sums > 0, column_sums, 1.0)
-    P = A / column_sums
+    column_sums_safe = np.where(column_sums > 0, column_sums, 1.0)
+    P = A / column_sums_safe  # P(D_j | E_i), columns sum to 1
 
-    efficiencies = [1.0] * n_energy
-    response_err = np.zeros_like(A)
-    efficiencies_err = [0.05] * n_energy
-    data_err = [0.05] * n_detectors
+    # Bins where no detector has any sensitivity remain at the prior.
+    zero_sens = column_sums <= 0
 
-    spline_reg = SplineRegularizer(degree=spline_degree, smooth=spline_smooth)
-
-    if x0 is not None:
-        x0_sum = np.sum(x0)
-        prior = x0 / x0_sum if x0_sum > 0 else None
+    # Prior in effective-count space
+    if x0 is not None and np.sum(x0) > 0:
+        prior = x0 / np.sum(x0)
     else:
-        prior = None
+        prior = np.ones(n_energy) / n_energy
 
-    result = iterative_unfold(
-        data=b,
-        data_err=data_err,
-        response=P,
-        response_err=response_err,
-        efficiencies=efficiencies,
-        efficiencies_err=efficiencies_err,
-        max_iter=max_iterations,
-        callbacks=[Logger(), spline_reg],
-        prior=prior,
-        ts_stopping=tolerance,
-    )
+    total_counts = np.sum(b)
+    y = total_counts * prior  # initial effective counts
 
-    # Convert from effective counts y back to physical units
-    y = np.asarray(result["unfolded"], dtype=float)
-    spectrum = y / column_sums
+    x_indices = np.arange(n_energy, dtype=float)
 
-    return spectrum
+    for iteration in range(max_iterations):
+        y_old = y.copy()
+
+        # Fold the current estimate through the response
+        f_norm = P @ y  # expected data vector
+        f_norm_safe = np.where(f_norm > 0, f_norm, 1e-300)
+
+        # D'Agostini update in effective-count space:
+        #   y_i^(new) = y_i^(old) * sum_j b_j * P_ji / (P @ y)_j
+        weight = b[:, np.newaxis] * P / f_norm_safe[:, np.newaxis]
+        y = y_old * np.sum(weight, axis=0)
+
+        # Zero-sensitivity bins cannot be constrained by data;
+        # keep them at the prior level.
+        if np.any(zero_sens):
+            y[zero_sens] = prior[zero_sens] * total_counts
+
+        # Convert to physical spectrum
+        x = y / column_sums_safe
+
+        # Spline in log10-space to handle the large dynamic range of
+        # physical spectra and to prevent edge blow-up: bins with tiny
+        # column sums are naturally constrained by their neighbours
+        # through spline continuity in log space.
+        if n_energy > spline_degree + 1:
+            log_x = np.log10(np.maximum(x, 1e-300))
+            spline = UnivariateSpline(
+                x_indices, log_x, k=spline_degree, s=spline_smooth
+            )
+            log_x_smooth = spline(x_indices)
+            x_smooth = 10.0 ** log_x_smooth
+        else:
+            x_smooth = x
+
+        x_smooth = np.maximum(x_smooth, 0)
+
+        # Convert back to effective-count space for the next iteration
+        y = x_smooth * column_sums_safe
+
+        # Convergence check (in y-space)
+        denom = max(1.0, np.linalg.norm(y_old))
+        if np.linalg.norm(y - y_old) / denom < tolerance:
+            break
+
+    return x_smooth
 
 
 def unfold_bayes_spline_regularization(

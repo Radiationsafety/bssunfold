@@ -1132,11 +1132,8 @@ class Detector:
         readings: Dict[str, float],
         initial_spectrum: Optional[np.ndarray] = None,
         sigma_factor: float = 0.01,
-        omega: float = 1.0,
-        mu: float = 1.0,
         max_iterations: int = 5000,
         tolerance: float = 1e-6,
-        seed: int = 42,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -1150,19 +1147,13 @@ class Detector:
         readings : Dict[str, float]
             Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
-            Reference spectrum. If None, default two-Gaussian spectrum is used.
+            Reference spectrum. If None, a flat reference is used.
         sigma_factor : float, optional
-            Measurement error factor (default: 0.01).
-        omega : float, optional
-            Chi-square constraint parameter (default: 1.0).
-        mu : float, optional
-            Lagrange multiplier (default: 1.0).
+            Relative measurement uncertainty (default: 0.01).
         max_iterations : int, optional
-            Maximum annealing iterations (default: 5000).
+            Maximum L-BFGS-B iterations (default: 5000).
         tolerance : float, optional
             Convergence tolerance (default: 1e-6).
-        seed : int, optional
-            Random seed (default: 42).
         calculate_errors : bool, optional
             Calculate Monte-Carlo errors (default: False).
         noise_level : float, optional
@@ -1189,11 +1180,8 @@ class Detector:
             readings=readings,
             initial_spectrum=initial_spectrum,
             sigma_factor=sigma_factor,
-            omega=omega,
-            mu=mu,
             max_iterations=max_iterations,
             tolerance=tolerance,
-            seed=seed,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

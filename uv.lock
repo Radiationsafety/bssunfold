@@ -281,7 +281,6 @@ all = [
     { name = "odl" },
     { name = "pytest" },
     { name = "pytikhonov" },
-    { name = "pyunfold" },
     { name = "qpsolvers" },
     { name = "statreg" },
 ]
@@ -291,9 +290,6 @@ all-solvers = [
     { name = "jaxopt" },
     { name = "proxsuite" },
     { name = "qpsolvers", extra = ["clarabel", "ecos", "osqp", "piqp", "qpalm", "scs"] },
-]
-bayes = [
-    { name = "pyunfold" },
 ]
 lmfit = [
     { name = "lmfit" },
@@ -364,7 +360,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bssunfold", extras = ["bayes"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mlem"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["qpsolvers"], marker = "extra == 'all'" },
@@ -388,14 +383,13 @@ requires-dist = [
     { name = "proxsuite", marker = "extra == 'solvers-proxqp'", specifier = ">=0.7.2" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.2" },
     { name = "pytikhonov", marker = "extra == 'tikhonov'", specifier = ">=0.0.1" },
-    { name = "pyunfold", marker = "extra == 'bayes'", specifier = ">=0.5.0" },
     { name = "pyzmq", specifier = ">=27.1.0" },
     { name = "qpsolvers", marker = "extra == 'qpsolvers'", specifier = ">=4.10.0" },
     { name = "qpsolvers", extras = ["osqp", "piqp", "qpalm", "ecos", "scs", "clarabel"], marker = "extra == 'solvers-core'", specifier = ">=4.10.0" },
     { name = "scipy", specifier = ">=1.16.3" },
     { name = "statreg", marker = "extra == 'statreg'", git = "https://github.com/Radiationsafety/statreg-py.git" },
 ]
-provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "statreg", "bayes", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "statreg", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3384,21 +3378,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3", size = 320884, upload-time = "2025-03-25T02:25:00.538Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00", size = 509225, upload-time = "2025-03-25T02:24:58.468Z" },
-]
-
-[[package]]
-name = "pyunfold"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "scipy" },
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/37/d9/590cfd205fb6fb4f17e9d04ede047c599669381114177b6c66c6d2921ee7/PyUnfold-0.5.0.tar.gz", hash = "sha256:d3e7d7da9fa03d218b117780e8f6894f2fba1452f6f8e1cab1e556e46242d980", size = 42550, upload-time = "2018-11-19T04:52:24.23Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/7c/094c724c345a095a6aee95a9d639480ba383f986cff166d3e4e589894ce4/PyUnfold-0.5.0-py2.py3-none-any.whl", hash = "sha256:3f2f9ddcb25255cbface40bc853d14ee7563703da8833f825216bb0327b4f04d", size = 25250, upload-time = "2018-11-19T04:52:22.315Z" },
 ]
 
 [[package]]
