@@ -5,7 +5,6 @@ of unfolding methods sequentially, optionally using the result of each method
 as the initial guess for the next.
 """
 
-import logging
 import numpy as np
 from typing import Dict, Optional, Any, List
 

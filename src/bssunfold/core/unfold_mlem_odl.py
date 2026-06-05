@@ -9,7 +9,6 @@ Requires the 'odl' package to be installed.
 import numpy as np
 from typing import Dict, Optional, Any, List
 
-from .unfolding_methods import solve_mlem
 from ._base_unfolder import run_unfolding
 
 
@@ -80,8 +79,6 @@ def unfold_mlem_odl(
 
     # Build system
     selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
 
     def solve_wrapper(A, b, **kwargs):
         x0 = kwargs.pop('x0', None)

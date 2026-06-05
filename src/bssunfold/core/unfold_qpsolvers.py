@@ -90,7 +90,6 @@ def unfold_qpsolvers(
     selected = [name for name in detector_names if name in readings]
     b = np.array([readings[name] for name in selected], dtype=float)
     A = np.array([sensitivities[name] for name in selected], dtype=float)
-    n = A.shape[1]
 
     # Select regularization parameter
     if regularization_method == "manual":
