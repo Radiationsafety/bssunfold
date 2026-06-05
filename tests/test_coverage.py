@@ -5,7 +5,6 @@ in methods, edge cases, and fallback implementations.
 """
 
 import sys
-import builtins
 import numpy as np
 import pandas as pd
 import pytest
@@ -1436,10 +1435,11 @@ class TestPlatformCheck:
 
     def test_get_recommended_solver_proxqp(self):
         from bssunfold.platform_check import get_recommended_solver
-        with patch('bssunfold.platform_check.PROXSUITE_AVAILABLE', True):
-            with patch('bssunfold.platform_check.is_windows', False):
-                solver = get_recommended_solver()
-                assert solver == 'proxqp'
+        with patch('bssunfold.platform_check.check_proxsuite_availability'):
+            with patch('bssunfold.platform_check.PROXSUITE_AVAILABLE', True):
+                with patch('bssunfold.platform_check.is_windows', False):
+                    solver = get_recommended_solver()
+                    assert solver == 'proxqp'
 
     def test_get_recommended_solver_osqp(self):
         from bssunfold.platform_check import get_recommended_solver
