@@ -1,14 +1,65 @@
 """MLEM (Maximum Likelihood Expectation Maximization) unfolding method.
 
-This module provides the `unfold_mlem` function which wraps the MLEM
-iterative solver for use with the Detector class.
+This module provides the core solve_mlem solver and the unfold_mlem
+wrapper for use with the Detector class.
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Tuple
 
-from .unfolding_methods import solve_mlem
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, make_solve_wrapper
+
+__all__ = ["solve_mlem", "unfold_mlem"]
+
+
+def solve_mlem(
+    A: np.ndarray,
+    b: np.ndarray,
+    x0: np.ndarray,
+    max_iterations: int = 1000,
+    tolerance: float = 1e-6,
+) -> Tuple[np.ndarray, int, bool]:
+    """Solve unfolding problem using MLEM iteration.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    x0 : np.ndarray
+        Initial guess (n,).
+    max_iterations : int, optional
+        Maximum iterations (default: 1000).
+    tolerance : float, optional
+        Convergence tolerance (default: 1e-6).
+
+    Returns
+    -------
+    Tuple[np.ndarray, int, bool]
+        Tuple of (solution, iterations, converged).
+    """
+    x = np.maximum(x0.copy(), 1e-10)
+
+    AT = A.T
+
+    converged = False
+    iterations = 0
+
+    for i in range(max_iterations):
+        Ax = A @ x
+        Ax = np.maximum(Ax, 1e-10)
+        ratio = b / Ax
+        correction = AT @ ratio
+        x_new = x * correction
+        diff = np.linalg.norm(x_new - x) / (np.linalg.norm(x) + 1e-10)
+        x = np.maximum(x_new, 0)
+        iterations = i + 1
+        if diff < tolerance:
+            converged = True
+            break
+
+    return x, iterations, converged
 
 
 def unfold_mlem(
@@ -68,15 +119,6 @@ def unfold_mlem(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    def solve_wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0', None)
-        if x0 is None:
-            x0 = np.ones(A.shape[1]) * 0.5
-        x_opt, n_iter, converged = solve_mlem(
-            A, b, x0, max_iterations, tolerance
-        )
-        return x_opt, n_iter, converged
-
     x0_default = np.ones(n_energy_bins) * 0.5
 
     return run_unfolding(
@@ -89,7 +131,11 @@ def unfold_mlem(
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
-        solve_func=solve_wrapper,
+        solve_func=make_solve_wrapper(
+            solve_mlem,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+        ),
         solve_kwargs={},
         method_name="MLEM",
         extra_output={},

@@ -1,25 +1,38 @@
-"""Landweber iteration unfolding method for neutron spectrum reconstruction.
+"""Tikhonov regularization with Legendre polynomial basis unfolding.
 
-This module provides the core solve_landweber solver and the unfold_landweber
-wrapper for use with the Detector class.
+This module provides the core solve_tikhonov_legendre solver and the
+unfold_tikhonov_legendre wrapper for use with the Detector class.
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from numpy.polynomial.legendre import Legendre
+from typing import Dict, Optional, Any, List
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._matrix_utils import create_derivative_matrix
 
-__all__ = ["solve_landweber", "unfold_landweber"]
+__all__ = ["solve_tikhonov_legendre", "unfold_tikhonov_legendre"]
 
 
-def solve_landweber(
+def _build_legendre_basis(n_energy: int, n_polynomials: int) -> np.ndarray:
+    """Build Legendre polynomial basis matrix."""
+    x = np.linspace(-1, 1, n_energy)
+    basis = np.zeros((n_energy, n_polynomials))
+    for i in range(n_polynomials):
+        coeffs = np.zeros(i + 1)
+        coeffs[-1] = 1.0
+        basis[:, i] = Legendre(coeffs)(x)
+    return basis
+
+
+def solve_tikhonov_legendre(
     A: np.ndarray,
     b: np.ndarray,
-    x0: np.ndarray,
-    max_iterations: int = 1000,
-    tolerance: float = 1e-6,
-) -> Tuple[np.ndarray, int, bool]:
-    """Solve unfolding problem using Landweber iteration.
+    x0: Optional[np.ndarray] = None,
+    delta: float = 0.05,
+    n_polynomials: int = 15,
+) -> np.ndarray:
+    """Solve unfolding using Tikhonov regularization with Legendre basis.
 
     Parameters
     ----------
@@ -27,51 +40,39 @@ def solve_landweber(
         Response matrix (m x n).
     b : np.ndarray
         Measurement vector (m,).
-    x0 : np.ndarray
-        Initial guess (n,).
-    max_iterations : int, optional
-        Maximum iterations (default: 1000).
-    tolerance : float, optional
-        Convergence tolerance (default: 1e-6).
+    x0 : np.ndarray, optional
+        Not used (provided for API compatibility).
+    delta : float, optional
+        Regularization parameter (default: 0.05).
+    n_polynomials : int, optional
+        Number of Legendre polynomials (default: 15).
 
     Returns
     -------
-    Tuple[np.ndarray, int, bool]
-        Tuple of (solution, iterations, converged).
+    np.ndarray
+        Unfolded spectrum (n,).
     """
-    import warnings
-    x = x0.copy()
-    sigma_max = np.linalg.norm(A, 2)
+    n_energy = A.shape[1]
+    basis = _build_legendre_basis(n_energy, n_polynomials)
 
-    if sigma_max == 0:
-        warnings.warn("Response matrix has zero norm. Returning initial guess.")
-        return x, 0, False
+    A_proj = A @ basis
+    L = create_derivative_matrix(n_polynomials, order=2).toarray()
 
-    step_size = 1.0 / (sigma_max ** 2)
-    AT = A.T
+    n_total = A_proj.shape[0] + L.shape[0]
+    M = np.vstack([A_proj, delta * L])
+    rhs = np.zeros(n_total)
+    rhs[:len(b)] = b
 
-    converged = False
-    iterations = 0
+    try:
+        c, _, _, _ = np.linalg.lstsq(M, rhs, rcond=None)
+    except np.linalg.LinAlgError:
+        c = np.linalg.lstsq(M, rhs, rcond=1e-8)[0]
 
-    for i in range(max_iterations):
-        residual = A @ x - b
-        residual_norm = np.linalg.norm(residual)
-
-        if residual_norm < tolerance:
-            converged = True
-            iterations = i
-            break
-
-        x = x - step_size * (AT @ residual)
-        x = np.maximum(x, 0)
-
-    if not converged:
-        iterations = max_iterations
-
-    return x, iterations, converged
+    spectrum = basis @ c[:n_polynomials]
+    return np.maximum(spectrum, 0)
 
 
-def unfold_landweber(
+def unfold_tikhonov_legendre(
     detector_names: List[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
@@ -80,15 +81,15 @@ def unfold_landweber(
     save_result_callback,
     readings: Dict[str, float],
     initial_spectrum: Optional[np.ndarray] = None,
-    max_iterations: int = 1000,
-    tolerance: float = 1e-6,
+    delta: float = 0.05,
+    n_polynomials: int = 15,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = True,
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Unfold using Landweber iteration method.
+    """Unfold neutron spectrum using Tikhonov regularization with Legendre basis.
 
     Parameters
     ----------
@@ -107,11 +108,11 @@ def unfold_landweber(
     readings : Dict[str, float]
         Detector readings.
     initial_spectrum : Optional[np.ndarray], optional
-        Initial spectrum guess.
-    max_iterations : int, optional
-        Maximum iterations (default: 1000).
-    tolerance : float, optional
-        Convergence tolerance (default: 1e-6).
+        Not used (provided for API compatibility).
+    delta : float, optional
+        Regularization parameter (default: 0.05).
+    n_polynomials : int, optional
+        Number of Legendre polynomials (default: 15).
     calculate_errors : bool, optional
         Calculate Monte-Carlo errors (default: False).
     noise_level : float, optional
@@ -141,13 +142,16 @@ def unfold_landweber(
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
         solve_func=make_solve_wrapper(
-            solve_landweber,
-            max_iterations=max_iterations,
-            tolerance=tolerance,
+            solve_tikhonov_legendre,
+            delta=delta,
+            n_polynomials=n_polynomials,
         ),
         solve_kwargs={},
-        method_name="Landweber",
-        extra_output={},
+        method_name="Tikhonov_Legendre",
+        extra_output={
+            "delta": delta,
+            "n_polynomials": n_polynomials,
+        },
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

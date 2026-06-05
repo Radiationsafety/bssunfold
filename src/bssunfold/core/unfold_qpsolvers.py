@@ -1,16 +1,158 @@
 """QP solvers-based unfolding method with regularization selection.
 
-This module provides the `unfold_qpsolvers` function which wraps the quadratic
-programming solver with various regularization selection methods.
+This module provides the core solve_qpsolvers solver and the unfold_qpsolvers
+wrapper with various regularization selection methods.
 """
 
 import warnings
 import numpy as np
 from typing import Dict, Optional, Any, List
 
+from scipy.sparse import csc_matrix
+
+from ._matrix_utils import create_derivative_matrix
 from .regularization import select_regularization_parameter
-from .unfolding_methods import solve_qpsolvers
 from ._base_unfolder import run_unfolding
+
+__all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
+
+
+def solve_qpsolvers(
+    A: np.ndarray,
+    b: np.ndarray,
+    alpha: float,
+    norm: int = 2,
+    solver: str = "osqp",
+    x0: Optional[np.ndarray] = None,
+    smoothness_order: int = 0,
+    smoothness_weight: float = 1.0,
+) -> Optional[np.ndarray]:
+    """Solve unfolding problem using qpsolvers.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    alpha : float
+        Regularization parameter.
+    norm : int, optional
+        Norm type (1 for L1, 2 for L2).
+    solver : str, optional
+        QP solver name (default: 'osqp').
+    x0 : np.ndarray, optional
+        Initial values.
+    smoothness_order : int, optional
+        Smoothness constraint order (0, 1, or 2).
+    smoothness_weight : float, optional
+        Weight for smoothness term.
+
+    Returns
+    -------
+    Optional[np.ndarray]
+        Unfolded spectrum or None if solving failed.
+    """
+    try:
+        from qpsolvers import available_solvers, solve_qp
+    except ImportError as e:
+        raise ImportError(
+            "qpsolvers is required for unfold_qpsolvers. "
+            "Install with: pip install qpsolvers"
+        ) from e
+
+    if solver not in available_solvers:
+        if "osqp" in available_solvers:
+            solver = "osqp"
+        elif "ecos" in available_solvers:
+            solver = "ecos"
+        else:
+            warnings.warn(
+                f"Solver '{solver}' not available. Available: {available_solvers}"
+            )
+            return None
+
+    n = A.shape[1]
+
+    P_base = csc_matrix(A.T @ A)
+    q_base = -A.T @ b
+
+    if norm == 2:
+        P = P_base.copy()
+
+        if smoothness_order == 1:
+            L = create_derivative_matrix(n, 1)
+            P += alpha * smoothness_weight * (L.T @ L)
+        elif smoothness_order == 2:
+            L = create_derivative_matrix(n, 2)
+            P += alpha * smoothness_weight * (L.T @ L)
+        else:
+            P += alpha * csc_matrix(np.eye(n))
+
+        G = csc_matrix(-np.eye(n))
+        h = np.zeros(n)
+
+        x = solve_qp(
+            P=P,
+            q=q_base,
+            G=G,
+            h=h,
+            solver=solver,
+            initvals=x0,
+            verbose=False,
+        )
+
+    elif norm == 1:
+        n_ext = 2 * n
+        P_ext = csc_matrix((n_ext, n_ext))
+        P_ext[:n, :n] = P_base
+
+        if smoothness_order == 1:
+            L = create_derivative_matrix(n, 1)
+            P_ext[:n, :n] += alpha * smoothness_weight * (L.T @ L)
+        elif smoothness_order == 2:
+            L = create_derivative_matrix(n, 2)
+            P_ext[:n, :n] += alpha * smoothness_weight * (L.T @ L)
+
+        q_ext = np.zeros(n_ext)
+        q_ext[:n] = q_base
+        q_ext[n:] = alpha * np.ones(n)
+
+        G_ext = csc_matrix((3 * n, n_ext))
+        h_ext = np.zeros(3 * n)
+
+        G_ext[:n, :n] = -csc_matrix(np.eye(n))
+        G_ext[n:2 * n, n:] = -csc_matrix(np.eye(n))
+        G_ext[2 * n:3 * n, :n] = -csc_matrix(np.eye(n))
+        G_ext[2 * n:3 * n, n:] = csc_matrix(np.eye(n))
+
+        x0_ext = None
+        if x0 is not None:
+            x0_ext = np.concatenate([x0, np.abs(x0)])
+
+        x_ext = solve_qp(
+            P=P_ext,
+            q=q_ext,
+            G=G_ext,
+            h=h_ext,
+            solver=solver,
+            initvals=x0_ext,
+            verbose=False,
+        )
+
+        if x_ext is None:
+            warnings.warn(f"Solver '{solver}' did not find a solution for L1 problem.")
+            return None
+
+        x = x_ext[:n] - x_ext[n:]
+    else:
+        raise ValueError(f"Unsupported norm type: {norm}")
+
+    if x is None:
+        warnings.warn(f"Solver '{solver}' did not find a solution.")
+        return None
+
+    return np.asarray(x)
 
 
 def unfold_qpsolvers(
@@ -71,7 +213,6 @@ def unfold_qpsolvers(
         Save result to history, default: True.
     regularization_method : str, optional
         Method for selecting regularization parameter.
-        Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
     noise_var : float, optional
         Noise variance for discrepancy principle ('dp' method).
     smoothness_order : int, optional
@@ -86,12 +227,10 @@ def unfold_qpsolvers(
     Dict[str, Any]
         Unfolding results including spectrum, residuals, and metadata.
     """
-    # Build system for regularization selection
     selected = [name for name in detector_names if name in readings]
     b = np.array([readings[name] for name in selected], dtype=float)
     A = np.array([sensitivities[name] for name in selected], dtype=float)
 
-    # Select regularization parameter
     if regularization_method == "manual":
         alpha = regularization
         selected_lambda = alpha
@@ -113,14 +252,14 @@ def unfold_qpsolvers(
                 f"Initial spectrum length ({len(initial_spectrum)}) "
                 f"must match number of energy bins ({n_energy_bins})"
             )
-        
+
         alphas = np.logspace(-9, 2, 100)
         cosine_similarities = []
 
         for alpha_val in alphas:
             x_temp = solve_qpsolvers(
                 A, b, alpha_val, 2, solver,
-                x_init=initial_spectrum_norm,
+                x0=initial_spectrum_norm,
                 smoothness_order=smoothness_order,
                 smoothness_weight=smoothness_weight,
             )
@@ -163,8 +302,9 @@ def unfold_qpsolvers(
             f"{selected_lambda:.3e}"
         )
 
+    x0_default = np.zeros(n_energy_bins)
+
     def solve_wrapper(A, b, **kwargs):
-        # qpsolvers doesn't use x0, but we need to accept it for consistency
         kwargs.pop('x0', None)
         x = solve_qpsolvers(
             A, b, alpha, norm, solver,
@@ -175,8 +315,6 @@ def unfold_qpsolvers(
             x = np.zeros(A.shape[1])
             warnings.warn("Solution not found, returning zero spectrum.")
         return x
-
-    x0_default = np.zeros(n_energy_bins)
 
     return run_unfolding(
         detector_names=detector_names,

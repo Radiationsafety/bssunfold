@@ -1,14 +1,78 @@
 """Kaczmarz (ART) unfolding method for neutron spectrum reconstruction.
 
-This module provides the `unfold_kaczmarz` function which wraps the Kaczmarz
-iterative solver for use with the Detector class.
+This module provides the core solve_kaczmarz solver and the unfold_kaczmarz
+wrapper for use with the Detector class.
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Tuple
 
-from .unfolding_methods import solve_kaczmarz
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, make_solve_wrapper
+
+__all__ = ["solve_kaczmarz", "unfold_kaczmarz"]
+
+
+def solve_kaczmarz(
+    A: np.ndarray,
+    b: np.ndarray,
+    x0: np.ndarray,
+    max_iterations: int = 1000,
+    omega: float = 1.0,
+    tolerance: float = 1e-6,
+) -> Tuple[np.ndarray, int, bool]:
+    """Solve unfolding problem using Kaczmarz algorithm (ART).
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    x0 : np.ndarray
+        Initial guess (n,).
+    max_iterations : int, optional
+        Maximum iterations (default: 1000).
+    omega : float, optional
+        Relaxation parameter (0 < omega <= 2), default: 1.0.
+    tolerance : float, optional
+        Convergence tolerance (default: 1e-6).
+
+    Returns
+    -------
+    Tuple[np.ndarray, int, bool]
+        Tuple of (solution, iterations, converged).
+    """
+    import warnings
+    m, n = A.shape
+    x = x0.copy()
+
+    if omega <= 0 or omega > 2:
+        warnings.warn(f"omega={omega} outside recommended range (0,2]")
+
+    row_norms_sq = np.sum(A * A, axis=1)
+
+    converged = False
+    iterations = 0
+    x_old = x.copy()
+
+    for k in range(max_iterations):
+        i = k % m
+        if row_norms_sq[i] > 0:
+            update = (b[i] - np.dot(A[i], x)) / row_norms_sq[i]
+            x = x + omega * update * A[i]
+            x = np.maximum(x, 0)
+
+        if (k + 1) % m == 0:
+            if np.linalg.norm(x - x_old) < tolerance:
+                converged = True
+                iterations = k + 1
+                break
+            x_old = x.copy()
+
+    if not converged:
+        iterations = max_iterations
+
+    return x, iterations, converged
 
 
 def unfold_kaczmarz(
@@ -71,15 +135,6 @@ def unfold_kaczmarz(
     Dict[str, Any]
         Dictionary containing unfolding results.
     """
-    def solve_wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0', None)
-        if x0 is None:
-            x0 = np.zeros(A.shape[1])
-        x_opt, n_iter, converged = solve_kaczmarz(
-            A, b, x0, max_iterations, omega, tolerance
-        )
-        return x_opt, n_iter, converged
-
     x0_default = np.zeros(n_energy_bins)
 
     return run_unfolding(
@@ -92,7 +147,12 @@ def unfold_kaczmarz(
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
-        solve_func=solve_wrapper,
+        solve_func=make_solve_wrapper(
+            solve_kaczmarz,
+            max_iterations=max_iterations,
+            omega=omega,
+            tolerance=tolerance,
+        ),
         solve_kwargs={},
         method_name="Kaczmarz",
         extra_output={

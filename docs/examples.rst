@@ -38,8 +38,41 @@ Basic Usage
    )
 
    # Unfold with MLEM
-   result_mlem = detector.unfold_mlem_odl(
+    result_mlem = detector.unfold_mlem_odl(
+        readings,
+        max_iterations=500,
+        calculate_errors=True
+    )
+
+   # Unfold with GRAVEL (no extra deps)
+   result_gravel = detector.unfold_gravel(
        readings,
-       max_iterations=500,
-       calculate_errors=True
+       max_iterations=200,
+       tolerance=1e-6
+   )
+
+   # Unfold with MAXED (maximum entropy, no extra deps)
+   result_maxed = detector.unfold_maxed(
+       readings,
+       sigma_factor=0.1
+   )
+
+   # Unfold with Bayes (D'Agostini, no extra deps)
+   result_bayes = detector.unfold_bayes(
+       readings,
+       max_iterations=200,
+       tolerance=1e-3
+   )
+
+   # Unfold with TSVD (truncated SVD, no extra deps)
+   result_tsvd = detector.unfold_tsvd(
+       readings,
+       k=5,
+       method='l_curve'
+   )
+
+   # Unfold with StatReg (Turchin, no extra deps)
+   result_statreg = detector.unfold_statreg(
+       readings,
+       unfoldermethod='EmpiricalBayes'
    )

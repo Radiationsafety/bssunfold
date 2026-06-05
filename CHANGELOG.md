@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.6.0] - 2026-06-04
+
+### Added
+- TSVD
+- **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
+- **Maximum Entropy**: MAXED (primal log-space dual minimisation)
+- **Statistical Regularization**: Turchin's method (StatReg)
+- ipynb examples 12,13,14
+
+### Changed
+ - file structure of the project
+
 ## [0.5.0] - 2026-06-04
 
 ### Added

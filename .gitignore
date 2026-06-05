@@ -189,3 +189,7 @@ CONTRIBUTING.pdf
 __marimo__
 .idea
 .gigaide
+.continue/
+plans/
+data/
+AGENTS.md

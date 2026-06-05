@@ -1,14 +1,146 @@
 """lmfit-based unfolding method with L1/L2/Elastic net regularization.
 
-This module provides the `unfold_lmfit` function which wraps the lmfit
-optimizer for use with the Detector class.
+This module provides the core solve_lmfit solver and the unfold_lmfit
+wrapper for use with the Detector class.
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Tuple
 
-from .unfolding_methods import solve_lmfit
 from ._base_unfolder import run_unfolding
+
+__all__ = [
+    "solve_lmfit",
+    "unfold_lmfit",
+    "_residual_lasso",
+    "_residual_ridge",
+    "_residual_elastic",
+]
+
+
+# ---------------------------------------------------------------------------
+# Residual functions for lmfit
+# ---------------------------------------------------------------------------
+
+
+def _residual_lasso(params, A, b, regularization, method, m):
+    """Lasso (L1) residual function for lmfit."""
+    x = np.array([params[f"x{i}"].value for i in range(m)])
+    residual = A @ x - b
+    if method == "leastsq":
+        reg_residual = np.sqrt(regularization) * np.sqrt(m) * x
+        return np.concatenate([residual, reg_residual])
+    return np.sum(residual ** 2) + regularization * np.sum(np.abs(x))
+
+
+def _residual_ridge(params, A, b, regularization, method, m):
+    """Ridge (L2) residual function for lmfit."""
+    x = np.array([params[f"x{i}"].value for i in range(m)])
+    residual = A @ x - b
+    if method == "leastsq":
+        reg_residual = np.sqrt(regularization) * x
+        return np.concatenate([residual, reg_residual])
+    return np.sum(residual ** 2) + regularization * np.sum(x ** 2)
+
+
+def _residual_elastic(params, A, b, regularization, regularization2, l1_weight, method, m):
+    """Elastic net (L1 + L2) residual function for lmfit."""
+    x = np.array([params[f"x{i}"].value for i in range(m)])
+    residual = A @ x - b
+    if method == "leastsq":
+        l1_residual = (
+            np.sqrt(regularization * l1_weight) * np.sqrt(m) * np.abs(x)
+        )
+        l2_residual = np.sqrt(regularization2 * (1 - l1_weight)) * x
+        reg_residual = np.concatenate([l1_residual, l2_residual])
+        return np.concatenate([residual, reg_residual])
+    l1_penalty = regularization * l1_weight * np.sum(np.abs(x))
+    l2_penalty = regularization2 * (1 - l1_weight) * np.sum(x ** 2)
+    return np.sum(residual ** 2) + l1_penalty + l2_penalty
+
+
+_RESIDUAL_MAP = {
+    "lasso": (_residual_lasso, ["regularization"]),
+    "ridge": (_residual_ridge, ["regularization"]),
+    "elastic": (_residual_elastic, ["regularization", "regularization2", "l1_weight"]),
+}
+
+
+def solve_lmfit(
+    A: np.ndarray,
+    b: np.ndarray,
+    x0: np.ndarray,
+    method: str = "lbfgsb",
+    model_name: str = "elastic",
+    regularization: float = 1e-4,
+    regularization2: float = 1e-4,
+    l1_weight: float = 0.5,
+) -> Tuple[np.ndarray, bool, str, int]:
+    """Solve unfolding problem using lmfit with L1/L2/Elastic regularization.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    x0 : np.ndarray
+        Initial guess (n,).
+    method : str, optional
+        lmfit solver name (leastsq, lbfgsb, etc.), default: "lbfgsb".
+    model_name : str, optional
+        Regularization model: elastic, lasso, ridge, default: "elastic".
+    regularization : float, optional
+        L1 regularization strength, default: 1e-4.
+    regularization2 : float, optional
+        L2 regularization strength for elastic net, default: 1e-4.
+    l1_weight : float, optional
+        L1 weight for elastic net (0=pure L2, 1=pure L1), default: 0.5.
+
+    Returns
+    -------
+    Tuple[np.ndarray, bool, str, int]
+        Tuple of (solution, success, message, nfev).
+    """
+    try:
+        import lmfit
+    except ImportError as e:
+        raise ImportError(
+            "lmfit is required for unfold_lmfit. Install with: pip install lmfit"
+        ) from e
+
+    m = A.shape[1]
+
+    params = lmfit.Parameters()
+    for i in range(m):
+        params.add(f"x{i}", value=max(x0[i], 1e-10), min=0.0)
+
+    if model_name not in _RESIDUAL_MAP:
+        raise ValueError(
+            f"Unknown model_name: {model_name}. "
+            "Choose from: elastic, lasso, ridge"
+        )
+
+    residual_func, arg_names = _RESIDUAL_MAP[model_name]
+    residual_args = {
+        "A": A,
+        "b": b,
+        "method": method,
+        "m": m,
+    }
+    for name in arg_names:
+        residual_args[name] = locals()[name]
+
+    result = lmfit.minimize(
+        residual_func,
+        params,
+        args=(A, b, regularization, method, m) if model_name in ("lasso", "ridge")
+        else (A, b, regularization, regularization2, l1_weight, method, m),
+        method=method,
+    )
+
+    spectrum = np.array([result.params[f"x{i}"].value for i in range(m)])
+    return spectrum, result.success, result.message, result.nfev
 
 
 def unfold_lmfit(
@@ -77,12 +209,10 @@ def unfold_lmfit(
     Dict[str, Any]
         Dictionary containing unfolding results.
     """
-    # Build system for initial spectrum calculation
     selected = [name for name in detector_names if name in readings]
     b = np.array([readings[name] for name in selected], dtype=float)
     A = np.array([sensitivities[name] for name in selected], dtype=float)
 
-    # Store initial spectrum for output
     initial_spec_for_output = None
 
     def solve_wrapper(A, b, **kwargs):
@@ -95,10 +225,8 @@ def unfold_lmfit(
             A, b, x0, method, model_name,
             regularization, regularization2, l1_weight
         )
-        # Return tuple with success flag for run_unfolding to capture
         return x_opt, nfev, success
 
-    # Default initial spectrum based on mean readings
     x0_default = np.ones(n_energy_bins) * np.mean(b) / np.mean(A.sum(axis=1))
 
     result = run_unfolding(
@@ -127,7 +255,6 @@ def unfold_lmfit(
         save_result=save_result,
     )
 
-    # Add initial spectrum to result if available
     if initial_spec_for_output is not None:
         result["initial_spectrum"] = initial_spec_for_output
 

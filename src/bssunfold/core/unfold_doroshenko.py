@@ -1,14 +1,82 @@
 """Doroshenko coordinate update unfolding method.
 
-This module provides the `unfold_doroshenko` function which wraps the Doroshenko
-iterative solver for use with the Detector class.
+This module provides the core solve_doroshenko solver and the unfold_doroshenko
+wrapper for use with the Detector class.
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Tuple
 
-from .unfolding_methods import solve_doroshenko
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, make_solve_wrapper
+
+__all__ = ["solve_doroshenko", "unfold_doroshenko"]
+
+
+def solve_doroshenko(
+    A: np.ndarray,
+    b: np.ndarray,
+    x0: np.ndarray,
+    max_iterations: int = 1000,
+    tolerance: float = 1e-6,
+    regularization: float = 0.0,
+) -> Tuple[np.ndarray, int, bool]:
+    """Solve unfolding problem using Doroshenko coordinate update method.
+
+    Uses incremental residual update for O(n) per-coordinate complexity
+    instead of O(n^2) from full matrix-vector products.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    x0 : np.ndarray
+        Initial guess (n,).
+    max_iterations : int, optional
+        Maximum iterations (default: 1000).
+    tolerance : float, optional
+        Convergence tolerance (default: 1e-6).
+    regularization : float, optional
+        Regularization strength to prevent division by zero (default: 0.0).
+
+    Returns
+    -------
+    Tuple[np.ndarray, int, bool]
+        Tuple of (solution, iterations, converged).
+    """
+    x = x0.copy()
+
+    denominator_cache = np.sum(A * A, axis=0) + regularization
+    residual = b - A @ x
+
+    converged = False
+    iterations = 0
+
+    for i in range(max_iterations):
+        x_old = x.copy()
+
+        for j in range(x.size):
+            if denominator_cache[j] <= 0:
+                continue
+            Aj = A[:, j]
+            old_xj = x[j]
+            numerator = np.dot(Aj, residual) + denominator_cache[j] * old_xj
+            new_xj = max(0.0, numerator / denominator_cache[j])
+            delta = new_xj - old_xj
+            if delta != 0:
+                residual -= delta * Aj
+                x[j] = new_xj
+
+        if np.linalg.norm(x - x_old) < tolerance:
+            converged = True
+            iterations = i + 1
+            break
+
+    if not converged:
+        iterations = max_iterations
+
+    return x, iterations, converged
 
 
 def unfold_doroshenko(
@@ -71,15 +139,6 @@ def unfold_doroshenko(
     Dict[str, Any]
         Dictionary containing unfolding results.
     """
-    def solve_wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0', None)
-        if x0 is None:
-            x0 = np.ones(A.shape[1])
-        x_opt, n_iter, converged = solve_doroshenko(
-            A, b, x0, max_iterations, tolerance, regularization
-        )
-        return x_opt, n_iter, converged
-
     x0_default = np.ones(n_energy_bins)
 
     return run_unfolding(
@@ -92,7 +151,12 @@ def unfold_doroshenko(
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
-        solve_func=solve_wrapper,
+        solve_func=make_solve_wrapper(
+            solve_doroshenko,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            regularization=regularization,
+        ),
         solve_kwargs={},
         method_name="Doroshenko",
         extra_output={

@@ -168,7 +168,7 @@ class TestDirectSolveFunctions:
 
     def test_solve_doroshenko_direct(self):
         """Test solve_doroshenko function directly."""
-        from bssunfold.core.unfolding_methods import solve_doroshenko
+        from bssunfold.core import solve_doroshenko
 
         np.random.seed(42)
         A = np.random.rand(5, 10)
@@ -184,7 +184,7 @@ class TestDirectSolveFunctions:
 
     def test_solve_kaczmarz_direct(self):
         """Test solve_kaczmarz function directly."""
-        from bssunfold.core.unfolding_methods import solve_kaczmarz
+        from bssunfold.core import solve_kaczmarz
 
         np.random.seed(42)
         A = np.random.rand(5, 10)
@@ -200,7 +200,7 @@ class TestDirectSolveFunctions:
 
     def test_solve_lmfit_direct(self):
         """Test solve_lmfit function directly."""
-        from bssunfold.core.unfolding_methods import solve_lmfit
+        from bssunfold.core import solve_lmfit
 
         np.random.seed(42)
         A = np.random.rand(5, 10)

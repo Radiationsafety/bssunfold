@@ -1,6 +1,6 @@
 [project]
 name = "bssunfold"
-version = "0.5.0"
+version = "0.6.0"
 description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
 readme = "README.md"
 authors = [
@@ -33,19 +33,39 @@ license-files = ["LICENSE"]
 
 dependencies = [
     "cvxpy[ecos]>=1.7.5",
-    "lmfit>=1.3.4",
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
-    "odl>=1.0.0",
     "pandas>=2.2.3",
-    "pytest>=9.0.2",
-    "pytikhonov>=0.0.1",
     "pyzmq>=27.1.0",
-    "qpsolvers>=4.10.0",
     "scipy>=1.16.3",
 ]
 
 [project.optional-dependencies]
+# Optional algorithmic backends (imported lazily inside function bodies with try/except)
+lmfit = [
+    "lmfit>=1.3.4",
+]
+mlem = [
+    "odl>=1.0.0",
+]
+tikhonov = [
+    "pytikhonov>=0.0.1",
+]
+qpsolvers = [
+    "qpsolvers>=4.10.0",
+]
+
+test = [
+    "pytest>=9.0.2",
+]
+# All optional backends
+all = [
+    "bssunfold[lmfit]",
+    "bssunfold[mlem]",
+    "bssunfold[tikhonov]",
+    "bssunfold[qpsolvers]",
+    "bssunfold[test]",
+]
 # Base set of QP solvers available on all platforms (including Windows)
 solvers-core = [
     "qpsolvers[osqp,piqp,qpalm,ecos,scs,clarabel]>=4.10.0",
@@ -130,6 +150,10 @@ dev = [
     "seaborn>=0.13.2",
     "black>=26.3.0",
     "autopep8>=2.3.2",
+    "qpsolvers>=4.10.0",
+    "lmfit>=1.3.4",
+    "odl>=1.0.0",
+    "pytikhonov>=0.0.1",
 ]
 
 [project.urls]
@@ -222,3 +246,5 @@ explicit = true
 name = "pypi"
 url = "https://pypi.org/simple"
 publish-url = "https://upload.pypi.org/legacy/"
+
+
