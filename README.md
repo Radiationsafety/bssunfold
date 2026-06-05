@@ -2,6 +2,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/BSSUnfold)](https://pypi.org/project/bssunfold/)
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/bssunfold)](https://anaconda.org/conda-forge/bssunfold)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13%20|%203.14-blue)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Documentation](https://img.shields.io/badge/docs-sphinx-blue)](https://bssunfold.readthedocs.io/)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
@@ -10,7 +11,7 @@
 [![Tests: Ubuntu](https://img.shields.io/github/actions/workflow/status/Radiationsafety/bssunfold/cross-platform-tests.yml?branch=main&label=ubuntu&logo=ubuntu)](https://github.com/Radiationsafety/bssunfold/actions/workflows/cross-platform-tests.yml)
 [![Tests: Windows](https://img.shields.io/github/actions/workflow/status/Radiationsafety/bssunfold/cross-platform-tests.yml?branch=main&label=windows&logo=windows)](https://github.com/Radiationsafety/bssunfold/actions/workflows/cross-platform-tests.yml)
 [![Tests: macOS](https://img.shields.io/github/actions/workflow/status/Radiationsafety/bssunfold/cross-platform-tests.yml?branch=main&label=macOS&logo=apple)](https://github.com/Radiationsafety/bssunfold/actions/workflows/cross-platform-tests.yml)
-[![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13%20|%203.14-blue)](https://www.python.org/downloads/)
+
 
 ## 🔍 Overview
 
