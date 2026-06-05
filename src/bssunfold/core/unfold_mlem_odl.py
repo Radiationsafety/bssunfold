@@ -78,7 +78,7 @@ def unfold_mlem_odl(
         ) from e
 
     # Build system
-    selected = [name for name in detector_names if name in readings]
+    # selected = [name for name in detector_names if name in readings]
 
     def solve_wrapper(A, b, **kwargs):
         x0 = kwargs.pop('x0', None)
