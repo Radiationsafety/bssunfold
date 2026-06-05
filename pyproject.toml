@@ -54,9 +54,7 @@ tikhonov = [
 qpsolvers = [
     "qpsolvers>=4.10.0",
 ]
-statreg = [
-    "statreg",
-]
+
 test = [
     "pytest>=9.0.2",
 ]
@@ -66,7 +64,6 @@ all = [
     "bssunfold[mlem]",
     "bssunfold[tikhonov]",
     "bssunfold[qpsolvers]",
-    "bssunfold[statreg]",
     "bssunfold[test]",
 ]
 # Base set of QP solvers available on all platforms (including Windows)
@@ -246,7 +243,4 @@ name = "pypi"
 url = "https://pypi.org/simple"
 publish-url = "https://upload.pypi.org/legacy/"
 
-[tool.uv.sources]
-# statreg from PyPI is broken with scipy>=1.14 (uses sc.transpose).
-# The Radiationsafety fork has the fix: np.transpose instead of sc.transpose.
-statreg = { git = "https://github.com/Radiationsafety/statreg-py.git" }
+

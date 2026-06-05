@@ -2,8 +2,7 @@
 
 import pytest
 import numpy as np
-from unittest.mock import patch
-import builtins
+
 
 
 # ============================================================================
@@ -276,25 +275,48 @@ class TestSolveBayesSpline:
 
 
 # ============================================================================
-# Test solve_statreg (statreg dependency)
+# Test solve_statreg (pure numpy, no external dependency)
 # ============================================================================
 
 class TestSolveStatreg:
-    def test_statreg_raises_import_error(self):
+    def test_statreg_basic(self):
         from bssunfold.core import solve_statreg
-        A = np.random.rand(3, 5)
-        b = np.random.rand(3)
-        with pytest.raises(ImportError, match="statreg is required"):
-            solve_statreg(A, b)
+        np.random.seed(42)
+        n_ene, n_det = 20, 5
+        A = np.random.rand(n_det, n_ene) * 5.0
+        x_true = np.exp(-np.linspace(0, 4, n_ene))
+        b = A @ x_true + np.random.randn(n_det) * 0.01
+        result = solve_statreg(A, b)
+        assert result.shape == (n_ene,)
+        assert np.all(result >= 0)
+        assert np.all(np.isfinite(result))
 
-    def test_statreg_import_error_message(self):
+    def test_statreg_user_alpha(self):
+        from bssunfold.core import solve_statreg
+        np.random.seed(42)
+        A = np.random.rand(4, 15) * 3.0
+        b = np.random.rand(4)
+        result = solve_statreg(A, b, unfoldermethod="User", regularization=0.01)
+        assert result.shape == (15,)
+        assert np.all(result >= 0)
+
+    def test_statreg_with_energy_grid(self):
+        from bssunfold.core import solve_statreg
+        np.random.seed(42)
+        n_ene = 20
+        E_MeV = np.logspace(-3, 2, n_ene)
+        A = np.random.rand(4, n_ene) * 3.0
+        b = np.random.rand(4)
+        result = solve_statreg(A, b, E_MeV=E_MeV)
+        assert result.shape == (n_ene,)
+        assert np.all(result >= 0)
+
+    def test_statreg_invalid_method(self):
         from bssunfold.core import solve_statreg
         A = np.eye(3)
         b = np.ones(3)
-        with pytest.raises(ImportError) as excinfo:
-            solve_statreg(A, b)
-        assert "statreg" in str(excinfo.value)
-        assert "pip install statreg" in str(excinfo.value)
+        with pytest.raises(ValueError, match="Unknown method"):
+            solve_statreg(A, b, unfoldermethod="Invalid")
 
 
 # ============================================================================
@@ -445,34 +467,27 @@ class TestUnfoldBayes:
 
 
 # ============================================================================
-# Test solve_statreg and unfold_statreg (statreg dependency, scipy-incompatible)
+# Test solve_statreg (pure numpy, merged)
 # ============================================================================
-
-class TestSolveStatreg:
-    def test_statreg_import_error_with_mock(self):
-        from bssunfold.core import solve_statreg
-        A = np.random.rand(3, 5)
-        b = np.random.rand(3)
-        orig = builtins.__import__
-        def mock_import(name, *a, **kw):
-            if name == 'statreg' or name.startswith('statreg.'):
-                raise ImportError
-            return orig(name, *a, **kw)
-        with patch('builtins.__import__', side_effect=mock_import):
-            with pytest.raises(ImportError, match="statreg is required"):
-                solve_statreg(A, b)
 
 
 class TestUnfoldStatreg:
-    def test_unfold_statreg_import_error_with_mock(self, detector, readings):
-        orig = builtins.__import__
-        def mock_import(name, *a, **kw):
-            if name == 'statreg' or name.startswith('statreg.'):
-                raise ImportError
-            return orig(name, *a, **kw)
-        with patch('builtins.__import__', side_effect=mock_import):
-            with pytest.raises(ImportError, match="statreg is required"):
-                detector.unfold_statreg(readings)
+    def test_unfold_statreg_basic(self, detector, readings):
+        result = detector.unfold_statreg(readings)
+        assert 'spectrum' in result
+        assert 'doserates' in result
+        assert np.all(result['spectrum'] >= 0)
+
+    def test_unfold_statreg_user(self, detector, readings):
+        result = detector.unfold_statreg(
+            readings, unfoldermethod="User", regularization=0.01
+        )
+        assert 'spectrum' in result
+        assert np.all(result['spectrum'] >= 0)
+
+    def test_unfold_statreg_no_save(self, detector, readings):
+        result = detector.unfold_statreg(readings, save_result=False)
+        assert 'spectrum' in result
 
 
 # ============================================================================

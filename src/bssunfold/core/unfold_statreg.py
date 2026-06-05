@@ -1,15 +1,83 @@
 """Statistical Regularization (Turchin's method) unfolding.
 
-This module provides the solve_statreg solver and unfold_statreg wrapper
-using the statreg package (Turchin's method of statistical regularization).
+Pure numpy/scipy implementation — no external statreg dependency.
+
+Implements Turchin's method of statistical regularisation:
+  φ̂ = argmin { ½‖Σ⁻¹⸍²(Aφ−b)‖² + ½ α ‖D₂ φ‖² }
+
+where D₂ is the second-order finite difference operator.
+Regularisation parameter α is selected either by the user or automatically
+via the L-curve heuristic (maximum curvature).
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
 
 __all__ = ["solve_statreg", "unfold_statreg"]
+
+
+def _build_penalty_matrix(n: int) -> np.ndarray:
+    """Build second-order finite difference matrix (n-2 × n)."""
+    L = np.zeros((n - 2, n))
+    for i in range(n - 2):
+        L[i, i] = 1.0
+        L[i, i + 1] = -2.0
+        L[i, i + 2] = 1.0
+    return L
+
+
+def _lcurve_statreg(
+    A_tilde: np.ndarray,
+    b_tilde: np.ndarray,
+    L: np.ndarray,
+    n_alphas: int = 50,
+    alpha_range: Tuple[float, float] = (1e-8, 1e3),
+) -> float:
+    """Select α by L-curve corner (maximum curvature).
+
+    Works in the whitened space: A_tilde = Σ⁻¹⸍² A,  b_tilde = Σ⁻¹⸍² b.
+    """
+    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
+    ATA = A_tilde.T @ A_tilde
+    ATb = A_tilde.T @ b_tilde
+    LTL = L.T @ L
+
+    residuals = []
+    norms = []
+
+    for alpha in alphas:
+        P = ATA + alpha * LTL
+        try:
+            x = np.linalg.solve(P, ATb)
+            x = np.maximum(x, 0)
+            residuals.append(np.linalg.norm(A_tilde @ x - b_tilde))
+            norms.append(np.linalg.norm(L @ x))
+        except np.linalg.LinAlgError:
+            continue
+
+    if len(residuals) < 3:
+        return 1.0
+
+    log_res = np.log(np.maximum(residuals, 1e-300))
+    log_norm = np.log(np.maximum(norms, 1e-300))
+
+    p1 = np.array([log_res[0], log_norm[0]])
+    p2 = np.array([log_res[-1], log_norm[-1]])
+    v = p2 - p1
+    edge = np.linalg.norm(v)
+    if edge < 1e-300:
+        return float(alphas[len(residuals) // 2])
+
+    distances = []
+    for i in range(len(residuals)):
+        w = np.array([log_res[i], log_norm[i]]) - p1
+        d = abs(v[0] * w[1] - v[1] * w[0]) / edge
+        distances.append(d)
+
+    idx = int(np.argmax(distances))
+    return float(alphas[idx])
 
 
 def solve_statreg(
@@ -23,72 +91,62 @@ def solve_statreg(
     boundary: Optional[str] = None,
     derivative_degree: int = 2,
 ) -> np.ndarray:
-    """Solve unfolding problem using Turchin's method of statistical regularization.
-
-    Uses the statreg package with Empirical Bayes or User-specified regularization.
+    """Solve unfolding problem using Turchin's statistical regularisation.
 
     Parameters
     ----------
     A : np.ndarray
-        Response matrix (m x n).
+        Response matrix (m × n).
     b : np.ndarray
         Measurement vector (m,).
     x0 : np.ndarray, optional
         Not used (provided for API compatibility).
     E_MeV : np.ndarray, optional
-        Energy grid for basis construction.
+        Energy grid (n,). Used for log-energy penalty scaling.
     unfoldermethod : str, optional
-        Regularization method: 'EmpiricalBayes' or 'User' (default: 'EmpiricalBayes').
+        Regularisation method: ``'EmpiricalBayes'`` (L-curve, default) or
+        ``'User'`` (fixed α).
     regularization : float, optional
-        Regularization parameter for 'User' method (default: 1e-4).
+        Regularisation parameter α for ``'User'`` method (default: 1e-4).
     basis_name : str, optional
-        Basis type: 'CubicSplines' (default).
+        Ignored (kept for API compatibility).
     boundary : str, optional
-        Boundary condition: None or 'dirichlet'.
+        Ignored (kept for API compatibility).
     derivative_degree : int, optional
-        Derivative degree for regularization (1, 2, 3), default: 2.
+        Derivative order for penalty. Only 2 is implemented.
 
     Returns
     -------
     np.ndarray
         Unfolded spectrum (n,).
     """
-    try:
-        from statreg.model import GaussErrorMatrixUnfolder
-        from statreg.basis import CubicSplines
-    except ImportError as e:
-        raise ImportError(
-            "statreg is required for unfold_statreg. "
-            "Install with: pip install statreg"
-        ) from e
+    n_ene = A.shape[1]
 
-    n_detectors = A.shape[0]
-    b_err = b * 0.05
+    L = _build_penalty_matrix(n_ene)
 
-    if E_MeV is not None:
-        Emin = np.min(E_MeV)
-        if basis_name == "CubicSplines":
-            basis = CubicSplines(np.log10(E_MeV / Emin), boundary=boundary)
-        else:
-            basis = CubicSplines(np.log10(E_MeV / Emin), boundary=boundary)
-    else:
-        x_vals = np.logspace(-9, 2, A.shape[1])
-        Emin = np.min(x_vals)
-        basis = CubicSplines(np.log10(x_vals / Emin), boundary=boundary)
+    sigma = np.maximum(b * 0.05, 1e-300)
+    sigma_inv = 1.0 / sigma
+    A_tilde = A * sigma_inv[:, None]
+    b_tilde = b * sigma_inv
 
-    omega = basis.omega(derivative_degree)
-
-    if unfoldermethod == "EmpiricalBayes":
-        model = GaussErrorMatrixUnfolder(omega, method=unfoldermethod)
-    elif unfoldermethod == "User":
-        alpha = 1e-4 if regularization is None else regularization
-        model = GaussErrorMatrixUnfolder(omega, method=unfoldermethod, alphas=alpha)
+    if unfoldermethod == "User":
+        alpha = 1e-4 if regularization is None else float(regularization)
+    elif unfoldermethod == "EmpiricalBayes":
+        alpha = _lcurve_statreg(A_tilde, b_tilde, L)
     else:
         raise ValueError(f"Unknown method: {unfoldermethod}")
 
-    result = model.solve(A, b, b_err)
+    ATA = A_tilde.T @ A_tilde
+    ATb = A_tilde.T @ b_tilde
+    LTL = L.T @ L
 
-    return np.asarray(result.phi, dtype=float)
+    try:
+        x = np.linalg.solve(ATA + alpha * LTL, ATb)
+    except np.linalg.LinAlgError:
+        x = np.linalg.lstsq(ATA + alpha * LTL, ATb, rcond=None)[0]
+
+    x = np.maximum(x, 0)
+    return x
 
 
 def unfold_statreg(
@@ -111,7 +169,7 @@ def unfold_statreg(
     save_result: bool = True,
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Unfold neutron spectrum using Turchin's statistical regularization.
+    """Unfold neutron spectrum using Turchin's statistical regularisation.
 
     Parameters
     ----------
@@ -132,13 +190,13 @@ def unfold_statreg(
     initial_spectrum : Optional[np.ndarray], optional
         Initial spectrum guess.
     unfoldermethod : str, optional
-        Regularization method (default: 'EmpiricalBayes').
+        Regularisation method (default: ``'EmpiricalBayes'``).
     regularization : float, optional
-        Regularization parameter for 'User' method.
+        Regularisation parameter for ``'User'`` method.
     basis_name : str, optional
-        Basis type (default: 'CubicSplines').
+        Ignored (kept for API compatibility).
     boundary : str, optional
-        Boundary condition (default: None).
+        Ignored (kept for API compatibility).
     derivative_degree : int, optional
         Derivative degree (default: 2).
     calculate_errors : bool, optional
