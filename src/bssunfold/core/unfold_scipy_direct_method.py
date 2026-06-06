@@ -8,6 +8,7 @@ import numpy as np
 from typing import Dict, Optional, Any, List
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from .basis import SpectralBasis
 
 __all__ = ["solve_scipy_direct", "unfold_scipy_direct_method"]
 
@@ -87,6 +88,7 @@ def unfold_scipy_direct_method(
     tolerance: float = 1e-8,
     max_iterations: int = 4000,
     method: str = "cg",
+    basis: Optional[SpectralBasis] = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -159,6 +161,7 @@ def unfold_scipy_direct_method(
             "tolerance": tolerance,
             "solver_method": method,
         },
+        basis=basis,
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

@@ -8,6 +8,7 @@ import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from .basis import SpectralBasis
 
 __all__ = ["solve_landweber", "unfold_landweber"]
 
@@ -82,6 +83,7 @@ def unfold_landweber(
     initial_spectrum: Optional[np.ndarray] = None,
     max_iterations: int = 1000,
     tolerance: float = 1e-6,
+    basis: Optional[SpectralBasis] = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -148,6 +150,7 @@ def unfold_landweber(
         solve_kwargs={},
         method_name="Landweber",
         extra_output={},
+        basis=basis,
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

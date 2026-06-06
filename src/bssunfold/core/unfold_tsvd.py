@@ -9,6 +9,7 @@ from typing import Dict, Optional, Any, List
 from scipy.linalg import svd
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from .basis import SpectralBasis
 
 __all__ = ["solve_tsvd", "unfold_tsvd"]
 
@@ -166,6 +167,7 @@ def unfold_tsvd(
     k: Optional[int] = None,
     threshold: Optional[float] = None,
     noise_level: Optional[float] = None,
+    basis: Optional[SpectralBasis] = None,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = True,
@@ -238,6 +240,7 @@ def unfold_tsvd(
             "k": k,
             "k_method": method,
         },
+        basis=basis,
         calculate_errors=calculate_errors,
         noise_level=noise_level or 0.01,
         n_montecarlo=n_montecarlo,

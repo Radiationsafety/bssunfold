@@ -8,6 +8,7 @@ import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding
+from .basis import SpectralBasis
 
 __all__ = [
     "solve_lmfit",
@@ -157,6 +158,7 @@ def unfold_lmfit(
     regularization: float = 1e-4,
     regularization2: float = 1e-4,
     l1_weight: float = 0.5,
+    basis: Optional[SpectralBasis] = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -248,6 +250,7 @@ def unfold_lmfit(
             "regularization2": regularization2 if model_name == "elastic" else None,
             "l1_weight": l1_weight if model_name == "elastic" else None,
         },
+        basis=basis,
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

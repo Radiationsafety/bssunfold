@@ -46,7 +46,7 @@ def unfold_combined(
     pipeline : List[Dict[str, Any]]
         List of methods for sequential application. Each dict should contain:
         - 'method': str - method name (e.g., 'cvxpy', 'landweber', 'mlem')
-        - 'params': dict - parameters for the method
+        - 'params': dict - parameters for the method (including optional 'basis')
         - 'use_as_initial': bool (optional) - use result as initial guess
         - 'store_intermediate': bool (optional) - store intermediate result
     calculate_errors : bool, optional

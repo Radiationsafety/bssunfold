@@ -61,30 +61,6 @@ class TestSolveMaxed:
 
 
 # ============================================================================
-# Test solve_tikhonov_legendre
-# ============================================================================
-
-class TestSolveTikhonovLegendre:
-    def test_tikhonov_legendre_basic(self):
-        from bssunfold.core import solve_tikhonov_legendre
-        np.random.seed(42)
-        A = np.random.rand(5, 20)
-        b = np.random.rand(5)
-        x = solve_tikhonov_legendre(A, b, delta=0.1, n_polynomials=10)
-        assert len(x) == 20
-        assert np.all(x >= 0)
-
-    def test_tikhonov_legendre_default_params(self):
-        from bssunfold.core import solve_tikhonov_legendre
-        np.random.seed(42)
-        A = np.random.rand(3, 15)
-        b = np.random.rand(3)
-        x = solve_tikhonov_legendre(A, b)
-        assert len(x) == 15
-        assert np.all(x >= 0)
-
-
-# ============================================================================
 # Test solve_scipy_direct
 # ============================================================================
 
@@ -383,24 +359,6 @@ class TestUnfoldMaxed:
         assert 'spectrum' in result
 
 
-class TestUnfoldTikhonovLegendre:
-    def test_unfold_tikhonov_legendre_basic(self, detector, readings):
-        result = detector.unfold_tikhonov_legendre(readings, delta=0.1, n_polynomials=8)
-        assert 'spectrum' in result
-        assert 'doserates' in result
-        assert np.all(result['spectrum'] >= 0)
-
-    def test_unfold_tikhonov_legendre_default(self, detector, readings):
-        result = detector.unfold_tikhonov_legendre(readings)
-        assert 'spectrum' in result
-
-    def test_unfold_tikhonov_legendre_no_save(self, detector, readings):
-        result = detector.unfold_tikhonov_legendre(
-            readings, delta=0.1, save_result=False
-        )
-        assert 'spectrum' in result
-
-
 class TestUnfoldScipyDirect:
     def test_unfold_scipy_direct_cg(self, detector, readings):
         result = detector.unfold_scipy_direct_method(readings, method="cg")
@@ -530,10 +488,6 @@ class TestModuleExports:
         from bssunfold.core import solve_maxed
         assert callable(solve_maxed)
 
-    def test_solve_tikhonov_legendre_exported(self):
-        from bssunfold.core import solve_tikhonov_legendre
-        assert callable(solve_tikhonov_legendre)
-
     def test_solve_bayes_exported(self):
         from bssunfold.core import solve_bayes
         assert callable(solve_bayes)
@@ -561,10 +515,6 @@ class TestModuleExports:
     def test_unfold_maxed_exported(self):
         from bssunfold import Detector
         assert hasattr(Detector, 'unfold_maxed')
-
-    def test_unfold_tikhonov_legendre_exported(self):
-        from bssunfold import Detector
-        assert hasattr(Detector, 'unfold_tikhonov_legendre')
 
     def test_unfold_bayes_exported(self):
         from bssunfold import Detector

@@ -13,6 +13,7 @@ from scipy.sparse import csc_matrix
 from ._matrix_utils import create_derivative_matrix
 from .regularization import select_regularization_parameter
 from ._base_unfolder import run_unfolding
+from .basis import SpectralBasis
 
 __all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
 
@@ -167,6 +168,7 @@ def unfold_qpsolvers(
     regularization: float = 1e-4,
     norm: int = 2,
     solver: str = "osqp",
+    basis: Optional[SpectralBasis] = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -337,6 +339,7 @@ def unfold_qpsolvers(
             "smoothness_order": smoothness_order,
             "smoothness_weight": smoothness_weight,
         },
+        basis=basis,
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

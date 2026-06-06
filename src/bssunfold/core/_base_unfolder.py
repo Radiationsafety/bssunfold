@@ -17,6 +17,7 @@ from typing import Callable, Dict, Optional, Any, List, Tuple
 
 from ..logging_config import get_logger
 from ._montecarlo import monte_carlo_uncertainty
+from .basis import SpectralBasis
 
 logger = get_logger("detector")
 
@@ -65,6 +66,8 @@ def run_unfolding(
     # Method metadata
     method_name: str,
     extra_output: Optional[Dict[str, Any]] = None,
+    # Basis transformation
+    basis: Optional[SpectralBasis] = None,
     # Monte-Carlo options
     calculate_errors: bool = False,
     noise_level: float = 0.01,
@@ -104,6 +107,10 @@ def run_unfolding(
         Name of the unfolding method for output metadata.
     extra_output : Dict[str, Any], optional
         Additional key-value pairs to include in the output.
+    basis : SpectralBasis, optional
+        Spectral basis for representation. When provided, the solver
+        operates in coefficient space (k dimensions) instead of bin space
+        (n dimensions), and the spectrum is reconstructed via Phi @ coeffs.
     calculate_errors : bool, optional
         If True, run Monte-Carlo uncertainty estimation.
     noise_level : float, optional
@@ -126,21 +133,51 @@ def run_unfolding(
     # 2. Normalize initial spectrum
     x0 = _normalize_initial(initial_spectrum, default_initial, n_energy_bins)
 
-    # 3. Solve (solve_func may return spectrum or (spectrum, iterations, converged))
-    solve_kwargs_with_x0 = {**solve_kwargs, 'x0': x0}
-    solve_result = solve_func(A, b, **solve_kwargs_with_x0)
+    # 3. Basis transformation
+    if basis is not None:
+        Phi = basis.build_matrix(n_energy_bins, E_MeV)
+        A_proj = A @ Phi
+        n_coeffs = basis.n_coeffs
 
-    # Handle both single return value and tuple returns
-    extra_meta = {}
-    if isinstance(solve_result, tuple):
-        spectrum = solve_result[0]
-        # Extract additional metadata from tuple
-        if len(solve_result) >= 2:
-            extra_meta['iterations'] = int(solve_result[1])
-        if len(solve_result) >= 3:
-            extra_meta['converged'] = bool(solve_result[2])
+        # Project initial guess to coefficient space
+        c0, _, _, _ = np.linalg.lstsq(Phi, x0, rcond=None)
+        c0 = np.maximum(c0, 0.0)
+
+        solve_kwargs_with_x0 = {**solve_kwargs, 'x0': c0}
+        solve_result = solve_func(A_proj, b, **solve_kwargs_with_x0)
+
+        # Handle return: extract coefficients then reconstruct
+        extra_meta = {}
+        if isinstance(solve_result, tuple):
+            coeffs = solve_result[0]
+            if len(solve_result) >= 2:
+                extra_meta['iterations'] = int(solve_result[1])
+            if len(solve_result) >= 3:
+                extra_meta['converged'] = bool(solve_result[2])
+        else:
+            coeffs = solve_result
+
+        spectrum = Phi @ coeffs
+
+        if extra_output is None:
+            extra_output = {}
+        extra_output['basis'] = type(basis).__name__
+        extra_output['n_coeffs'] = n_coeffs
     else:
-        spectrum = solve_result
+        # 3a. Solve without basis (original path)
+        solve_kwargs_with_x0 = {**solve_kwargs, 'x0': x0}
+        solve_result = solve_func(A, b, **solve_kwargs_with_x0)
+
+        # Handle both single return value and tuple returns
+        extra_meta = {}
+        if isinstance(solve_result, tuple):
+            spectrum = solve_result[0]
+            if len(solve_result) >= 2:
+                extra_meta['iterations'] = int(solve_result[1])
+            if len(solve_result) >= 3:
+                extra_meta['converged'] = bool(solve_result[2])
+        else:
+            spectrum = solve_result
 
     # Merge extra_meta with user-provided extra_output
     if extra_output:
@@ -169,11 +206,13 @@ def run_unfolding(
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
             n_energy_bins=n_energy_bins,
+            E_MeV=E_MeV,
             random_state=random_state,
             solve_kwargs=solve_kwargs,
             detector_names=detector_names,
             sensitivities=sensitivities,
             x0=x0,
+            basis=basis,
         )
 
     # 6. Save result
@@ -252,11 +291,13 @@ def _add_montecarlo_uncertainty(
     noise_level: float,
     n_montecarlo: int,
     n_energy_bins: int,
+    E_MeV: np.ndarray,
     random_state: Optional[int],
     solve_kwargs: Dict[str, Any],
     detector_names: List[str],
     sensitivities: Dict[str, np.ndarray],
     x0: np.ndarray,
+    basis: Optional[SpectralBasis] = None,
 ) -> None:
     """Run Monte-Carlo uncertainty and update output dict in-place."""
     logger.info(
@@ -272,13 +313,25 @@ def _add_montecarlo_uncertainty(
         # Remove extra keys not meant for the solver
         solver_kw = {k: v for k, v in kwargs.items()
                      if k not in ("detector_names", "sensitivities")}
-        # Add x0 to solver kwargs
-        solver_kw['x0'] = x0
-        result = solve_func(A_noisy, b_noisy, **solver_kw)
-        # Extract spectrum from tuple if needed
-        if isinstance(result, tuple):
-            return result[0]
-        return result
+
+        if basis is not None:
+            Phi = basis.build_matrix(n_energy_bins, E_MeV)
+            A_proj = A_noisy @ Phi
+            c0, _, _, _ = np.linalg.lstsq(Phi, x0, rcond=None)
+            c0 = np.maximum(c0, 0.0)
+            solver_kw['x0'] = c0
+            result = solve_func(A_proj, b_noisy, **solver_kw)
+            if isinstance(result, tuple):
+                coeffs = result[0]
+            else:
+                coeffs = result
+            return Phi @ coeffs
+        else:
+            solver_kw['x0'] = x0
+            result = solve_func(A_noisy, b_noisy, **solver_kw)
+            if isinstance(result, tuple):
+                return result[0]
+            return result
 
     mc_kwargs = {
         **solve_kwargs,

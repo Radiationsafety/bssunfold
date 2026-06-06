@@ -14,6 +14,7 @@ import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from .basis import SpectralBasis
 
 __all__ = ["solve_statreg", "unfold_statreg"]
 
@@ -163,6 +164,7 @@ def unfold_statreg(
     basis_name: str = "CubicSplines",
     boundary: Optional[str] = None,
     derivative_degree: int = 2,
+    basis: Optional[SpectralBasis] = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -243,6 +245,7 @@ def unfold_statreg(
             "basis_name": basis_name,
             "derivative_degree": derivative_degree,
         },
+        basis=basis,
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

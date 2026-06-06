@@ -11,6 +11,7 @@ from typing import Dict, Optional, Any, List
 from ..platform_check import get_recommended_solver
 from .regularization import select_regularization_parameter
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from .basis import SpectralBasis
 
 __all__ = ["solve_cvxpy", "unfold_cvxpy"]
 
@@ -102,6 +103,7 @@ def unfold_cvxpy(
     regularization: float = 1e-4,
     norm: int = 2,
     solver: str = "default",
+    basis: Optional[SpectralBasis] = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -215,6 +217,7 @@ def unfold_cvxpy(
             "regularization_method": regularization_method,
             "selected_regularization": float(alpha),
         },
+        basis=basis,
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

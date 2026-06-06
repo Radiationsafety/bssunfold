@@ -14,12 +14,12 @@ from .unfold_qpsolvers import solve_qpsolvers
 from .unfold_lmfit import solve_lmfit
 from .unfold_gravel import solve_gravel
 from .unfold_maxed import solve_maxed
-from .unfold_tikhonov_legendre import solve_tikhonov_legendre
 from .unfold_bayes import solve_bayes
 from .unfold_bayes_spline_regularization import solve_bayes_spline
 from .unfold_statreg import solve_statreg
 from .unfold_scipy_direct_method import solve_scipy_direct
 from .unfold_tsvd import solve_tsvd
+from .basis import SpectralBasis, BinBasis, LegendreBasis, FourierBasis
 from .regularization import (
     select_regularization_parameter,
     lcurve_selection,
@@ -41,7 +41,6 @@ from .unfold_mlem_odl import unfold_mlem_odl
 from .unfold_combined import unfold_combined
 from .unfold_gravel import unfold_gravel
 from .unfold_maxed import unfold_maxed
-from .unfold_tikhonov_legendre import unfold_tikhonov_legendre
 from .unfold_bayes import unfold_bayes
 from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularization
 from .unfold_statreg import unfold_statreg
@@ -51,6 +50,11 @@ from .unfold_tsvd import unfold_tsvd
 __all__ = [
     # detector
     "Detector",
+    # basis
+    "SpectralBasis",
+    "BinBasis",
+    "LegendreBasis",
+    "FourierBasis",
     # unfolding methods
     "solve_cvxpy",
     "solve_landweber",
@@ -61,7 +65,6 @@ __all__ = [
     "solve_lmfit",
     "solve_gravel",
     "solve_maxed",
-    "solve_tikhonov_legendre",
     "solve_bayes",
     "solve_bayes_spline",
     "solve_statreg",
@@ -79,7 +82,6 @@ __all__ = [
     "unfold_combined",
     "unfold_gravel",
     "unfold_maxed",
-    "unfold_tikhonov_legendre",
     "unfold_bayes",
     "unfold_bayes_spline_regularization",
     "unfold_statreg",
