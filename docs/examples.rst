@@ -76,3 +76,49 @@ Basic Usage
        readings,
        unfoldermethod='EmpiricalBayes'
    )
+
+
+Using Spectral Bases
+--------------------
+
+The ``basis`` parameter lets you choose the representation space for the
+spectrum.  Available bases: ``BinBasis`` (default), ``LegendreBasis``,
+``FourierBasis``.
+
+.. code-block:: python
+
+   from bssunfold import Detector
+   from bssunfold.core import LegendreBasis, FourierBasis
+
+   detector = Detector()
+   readings = {name: 100.0 for name in detector.detector_names[:3]}
+
+   # Legendre polynomial basis (15 polynomials)
+   result = detector.unfold_cvxpy(
+       readings,
+       basis=LegendreBasis(n_polynomials=15),
+       regularization=1e-3,
+   )
+
+   # Fourier sin/cos basis (10 terms)
+   result = detector.unfold_landweber(
+       readings,
+       basis=FourierBasis(n_terms=10),
+       max_iterations=200,
+   )
+
+   # QP solver with Legendre + smoothness penalty in coefficient space
+   result = detector.unfold_qpsolvers(
+       readings,
+       basis=LegendreBasis(n_polynomials=12),
+       regularization=0.01,
+       smoothness_order=2,
+   )
+
+   # Convert between representations
+   from bssunfold.core import LegendreBasis
+   basis = LegendreBasis(n_polynomials=15)
+   E = detector.E_MeV
+   spectrum = result['spectrum']
+   coeffs = basis.to_coeffs(spectrum, E)        # spectrum -> coefficients
+   spectrum_back = basis.to_spectrum(coeffs, E)  # coefficients -> spectrum

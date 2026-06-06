@@ -38,24 +38,21 @@ def _solve_cvxpy_problem(
     )
     problem = cp.Problem(objective)
 
-    try:
-        problem.solve(solver=solver)
-        status = problem.status
-        if status not in ["optimal", "optimal_inaccurate"]:
-            warnings.warn(
-                f"Problem status is not optimal: {status}. "
-                "Solution may be inaccurate."
-            )
-        if x.value is None:
-            warnings.warn(
-                f"Solution variable is None. Status: {status}. "
-                "Returning zero vector."
-            )
-            return np.zeros(n)
-        return np.asarray(x.value)
-    except Exception as e:
-        warnings.warn(f"CVXPY solving failed: {e}. Returning zero vector.")
-        return np.zeros(n)
+    solvers_to_try = [solver, "ECOS", "SCS", "CLARABEL"]
+    for solver_name in solvers_to_try:
+        try:
+            problem.solve(solver=solver_name)
+            status = problem.status
+            if status in ["optimal", "optimal_inaccurate"]:
+                if x.value is not None:
+                    return np.asarray(x.value)
+        except Exception:
+            continue
+    warnings.warn(
+        f"CVXPY solving failed with solvers {solvers_to_try}. "
+        "Returning zero vector."
+    )
+    return np.zeros(n)
 
 
 def solve_cvxpy(

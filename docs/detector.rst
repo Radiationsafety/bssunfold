@@ -6,11 +6,21 @@ Detector Class
    :undoc-members:
    :show-inheritance:
    :special-members: __init__, __str__, __repr__
-   
+
+Spectral Basis
+==============
+
+.. automodule:: bssunfold.core.basis
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Unfold Methods
 ==============
 
-The following unfolding methods are available through the Detector class:
+The following unfolding methods are available through the Detector class.
+All methods accept an optional ``basis`` parameter for spectral basis
+transformation (see :class:`~bssunfold.core.basis.SpectralBasis`).
 
 .. autofunction:: bssunfold.core.unfold_cvxpy.unfold_cvxpy
 
@@ -33,8 +43,6 @@ The following unfolding methods are available through the Detector class:
 .. autofunction:: bssunfold.core.unfold_gravel.unfold_gravel
 
 .. autofunction:: bssunfold.core.unfold_maxed.unfold_maxed
-
-.. autofunction:: bssunfold.core.unfold_tikhonov_legendre.unfold_tikhonov_legendre
 
 .. autofunction:: bssunfold.core.unfold_bayes.unfold_bayes
 
@@ -68,8 +76,6 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_gravel.solve_gravel
 
 .. autofunction:: bssunfold.core.unfold_maxed.solve_maxed
-
-.. autofunction:: bssunfold.core.unfold_tikhonov_legendre.solve_tikhonov_legendre
 
 .. autofunction:: bssunfold.core.unfold_bayes.solve_bayes
 
