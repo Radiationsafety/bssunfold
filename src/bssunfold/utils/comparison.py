@@ -5,7 +5,7 @@ Each function follows single-responsibility principle and operates on
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 __all__ = [
     "compare_spectra",
@@ -442,6 +442,7 @@ def compare_spectra(
             results[key] = _METRIC_FUNCTIONS[key](spectrum1, spectrum2)
         except Exception as e:
             results[key] = float("nan")
+            _ = e
 
     return results
 
