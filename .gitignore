@@ -194,3 +194,5 @@ plans/
 data/
 AGENTS.md
 opencode.json
+graphify-out/
+.gigacode/

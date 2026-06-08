@@ -23,6 +23,8 @@
 - [Features](#-features)
 - [Installation](#-installation)
 - [Quick start](#-quick-start)
+- [Available Unfolding Methods](#-available-unfolding-methods)
+- [Spectrum Comparison](#-spectrum-comparison)
 - [Project structure](#-project-structure)
 - [Technical requirements](#-technical-requirements)
 - [Authors](#-authors)
@@ -172,228 +174,221 @@ readings = {
 }
 ```
 
-## ⚙️ Available Methods
+## ⚙️ Available Unfolding Methods
 
-### 1. `unfold_cvxpy()`
-Tikhonov regularization with convex optimization for stable spectrum reconstruction.
+```mermaid
+graph TD
+    A[Unfolding Methods] --> B[Tikhonov-type]
+    A --> C[Iterative]
+    A --> D[Bayesian]
+    A --> E[Maximum Entropy]
+    A --> F[Statistical Regularization]
+    A --> G[Optimization-based]
+    A --> H[Pipeline]
 
-```python
-result = detector.unfold_cvxpy(
-    readings,
-    regularization=1e-4,      # Regularization parameter
-    norm=2,                   # L2 norm for regularization
-    calculate_errors=True,    # Monte Carlo uncertainty estimation
-    save_result=True          # Store result in history
-)
+    B --> B1[unfold_cvxpy]
+    B --> B2[unfold_qpsolvers]
+    B --> B3[unfold_tsvd]
+    B --> B4[unfold_tikhonov_legendre]
+
+    C --> C1[unfold_landweber]
+    C --> C2[unfold_mlem]
+    C --> C3[unfold_mlem_odl]
+    C --> C4[unfold_gravel]
+    C --> C5[unfold_doroshenko]
+    C --> C6[unfold_kaczmarz]
+
+    D --> D1[unfold_bayes]
+    D --> D2[unfold_bayes_spline_regularization]
+
+    E --> E1[unfold_maxed]
+    F --> F1[unfold_statreg]
+
+    G --> G1[unfold_lmfit]
+    G --> G2[unfold_scipy_direct_method]
+
+    H --> H1[unfold_combined]
+
+    style A fill:#4a90d9,color:#fff
+    style B fill:#e8f0fe
+    style C fill:#e8f0fe
+    style D fill:#e8f0fe
+    style E fill:#e8f0fe
+    style F fill:#e8f0fe
+    style G fill:#e8f0fe
+    style H fill:#e8f0fe
 ```
 
-### 2. `unfold_landweber()`
-Iterative Landweber method with convergence control.
+### Method Reference Table
+
+| # | Method | Category | Unique Parameters | Dependencies | Description |
+|---|--------|----------|-------------------|--------------|-------------|
+| 1 | `unfold_cvxpy` | Tikhonov | `regularization`, `norm` (1/2), `solver`, `regularization_method` | cvxpy | Convex optimization with Tikhonov regularization |
+| 2 | `unfold_qpsolvers` | Tikhonov | `regularization`, `norm` (1/2), `solver`, `smoothness_order`, `smoothness_weight`, `regularization_method` | qpsolvers | QP-based unfolding with L1/L2/smoothness norms |
+| 3 | `unfold_tsvd` | Tikhonov | `method` (l_curve/gcv/discrepancy/energy/median/donoho), `k`, `threshold`, `noise_level` | — | Truncated SVD with automatic k-selection |
+| 4 | `unfold_tikhonov_legendre` | Tikhonov | `delta`, `n_polynomials` | — | Tikhonov regularization in Legendre polynomial basis |
+| 5 | `unfold_landweber` | Iterative | `max_iterations`, `tolerance` | — | Landweber fixed-point iteration |
+| 6 | `unfold_mlem` | Iterative | `max_iterations`, `tolerance` | — | Pure-NumPy MLEM (expectation maximization) |
+| 7 | `unfold_mlem_odl` | Iterative | `max_iterations`, `tolerance` | odl | MLEM via ODL operator framework |
+| 8 | `unfold_gravel` | Iterative | `max_iterations`, `tolerance`, `regularization` | — | GRAVEL algorithm with relative entropy weighting |
+| 9 | `unfold_doroshenko` | Iterative | `max_iterations`, `tolerance`, `regularization` | — | Coordinate-update iterative method |
+| 10 | `unfold_kaczmarz` | Iterative | `max_iterations`, `omega`, `tolerance` | — | ART (Algebraic Reconstruction Technique) |
+| 11 | `unfold_bayes` | Bayesian | `max_iterations`, `tolerance` | — | D'Agostini Bayesian iterative unfolding |
+| 12 | `unfold_bayes_spline_regularization` | Bayesian | `max_iterations`, `tolerance`, `spline_degree`, `spline_smooth` | — | Bayes iteration with spline smoothing |
+| 13 | `unfold_maxed` | MaxEnt | `sigma_factor`, `max_iterations`, `tolerance` | — | Maximum entropy deconvolution (Reginatto & Goldhagen) |
+| 14 | `unfold_statreg` | Statistical Reg. | `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree` | — | Turchin's statistical regularization |
+| 15 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight` | lmfit | L1/L2/Elastic Net via lmfit |
+| 16 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |
+| 17 | `unfold_combined` | Pipeline | `pipeline` (list of `{method, params}` dicts) | — | Sequential multi-method pipeline |
+
+> **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
+
+### Basic Example
 
 ```python
-result = detector.unfold_landweber(
-    readings,
-    max_iterations=1000,      # Maximum iterations
-    tolerance=1e-6,           # Convergence tolerance
-    calculate_errors=True,    # Monte Carlo uncertainty
-    save_result=True
-)
+import pandas as pd
+from bssunfold import Detector
+
+detector = Detector(pd.read_csv("response_functions.csv"))
+readings = {"0in": 0.0003, "2in": 0.0099, "3in": 0.0536, "5in": 0.1841}
+
+# Convex optimization
+result = detector.unfold_cvxpy(readings, regularization=1e-4, calculate_errors=True)
+
+# Dose rates
+print(result["doserates"])
+
+# Plot with uncertainty
+detector.plot_with_uncertainty(result)
 ```
 
-### 3. `unfold_mlem_odl()`
-Iterative Maximum likelihood expectation maximization (MLEM).
+### Pipeline Example
 
 ```python
-result = detector.unfold_mlem_odl(
-    readings,
-    max_iterations=1000,      # Maximum iterations
-    calculate_errors=True,    # Monte Carlo uncertainty
-    save_result=True
-)
-```
-
-### 4. `unfold_qpsolvers()`
-Quadratic programming unfolding via qpsolvers with L1/L2/smoothness norms.
-
-```python
-result = detector.unfold_qpsolvers(
-    readings,
-    solver="osqp",
-    regularization=1e-4,
-    noise_level=noise_level,
-    n_montecarlo=n_montecarlo,
-    save_result=False,
-    calculate_errors=True,
-)
-```
-
-### 5. `unfold_doroshenko()`
-Iterative Doroshenko algorithm.
-
-```python
-result = detector.unfold_doroshenko(
-    readings
-)
-```
-
-### 6. `unfold_kaczmarz()`
-Iterative Kaczmarz algorithm.
-
-```python
-result = detector.unfold_kaczmarz(
-    readings
-)
-```
-
-### 7. `unfold_lmfit()`
-Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization,
-lmfit solver = leastsq, newton, tnc, cg, bfgs, lbfgsb.
-Regularization model: elastic, lasso, ridge, default: "elastic".
-
-```python
-result = detector.unfold_lmfit(
-    readings
-)
-```
-
-### 8. `unfold_combined()`
-Combination (pipeline) of algorithms cvxpy → Landweber with selection of parameters for each method.
-```python
-result = det.unfold_combined(
+result = detector.unfold_combined(
     readings=readings,
     pipeline=[
-        {
-            'method': 'cvxpy',
-            'params': {'regularization': 1e-4},
-        },
-        {
-            'method': 'landweber',
-            'params': {
-                'max_iterations': 2000,
-            },
-        },
+        {"method": "cvxpy", "params": {"regularization": 1e-4}},
+        {"method": "landweber", "params": {"max_iterations": 2000}},
     ],
-    calculate_errors=False,
-    verbose=True,
-)
-```
-
-### 9. `unfold_mlem()`
-Pure-NumPy MLEM (Maximum Likelihood Expectation Maximisation).
-
-```python
-result = detector.unfold_mlem(
-    readings,
-    max_iterations=1000,
-    tolerance=1e-6,
     calculate_errors=True,
-    save_result=True,
 )
 ```
 
-### 10. `unfold_gravel()`
-GRAVEL iterative algorithm with relative entropy weighting.
+## 📊 Spectrum Comparison
+
+Compare two or more unfolded spectra using a comprehensive set of 25 metrics.
 
 ```python
-result = detector.unfold_gravel(
-    readings,
-    max_iterations=200,
-    tolerance=1e-6,
-    calculate_errors=True,
-    save_result=True,
+import numpy as np
+from bssunfold import Detector
+
+detector = Detector()
+
+r1 = detector.unfold_qpsolvers(readings, save_result=False)
+r2 = detector.unfold_cvxpy(readings, save_result=False)
+
+# Compare two results (all 25 metrics)
+result = detector.compare(r1, r2)
+print(result['cosine_similarity'], result['mean_squared_error'])
+
+# Compare with specific metrics
+detector.compare(r1, r2, metrics=['cosine_similarity', 'kl_divergence'])
+
+# Compare raw spectra
+df = detector.compare(
+    np.ones(detector.n_energy_bins),
+    np.ones(detector.n_energy_bins) * 2,
+    np.ones(detector.n_energy_bins) * 3,
+    labels=['Ref', 'A', 'B'],
 )
+print(df)
+
+# Visual comparison
+detector.compare(r1, r2, plot=True, save_to='comparison.png')
+
+# Independent usage
+from bssunfold.utils.comparison import compare_spectra, kl_divergence
+all_metrics = compare_spectra(s1, s2)
+print(kl_divergence(s1, s2))
 ```
 
-### 11. `unfold_maxed()`
-Maximum Entropy Deconvolution (Reginatto & Goldhagen) — primal log-space minimisation.
+```mermaid
+graph TD
+    A[Comparison Metrics<br/>25 total] --> B[Entropy]
+    A --> C[Distribution]
+    A --> D[Correlation]
+    A --> E[Error]
+    A --> F[Similarity]
+    A --> G[Chi-squared]
+    A --> H[Statistical]
 
-```python
-result = detector.unfold_maxed(
-    readings,
-    sigma_factor=0.1,
-    max_iterations=5000,
-    tolerance=1e-6,
-)
+    B --> B1[kl_divergence]
+    B --> B2[cross_entropy]
+    B --> B3[entropy_difference_percent]
+
+    C --> C1[wasserstein_dist]
+    C --> C2[energy_dist]
+    C --> C3[kolmogorov_smirnov_stat]
+
+    D --> D1[pearson_r]
+    D --> D2[spearman_r]
+
+    E --> E1[mean_squared_error]
+    E --> E2[root_mean_squared_error]
+    E --> E3[mean_absolute_error]
+    E --> E4[mape]
+    E --> E5[r2_score]
+    E --> E6[max_error]
+    E --> E7[median_absolute_error]
+
+    F --> F1[cosine_similarity]
+    F --> F2[mmd_rbf]
+
+    G --> G1[chi_squared]
+    G --> G2[g_test]
+    G --> G3[freeman_tukey]
+    G --> G4[cressie_read]
+
+    H --> H1[anderson_darling]
+    H --> H2[wilcoxon_test]
+    H --> H3[mannwhitneyu_test]
+    H --> H4[standardized_mean_difference]
+
+    style A fill:#4a90d9,color:#fff
 ```
 
-### 12. `unfold_tikhonov_legendre()`
-Tikhonov regularisation with Legendre polynomial basis expansion.
+### All 25 Metrics
 
-```python
-result = detector.unfold_tikhonov_legendre(
-    readings,
-    delta=0.05,
-    n_polynomials=15,
-    calculate_errors=True,
-    save_result=True,
-)
-```
+| Category | Metric Key | Description | Range |
+|----------|-----------|-------------|-------|
+| **Entropy** | `kl_divergence` | Kullback-Leibler divergence D_KL(p‖q) | [0, ∞) |
+| | `cross_entropy` | Cross-entropy H(p,q) = -∑p·log(q) | [0, ∞) |
+| | `entropy_difference_percent` | Relative cross-entropy excess (%) | [0, ∞) |
+| **Distribution** | `wasserstein_dist` | Earth mover's / Wasserstein distance | [0, ∞) |
+| | `energy_dist` | Energy distance between distributions | [0, ∞) |
+| | `kolmogorov_smirnov_stat` | Kolmogorov-Smirnov D-statistic | [0, 1] |
+| **Correlation** | `pearson_r` | Pearson correlation coefficient | [-1, 1] |
+| | `spearman_r` | Spearman rank correlation | [-1, 1] |
+| **Error** | `mean_squared_error` | Mean squared error | [0, ∞) |
+| | `root_mean_squared_error` | Root mean squared error | [0, ∞) |
+| | `mean_absolute_error` | Mean absolute error | [0, ∞) |
+| | `mape` | Mean absolute percentage error (%) | [0, 100] |
+| | `r2_score` | R² (coefficient of determination) | (-∞, 1] |
+| | `max_error` | Maximum residual error | [0, ∞) |
+| | `median_absolute_error` | Median absolute error | [0, ∞) |
+| **Similarity** | `cosine_similarity` | Cosine similarity cos(θ) = (p·q)/(‖p‖‖q‖) | [0, 1] |
+| | `mmd_rbf` | Maximum Mean Discrepancy (RBF kernel) | [0, ∞) |
+| **Chi-squared** | `chi_squared` | Pearson's chi-squared statistic | [0, ∞) |
+| | `g_test` | G-test (log-likelihood ratio) | [0, ∞) |
+| | `freeman_tukey` | Freeman-Tukey statistic | [0, ∞) |
+| | `cressie_read` | Cressie-Read power divergence | [0, ∞) |
+| **Statistical** | `anderson_darling` | Anderson-Darling k-sample statistic | [0, ∞) |
+| | `wilcoxon_test` | Wilcoxon signed-rank test statistic | [0, ∞) |
+| | `mannwhitneyu_test` | Mann-Whitney U test statistic | [0, ∞) |
+| | `standardized_mean_difference` | Cohen's d (SMD) | (-∞, ∞) |
 
-### 13. `unfold_bayes()`
-Bayesian iterative unfolding (D'Agostini) with column-normalised response.
-
-```python
-result = detector.unfold_bayes(
-    readings,
-    max_iterations=1000,
-    tolerance=1e-6,
-    calculate_errors=True,
-    save_result=True,
-)
-```
-
-### 14. `unfold_bayes_spline_regularization()`
-Bayesian D'Agostini iteration with spline smoothing on log10-spectrum.
-
-```python
-result = detector.unfold_bayes_spline_regularization(
-    readings,
-    max_iterations=1000,
-    tolerance=1e-6,
-    spline_degree=3,
-    spline_smooth=0.1,
-    calculate_errors=True,
-    save_result=True,
-)
-```
-
-### 15. `unfold_statreg()`
-Turchin's statistical regularisation with L-curve α selection (EmpiricalBayes) or user-specified α.
-
-```python
-result = detector.unfold_statreg(
-    readings,
-    unfoldermethod="EmpiricalBayes",
-    regularization=None,
-    calculate_errors=True,
-    save_result=True,
-)
-```
-
-### 16. `unfold_scipy_direct_method()`
-Direct linear solvers from SciPy: CG, GMRES, LSQR, LSMR, MINRES.
-
-```python
-result = detector.unfold_scipy_direct_method(
-    readings,
-    method="lsqr",
-    calculate_errors=True,
-    save_result=True,
-)
-```
-
-### 17. `unfold_tsvd()`
-Truncated Singular Value Decomposition with automatic k-selection (L-curve, GCV, discrepancy, energy, median, Donoho).
-
-```python
-result = detector.unfold_tsvd(
-    readings,
-    k=5,
-    method="l_curve",
-    calculate_errors=True,
-    save_result=True,
-)
-```
+All metrics are implemented with pure NumPy/SciPy — no extra dependencies required.
 
 ## 📈 Output Data
 
@@ -473,52 +468,65 @@ uncert_mean = result['spectrum_uncert_mean']
 ```
 bssunfold/
 ├── CHANGELOG.md
+├── CITATION.cff
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── docs
-├── examples
-├── favicon.ico
 ├── LICENSE
-├── pyproject.toml
 ├── README.md
-├── src
-│   └── bssunfold
-│       ├── __init__.py
-│       ├── constants.py
-│       ├── logging_config.py
-│       ├── platform_check.py
-│       ├── core
-│       │   ├── __init__.py
-│       │   ├── _base_unfolder.py
-│       │   ├── _matrix_utils.py
-│       │   ├── _montecarlo.py
-│       │   ├── detector.py
-│       │   ├── regularization.py
-│       │   ├── unfold_bayes.py
-│       │   ├── unfold_bayes_spline_regularization.py
-│       │   ├── unfold_combined.py
-│       │   ├── unfold_cvxpy.py
-│       │   ├── unfold_doroshenko.py
-│       │   ├── unfold_gravel.py
-│       │   ├── unfold_kaczmarz.py
-│       │   ├── unfold_landweber.py
-│       │   ├── unfold_lmfit.py
-│       │   ├── unfold_maxed.py
-│       │   ├── unfold_mlem.py
-│       │   ├── unfold_mlem_odl.py
-│       │   ├── unfold_qpsolvers.py
-│       │   ├── unfold_scipy_direct_method.py
-│       │   ├── unfold_statreg.py
-│       │   ├── unfold_tikhonov_legendre.py
-│       │   └── unfold_tsvd.py
-│       └── utils
-│           ├── __init__.py
-│           ├── converters.py
-│           ├── interpolation.py
-│           ├── plotting.py
-│           └── validators.py
-├── tests
-└── uv.lock
+├── SECURITY.md
+├── TESTS_AND_DOCS.md
+├── pyproject.toml
+├── uv.lock
+├── environment.yml
+├── assets/                      # Logos, images
+├── conda.recipe/                # Conda build recipe
+├── docs/                        # Sphinx documentation
+│   ├── index.rst
+│   ├── overview.rst             # Methods & metrics overview
+│   ├── detector.rst             # Full API reference
+│   ├── examples.rst
+│   ├── conf.py
+│   └── requirements.txt
+├── examples/                    # Jupyter notebooks
+├── tests/                       # 391 tests across 9 files
+└── src/
+    └── bssunfold/
+        ├── __init__.py          # Public API: Detector
+        ├── constants.py         # ICRP-116 dose coefficients
+        ├── logging_config.py
+        ├── platform_check.py    # Solver availability checks
+        ├── core/
+        │   ├── __init__.py
+        │   ├── _base_unfolder.py
+        │   ├── _matrix_utils.py # SVD, derivative matrix
+        │   ├── _montecarlo.py    # MC uncertainty
+        │   ├── detector.py      # Main Detector class
+        │   ├── dose_calculation.py
+        │   ├── regularization.py   # L-curve, GCV, DP
+        │   ├── unfold_cvxpy.py
+        │   ├── unfold_qpsolvers.py
+        │   ├── unfold_tsvd.py
+        │   ├── unfold_tikhonov_legendre.py
+        │   ├── unfold_landweber.py
+        │   ├── unfold_mlem.py
+        │   ├── unfold_mlem_odl.py
+        │   ├── unfold_gravel.py
+        │   ├── unfold_doroshenko.py
+        │   ├── unfold_kaczmarz.py
+        │   ├── unfold_bayes.py
+        │   ├── unfold_bayes_spline_regularization.py
+        │   ├── unfold_maxed.py
+        │   ├── unfold_statreg.py
+        │   ├── unfold_lmfit.py
+        │   ├── unfold_scipy_direct_method.py
+        │   └── unfold_combined.py
+        └── utils/
+            ├── __init__.py
+            ├── comparison.py    # 25 spectrum metrics
+            ├── converters.py
+            ├── interpolation.py
+            ├── plotting.py
+            └── validators.py
 ```
 
 ## 🔧 Technical Requirements

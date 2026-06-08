@@ -24,6 +24,7 @@ from .constants import (
 # Import utility modules for convenience
 from . import utils
 from . import core
+from .utils.comparison import compare_spectra
 from .platform_check import (
     is_windows,
     is_unix,
@@ -54,6 +55,8 @@ __all__ = [
     # Logging
     "setup_logging",
     "get_logger",
+    # Comparison
+    "compare_spectra",
     # Submodules
     "utils",
     "core",
