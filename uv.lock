@@ -666,15 +666,15 @@ wheels = [
 
 [[package]]
 name = "conda-souschef"
-version = "2.2.3"
+version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ruamel-yaml" },
     { name = "ruamel-yaml-jinja2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/78/6a/c4d067f8ef39b058a9bd03018093e97f69b7b447b4e1c8bd45439a33155d/conda-souschef-2.2.3.tar.gz", hash = "sha256:9bf3dba0676bc97616636b80ad4a75cd90582252d11c86ed9d3456afb939c0c3", size = 21226, upload-time = "2022-08-31T20:14:09.798Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/bb/1d24463afd34bd572d4da1cae26a353925c8102241944d47c75b23321eb8/conda_souschef-3.0.1.tar.gz", hash = "sha256:0df9fa12d826ab349e8006e498c6067b3a5161cf5b860baf08601829cb1b200b", size = 21795, upload-time = "2026-01-16T23:50:11.86Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/6b/03647c71ea8db50d90d5e404ac9a647733d8d01d1887fc79507ace973743/conda_souschef-2.2.3-py3-none-any.whl", hash = "sha256:56c0764022f0b53722e7f25fef396bb2812fc85ff4acc5da64acc48ddb1da4cc", size = 15192, upload-time = "2022-08-31T20:14:08.346Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/11/9533e45a6a49d2bdfed5e1005f5a1227e87746375feb175747f11ea5b686/conda_souschef-3.0.1-py3-none-any.whl", hash = "sha256:34ab0195bd65d6f916a0317cb210031a5a14ab0fd352e06fc3d1e8b9a991f87c", size = 15521, upload-time = "2026-01-16T23:50:10.695Z" },
 ]
 
 [[package]]
@@ -1215,7 +1215,7 @@ wheels = [
 
 [[package]]
 name = "grayskull"
-version = "2.9.2"
+version = "3.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -1233,9 +1233,9 @@ dependencies = [
     { name = "stdlib-list" },
     { name = "tomli-w" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/20/c8557733b2b52ea1714c018a24b735e33cb69f9b44dbcef9cf4dd562f849/grayskull-2.9.2.tar.gz", hash = "sha256:874890191b1999bfde97b09ac6d37dae4636aa87a9dd2ee1bf10e748ffba20ef", size = 1981955, upload-time = "2025-11-04T19:51:15.829Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/51/b7d181b55fd65f4ba0c0414b5f779f342f8296f991a52af2de2399b501bf/grayskull-3.1.1.tar.gz", hash = "sha256:46ea09c3322f200c35c807dc34dfaf0fc203352fc39d6c222e31a5b065f2f690", size = 2056750, upload-time = "2026-05-03T02:37:29.858Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/d9/4e191b9247955f2c394cc41d3d4c6d5814de98374e53f49925aac3177ff1/grayskull-2.9.2-py3-none-any.whl", hash = "sha256:048e022499930e5173465213899868c14b59c504a15bcf1151692b3b97c60448", size = 135760, upload-time = "2025-11-04T19:51:14.619Z" },
+    { url = "https://files.pythonhosted.org/packages/55/d2/4c5a4cf2b69d5d38b04aec3e595c4faf4e398af357023b0d554104ce6e63/grayskull-3.1.1-py3-none-any.whl", hash = "sha256:7ad7d1d2bcb06ef0af297c7d5956844699931e34ea21aa6cb2a61f09eac60108", size = 141870, upload-time = "2026-05-03T02:37:28.299Z" },
 ]
 
 [[package]]
