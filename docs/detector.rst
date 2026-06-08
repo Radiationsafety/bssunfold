@@ -81,6 +81,89 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_tsvd.solve_tsvd
 
+Comparison Methods
+==================
+
+.. autofunction:: bssunfold.utils.comparison.compare_spectra
+
+.. autofunction:: bssunfold.utils.comparison.compare_multiple
+
+Comparison Metrics
+==================
+
+Entropy-based
+-------------
+
+.. autofunction:: bssunfold.utils.comparison.kl_divergence
+
+.. autofunction:: bssunfold.utils.comparison.cross_entropy
+
+.. autofunction:: bssunfold.utils.comparison.entropy
+
+.. autofunction:: bssunfold.utils.comparison.entropy_difference_percent
+
+Distribution distances
+----------------------
+
+.. autofunction:: bssunfold.utils.comparison.wasserstein_dist
+
+.. autofunction:: bssunfold.utils.comparison.energy_dist
+
+.. autofunction:: bssunfold.utils.comparison.kolmogorov_smirnov_stat
+
+Correlation
+-----------
+
+.. autofunction:: bssunfold.utils.comparison.pearson_r
+
+.. autofunction:: bssunfold.utils.comparison.spearman_r
+
+Error metrics
+-------------
+
+.. autofunction:: bssunfold.utils.comparison.mean_squared_error
+
+.. autofunction:: bssunfold.utils.comparison.root_mean_squared_error
+
+.. autofunction:: bssunfold.utils.comparison.mean_absolute_error
+
+.. autofunction:: bssunfold.utils.comparison.mape
+
+.. autofunction:: bssunfold.utils.comparison.r2_score
+
+.. autofunction:: bssunfold.utils.comparison.max_error
+
+.. autofunction:: bssunfold.utils.comparison.median_absolute_error
+
+Kernel / similarity
+-------------------
+
+.. autofunction:: bssunfold.utils.comparison.cosine_similarity
+
+.. autofunction:: bssunfold.utils.comparison.mmd_rbf
+
+Chi-squared family
+------------------
+
+.. autofunction:: bssunfold.utils.comparison.chi_squared
+
+.. autofunction:: bssunfold.utils.comparison.g_test
+
+.. autofunction:: bssunfold.utils.comparison.freeman_tukey
+
+.. autofunction:: bssunfold.utils.comparison.cressie_read
+
+Statistical tests
+-----------------
+
+.. autofunction:: bssunfold.utils.comparison.anderson_darling
+
+.. autofunction:: bssunfold.utils.comparison.wilcoxon_test
+
+.. autofunction:: bssunfold.utils.comparison.mannwhitneyu_test
+
+.. autofunction:: bssunfold.utils.comparison.standardized_mean_difference
+
 Regularization Selection
 ========================
 

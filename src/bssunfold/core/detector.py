@@ -1711,3 +1711,178 @@ class Detector:
             rseed=rseed,
             methods=methods,
         )
+
+    def compare(
+        self,
+        *spectra: Any,
+        metrics: Optional[Union[str, List[str]]] = None,
+        labels: Optional[List[str]] = None,
+        plot: bool = False,
+        save_to: Optional[str] = None,
+        dpi: int = 300,
+        figsize: Tuple[int, int] = (14, 5),
+        return_fig: bool = False,
+        **plot_kwargs,
+    ) -> Union[
+        Dict[str, float],
+        pd.DataFrame,
+        Tuple[Union[Dict[str, float], pd.DataFrame], Any, Any],
+    ]:
+        """Compare two or more spectra using comparison metrics.
+
+        Each spectrum can be provided as:
+        - np.ndarray of length matching ``self.n_energy_bins``
+        - dict with a ``'spectrum'`` key (e.g. an unfolding result)
+        - result dictionary returned by any ``unfold_*`` method
+
+        Parameters
+        ----------
+        *spectra : np.ndarray or dict
+            Two or more spectra to compare.
+        metrics : str, list of str, or None
+            Metric(s) to compute. If None, all metrics are used.
+        labels : list of str, optional
+            Labels for each spectrum. Required for 3+ spectra.
+        plot : bool, optional
+            If True, generate a comparison figure with spectra overlay
+            and metric bar chart.
+        save_to : str, optional
+            Path to save the figure (png/jpg/eps/pdf).
+        dpi : int, optional
+            Figure DPI (default: 300).
+        figsize : tuple, optional
+            Figure size (default: (14, 5)).
+        return_fig : bool, optional
+            If True, return (result, fig, ax) tuple.
+        **plot_kwargs : dict
+            Additional keyword arguments passed to matplotlib/seaborn plots.
+
+        Returns
+        -------
+        dict or pd.DataFrame or tuple
+            If two spectra: dict {metric: value}.
+            If three or more: pd.DataFrame with metrics as rows and
+            comparison pairs as columns.
+            If return_fig=True: (result, fig, ax).
+        """
+        from ..utils.comparison import compare_spectra
+
+        parsed = []
+        for i, s in enumerate(spectra):
+            if isinstance(s, dict):
+                if "spectrum" in s:
+                    parsed.append(np.asarray(s["spectrum"], dtype=float))
+                elif "Phi" in s:
+                    parsed.append(np.asarray(s["Phi"], dtype=float))
+                else:
+                    raise ValueError(
+                        f"Spectrum {i} is a dict but has no 'spectrum' or 'Phi' key"
+                    )
+            elif isinstance(s, np.ndarray):
+                if s.ndim != 1:
+                    raise ValueError(f"Spectrum {i} must be 1-D, got shape {s.shape}")
+                parsed.append(s)
+            else:
+                raise TypeError(
+                    f"Spectrum {i} must be ndarray or dict, got {type(s)}"
+                )
+
+        if len(parsed) < 2:
+            raise ValueError("At least two spectra required for comparison")
+
+        n_bins = self.n_energy_bins
+        for i, s in enumerate(parsed):
+            if len(s) != n_bins:
+                raise ValueError(
+                    f"Spectrum {i} has {len(s)} bins, expected {n_bins} "
+                    f"(matching detector energy grid)"
+                )
+
+        # Default labels
+        if labels is None:
+            if len(parsed) == 2:
+                labels = ["Reference", "Comparison"]
+            else:
+                labels = [f"Spectrum {i}" for i in range(len(parsed))]
+        if len(labels) != len(parsed):
+            raise ValueError(
+                f"Expected {len(parsed)} labels, got {len(labels)}"
+            )
+
+        # Single-pair comparison
+        if len(parsed) == 2:
+            result = compare_spectra(parsed[0], parsed[1], metrics=metrics)
+        else:
+            pairs = {}
+            ref = parsed[0]
+            for i in range(1, len(parsed)):
+                key = f"{labels[0]} vs {labels[i]}"
+                pairs[key] = compare_spectra(ref, parsed[i], metrics=metrics)
+            result_df = pd.DataFrame(pairs)
+            result = result_df
+
+        # Plotting
+        fig = ax_left = ax_right = None
+        if plot:
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+
+            fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=figsize)
+
+            # Left: spectra overlay
+            colors = sns.color_palette("husl", n_colors=len(parsed))
+            for i, s in enumerate(parsed):
+                ax_left.semilogy(
+                    self.E_MeV,
+                    np.maximum(s, 1e-20),
+                    label=labels[i],
+                    color=colors[i],
+                    **plot_kwargs,
+                )
+            ax_left.set_xlabel("Energy, MeV")
+            ax_left.set_ylabel("Fluence per unit lethargy, F(E)E")
+            ax_left.set_xscale("log")
+            ax_left.legend(fontsize=8)
+            ax_left.grid(True, which="both", alpha=0.3)
+            ax_left.set_title("Spectra comparison")
+
+            # Right: metric bar chart
+            if isinstance(result, dict):
+                plot_data = result
+                title = "Comparison metrics"
+            else:
+                plot_data = result.iloc[:, 0].to_dict()
+                title = f"Comparison metrics ({labels[0]} vs {labels[1]})"
+
+            if plot_data:
+                names = list(plot_data.keys())
+                values = list(plot_data.values())
+                colors_bars = sns.color_palette("viridis", n_colors=len(names))
+                bars = ax_right.barh(names, values, color=colors_bars)
+                ax_right.axvline(x=0, color="gray", linestyle="--", linewidth=0.5)
+                ax_right.set_xlabel("Metric value")
+                ax_right.set_title(title)
+                ax_right.grid(True, axis="x", alpha=0.3)
+
+                # Annotate bars
+                for bar, val in zip(bars, values):
+                    if val != 0:
+                        lbl = f"{val:.4f}"
+                        ax_right.text(
+                            val,
+                            bar.get_y() + bar.get_height() / 2,
+                            lbl,
+                            va="center",
+                            ha="left" if val > 0 else "right",
+                            fontsize=7,
+                        )
+
+            fig.tight_layout()
+
+            if save_to is not None:
+                self._save_figure(fig, save_to, dpi=dpi)
+                plt.close(fig)
+
+        if return_fig:
+            return result, fig, ax_left, ax_right
+        return result

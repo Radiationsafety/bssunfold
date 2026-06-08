@@ -46,6 +46,12 @@ extensions = [
     "sphinx.ext.intersphinx",  # Ссылки на другую документацию
 ]
 
+try:
+    import sphinxcontrib.mermaid  # noqa: F401
+    extensions.append("sphinxcontrib.mermaid")
+except ImportError:
+    pass
+
 # Настройки autodoc
 autodoc_default_options = {
     "members": True,
