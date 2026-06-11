@@ -26,6 +26,7 @@ WARNING_THRESHOLDS = {
     "cosine_similarity": ("lt", 0.85),
     "r2_score": ("lt", 0.7),
     "mape": ("gt", 100.0),
+    "total_flux_ratio": ("out_of_range", (0.5, 2.0)),
 }
 
 KEY_METRICS = list(WARNING_THRESHOLDS.keys())
@@ -75,6 +76,10 @@ def _check_warnings(metrics):
             msgs.append(f"{m}={val:.4f} < {threshold}")
         elif op == "gt" and val > threshold:
             msgs.append(f"{m}={val:.1f} > {threshold}")
+        elif op == "out_of_range":
+            lo, hi = threshold
+            if val < lo or val > hi:
+                msgs.append(f"{m}={val:.4f} ∉ [{lo}, {hi}]")
     return msgs
 
 

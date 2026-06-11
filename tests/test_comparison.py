@@ -26,6 +26,8 @@ from bssunfold.utils.comparison import (
     max_error,
     median_absolute_error,
     cosine_similarity,
+    total_flux,
+    total_flux_ratio,
     mmd_rbf,
     chi_squared,
     g_test,
@@ -304,6 +306,51 @@ class TestKernelMetrics:
     def test_cosine_length_mismatch(self):
         with pytest.raises(ValueError, match="same length"):
             cosine_similarity(np.ones(3), np.ones(5))
+
+
+# ─── Flux metrics ─────────────────────────────────────────────────
+
+
+class TestFluxMetrics:
+    def test_total_flux_basic(self):
+        s = np.array([1.0, 2.0, 3.0])
+        assert_almost_equal(total_flux(s), 6.0)
+
+    def test_total_flux_zeros(self):
+        assert_almost_equal(total_flux(np.zeros(10)), 0.0)
+
+    def test_total_flux_negative(self):
+        s = np.array([-1.0, 2.0, -3.0, 4.0])
+        assert_almost_equal(total_flux(s), 2.0)
+
+    def test_total_flux_ratio_identical(self, const_spectra):
+        s1, s2 = const_spectra
+        assert_almost_equal(total_flux_ratio(s1, s2), 1.0)
+
+    def test_total_flux_ratio_double(self):
+        s1 = np.array([1.0, 2.0, 3.0])
+        s2 = np.array([2.0, 4.0, 6.0])
+        assert_almost_equal(total_flux_ratio(s1, s2), 2.0)
+
+    def test_total_flux_ratio_half(self):
+        s1 = np.array([4.0, 6.0])
+        s2 = np.array([2.0, 3.0])
+        assert_almost_equal(total_flux_ratio(s1, s2), 0.5)
+
+    def test_total_flux_ratio_zero_reference(self):
+        s1 = np.zeros(5)
+        s2 = np.ones(5)
+        assert total_flux_ratio(s1, s2) == 0.0
+
+    def test_total_flux_ratio_length_mismatch(self):
+        with pytest.raises(ValueError, match="same length"):
+            total_flux_ratio(np.ones(3), np.ones(5))
+
+    def test_total_flux_in_all_metrics(self, const_spectra):
+        s1, s2 = const_spectra
+        result = compare_spectra(s1, s2, metrics="total_flux_ratio")
+        assert "total_flux_ratio" in result
+        assert_almost_equal(result["total_flux_ratio"], 1.0)
 
 
 # ─── Chi-squared family ───────────────────────────────────────────
