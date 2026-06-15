@@ -36,6 +36,17 @@ __all__ = [
     "standardized_mean_difference",
     "wilcoxon_test",
     "mannwhitneyu_test",
+    "fluence_difference_percent",
+    "energy_group_fluence_diff",
+    "dose_difference_percent",
+    "fluence_averaged_energy_diff",
+    "dose_averaged_energy_diff",
+    "spectral_shape_similarity",
+    "log_lethargy_correlation",
+    "peak_location_error",
+    "peak_width_error",
+    "dose_weighted_error",
+    "response_matrix_consistency",
 ]
 
 EPS = 1e-15
@@ -342,6 +353,365 @@ def standardized_mean_difference(p: np.ndarray, q: np.ndarray) -> float:
     return float(diff / denom)
 
 
+# ─── EURADOS-style integral quantity metrics ──────────────────────
+
+
+def fluence_difference_percent(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy_bins: Optional[np.ndarray] = None,
+) -> float:
+    """Relative difference in total fluence between two spectra (%).
+
+    As used in EURADOS comparison: Δ(%) = 100 * (Q_participant - Q_reference) / Q_reference
+
+    Parameters
+    ----------
+    spectrum1, spectrum2 : np.ndarray
+        Spectra to compare (fluence per energy bin).
+    energy_bins : np.ndarray, optional
+        Energy bin widths. If None, assumes uniform weighting.
+    """
+    _check_same_length(spectrum1, spectrum2)
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    if energy_bins is not None:
+        bins = np.asarray(energy_bins, dtype=float)
+        total1 = np.sum(s1 * bins)
+        total2 = np.sum(s2 * bins)
+    else:
+        total1 = np.sum(s1)
+        total2 = np.sum(s2)
+    if abs(total1) < EPS:
+        return 0.0
+    return float(100.0 * (total2 - total1) / total1)
+
+
+def energy_group_fluence_diff(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+    thermal_max: float = 0.4e-6,
+    epithermal_max: float = 0.1,
+) -> Dict[str, float]:
+    """Relative difference in fluence for three energy groups (%).
+
+    Groups: thermal (E < 0.4 eV), epithermal (0.4 eV <= E < 0.1 MeV),
+    fast (E >= 0.1 MeV).
+
+    Parameters
+    ----------
+    spectrum1, spectrum2 : np.ndarray
+        Spectra to compare.
+    energy : np.ndarray
+        Energy grid in MeV.
+    thermal_max : float
+        Upper bound of thermal group in MeV (default: 0.4e-6 = 0.4 eV).
+    epithermal_max : float
+        Upper bound of epithermal group in MeV (default: 0.1).
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    thermal_mask = e < thermal_max
+    epithermal_mask = (e >= thermal_max) & (e < epithermal_max)
+    fast_mask = e >= epithermal_max
+
+    result: Dict[str, float] = {}
+    for name, mask in [("thermal", thermal_mask), ("epithermal", epithermal_mask), ("fast", fast_mask)]:
+        if not np.any(mask):
+            result[name] = 0.0
+            continue
+        t1 = np.sum(s1[mask])
+        t2 = np.sum(s2[mask])
+        if abs(t1) < EPS:
+            result[name] = 0.0
+        else:
+            result[name] = float(100.0 * (t2 - t1) / t1)
+    return result
+
+
+def dose_difference_percent(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+    cc_icrp116: Optional[np.ndarray] = None,
+) -> float:
+    """Relative difference in ambient dose equivalent H*(10) (%).
+
+    Parameters
+    ----------
+    spectrum1, spectrum2 : np.ndarray
+        Spectra to compare.
+    energy : np.ndarray
+        Energy grid in MeV.
+    cc_icrp116 : np.ndarray, optional
+        ICRP-116 conversion coefficients. If None, uses a simple approximation.
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    if cc_icrp116 is None:
+        cc_icrp116 = np.ones_like(e)
+    cc = np.asarray(cc_icrp116, dtype=float)
+
+    log_steps = np.zeros_like(e)
+    log_e = np.log10(e + 1e-15)
+    log_steps[0] = log_e[1] - log_e[0] if len(e) > 1 else 1.0
+    log_steps[-1] = log_e[-1] - log_e[-2] if len(e) > 1 else 1.0
+    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    ln_steps = log_steps * np.log(10)
+
+    dose1 = np.sum(s1 * cc * ln_steps)
+    dose2 = np.sum(s2 * cc * ln_steps)
+
+    if abs(dose1) < EPS:
+        return 0.0
+    return float(100.0 * (dose2 - dose1) / dose1)
+
+
+def fluence_averaged_energy_diff(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+) -> float:
+    """Relative difference in fluence-averaged energy (%).
+
+    <E> = sum(E_i * Phi_i) / sum(Phi_i)
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    e1_avg = np.sum(e * s1) / np.sum(s1) if np.sum(s1) > 0 else 0.0
+    e2_avg = np.sum(e * s2) / np.sum(s2) if np.sum(s2) > 0 else 0.0
+
+    if abs(e1_avg) < EPS:
+        return 0.0
+    return float(100.0 * (e2_avg - e1_avg) / e1_avg)
+
+
+def dose_averaged_energy_diff(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+    cc_icrp116: Optional[np.ndarray] = None,
+) -> float:
+    """Relative difference in H*(10)-averaged energy (%).
+
+    <E>_H = sum(E_i * H_i * Phi_i) / sum(H_i * Phi_i)
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    if cc_icrp116 is None:
+        cc_icrp116 = np.ones_like(e)
+    cc = np.asarray(cc_icrp116, dtype=float)
+
+    log_steps = np.zeros_like(e)
+    log_e = np.log10(e + 1e-15)
+    log_steps[0] = log_e[1] - log_e[0] if len(e) > 1 else 1.0
+    log_steps[-1] = log_e[-1] - log_e[-2] if len(e) > 1 else 1.0
+    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    ln_steps = log_steps * np.log(10)
+
+    h1 = np.sum(e * s1 * cc * ln_steps) / np.sum(s1 * cc * ln_steps) if np.sum(s1 * cc * ln_steps) > 0 else 0.0
+    h2 = np.sum(e * s2 * cc * ln_steps) / np.sum(s2 * cc * ln_steps) if np.sum(s2 * cc * ln_steps) > 0 else 0.0
+
+    if abs(h1) < EPS:
+        return 0.0
+    return float(100.0 * (h2 - h1) / h1)
+
+
+# ─── Spectral shape metrics ──────────────────────────────────────
+
+
+def spectral_shape_similarity(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+) -> float:
+    """Similarity of normalized spectral shapes (0-1).
+
+    Computes cosine similarity of unit-normalized spectra.
+    """
+    _check_same_length(spectrum1, spectrum2)
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    sum1 = np.sum(s1)
+    sum2 = np.sum(s2)
+    if sum1 < EPS or sum2 < EPS:
+        return 0.0
+    n1 = s1 / sum1
+    n2 = s2 / sum2
+    norm1 = np.linalg.norm(n1)
+    norm2 = np.linalg.norm(n2)
+    if norm1 < EPS or norm2 < EPS:
+        return 0.0
+    return float(np.dot(n1, n2) / (norm1 * norm2))
+
+
+def log_lethargy_correlation(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+) -> float:
+    """Pearson correlation in log(E)*Phi(E) coordinates.
+
+    As used in EURADOS figures showing spectra in lethargy representation.
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    log_e = np.log10(e + 1e-15)
+    leth1 = log_e * s1
+    leth2 = log_e * s2
+
+    if np.std(leth1) == 0 or np.std(leth2) == 0:
+        return 0.0
+    from scipy.stats import pearsonr
+    return float(pearsonr(leth1, leth2)[0])
+
+
+def peak_location_error(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+) -> float:
+    """Relative error in peak location (%).
+
+    Finds the energy of maximum flux in each spectrum and computes
+    relative difference.
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    idx1 = np.argmax(s1)
+    idx2 = np.argmax(s2)
+    e_peak1 = e[idx1]
+    e_peak2 = e[idx2]
+
+    if abs(e_peak1) < EPS:
+        return 0.0
+    return float(100.0 * (e_peak2 - e_peak1) / e_peak1)
+
+
+def peak_width_error(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+) -> float:
+    """Relative error in peak width at half maximum (%).
+
+    Computes FWHM for each spectrum and returns relative difference.
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    def _fwhm(spec, e_arr):
+        max_val = np.max(spec)
+        if max_val < EPS:
+            return 0.0
+        half_max = max_val / 2.0
+        above = spec >= half_max
+        if not np.any(above):
+            return 0.0
+        indices = np.where(above)[0]
+        return float(e_arr[indices[-1]] - e_arr[indices[0]])
+
+    fwhm1 = _fwhm(s1, e)
+    fwhm2 = _fwhm(s2, e)
+
+    if abs(fwhm1) < EPS:
+        return 0.0
+    return float(100.0 * (fwhm2 - fwhm1) / fwhm1)
+
+
+def dose_weighted_error(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+    cc_icrp116: Optional[np.ndarray] = None,
+) -> float:
+    """Dose-weighted mean squared error.
+
+    MSE weighted by dose contribution: sum(H_i * (s1_i - s2_i)^2) / sum(H_i)
+    """
+    _check_same_length(spectrum1, spectrum2)
+    if len(energy) != len(spectrum1):
+        raise ValueError("Energy array must match spectrum length")
+    s1 = np.asarray(spectrum1, dtype=float)
+    s2 = np.asarray(spectrum2, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    if cc_icrp116 is None:
+        cc_icrp116 = np.ones_like(e)
+    cc = np.asarray(cc_icrp116, dtype=float)
+
+    log_steps = np.zeros_like(e)
+    log_e = np.log10(e + 1e-15)
+    log_steps[0] = log_e[1] - log_e[0] if len(e) > 1 else 1.0
+    log_steps[-1] = log_e[-1] - log_e[-2] if len(e) > 1 else 1.0
+    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    ln_steps = log_steps * np.log(10)
+
+    weights = cc * ln_steps
+    total_weight = np.sum(weights)
+    if total_weight < EPS:
+        return 0.0
+    weighted_mse = np.sum(weights * (s1 - s2) ** 2) / total_weight
+    return float(np.sqrt(weighted_mse))
+
+
+def response_matrix_consistency(
+    spectrum: np.ndarray,
+    readings: np.ndarray,
+    response_matrix: np.ndarray,
+) -> float:
+    """Consistency between unfolded spectrum and measured readings.
+
+    Computes chi-squared: sum((R_measured - R_computed)^2 / R_measured)
+    where R_computed = response_matrix @ spectrum.
+    """
+    _check_same_length(readings, np.zeros(response_matrix.shape[0]))
+    s = np.asarray(spectrum, dtype=float)
+    r = np.asarray(readings, dtype=float)
+    A = np.asarray(response_matrix, dtype=float)
+
+    r_computed = A @ s
+    mask = r > EPS
+    if not np.any(mask):
+        return 0.0
+    chi2 = np.sum((r[mask] - r_computed[mask]) ** 2 / r[mask])
+    return float(chi2)
+
+
 # ─── High-level comparison functions ──────────────────────────────
 
 _ALL_METRICS: Dict[str, str] = {
@@ -370,6 +740,16 @@ _ALL_METRICS: Dict[str, str] = {
     "standardized_mean_difference": "Standardized mean difference",
     "wilcoxon_test": "Wilcoxon test",
     "mannwhitneyu_test": "Mann-Whitney U test",
+    "fluence_difference_percent": "Fluence difference (%)",
+    "dose_difference_percent": "Dose difference (%)",
+    "fluence_averaged_energy_diff": "Fluence-averaged energy diff (%)",
+    "dose_averaged_energy_diff": "Dose-averaged energy diff (%)",
+    "spectral_shape_similarity": "Spectral shape similarity",
+    "log_lethargy_correlation": "Log lethargy correlation",
+    "peak_location_error": "Peak location error (%)",
+    "peak_width_error": "Peak width error (%)",
+    "dose_weighted_error": "Dose-weighted error",
+    "response_matrix_consistency": "Response matrix consistency (χ²)",
 }
 
 _METRIC_FUNCTIONS: Dict[str, callable] = {
@@ -398,6 +778,21 @@ _METRIC_FUNCTIONS: Dict[str, callable] = {
     "standardized_mean_difference": standardized_mean_difference,
     "wilcoxon_test": wilcoxon_test,
     "mannwhitneyu_test": mannwhitneyu_test,
+    "spectral_shape_similarity": spectral_shape_similarity,
+}
+
+# Metrics requiring additional parameters (energy, response matrix, etc.)
+_METRIC_FUNCTIONS_WITH_PARAMS: Dict[str, callable] = {
+    "fluence_difference_percent": fluence_difference_percent,
+    "energy_group_fluence_diff": energy_group_fluence_diff,
+    "dose_difference_percent": dose_difference_percent,
+    "fluence_averaged_energy_diff": fluence_averaged_energy_diff,
+    "dose_averaged_energy_diff": dose_averaged_energy_diff,
+    "log_lethargy_correlation": log_lethargy_correlation,
+    "peak_location_error": peak_location_error,
+    "peak_width_error": peak_width_error,
+    "dose_weighted_error": dose_weighted_error,
+    "response_matrix_consistency": response_matrix_consistency,
 }
 
 
@@ -459,7 +854,7 @@ def compare_multiple(
     spectra : list of np.ndarray
         List of spectra. First entry is treated as reference.
     metrics : str, list of str, or None
-        Metric name(s). If None, all metrics are computed.
+        Metric name(s). If None, all available metrics are computed.
     labels : list of str, optional
         Labels for each spectrum.
 
@@ -481,4 +876,52 @@ def compare_multiple(
     for i in range(1, n):
         key = f"{labels[0]} vs {labels[i]}"
         results[key] = compare_spectra(ref, spectra[i], metrics=metrics)
+    return results
+
+
+def compare_eurados(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    energy: np.ndarray,
+    readings1: Optional[np.ndarray] = None,
+    readings2: Optional[np.ndarray] = None,
+    response_matrix: Optional[np.ndarray] = None,
+    cc_icrp116: Optional[np.ndarray] = None,
+) -> Dict[str, float]:
+    """Compare two spectra using EURADOS-style metrics.
+
+    Parameters
+    ----------
+    spectrum1, spectrum2 : np.ndarray
+        Spectra to compare (fluence per energy bin).
+    energy : np.ndarray
+        Energy grid in MeV.
+    readings1, readings2 : np.ndarray, optional
+        Measured readings for response matrix consistency check.
+    response_matrix : np.ndarray, optional
+        Response matrix for consistency check.
+    cc_icrp116 : np.ndarray, optional
+        ICRP-116 conversion coefficients for dose calculations.
+
+    Returns
+    -------
+    Dict[str, float]
+        Dictionary of metric values.
+    """
+    results: Dict[str, float] = {}
+    results["fluence_difference_percent"] = fluence_difference_percent(spectrum1, spectrum2)
+    results["energy_group_fluence_diff"] = str(energy_group_fluence_diff(spectrum1, spectrum2, energy))
+    results["dose_difference_percent"] = dose_difference_percent(spectrum1, spectrum2, energy, cc_icrp116)
+    results["fluence_averaged_energy_diff"] = fluence_averaged_energy_diff(spectrum1, spectrum2, energy)
+    results["dose_averaged_energy_diff"] = dose_averaged_energy_diff(spectrum1, spectrum2, energy, cc_icrp116)
+    results["spectral_shape_similarity"] = spectral_shape_similarity(spectrum1, spectrum2)
+    results["log_lethargy_correlation"] = log_lethargy_correlation(spectrum1, spectrum2, energy)
+    results["peak_location_error"] = peak_location_error(spectrum1, spectrum2, energy)
+    results["peak_width_error"] = peak_width_error(spectrum1, spectrum2, energy)
+    results["dose_weighted_error"] = dose_weighted_error(spectrum1, spectrum2, energy, cc_icrp116)
+
+    if readings1 is not None and response_matrix is not None:
+        results["response_matrix_consistency_ref"] = response_matrix_consistency(spectrum1, readings1, response_matrix)
+        results["response_matrix_consistency_test"] = response_matrix_consistency(spectrum2, readings2 if readings2 is not None else readings1, response_matrix)
+
     return results

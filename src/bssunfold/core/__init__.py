@@ -20,6 +20,9 @@ from .unfold_bayes_spline_regularization import solve_bayes_spline
 from .unfold_statreg import solve_statreg
 from .unfold_scipy_direct_method import solve_scipy_direct
 from .unfold_tsvd import solve_tsvd
+from .unfold_fruit_like import solve_fruit_like
+from .unfold_hybrid_parametric import solve_hybrid_parametric
+from .unfold_bayesian_parametric import solve_bayesian_parametric
 from .regularization import (
     select_regularization_parameter,
     lcurve_selection,
@@ -67,6 +70,9 @@ __all__ = [
     "solve_statreg",
     "solve_scipy_direct",
     "solve_tsvd",
+    "solve_fruit_like",
+    "solve_hybrid_parametric",
+    "solve_bayesian_parametric",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
@@ -85,6 +91,9 @@ __all__ = [
     "unfold_statreg",
     "unfold_scipy_direct_method",
     "unfold_tsvd",
+    "unfold_fruit_like",
+    "unfold_hybrid_parametric",
+    "unfold_bayesian_parametric",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

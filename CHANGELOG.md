@@ -7,6 +7,34 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.8.0] - 2026-06-15
+
+### Added
+- **EURADOS-style spectrum comparison metrics** (`comparison.py`):
+  - `fluence_difference_percent` — relative difference in total fluence (%)
+  - `energy_group_fluence_diff` — fluence difference by energy groups (thermal / epithermal / fast)
+  - `dose_difference_percent` — relative difference in H*(10) (%)
+  - `fluence_averaged_energy_diff` — difference in fluence-averaged energy
+  - `dose_averaged_energy_diff` — difference in H*(10)-averaged energy
+  - `spectral_shape_similarity` — cosine similarity of unit-normalized spectra
+  - `log_lethargy_correlation` — Pearson correlation in E·Φ(E) lethargy coordinates
+  - `peak_location_error` — relative error in peak energy position (%)
+  - `peak_width_error` — relative error in peak FWHM (%)
+  - `dose_weighted_error` — dose-weighted root mean squared error
+  - `response_matrix_consistency` — χ² consistency between spectrum and readings
+  - `compare_eurados()` — high-level function combining all EURADOS metrics
+- **FRUIT-like parametric unfolding** (`unfold_fruit_like.py`):
+  - Parametric model: Maxwellian thermal + 1/E epithermal + evaporation fast spectrum
+  - `Detector.unfold_fruit_like()` method
+- **Hybrid parametric-nonparametric unfolding** (`unfold_hybrid_parametric.py`):
+  - Parametric initial guess refined by Landweber or MLEM iteration
+  - `Detector.unfold_hybrid_parametric()` method
+- **Bayesian parametric unfolding** (`unfold_bayesian_parametric.py`):
+  - Metropolis-Hastings MCMC sampling for spectral parameter estimation
+  - `Detector.unfold_bayesian_parametric()` method
+- 24 new tests in `tests/test_new_metrics.py`
+
+
 ## [0.7.0] - 2026-06-08
 
 ### Added

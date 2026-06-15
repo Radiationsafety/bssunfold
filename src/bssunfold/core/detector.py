@@ -36,6 +36,9 @@ from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularizati
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_scipy_direct_method import unfold_scipy_direct_method as unfold_scipy_direct_impl
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
+from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
+from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_parametric_impl
+from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
 
 __all__ = ["Detector"]
 
@@ -1561,6 +1564,206 @@ class Detector:
             threshold=threshold,
             noise_level=noise_level,
             calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_fruit_like(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        initial_params: Optional[Dict[str, float]] = None,
+        method: str = "leastsq",
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using FRUIT-like parametric method.
+
+        Uses a parametric model with Maxwellian thermal component,
+        1/E epithermal component, and evaporation spectrum for fast neutrons.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused in parametric method).
+        initial_params : Optional[Dict[str, float]], optional
+            Initial parameter values for the parametric model.
+            Keys: A_th, T_th, A_epi, A_f, T_ev.
+        method : str, optional
+            lmfit solver method (default: "leastsq").
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_fruit_like_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            initial_params=initial_params,
+            method=method,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_hybrid_parametric(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        refinement_method: str = "landweber",
+        max_iterations: int = 100,
+        tolerance: float = 1e-6,
+        step_size: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using hybrid parametric-nonparametric method.
+
+        Combines parametric initial guess with iterative refinement using
+        Landweber or MLEM iteration.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        refinement_method : str, optional
+            Refinement method: "landweber" or "mlem" (default: "landweber").
+        max_iterations : int, optional
+            Maximum iterations (default: 100).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        step_size : float, optional
+            Step size for Landweber (default: 0.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_hybrid_parametric_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            refinement_method=refinement_method,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            step_size=step_size,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_bayesian_parametric(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma: float = 0.02,
+        n_samples: int = 1000,
+        burn_in: int = 200,
+        proposal_scale: float = 0.1,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Bayesian parametric method.
+
+        Uses Bayesian inference with MCMC sampling to estimate spectral
+        parameters and quantify uncertainty.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused).
+        sigma : float, optional
+            Measurement uncertainty (default: 0.02).
+        n_samples : int, optional
+            Number of MCMC samples (default: 1000).
+        burn_in : int, optional
+            Burn-in samples (default: 200).
+        proposal_scale : float, optional
+            Proposal scale (default: 0.1).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_bayesian_parametric_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma=sigma,
+            n_samples=n_samples,
+            burn_in=burn_in,
+            proposal_scale=proposal_scale,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,
