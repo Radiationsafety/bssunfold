@@ -8,6 +8,7 @@ For each detector type (GSF, PTB, LANL) and each reference spectrum:
   5. Flag any method/spectrum pair exceeding warning thresholds
 """
 
+import csv
 import pytest
 import numpy as np
 import pandas as pd
@@ -185,7 +186,7 @@ def test_iaea_validation(detector_type, reference_data):
             logger.error(f"  {r['spectrum']:30s} | {r['method']:20s} | {r['status']}")
 
     summary_path = Path(__file__).parent / f"iaea_validation_{detector_type}.csv"
-    result_df.to_csv(summary_path, index=False)
+    result_df.to_csv(summary_path, index=False, quoting=csv.QUOTE_ALL)
     logger.info(f"\nDetailed results saved to: {summary_path}")
 
     assert n_err == 0, (
