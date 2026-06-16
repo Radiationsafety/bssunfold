@@ -13,6 +13,7 @@ __all__ = [
     "plot_response_functions",
     "plot_with_uncertainty",
     "plot_residuals",
+    "plot_comparison",
 ]
 
 
@@ -315,11 +316,135 @@ def plot_residuals(
     ax.set_xticklabels(detector_names, rotation=45, ha="right")
     ax.grid(True, alpha=0.3)
     ax.set_title("Unfolding Residuals")
-    
+
     if save_to:
         fig.savefig(save_to, dpi=300, bbox_inches="tight")
-    
+
     if show:
         plt.show()
-    
+
+    return fig, ax
+
+
+def plot_comparison(
+    results: Dict[str, Dict],
+    readings: Dict[str, float],
+    reference_spectrum: Optional[Dict[str, np.ndarray]] = None,
+    figsize: Tuple[int, int] = (8, 8),
+    colors: Optional[List[str]] = None,
+    markers: Optional[List[str]] = None,
+    show: bool = True,
+    save_to: Optional[str] = None,
+) -> Tuple[plt.Figure, np.ndarray]:
+    """Compare multiple unfolded spectra and their effective readings.
+
+    Creates a two-panel figure: unfolded spectra (top) and a grouped bar chart
+    of effective readings (bottom).
+
+    Parameters
+    ----------
+    results : Dict[str, Dict]
+        Mapping of method names to result dictionaries. Each result must contain
+        ``"energy"`` (np.ndarray), ``"spectrum"`` (np.ndarray), and
+        ``"effective_readings"`` (Dict[str, float]).
+    readings : Dict[str, float]
+        Measured (ground-truth) readings keyed by detector name.
+    reference_spectrum : Dict[str, np.ndarray], optional
+        Reference spectrum with ``"E_MeV"`` and ``"Phi"`` keys.
+    figsize : Tuple[int, int], optional
+        Figure size (default: (8, 8)).
+    colors : List[str], optional
+        Colors for reference + each method. Defaults to a built-in palette.
+    markers : List[str], optional
+        Markers for each method on the spectra plot. Defaults to a built-in set.
+    show : bool, optional
+        Call ``plt.show()`` (default: True).
+    save_to : str, optional
+        Path to save figure. If None, not saved.
+
+    Returns
+    -------
+    Tuple[plt.Figure, np.ndarray]
+        Figure and array of two Axes objects.
+    """
+    default_colors = ["black", "green", "tan", "blue", "indianred", "red"]
+    default_markers = ["o", "s", "^", "*", "D", "v", "*"]
+    if colors is None:
+        colors = default_colors
+    if markers is None:
+        markers = default_markers
+
+    method_names = list(results.keys())
+
+    fig, ax = plt.subplots(2, 1, figsize=figsize)
+
+    # --- Top panel: spectra ---
+    for i, method in enumerate(method_names):
+        ax[0].plot(
+            results[method]["energy"],
+            results[method]["spectrum"],
+            label=method,
+            color=colors[(i + 1) % len(colors)],
+            ls="-",
+            marker=markers[i % len(markers)],
+            markersize=3,
+            linewidth=0.6,
+            alpha=1,
+        )
+
+    if reference_spectrum is not None:
+        ax[0].plot(
+            reference_spectrum["E_MeV"],
+            reference_spectrum["Phi"],
+            label="reference",
+            linewidth=1,
+            linestyle=":",
+            color=colors[0],
+        )
+
+    ax[0].set_xlabel("Energy, MeV")
+    ax[0].set_ylabel("Fluence per unit lethargy, F(E)E, neutron/(cm² ∙ s)")
+    ax[0].set_xscale("log")
+    ax[0].legend(
+        bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0, fontsize=8
+    )
+    ax[0].grid(True, which="both", ls=":")
+    ax[0].set_title("Unfolded spectra from noisy readings", fontsize=14)
+
+    # --- Bottom panel: effective readings bar chart ---
+    data_sources = {}
+    if reference_spectrum is not None:
+        data_sources["reference"] = list(readings.values())
+    for method in method_names:
+        data_sources[method] = [
+            results[method]["effective_readings"][det] for det in readings.keys()
+        ]
+
+    labels = list(readings.keys())
+    x = np.arange(len(labels))
+    n_groups = len(data_sources)
+    width = 0.8 / (n_groups * 1.5)
+
+    for i, (label, values) in enumerate(data_sources.items()):
+        offset = (i - n_groups / 2 + 0.5) * width
+        ax[1].bar(x + offset, values, width, label=label, alpha=1,
+                  color=colors[i % len(colors)])
+
+    ax[1].set_xticks(x, labels)
+    ax[1].set_xlabel("Moderator sphere")
+    ax[1].set_ylabel("Readings")
+    ax[1].set_title("Effective readings", fontsize=14)
+    ax[1].legend(
+        bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0, fontsize=8
+    )
+    ax[1].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    if save_to:
+        fig.savefig(save_to, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+
     return fig, ax

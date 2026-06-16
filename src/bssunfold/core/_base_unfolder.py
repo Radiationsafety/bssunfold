@@ -71,7 +71,7 @@ def run_unfolding(
     n_montecarlo: int = 100,
     random_state: Optional[int] = None,
     # Result saving
-    save_result: bool = True,
+    save_result: bool = False,
 ) -> Dict[str, Any]:
     """Run a complete unfolding workflow with unified logic.
 

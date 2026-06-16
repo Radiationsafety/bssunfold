@@ -428,7 +428,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         regularization_method: str = "manual",
         noise_var: Optional[float] = None,
         random_state: Optional[int] = None,
@@ -497,7 +497,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold using Landweber iteration method.
@@ -555,7 +555,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold using MLEM algorithm.
@@ -614,7 +614,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         regularization_method: str = "manual",
         noise_var: Optional[float] = None,
         smoothness_order: int = 0,
@@ -695,7 +695,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
@@ -762,7 +762,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold using MLEM with ODL (Operator Discretization Library).
@@ -955,7 +955,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the Doroshenko coordinate update method.
@@ -1017,7 +1017,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the Kaczmarz algorithm (ART).
@@ -1079,7 +1079,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the GRAVEL algorithm.
@@ -1141,7 +1141,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the MAXED algorithm.
@@ -1202,7 +1202,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Tikhonov regularization with Legendre basis.
@@ -1260,7 +1260,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Bayesian iterative unfolding (D'Agostini).
@@ -1320,7 +1320,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Bayesian iterative unfolding with spline regularization.
@@ -1387,7 +1387,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Turchin's method of statistical regularization.
@@ -1455,7 +1455,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using scipy linear solvers.
@@ -1517,7 +1517,7 @@ class Detector:
         noise_level: Optional[float] = None,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Truncated SVD (TSVD).
@@ -1579,7 +1579,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using FRUIT-like parametric method.
@@ -1643,7 +1643,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using hybrid parametric-nonparametric method.
@@ -1712,7 +1712,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Bayesian parametric method.
@@ -1779,7 +1779,7 @@ class Detector:
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
-        save_result: bool = True,
+        save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the FRUIT-based parametric method.

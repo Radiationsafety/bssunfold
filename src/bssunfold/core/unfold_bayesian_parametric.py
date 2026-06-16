@@ -239,7 +239,7 @@ def unfold_bayesian_parametric(
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
-    save_result: bool = True,
+    save_result: bool = False,
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Unfold neutron spectrum using Bayesian parametric method.

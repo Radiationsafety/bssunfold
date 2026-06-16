@@ -733,6 +733,77 @@ class TestPlotting:
         fig, ax = plot_residuals(measured, calculated, ax=ax, show=False)
         plt.close(fig)
 
+    def test_plot_comparison_basic(self):
+        from bssunfold.utils.plotting import plot_comparison
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        results = {
+            "method_a": {
+                "energy": E,
+                "spectrum": np.array([1.0, 2.0, 3.0, 4.0]),
+                "effective_readings": {"det1": 1.1, "det2": 2.1},
+            },
+            "method_b": {
+                "energy": E,
+                "spectrum": np.array([0.9, 1.8, 2.7, 3.6]),
+                "effective_readings": {"det1": 0.95, "det2": 1.9},
+            },
+        }
+        readings = {"det1": 1.0, "det2": 2.0}
+        fig, ax = plot_comparison(results, readings, show=False)
+        assert ax.shape == (2,)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_comparison_with_reference(self):
+        from bssunfold.utils.plotting import plot_comparison
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        ref = {"E_MeV": E, "Phi": np.array([1.0, 2.0, 3.0, 4.0])}
+        results = {
+            "method_a": {
+                "energy": E,
+                "spectrum": np.array([1.0, 2.0, 3.0, 4.0]),
+                "effective_readings": {"det1": 1.1, "det2": 2.1},
+            },
+        }
+        readings = {"det1": 1.0, "det2": 2.0}
+        fig, ax = plot_comparison(results, readings, reference_spectrum=ref, show=False)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_comparison_custom_styles(self):
+        from bssunfold.utils.plotting import plot_comparison
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        results = {
+            "method_a": {
+                "energy": E,
+                "spectrum": np.array([1.0, 2.0, 3.0, 4.0]),
+                "effective_readings": {"det1": 1.1},
+            },
+        }
+        readings = {"det1": 1.0}
+        colors = ["red", "blue"]
+        markers = ["^"]
+        fig, ax = plot_comparison(results, readings, colors=colors, markers=markers, show=False)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_comparison_save(self, tmp_path):
+        from bssunfold.utils.plotting import plot_comparison
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        results = {
+            "method_a": {
+                "energy": E,
+                "spectrum": np.array([1.0, 2.0, 3.0, 4.0]),
+                "effective_readings": {"det1": 1.1},
+            },
+        }
+        readings = {"det1": 1.0}
+        save_path = str(tmp_path / "comparison.png")
+        fig, ax = plot_comparison(results, readings, save_to=save_path, show=False)
+        assert tmp_path.joinpath("comparison.png").exists()
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
 
 # ============================================================================
 # unfolding_methods.py (72% -> 95%)

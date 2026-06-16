@@ -26,6 +26,7 @@ from .plotting import (
     plot_response_functions,
     plot_with_uncertainty,
     plot_residuals,
+    plot_comparison,
 )
 from .comparison import (
     compare_spectra,
@@ -78,6 +79,7 @@ __all__ = [
     "plot_response_functions",
     "plot_with_uncertainty",
     "plot_residuals",
+    "plot_comparison",
     # comparison
     "compare_spectra",
     "compare_multiple",
