@@ -83,9 +83,9 @@ def parametric_model(
     beta : float
         Fast-neutron characteristic energy (MeV).
     P_th : float
-        Weight of thermal component (0..1).
+        Weight of thermal component.
     P_epi : float
-        Weight of epithermal component (0..1).
+        Weight of epithermal component.
 
     Returns
     -------
@@ -109,17 +109,6 @@ def parametric_model(
         epithermal[m_epi] = _epithermal(E[m_epi], b, beta_prime)
     if np.any(m_f):
         fast[m_f] = _fast(E[m_f], alpha, beta)
-
-    # Normalize each component to unit sum before weighting
-    s_th = thermal.sum()
-    s_epi = epithermal.sum()
-    s_f = fast.sum()
-    if s_th > 0:
-        thermal /= s_th
-    if s_epi > 0:
-        epithermal /= s_epi
-    if s_f > 0:
-        fast /= s_f
 
     return P_th * thermal + P_epi * epithermal + P_f * fast
 
@@ -190,8 +179,8 @@ def solve_parametric(
         'beta_prime': (0.01, 1e-4, 1.0),
         'alpha':     (0.5,   0.0,  5.0),
         'beta':      (2.0,   0.1,  20.0),
-        'P_th':      (0.33,  0.0,  1.0),
-        'P_epi':     (0.33,  0.0,  1.0),
+        'P_th':      (1.0,   0.0,  None),
+        'P_epi':     (1.0,   0.0,  None),
     }
 
     for name, (val, lo, hi) in defaults.items():

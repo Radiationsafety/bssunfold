@@ -22,7 +22,9 @@ and this project adheres to [Semantic Versioning].
   - `peak_width_error` — relative error in peak FWHM (%)
   - `dose_weighted_error` — dose-weighted root mean squared error
   - `response_matrix_consistency` — χ² consistency between spectrum and readings
-  - `compare_eurados()` — high-level function combining all EURADOS metrics
+- **FRUIT-based parametric unfolding** (`unfold_parametric.py`):
+  - Parametric spectrum as weighted sum of thermal, epithermal, and fast components (FRUIT model)
+  - `Detector.unfold_parametric()` method
 - **FRUIT-like parametric unfolding** (`unfold_fruit_like.py`):
   - Parametric model: Maxwellian thermal + 1/E epithermal + evaporation fast spectrum
   - `Detector.unfold_fruit_like()` method
