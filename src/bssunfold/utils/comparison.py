@@ -801,6 +801,11 @@ def compare_spectra(
     spectrum2: np.ndarray,
     metrics: Optional[Union[str, List[str]]] = None,
     bins: Optional[np.ndarray] = None,
+    energy: Optional[np.ndarray] = None,
+    cc_icrp116: Optional[np.ndarray] = None,
+    readings1: Optional[np.ndarray] = None,
+    readings2: Optional[np.ndarray] = None,
+    response_matrix: Optional[np.ndarray] = None,
 ) -> Dict[str, float]:
     """Compare two spectra using selected metrics.
 
@@ -809,9 +814,19 @@ def compare_spectra(
     spectrum1, spectrum2 : np.ndarray
         1-D arrays of the same length.
     metrics : str, list of str, or None
-        Metric name(s). If None, all available metrics are computed.
+        Metric name(s). If None, all available metrics are computed
+        (simple metrics only; pass ``energy`` to include EURADOS metrics).
     bins : np.ndarray, optional
         Energy bins (unused, reserved for future use).
+    energy : np.ndarray, optional
+        Energy grid in MeV. When provided, EURADOS-style metrics
+        (dose differences, peak errors, etc.) are included automatically.
+    cc_icrp116 : np.ndarray, optional
+        ICRP-116 conversion coefficients for dose calculations.
+    readings1, readings2 : np.ndarray, optional
+        Measured readings for response-matrix consistency check.
+    response_matrix : np.ndarray, optional
+        Response matrix for consistency check.
 
     Returns
     -------
@@ -820,24 +835,59 @@ def compare_spectra(
     """
     _check_same_length(spectrum1, spectrum2)
 
+    all_simple = list(_METRIC_FUNCTIONS.keys())
+    all_eurados = list(_METRIC_FUNCTIONS_WITH_PARAMS.keys())
+
     if metrics is None:
-        keys = list(_METRIC_FUNCTIONS.keys())
+        simple_keys = list(all_simple)
+        eurados_keys = list(all_eurados) if energy is not None else []
     elif isinstance(metrics, str):
-        keys = [metrics]
+        if metrics in _METRIC_FUNCTIONS:
+            simple_keys = [metrics]
+            eurados_keys = []
+        elif metrics in _METRIC_FUNCTIONS_WITH_PARAMS:
+            simple_keys = []
+            eurados_keys = [metrics]
+        else:
+            avail = all_simple + all_eurados
+            raise ValueError(
+                f"Unknown metric '{metrics}'. Available: {avail}"
+            )
     else:
-        keys = metrics
+        simple_keys = [k for k in metrics if k in _METRIC_FUNCTIONS]
+        eurados_keys = [k for k in metrics if k in _METRIC_FUNCTIONS_WITH_PARAMS]
+        unknown = [k for k in metrics if k not in _METRIC_FUNCTIONS and k not in _METRIC_FUNCTIONS_WITH_PARAMS]
+        if unknown:
+            avail = all_simple + all_eurados
+            raise ValueError(
+                f"Unknown metric(s) {unknown}. Available: {avail}"
+            )
 
     results: Dict[str, float] = {}
-    for key in keys:
-        if key not in _METRIC_FUNCTIONS:
-            raise ValueError(
-                f"Unknown metric '{key}'. Available: {list(_METRIC_FUNCTIONS.keys())}"
-            )
+    for key in simple_keys:
         try:
             results[key] = _METRIC_FUNCTIONS[key](spectrum1, spectrum2)
-        except Exception as e:
+        except Exception:
             results[key] = float("nan")
-            _ = e
+
+    for key in eurados_keys:
+        if energy is None:
+            results[key] = float("nan")
+            continue
+        try:
+            func = _METRIC_FUNCTIONS_WITH_PARAMS[key]
+            if key == "fluence_difference_percent":
+                results[key] = func(spectrum1, spectrum2)
+            elif key == "fluence_averaged_energy_diff":
+                results[key] = func(spectrum1, spectrum2, energy)
+            elif key == "response_matrix_consistency":
+                if readings1 is not None and response_matrix is not None:
+                    results["response_matrix_consistency_ref"] = func(spectrum1, readings1, response_matrix)
+                    results["response_matrix_consistency_test"] = func(spectrum2, readings2 if readings2 is not None else readings1, response_matrix)
+            else:
+                results[key] = func(spectrum1, spectrum2, energy, cc_icrp116)
+        except Exception:
+            results[key] = float("nan")
 
     return results
 
@@ -879,49 +929,4 @@ def compare_multiple(
     return results
 
 
-def compare_eurados(
-    spectrum1: np.ndarray,
-    spectrum2: np.ndarray,
-    energy: np.ndarray,
-    readings1: Optional[np.ndarray] = None,
-    readings2: Optional[np.ndarray] = None,
-    response_matrix: Optional[np.ndarray] = None,
-    cc_icrp116: Optional[np.ndarray] = None,
-) -> Dict[str, float]:
-    """Compare two spectra using EURADOS-style metrics.
 
-    Parameters
-    ----------
-    spectrum1, spectrum2 : np.ndarray
-        Spectra to compare (fluence per energy bin).
-    energy : np.ndarray
-        Energy grid in MeV.
-    readings1, readings2 : np.ndarray, optional
-        Measured readings for response matrix consistency check.
-    response_matrix : np.ndarray, optional
-        Response matrix for consistency check.
-    cc_icrp116 : np.ndarray, optional
-        ICRP-116 conversion coefficients for dose calculations.
-
-    Returns
-    -------
-    Dict[str, float]
-        Dictionary of metric values.
-    """
-    results: Dict[str, float] = {}
-    results["fluence_difference_percent"] = fluence_difference_percent(spectrum1, spectrum2)
-    results["energy_group_fluence_diff"] = str(energy_group_fluence_diff(spectrum1, spectrum2, energy))
-    results["dose_difference_percent"] = dose_difference_percent(spectrum1, spectrum2, energy, cc_icrp116)
-    results["fluence_averaged_energy_diff"] = fluence_averaged_energy_diff(spectrum1, spectrum2, energy)
-    results["dose_averaged_energy_diff"] = dose_averaged_energy_diff(spectrum1, spectrum2, energy, cc_icrp116)
-    results["spectral_shape_similarity"] = spectral_shape_similarity(spectrum1, spectrum2)
-    results["log_lethargy_correlation"] = log_lethargy_correlation(spectrum1, spectrum2, energy)
-    results["peak_location_error"] = peak_location_error(spectrum1, spectrum2, energy)
-    results["peak_width_error"] = peak_width_error(spectrum1, spectrum2, energy)
-    results["dose_weighted_error"] = dose_weighted_error(spectrum1, spectrum2, energy, cc_icrp116)
-
-    if readings1 is not None and response_matrix is not None:
-        results["response_matrix_consistency_ref"] = response_matrix_consistency(spectrum1, readings1, response_matrix)
-        results["response_matrix_consistency_test"] = response_matrix_consistency(spectrum2, readings2 if readings2 is not None else readings1, response_matrix)
-
-    return results

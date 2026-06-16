@@ -39,6 +39,7 @@ from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_parametric_impl
 from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
+from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 
 __all__ = ["Detector"]
 
@@ -1769,6 +1770,69 @@ class Detector:
             random_state=random_state,
         )
 
+    def unfold_parametric(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        initial_params: Optional[Dict[str, float]] = None,
+        method: str = "leastsq",
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = True,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the FRUIT-based parametric method.
+
+        Uses the three-component parameterization from Bedogni FRUIT /
+        Pyshkina B3S: thermal (Maxwellian), epithermal (1/E with
+        exponential cutoffs), and fast (power-law × exponential).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused in parametric method).
+        initial_params : Optional[Dict[str, float]], optional
+            Initial parameter values for the parametric model.
+            Keys: b, beta_prime, alpha, beta, P_th, P_epi.
+        method : str, optional
+            lmfit solver method (default: "leastsq").
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_parametric_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self.cc_icrp116,
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            initial_params=initial_params,
+            method=method,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
     def plot_response_functions(
         self,
         save_to: Optional[str] = None,
@@ -1920,6 +1984,9 @@ class Detector:
         *spectra: Any,
         metrics: Optional[Union[str, List[str]]] = None,
         labels: Optional[List[str]] = None,
+        readings1: Optional[np.ndarray] = None,
+        readings2: Optional[np.ndarray] = None,
+        response_matrix: Optional[np.ndarray] = None,
         plot: bool = False,
         save_to: Optional[str] = None,
         dpi: int = 300,
@@ -1938,6 +2005,10 @@ class Detector:
         - dict with a ``'spectrum'`` key (e.g. an unfolding result)
         - result dictionary returned by any ``unfold_*`` method
 
+        When the energy grid is available, EURADOS-style metrics (dose
+        differences, peak errors, log-lethargy correlation, etc.) are
+        computed automatically.
+
         Parameters
         ----------
         *spectra : np.ndarray or dict
@@ -1946,6 +2017,14 @@ class Detector:
             Metric(s) to compute. If None, all metrics are used.
         labels : list of str, optional
             Labels for each spectrum. Required for 3+ spectra.
+        readings1, readings2 : np.ndarray, optional
+            Measured readings for response-matrix consistency check.
+            If a spectrum is a result dict containing ``'readings'``,
+            those values are used as a fallback.
+        response_matrix : np.ndarray, optional
+            Response matrix for the consistency check.  If a spectrum is
+            a result dict containing ``'response_matrix'``, that value is
+            used as a fallback.
         plot : bool, optional
             If True, generate a comparison figure with spectra overlay
             and metric bar chart.
@@ -1971,6 +2050,8 @@ class Detector:
         from ..utils.comparison import compare_spectra
 
         parsed = []
+        extra_readings = [None, None]
+        extra_rm = [None, None]
         for i, s in enumerate(spectra):
             if isinstance(s, dict):
                 if "spectrum" in s:
@@ -1981,6 +2062,13 @@ class Detector:
                     raise ValueError(
                         f"Spectrum {i} is a dict but has no 'spectrum' or 'Phi' key"
                     )
+                if i < 2:
+                    if readings1 is None and "readings" in s and i == 0:
+                        extra_readings[0] = np.asarray(s["readings"], dtype=float)
+                    if readings2 is None and "readings" in s and i == 1:
+                        extra_readings[1] = np.asarray(s["readings"], dtype=float)
+                    if response_matrix is None and "response_matrix" in s:
+                        extra_rm[i] = np.asarray(s["response_matrix"], dtype=float)
             elif isinstance(s, np.ndarray):
                 if s.ndim != 1:
                     raise ValueError(f"Spectrum {i} must be 1-D, got shape {s.shape}")
@@ -2012,15 +2100,30 @@ class Detector:
                 f"Expected {len(parsed)} labels, got {len(labels)}"
             )
 
+        # Resolve readings / response_matrix for EURADOS metrics
+        r1 = readings1 if readings1 is not None else extra_readings[0]
+        r2 = readings2 if readings2 is not None else extra_readings[1]
+        rm = response_matrix if response_matrix is not None else (extra_rm[0] if extra_rm[0] is not None else extra_rm[1])
+        use_energy = self.E_MeV
+        use_cc = self.cc_icrp116
+
         # Single-pair comparison
         if len(parsed) == 2:
-            result = compare_spectra(parsed[0], parsed[1], metrics=metrics)
+            result = compare_spectra(
+                parsed[0], parsed[1], metrics=metrics,
+                energy=use_energy, cc_icrp116=use_cc,
+                readings1=r1, readings2=r2, response_matrix=rm,
+            )
         else:
             pairs = {}
             ref = parsed[0]
             for i in range(1, len(parsed)):
                 key = f"{labels[0]} vs {labels[i]}"
-                pairs[key] = compare_spectra(ref, parsed[i], metrics=metrics)
+                pairs[key] = compare_spectra(
+                    ref, parsed[i], metrics=metrics,
+                    energy=use_energy, cc_icrp116=use_cc,
+                    readings1=r1, readings2=r2, response_matrix=rm,
+                )
             result_df = pd.DataFrame(pairs)
             result = result_df
 

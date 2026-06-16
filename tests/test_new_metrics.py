@@ -17,7 +17,6 @@ from bssunfold.utils.comparison import (
     peak_width_error,
     dose_weighted_error,
     response_matrix_consistency,
-    compare_eurados,
 )
 
 
@@ -167,8 +166,19 @@ class TestResponseMatrixConsistency:
 
 class TestCompareEurados:
     def test_identical(self, identical_spectra, energy_grid):
+        from bssunfold.utils.comparison import compare_spectra
         s1, s2 = identical_spectra
-        result = compare_eurados(s1, s2, energy_grid)
+        result = compare_spectra(s1, s2, energy=energy_grid)
+        assert "fluence_difference_percent" in result
+        assert "dose_difference_percent" in result
+        assert_almost_equal(result["fluence_difference_percent"], 0.0)
+        assert_almost_equal(result["spectral_shape_similarity"], 1.0)
+
+    def test_via_detector(self):
+        det = Detector()
+        E = det.E_MeV
+        spectrum = np.ones_like(E) / len(E)
+        result = det.compare(spectrum, spectrum.copy())
         assert "fluence_difference_percent" in result
         assert "dose_difference_percent" in result
         assert_almost_equal(result["fluence_difference_percent"], 0.0)
