@@ -913,7 +913,13 @@ def compare_spectra(
             func = _METRIC_FUNCTIONS_WITH_PARAMS[key]
             if key == "fluence_difference_percent":
                 results[key] = func(spectrum1, spectrum2)
+            elif key == "energy_group_fluence_diff":
+                groups = func(spectrum1, spectrum2, energy)
+                for group_name, group_val in groups.items():
+                    results[f"energy_group_fluence_diff_{group_name}"] = group_val
             elif key == "fluence_averaged_energy_diff":
+                results[key] = func(spectrum1, spectrum2, energy)
+            elif key in ("log_lethargy_correlation", "peak_location_error", "peak_width_error"):
                 results[key] = func(spectrum1, spectrum2, energy)
             elif key == "response_matrix_consistency":
                 if readings1 is not None and response_matrix is not None:

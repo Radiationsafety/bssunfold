@@ -16,6 +16,8 @@ METHOD_RANK = [
     "cvxpy", "qpsolvers", "landweber", "mlem", "doroshenko", "kaczmarz",
     "gravel", "maxed", "tikhonov_legendre", "bayes", "bayes_spline",
     "statreg", "scipy_direct", "tsvd", "lmfit", "mlem_odl",
+    "fruit_like", "hybrid_parametric_landweber", "hybrid_parametric_mlem",
+    "bayesian_parametric", "parametric",
 ]
 
 KEY_METRICS = ["cosine_similarity", "r2_score", "mape"]

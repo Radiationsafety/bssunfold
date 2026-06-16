@@ -15,12 +15,15 @@ from pathlib import Path
 import logging
 
 from bssunfold import Detector, RF_PTB, RF_LANL
-from bssunfold.utils.comparison import compare_spectra, _ALL_METRICS
+from bssunfold.utils.comparison import compare_spectra, _ALL_METRICS, _METRIC_FUNCTIONS, _METRIC_FUNCTIONS_WITH_PARAMS
 
 logger = logging.getLogger("iaea_validation")
 
 CSV_PATH = Path(__file__).parent / "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
-ALL_METRIC_KEYS = list(_ALL_METRICS.keys())
+ALL_METRIC_KEYS = list(_METRIC_FUNCTIONS.keys()) + list(_METRIC_FUNCTIONS_WITH_PARAMS.keys())
+# energy_group_fluence_diff returns a dict and gets flattened into per-group columns
+ALL_METRIC_KEYS = [k for k in ALL_METRIC_KEYS if k != "energy_group_fluence_diff"]
+ALL_METRIC_KEYS += ["energy_group_fluence_diff_thermal", "energy_group_fluence_diff_epithermal", "energy_group_fluence_diff_fast"]
 
 WARNING_THRESHOLDS = {
     "cosine_similarity": ("lt", 0.85),
@@ -54,6 +57,11 @@ METHODS = [
     ("tsvd", lambda d, r: d.unfold_tsvd(r, method="discrepancy", save_result=False)),
     ("lmfit", lambda d, r: d.unfold_lmfit(r, method="lbfgsb", model_name="elastic", regularization=1e-4, save_result=False)),
     ("mlem_odl", lambda d, r: d.unfold_mlem_odl(r, max_iterations=500, save_result=False)),
+    ("fruit_like", lambda d, r: d.unfold_fruit_like(r, save_result=False)),
+    ("hybrid_parametric_landweber", lambda d, r: d.unfold_hybrid_parametric(r, refinement_method="landweber", save_result=False)),
+    ("hybrid_parametric_mlem", lambda d, r: d.unfold_hybrid_parametric(r, refinement_method="mlem", save_result=False)),
+    ("bayesian_parametric", lambda d, r: d.unfold_bayesian_parametric(r, n_samples=100, burn_in=20, save_result=False)),
+    ("parametric", lambda d, r: d.unfold_parametric(r, save_result=False)),
 ]
 
 
@@ -88,6 +96,7 @@ def test_iaea_validation(detector_type, reference_data):
     """Run all unfolding methods against all 20 IAEA reference spectra for a given detector."""
     detector = DETECTOR_CONFIGS[detector_type]()
     ref_energy = reference_data["E_MeV"].values
+    detector_energy = detector.E_MeV
     spectrum_names = [c for c in reference_data.columns if c != "E_MeV"]
 
     all_warnings = []
@@ -126,7 +135,7 @@ def test_iaea_validation(detector_type, reference_data):
                 continue
 
             unfolded = result["spectrum"]
-            metrics = compare_spectra(interp_spectrum, unfolded)
+            metrics = compare_spectra(interp_spectrum, unfolded, energy=detector_energy)
 
             warning_msgs = _check_warnings(metrics)
             status = "OK"
