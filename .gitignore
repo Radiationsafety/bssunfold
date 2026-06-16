@@ -197,3 +197,4 @@ opencode.json
 graphify-out/
 .gigacode/
 papers/
+tests/iaea_validation_*.csv
