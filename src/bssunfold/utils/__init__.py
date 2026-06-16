@@ -15,6 +15,7 @@ from .converters import (
     convert_to_dict,
     convert_sensitivities_to_matrix,
     extract_detector_names,
+    round_to_sigfig,
 )
 from .interpolation import (
     interpolate_spectrum,
@@ -70,6 +71,7 @@ __all__ = [
     "convert_to_dict",
     "convert_sensitivities_to_matrix",
     "extract_detector_names",
+    "round_to_sigfig",
     # interpolation
     "interpolate_spectrum",
     "discretize_spectra",

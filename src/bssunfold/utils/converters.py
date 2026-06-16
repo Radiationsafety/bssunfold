@@ -4,6 +4,8 @@ This module provides functions for converting between different data formats
 (DataFrame, dict, numpy arrays) for response functions and spectra.
 """
 
+import math
+
 import numpy as np
 import pandas as pd
 from typing import Dict, Union, Optional, List, Tuple, Any
@@ -13,6 +15,7 @@ __all__ = [
     "convert_to_dict",
     "convert_sensitivities_to_matrix",
     "extract_detector_names",
+    "round_to_sigfig",
 ]
 
 
@@ -177,7 +180,38 @@ def extract_detector_names(
     
     if isinstance(data, dict):
         return [key for key in data.keys() if key != energy_column]
-    
+
     raise TypeError(
         f"data must be DataFrame or dict, got {type(data)}"
     )
+
+
+def round_to_sigfig(value: float, sigfigs: int = 3) -> float:
+    """Round a number to a given number of significant figures.
+
+    Parameters
+    ----------
+    value : float
+        Number to round.
+    sigfigs : int, optional
+        Number of significant figures (default: 3).
+
+    Returns
+    -------
+    float
+        Rounded value.
+
+    Examples
+    --------
+    >>> round_to_sigfig(1.2345, 3)
+    1.23
+    >>> round_to_sigfig(0.0012345, 2)
+    0.0012
+    >>> round_to_sigfig(12345, 3)
+    12300.0
+    """
+    if not np.isfinite(value):
+        return float(value)
+    if value == 0:
+        return 0.0
+    return float(round(value, sigfigs - int(math.floor(math.log10(abs(value)))) - 1))
