@@ -37,24 +37,25 @@ def _solve_cvxpy_problem(
     )
     problem = cp.Problem(objective)
 
-    try:
-        problem.solve(solver=solver)
-        status = problem.status
-        if status not in ["optimal", "optimal_inaccurate"]:
-            warnings.warn(
-                f"Problem status is not optimal: {status}. "
-                "Solution may be inaccurate."
-            )
-        if x.value is None:
-            warnings.warn(
-                f"Solution variable is None. Status: {status}. "
-                "Returning zero vector."
-            )
-            return np.zeros(n)
-        return np.asarray(x.value)
-    except Exception as e:
-        warnings.warn(f"CVXPY solving failed: {e}. Returning zero vector.")
-        return np.zeros(n)
+    solvers_to_try = [solver] + [s for s in ["ECOS", "SCS", "CLARABEL"] if s != solver]
+
+    for s in solvers_to_try:
+        try:
+            problem.solve(solver=s)
+            status = problem.status
+            if status not in ["optimal", "optimal_inaccurate"]:
+                continue
+            if x.value is None:
+                continue
+            return np.asarray(x.value)
+        except Exception:
+            continue
+
+    # All solvers failed — return with informative warning
+    warnings.warn(
+        "CVXPY: all conic solvers failed. Returning zero vector."
+    )
+    return np.zeros(n)
 
 
 def solve_cvxpy(
@@ -157,7 +158,14 @@ def unfold_cvxpy(
         Unfolding results dictionary.
     """
     if solver == "default":
-        solver = get_recommended_solver()
+        try:
+            import cvxpy as cp
+            for candidate in ["ECOS", "SCS", "CLARABEL"]:
+                if candidate in cp.installed_solvers():
+                    solver = candidate
+                    break
+        except ImportError:
+            solver = get_recommended_solver()
 
     selected = [name for name in detector_names if name in readings]
     b = np.array([readings[name] for name in selected], dtype=float)

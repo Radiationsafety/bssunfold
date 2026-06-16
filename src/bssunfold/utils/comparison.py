@@ -27,6 +27,8 @@ __all__ = [
     "max_error",
     "median_absolute_error",
     "cosine_similarity",
+    "total_flux",
+    "total_flux_ratio",
     "mmd_rbf",
     "chi_squared",
     "g_test",
@@ -64,6 +66,18 @@ def _check_same_length(s1: np.ndarray, s2: np.ndarray) -> None:
         raise ValueError(
             f"Spectra must have same length, got {len(s1)} and {len(s2)}"
         )
+
+
+# ─── Flux utility ─────────────────────────────────────────────────
+
+
+def total_flux(s: np.ndarray) -> float:
+    """Total flux (integral under spectrum curve).
+
+    For discrete spectra equally spaced in lethargy, this is simply
+    the sum of the bin values.
+    """
+    return float(np.sum(np.asarray(s, dtype=float)))
 
 
 # ─── Entropy-based ────────────────────────────────────────────────
@@ -217,6 +231,25 @@ def median_absolute_error(p: np.ndarray, q: np.ndarray) -> float:
     """Median absolute error."""
     _check_same_length(p, q)
     return float(np.median(np.abs(np.asarray(p) - np.asarray(q))))
+
+
+# ─── Flux comparison ──────────────────────────────────────────────
+
+
+def total_flux_ratio(p: np.ndarray, q: np.ndarray) -> float:
+    """Ratio of total fluxes: sum(unfolded) / sum(reference).
+
+    1.0 = perfect conservation of total flux.
+    > 1.0 = unfolded overestimates total flux.
+    < 1.0 = unfolded underestimates total flux.
+    Returns 0.0 if reference flux is zero.
+    """
+    _check_same_length(p, q)
+    p_sum = np.sum(np.asarray(p, dtype=float))
+    q_sum = np.sum(np.asarray(q, dtype=float))
+    if p_sum == 0:
+        return 0.0
+    return float(q_sum / p_sum)
 
 
 # ─── Kernel / similarity ──────────────────────────────────────────
@@ -731,6 +764,7 @@ _ALL_METRICS: Dict[str, str] = {
     "max_error": "Max error",
     "median_absolute_error": "Median absolute error",
     "cosine_similarity": "Cosine similarity",
+    "total_flux_ratio": "Total flux ratio",
     "mmd_rbf": "MMD (RBF)",
     "chi_squared": "Chi-squared (Pearson)",
     "g_test": "G-test (log-likelihood)",
@@ -769,6 +803,7 @@ _METRIC_FUNCTIONS: Dict[str, callable] = {
     "max_error": max_error,
     "median_absolute_error": median_absolute_error,
     "cosine_similarity": cosine_similarity,
+    "total_flux_ratio": total_flux_ratio,
     "mmd_rbf": mmd_rbf,
     "chi_squared": chi_squared,
     "g_test": g_test,

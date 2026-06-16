@@ -965,7 +965,7 @@ class TestUnfoldingMethodsEdgeCases:
             from bssunfold.core import solve_cvxpy
             A = np.random.rand(5, 10)
             b = np.random.rand(5)
-            with pytest.warns(UserWarning, match="CVXPY solving failed"):
+            with pytest.warns(UserWarning, match="all conic solvers failed"):
                 x = solve_cvxpy(A, b, alpha=1e-4)
                 assert x.shape == (10,)
                 assert np.all(x == 0)
