@@ -30,7 +30,7 @@ from bssunfold.core.dose_calculation import calculate_dose_rates
 warnings.filterwarnings("ignore")
 
 # ── Constants ─────────────────────────────────────────────────────
-SAVE_PLOTS = True
+SAVE_PLOTS = False
 
 CSV_ENERGIES = np.array(
     [

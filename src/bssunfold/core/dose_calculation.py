@@ -28,7 +28,6 @@ DOSE_COEFFICIENTS_REGISTRY: Dict[str, Dict[str, np.ndarray]] = {}
 
 def _build_registry() -> None:
     """Build the registry of available dose coefficient datasets."""
-    global DOSE_COEFFICIENTS_REGISTRY
     if DOSE_COEFFICIENTS_REGISTRY:
         return
 
