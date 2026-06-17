@@ -1,0 +1,7 @@
+# Gitleaks false positives
+# GitHub Actions secrets references (not actual credentials)
+.github/workflows/*.yml
+# LICENSE text
+LICENSE
+# uv.lock package names
+uv.lock

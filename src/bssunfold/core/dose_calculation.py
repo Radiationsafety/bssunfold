@@ -7,7 +7,7 @@ NRB99-2009, etc.).
 
 import logging
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 __all__ = [
     "calculate_dose_rates",

@@ -1768,3 +1768,46 @@ class TestDetectorInitEdgeCases:
         result = det.get_effective_readings_for_spectra(spectra_df)
         assert isinstance(result, dict)
 
+
+# ============================================================================
+# Additional coverage tests for dose_calculation edge cases
+# ============================================================================
+
+class TestDoseCalculationCoverage:
+    def test_interpolate_coefficients_fill_value(self):
+        from bssunfold.core.dose_calculation import interpolate_coefficients
+        cc = {
+            'E_MeV': np.array([1.0, 2.0, 3.0]),
+            'AP': np.array([10.0, 20.0, 30.0]),
+        }
+        E_target = np.array([0.5, 1.5, 2.5, 3.5])
+        result = interpolate_coefficients(cc, E_target, fill_value=-1.0)
+        assert result['AP'][0] == -1.0
+        assert result['AP'][-1] == -1.0
+        assert result['AP'][1] == 15.0
+
+    def test_get_coefficients_invalid_name(self):
+        from bssunfold.core.dose_calculation import get_coefficients
+        with pytest.raises(ValueError, match="Unknown dose coefficient"):
+            get_coefficients("NONEXISTENT")
+
+    def test_build_registry_already_populated(self):
+        from bssunfold.core.dose_calculation import _build_registry, DOSE_COEFFICIENTS_REGISTRY
+        DOSE_COEFFICIENTS_REGISTRY.clear()
+        _build_registry()
+        assert len(DOSE_COEFFICIENTS_REGISTRY) > 0
+        _build_registry()
+        assert len(DOSE_COEFFICIENTS_REGISTRY) > 0
+
+    def test_calculate_dose_rates_empty_cc(self):
+        from bssunfold.core.dose_calculation import calculate_dose_rates
+        spectrum = np.ones(50)
+        result = calculate_dose_rates(spectrum, cc_icrp116={})
+        assert result == {}
+
+    def test_get_icrp116_coefficients_returns_dict(self):
+        from bssunfold.core.dose_calculation import get_icrp116_coefficients
+        result = get_icrp116_coefficients()
+        assert isinstance(result, dict)
+        assert 'E_MeV' in result
+

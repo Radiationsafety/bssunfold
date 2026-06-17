@@ -16,7 +16,6 @@ from ..utils.interpolation import discretize_spectra
 from ..utils.plotting import plot_with_uncertainty
 from .dose_calculation import (
     calculate_dose_rates,
-    get_icrp116_coefficients,
     get_coefficients,
     interpolate_coefficients,
 )
