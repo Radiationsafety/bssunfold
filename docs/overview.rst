@@ -279,6 +279,63 @@ package root:
    detector = Detector(RF_JINR)
    result = detector.unfold_cvxpy(readings, regularization=1e-4)
 
+
+Dose Conversion Coefficients
+----------------------------
+
+4 dose conversion coefficient datasets are included for flexible dose rate
+calculations. The default is ICRP-116 effective dose.
+
+.. list-table:: Dose conversion coefficient datasets
+   :header-rows: 1
+   :widths: 20 15 25 20 20
+
+   * - Dataset
+     - Standard
+     - Quantities
+     - Energy Range
+     - Notes
+   * - ``ICRP116`` (default)
+     - ICRP-116
+     - AP, PA, LLAT, RLAT, ISO, ROT
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``ICRP74_effective``
+     - ICRP-74
+     - AP, PA, RLAT, ROT, ISO
+     - 1e-9 – 398 MeV
+     - Effective dose
+   * - ``NRB99_2009_effective``
+     - NRB99-2009
+     - AP, ISO
+     - 25 eV – 20 MeV
+     - Limited range
+   * - ``ICRP74_operational``
+     - ICRP-74
+     - ADE, PDE0, PDE45, PDE60, PDE75
+     - 1e-9 – 398 MeV
+     - Operational quantities
+
+.. warning::
+
+   ``NRB99_2009_effective`` covers a limited energy range (25 eV – 20 MeV).
+   Values outside this range are set to zero during interpolation.
+
+.. code-block:: python
+
+   from bssunfold import Detector, get_coefficients, interpolate_coefficients
+
+   # Set on Detector (affects all subsequent unfolds)
+   detector = Detector(cc_type="ICRP74_effective")
+
+   # Change after creation
+   detector.set_dose_coefficients("ICRP74_operational")
+
+   # Get coefficients directly for custom use
+   cc = get_coefficients("NRB99_2009_effective")
+   cc_interp = interpolate_coefficients(cc, detector.E_MeV)
+
+
 Spectrum Comparison Metrics
 ---------------------------
 

@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning].
 ## [0.8.1] - 2026-06-17
 
 ### Added
+- **Built-in dose conversion coefficient datasets** (4 datasets):
+  - `ICRP116` — ICRP-116 effective dose (AP, PA, LLAT, RLAT, ISO, ROT; 60 points, 1e-9 – 631 MeV)
+  - `ICRP74_effective` — ICRP-74 effective dose (AP, PA, RLAT, ROT, ISO; 60 points, 1e-9 – 398 MeV)
+  - `NRB99_2009_effective` — NRB99-2009 effective dose (AP, ISO; 24 points, 25 eV–20 MeV, limited range)
+  - `ICRP74_operational` — ICRP-74 operational quantities (ADE, PDE0, PDE45, PDE60, PDE75; 60 points, 1e-9–398 MeV)
+  - `get_coefficients(name)` — lookup coefficient datasets by string key
+  - `interpolate_coefficients(cc, E_target)` — interpolate coefficients to detector energy grid
+  - `Detector(cc_type=...)` — select dose coefficients at construction time
+  - `Detector.set_dose_coefficients(name)` — change dose coefficients after construction
+  - Exported from `bssunfold` package root
 - **Built-in response function datasets** (7 datasets from CSV sources):
   - `RF_JINR` — JINR (Dubna): 9 detectors, 60 energy bins (1e-9–631 MeV)
   - `RF_FERMILAB` — Fermilab: 8 detectors, 60 energy bins (1e-9–631 MeV)

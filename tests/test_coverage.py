@@ -1567,7 +1567,7 @@ class TestDoseCalculation:
         spectrum = np.ones(50)
         result = calculate_dose_rates(spectrum, cc_icrp116={})
         assert isinstance(result, dict)
-        assert result['AP'] == 0.0
+        assert len(result) == 0
 
     def test_calculate_dose_rates_mismatched_length(self):
         from bssunfold.core.dose_calculation import calculate_dose_rates
@@ -1584,9 +1584,12 @@ class TestDoseCalculation:
     def test_get_icrp116_coefficients_fallback(self):
         import bssunfold.core.dose_calculation as dc
         dc.ICRP116_COEFFICIENTS = None
-        with patch('bssunfold.constants.ICRP116_COEFF_EFFECTIVE_DOSE', {}):
-            result = dc.get_icrp116_coefficients()
-            assert result == {}
+        try:
+            with patch('bssunfold.constants.ICRP116_COEFF_EFFECTIVE_DOSE', {}):
+                result = dc.get_icrp116_coefficients()
+                assert result == {}
+        finally:
+            dc.ICRP116_COEFFICIENTS = None
 
 
 # ============================================================================

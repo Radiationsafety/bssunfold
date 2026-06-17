@@ -199,6 +199,35 @@ detector = Detector(RF_JINR)
 result = detector.unfold_cvxpy(readings, regularization=1e-4)
 ```
 
+## 🔢 Dose Conversion Coefficients
+
+The package includes 4 dose conversion coefficient datasets for flexible dose rate calculations:
+
+| Dataset | Standard | Quantities | Energy Range |
+|---------|----------|------------|--------------|
+| `ICRP116` (default) | ICRP-116 | AP, PA, LLAT, RLAT, ISO, ROT | 1e-9 – 631 MeV |
+| `ICRP74_effective` | ICRP-74 | AP, PA, RLAT, ROT, ISO | 1e-9 – 398 MeV |
+| `NRB99_2009_effective` | NRB99-2009 | AP, ISO | 25 eV – 20 MeV ⚠️ |
+| `ICRP74_operational` | ICRP-74 | ADE, PDE0, PDE45, PDE60, PDE75 | 1e-9 – 398 MeV |
+
+> **⚠️ Note:** `NRB99_2009_effective` covers a limited energy range (25 eV – 20 MeV). Values outside this range are set to zero.
+
+```python
+from bssunfold import Detector, get_coefficients
+
+# Method 1: Set on Detector (affects all subsequent unfolds)
+detector = Detector(cc_type="ICRP74_effective")
+result = detector.unfold_cvxpy(readings)
+
+# Method 2: Change after creation
+detector.set_dose_coefficients("ICRP74_operational")
+
+# Method 3: Get coefficients directly for custom use
+cc = get_coefficients("NRB99_2009_effective")
+from bssunfold import interpolate_coefficients
+cc_interp = interpolate_coefficients(cc, detector.E_MeV)
+```
+
 ## ⚙️ Available Unfolding Methods
 
 ```mermaid
