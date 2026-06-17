@@ -1776,6 +1776,11 @@ class Detector:
         initial_spectrum: Optional[np.ndarray] = None,
         initial_params: Optional[Dict[str, float]] = None,
         method: str = "leastsq",
+        optimizer: str = "lmfit",
+        alpha: float = 1e-4,
+        solver_backend: str = "auto",
+        max_iter: int = 50,
+        tol: float = 1e-6,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -1786,7 +1791,14 @@ class Detector:
 
         Uses the three-component parameterization from Bedogni FRUIT /
         Pyshkina B3S: thermal (Maxwellian), epithermal (1/E with
-        exponential cutoffs), and fast (power-law × exponential).
+        exponential cutoffs), and fast (power-law x exponential).
+
+        The ``optimizer`` parameter selects the backend:
+
+        * ``"lmfit"``     -- classic lmfit least-squares (default).
+        * ``"cvxpy"``     -- sequential QP via cvxpy (SQP).
+        * ``"qpsolvers"`` -- sequential QP via qpsolvers (SQP).
+        * ``"combined"``  -- lmfit first, then QP refinement.
 
         Parameters
         ----------
@@ -1799,6 +1811,17 @@ class Detector:
             Keys: b, beta_prime, alpha, beta, P_th, P_epi.
         method : str, optional
             lmfit solver method (default: "leastsq").
+        optimizer : str, optional
+            Backend optimizer (default: "lmfit").
+        alpha : float, optional
+            Regularization weight for QP-based optimizers (default: 1e-4).
+        solver_backend : str, optional
+            QP solver backend: "auto", "cvxpy", "cvxpy:ECOS",
+            "qpsolvers", "qpsolvers:osqp", etc. (default: "auto").
+        max_iter : int, optional
+            Max SQP iterations (default: 50).
+        tol : float, optional
+            Convergence tolerance for SQP (default: 1e-6).
         calculate_errors : bool, optional
             Calculate Monte-Carlo errors (default: False).
         noise_level : float, optional
@@ -1826,6 +1849,11 @@ class Detector:
             initial_spectrum=initial_spectrum,
             initial_params=initial_params,
             method=method,
+            optimizer=optimizer,
+            alpha=alpha,
+            solver_backend=solver_backend,
+            max_iter=max_iter,
+            tol=tol,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

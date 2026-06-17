@@ -204,3 +204,7 @@ tests/IAEA_compendium_analysis.md
 tests/iaea_validation_GSF.csv
 tests/iaea_validation_LANL.csv
 tests/iaea_validation_PTB.csv
+tests/iaea_plots/*.png
+tests/iaea_validation_PTB.csv
+tests/iaea_validation_LANL.csv
+tests/iaea_validation_GSF.csv
