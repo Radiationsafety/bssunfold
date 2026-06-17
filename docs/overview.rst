@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 17 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 21 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification.
 
@@ -13,7 +13,7 @@ quantification.
 Unfolding Methods
 -----------------
 
-All 17 methods are accessible as instance methods on the
+All 21 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -27,6 +27,7 @@ categories:
        A --> F["Statistical Regularization"]
        A --> G["Optimization-based"]
        A --> H["Pipeline"]
+       A --> I["Parametric"]
 
        B --> B1["unfold_cvxpy"]
        B --> B2["unfold_qpsolvers"]
@@ -51,6 +52,11 @@ categories:
 
        H --> H1["unfold_combined"]
 
+       I --> I1["unfold_parametric"]
+       I --> I2["unfold_parametric_cvxpy"]
+       I --> I3["unfold_parametric_qpsolvers"]
+       I --> I4["unfold_parametric_combined"]
+
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
        style C fill:#e8f0fe
@@ -59,6 +65,7 @@ categories:
        style F fill:#e8f0fe
        style G fill:#e8f0fe
        style H fill:#e8f0fe
+       style I fill:#e8f0fe
 
 Method Reference
 ~~~~~~~~~~~~~~~~
@@ -175,6 +182,30 @@ Method Reference
      - ``pipeline`` (list of ``{"method", "params"}`` dicts)
      - —
      - Sequential multi-method pipeline
+   * - 18
+     - ``unfold_parametric``
+     - Parametric
+     - ``parametric_method`` (thermal/epithermal/fast/custom), ``optimizer`` (lmfit/cvxpy/qpsolvers/combined), ``solver_backend``, ``initial_params``, ``max_iter``, ``tolerance``
+     - lmfit, cvxpy, qpsolvers
+     - FRUIT-style parametric spectrum model (thermal + epithermal + fast)
+   * - 19
+     - ``unfold_parametric_cvxpy``
+     - Parametric
+     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+     - cvxpy
+     - SQP solver using cvxpy for parametric model fitting
+   * - 20
+     - ``unfold_parametric_qpsolvers``
+     - Parametric
+     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+     - qpsolvers
+     - SQP solver using qpsolvers backends for parametric model fitting
+   * - 21
+     - ``unfold_parametric_combined``
+     - Parametric
+     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+     - lmfit, cvxpy, qpsolvers
+     - lmfit first-pass + QP refinement for parametric model
 
 .. note::
 

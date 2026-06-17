@@ -7,6 +7,29 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.8.1] - 2026-06-17
+
+### Added
+- **SQP-based parametric unfolding** (`unfold_parametric.py`):
+  - `unfold_parametric_cvxpy` — Sequential Quadratic Programming solver using cvxpy (ECOS/MOSEK/SCS)
+  - `unfold_parametric_qpsolvers` — SQP solver using qpsolvers backends (OSQP, GUROBI, etc.)
+  - `unfold_parametric_combined` — lmfit first-pass + QP refinement (cvxpy or qpsolvers)
+  - Numerical Jacobian with bound-aware clamping for SQP linearization
+  - Brute-force grid scan (`_find_initial_params`) for robust initial parameter estimation
+  - Fit quality warning when residual exceeds 10x the readings norm
+  - Unified `solver_backend` parameter format: `"auto"`, `"cvxpy"`, `"cvxpy:ECOS"`, `"qpsolvers"`, `"qpsolvers:osqp"`
+- Simplified parameter interface: replaced 6 params (`cvxpy_solver`, `qpsolver_name`, `qp_solver`, `norm`, `smoothness_order`, `smoothness_weight`) with single `solver_backend` string
+
+### Fixed
+- Combined method no longer re-runs lmfit redundantly after QP refinement
+- Jacobian perturbations now clamped within parameter bounds (backward difference at boundaries)
+- SQP penalty corrected from `α||Jδ + s_k||²` to `α||δ||²` (regularizes parameter updates, not spectrum values)
+- Brute-force scan finds better starting point for fast-dominated spectra (e.g., Cf-252)
+
+### Changed
+- Test suite: 632 tests (was 46 parametric-specific tests)
+- Updated docs: Sphinx API, README method table, Mermaid diagrams, examples
+
 ## [0.8.0] - 2026-06-15
 
 ### Added
