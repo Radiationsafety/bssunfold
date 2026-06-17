@@ -56,7 +56,7 @@ qpsolvers = [
 ]
 
 test = [
-    "pytest>=9.0.2",
+    "pytest>=9.0.3",
 ]
 # All optional backends
 all = [
@@ -126,7 +126,7 @@ build-backend = "hatchling.build"
 dev = [
     "flake8>=7.3.0",
     "pydata-sphinx-theme>=0.16.1",
-    "pytest>=9.0.2",
+    "pytest>=9.0.3",
     "pytest-cov>=6.1.0",
     "sphinx>=9.0.4",
     "twine>=6.2.0",
@@ -228,12 +228,10 @@ indent-width = 4
 # F401 — unused import (will be fixed in code, but allow for now)
 # F541 — f-string without placeholders (will be fixed)
 # E741 — ambiguous variable name (will be fixed)
-# F841 — unused variable (will be fixed)
 ignore = [
     "F401",
     "F541",
     "E741",
-    "F841",
 ]
 
 [[tool.uv.index]]

@@ -4,6 +4,7 @@ Each function follows single-responsibility principle and operates on
 1-D numpy arrays. All metrics are implemented with numpy/scipy only.
 """
 
+import logging
 import numpy as np
 from typing import Dict, List, Optional, Union
 
@@ -52,6 +53,8 @@ __all__ = [
 ]
 
 EPS = 1e-15
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize(p: np.ndarray) -> np.ndarray:
@@ -902,7 +905,8 @@ def compare_spectra(
     for key in simple_keys:
         try:
             results[key] = _METRIC_FUNCTIONS[key](spectrum1, spectrum2)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Metric %s failed: %s", key, exc)
             results[key] = float("nan")
 
     for key in eurados_keys:
@@ -927,7 +931,8 @@ def compare_spectra(
                     results["response_matrix_consistency_test"] = func(spectrum2, readings2 if readings2 is not None else readings1, response_matrix)
             else:
                 results[key] = func(spectrum1, spectrum2, energy, cc_icrp116)
-        except Exception:
+        except Exception as exc:
+            logger.debug("EURADOS metric %s failed: %s", key, exc)
             results[key] = float("nan")
 
     return results

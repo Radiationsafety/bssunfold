@@ -206,7 +206,6 @@ def run_analysis():
 
     df = pd.read_csv(csv_path)
     energy_cols = [c for c in df.columns if c.startswith("Energy_bin")]
-    places = df["Place"].values
     n_spectra = len(df)
     n_methods = len(METHODS)
     n_detectors = len(DETECTOR_CONFIGS)
@@ -315,7 +314,7 @@ def run_analysis():
                 plot_results = build_plot_results(
                     method_spectra, detector, readings
                 )
-                if SAVE_PLOTS == True:
+                if SAVE_PLOTS:
                     fig_path = PLOT_DIR / f"{place}_{det_name}.png"
                     try:
                         plot_comparison(

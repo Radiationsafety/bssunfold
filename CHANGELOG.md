@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning].
 - Test suite: 632 tests (was 46 parametric-specific tests)
 - Updated docs: Sphinx API, README method table, Mermaid diagrams, examples
 
+### Security
+- Updated `pillow` 12.1.0 → 12.2.0 (CVE-2026-25990: out-of-bounds write via crafted PSD image)
+- Updated `pygments` 2.19.2 → 2.20.0 (CVE-2026-4539: DoS via inefficient regex in AdlLexer)
+- Updated `pytest` 9.0.2 → 9.1.0 (CVE-2025-71176: insecure temporary directory handling)
+
 ## [0.8.0] - 2026-06-15
 
 ### Added

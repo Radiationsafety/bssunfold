@@ -240,7 +240,7 @@ class TestRegularization:
         from bssunfold.core.regularization import randomization_experiment
         A, b = ab
         with warnings.catch_warnings(record=True) as w:
-            result = randomization_experiment(A, b, noise_var=0.01, n_samples=2, methods=['unknown_method'])
+            randomization_experiment(A, b, noise_var=0.01, n_samples=2, methods=['unknown_method'])
             assert len(w) >= 1
             assert any("Unknown method" in str(warn.message) for warn in w)
 

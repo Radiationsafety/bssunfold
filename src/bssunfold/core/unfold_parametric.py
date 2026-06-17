@@ -21,6 +21,7 @@ Total: phi_j = P_th * phi_th + P_epi * phi_epi + P_f * phi_f
 with constraint: P_th + P_epi + P_f = 1  (P_f = 1 - P_th - P_epi)
 """
 
+import logging
 import warnings
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
@@ -44,6 +45,8 @@ _THERMAL_MAX = 1e-7    # MeV
 _FAST_MIN = 0.1        # MeV
 
 _RESIDUAL_WARN_THRESHOLD = 10.0  # warn when residual norm exceeds this
+
+logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------ #
@@ -323,7 +326,6 @@ def _find_initial_params(A_matrix, b_readings, E, log_steps, n_grid=5):
     affect the spectral shape), keeps the best residual, and returns the
     full parameter dict.
     """
-    bounds = _get_param_bounds()
     best_residual = np.inf
     best_params = _get_initial_params(None)
 
@@ -392,7 +394,7 @@ def _resolve_cvxpy_solvers(backend):
     try:
         import cvxpy as cp
         installed = cp.installed_solvers()
-    except Exception:
+    except ImportError:
         installed = []
 
     if backend == "default":
@@ -529,7 +531,8 @@ def solve_parametric_cvxpy(
                     if delta.value is not None:
                         solved = True
                         break
-            except Exception:
+            except Exception as exc:
+                logger.debug("CVXPY solver %s failed: %s", s, exc)
                 continue
 
         if not solved:
@@ -696,7 +699,8 @@ def solve_parametric_qpsolvers(
                 P=P, q=q, G=G, h=h,
                 solver=solver_name, verbose=False,
             )
-        except Exception:
+        except Exception as exc:
+            logger.debug("QP solver %s failed at iteration %d: %s", solver_name, k, exc)
             message = f"QP subproblem failed at iteration {k}"
             break
 
@@ -829,7 +833,8 @@ def solve_parametric_combined(
                     if x_var.value is not None:
                         refined = np.asarray(x_var.value)
                         break
-            except Exception:
+            except Exception as exc:
+                logger.debug("CVXPY solver %s failed: %s", s, exc)
                 continue
 
         if refined is None:

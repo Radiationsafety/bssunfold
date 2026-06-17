@@ -4,6 +4,7 @@ This module provides the core solve_cvxpy solver and the unfold_cvxpy
 wrapper with regularization selection for use with the Detector class.
 """
 
+import logging
 import warnings
 import numpy as np
 from typing import Dict, Optional, Any, List
@@ -13,6 +14,8 @@ from .regularization import select_regularization_parameter
 from ._base_unfolder import run_unfolding, make_solve_wrapper
 
 __all__ = ["solve_cvxpy", "unfold_cvxpy"]
+
+logger = logging.getLogger(__name__)
 
 
 def _solve_cvxpy_problem(
@@ -48,7 +51,8 @@ def _solve_cvxpy_problem(
             if x.value is None:
                 continue
             return np.asarray(x.value)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Solver %s failed: %s", s, exc)
             continue
 
     # All solvers failed — return with informative warning
