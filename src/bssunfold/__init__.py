@@ -19,6 +19,10 @@ from .constants import (
     RF_GSF,
     RF_PTB,
     RF_LANL,
+    RF_JINR,
+    RF_FERMILAB,
+    RF_EURADOS,
+    RF_IHEP,
 )
 
 # Import utility modules for convenience
@@ -44,6 +48,10 @@ __all__ = [
     "RF_GSF",
     "RF_PTB",
     "RF_LANL",
+    "RF_JINR",
+    "RF_FERMILAB",
+    "RF_EURADOS",
+    "RF_IHEP",
     # Platform info
     "is_windows",
     "is_unix",

@@ -215,6 +215,70 @@ Method Reference
 
    See the :ref:`genindex` or :doc:`detector` for complete API signatures.
 
+Built-in Response Functions
+---------------------------
+
+7 response function datasets are included as Python dicts, importable from the
+package root:
+
+.. list-table:: Built-in RF datasets
+   :header-rows: 1
+   :widths: 12 20 12 15 30
+
+   * - Dataset
+     - Source
+     - Detectors
+     - Energy Range
+     - Notes
+   * - ``RF_GSF``
+     - GSF (Germany)
+     - 10 (0in–18in)
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``RF_PTB``
+     - PTB (Germany)
+     - 15 (0in–18in)
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``RF_LANL``
+     - LANL (USA)
+     - 11 (3in–18in)
+     - 1e-9 – 631 MeV
+     - Includes Pb-shielded (9inPb, 12inPb, 18inPb)
+   * - ``RF_JINR``
+     - JINR (Dubna)
+     - 9 (0in–12in)
+     - 1e-9 – 631 MeV
+     - Includes Cd-covered (Cd0in) and Pb-shielded (10inPb)
+   * - ``RF_FERMILAB``
+     - Fermilab (USA)
+     - 8 (0in–18in)
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``RF_EURADOS``
+     - EURADOS round-robin
+     - 13 (0in–12in)
+     - 1e-9 – 20 MeV
+     - Narrower range; includes Cd2in, 3.5in, 4.5in
+   * - ``RF_IHEP``
+     - IHEP (Protvino)
+     - 12 (0in–18in)
+     - 1e-9 – 2000 MeV
+     - Wider range; includes 15in
+
+.. warning::
+
+   ``RF_EURADOS`` max energy is 20 MeV and ``RF_IHEP`` max energy is 2000 MeV,
+   compared to 631 MeV for the other datasets. Use caution when comparing
+   results across datasets with different energy ranges.
+
+.. code-block:: python
+
+   from bssunfold import Detector, RF_JINR
+
+   detector = Detector(RF_JINR)
+   result = detector.unfold_cvxpy(readings, regularization=1e-4)
+
 Spectrum Comparison Metrics
 ---------------------------
 

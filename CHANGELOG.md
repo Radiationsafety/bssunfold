@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning].
 ## [0.8.1] - 2026-06-17
 
 ### Added
+- **Built-in response function datasets** (7 datasets from CSV sources):
+  - `RF_JINR` — JINR (Dubna): 9 detectors, 60 energy bins (1e-9–631 MeV)
+  - `RF_FERMILAB` — Fermilab: 8 detectors, 60 energy bins (1e-9–631 MeV)
+  - `RF_EURADOS` — EURADOS round-robin: 13 detectors, 105 energy bins (1e-9–20 MeV, narrower range)
+  - `RF_IHEP` — IHEP (Protvino): 12 detectors, 107 energy bins (1e-9–2000 MeV, wider range)
+  - Special detectors documented: Cd-covered (Cd0in, Cd2in), lead-shielded (10inPb)
+  - Exported from `bssunfold` package root alongside `RF_GSF`, `RF_PTB`, `RF_LANL`
 - **SQP-based parametric unfolding** (`unfold_parametric.py`):
   - `unfold_parametric_cvxpy` — Sequential Quadratic Programming solver using cvxpy (ECOS/MOSEK/SCS)
   - `unfold_parametric_qpsolvers` — SQP solver using qpsolvers backends (OSQP, GUROBI, etc.)

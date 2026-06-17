@@ -175,6 +175,30 @@ readings = {
 }
 ```
 
+## 📦 Built-in Response Functions
+
+The package includes 7 built-in response function datasets for immediate use:
+
+| Dataset | Source | Detectors | Energy Range |
+|---------|--------|-----------|--------------|
+| `RF_GSF` | GSF (Germany) | 10 (0in–18in) | 1e-9 – 631 MeV |
+| `RF_PTB` | PTB (Germany) | 15 (0in–18in) | 1e-9 – 631 MeV |
+| `RF_LANL` | LANL (USA) | 11 (3in–18in, + Pb-shielded) | 1e-9 – 631 MeV |
+| `RF_JINR` | JINR (Dubna, Russia) | 9 (0in–12in, Cd0in, 10inPb) | 1e-9 – 631 MeV |
+| `RF_FERMILAB` | Fermilab (USA) | 8 (0in–18in) | 1e-9 – 631 MeV |
+| `RF_EURADOS` | EURADOS round-robin | 13 (0in–12in, Cd2in, 3.5in, 4.5in) | 1e-9 – 20 MeV ⚠️ |
+| `RF_IHEP` | IHEP (Protvino, Russia) | 12 (0in–18in, 15in) | 1e-9 – 2000 MeV ⚠️ |
+
+> **⚠️ Note:** `RF_EURADOS` has a narrower energy range (max 20 MeV) and `RF_IHEP` has a wider range (max 2000 MeV) compared to the standard 631 MeV used by GSF/PTB/LANL/JINR/Fermilab. Use caution when comparing results across datasets.
+
+```python
+from bssunfold import Detector, RF_JINR
+
+# Use built-in response functions directly
+detector = Detector(RF_JINR)
+result = detector.unfold_cvxpy(readings, regularization=1e-4)
+```
+
 ## ⚙️ Available Unfolding Methods
 
 ```mermaid
