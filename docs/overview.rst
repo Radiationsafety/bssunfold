@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 17 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 21 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification.
 
@@ -13,7 +13,7 @@ quantification.
 Unfolding Methods
 -----------------
 
-All 17 methods are accessible as instance methods on the
+All 21 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -27,6 +27,7 @@ categories:
        A --> F["Statistical Regularization"]
        A --> G["Optimization-based"]
        A --> H["Pipeline"]
+       A --> I["Parametric"]
 
        B --> B1["unfold_cvxpy"]
        B --> B2["unfold_qpsolvers"]
@@ -51,6 +52,11 @@ categories:
 
        H --> H1["unfold_combined"]
 
+       I --> I1["unfold_parametric"]
+       I --> I2["unfold_parametric_cvxpy"]
+       I --> I3["unfold_parametric_qpsolvers"]
+       I --> I4["unfold_parametric_combined"]
+
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
        style C fill:#e8f0fe
@@ -59,6 +65,7 @@ categories:
        style F fill:#e8f0fe
        style G fill:#e8f0fe
        style H fill:#e8f0fe
+       style I fill:#e8f0fe
 
 Method Reference
 ~~~~~~~~~~~~~~~~
@@ -175,6 +182,30 @@ Method Reference
      - ``pipeline`` (list of ``{"method", "params"}`` dicts)
      - —
      - Sequential multi-method pipeline
+   * - 18
+     - ``unfold_parametric``
+     - Parametric
+     - ``parametric_method`` (thermal/epithermal/fast/custom), ``optimizer`` (lmfit/cvxpy/qpsolvers/combined), ``solver_backend``, ``initial_params``, ``max_iter``, ``tolerance``
+     - lmfit, cvxpy, qpsolvers
+     - FRUIT-style parametric spectrum model (thermal + epithermal + fast)
+   * - 19
+     - ``unfold_parametric_cvxpy``
+     - Parametric
+     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+     - cvxpy
+     - SQP solver using cvxpy for parametric model fitting
+   * - 20
+     - ``unfold_parametric_qpsolvers``
+     - Parametric
+     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+     - qpsolvers
+     - SQP solver using qpsolvers backends for parametric model fitting
+   * - 21
+     - ``unfold_parametric_combined``
+     - Parametric
+     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+     - lmfit, cvxpy, qpsolvers
+     - lmfit first-pass + QP refinement for parametric model
 
 .. note::
 
@@ -183,6 +214,127 @@ Method Reference
    ``n_montecarlo``, ``save_result``, ``random_state``.
 
    See the :ref:`genindex` or :doc:`detector` for complete API signatures.
+
+Built-in Response Functions
+---------------------------
+
+7 response function datasets are included as Python dicts, importable from the
+package root:
+
+.. list-table:: Built-in RF datasets
+   :header-rows: 1
+   :widths: 12 20 12 15 30
+
+   * - Dataset
+     - Source
+     - Detectors
+     - Energy Range
+     - Notes
+   * - ``RF_GSF``
+     - GSF (Germany)
+     - 10 (0in–18in)
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``RF_PTB``
+     - PTB (Germany)
+     - 15 (0in–18in)
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``RF_LANL``
+     - LANL (USA)
+     - 11 (3in–18in)
+     - 1e-9 – 631 MeV
+     - Includes Pb-shielded (9inPb, 12inPb, 18inPb)
+   * - ``RF_JINR``
+     - JINR (Dubna)
+     - 9 (0in–12in)
+     - 1e-9 – 631 MeV
+     - Includes Cd-covered (Cd0in) and Pb-shielded (10inPb)
+   * - ``RF_FERMILAB``
+     - Fermilab (USA)
+     - 8 (0in–18in)
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``RF_EURADOS``
+     - EURADOS round-robin
+     - 13 (0in–12in)
+     - 1e-9 – 20 MeV
+     - Narrower range; includes Cd2in, 3.5in, 4.5in
+   * - ``RF_IHEP``
+     - IHEP (Protvino)
+     - 12 (0in–18in)
+     - 1e-9 – 2000 MeV
+     - Wider range; includes 15in
+
+.. warning::
+
+   ``RF_EURADOS`` max energy is 20 MeV and ``RF_IHEP`` max energy is 2000 MeV,
+   compared to 631 MeV for the other datasets. Use caution when comparing
+   results across datasets with different energy ranges.
+
+.. code-block:: python
+
+   from bssunfold import Detector, RF_JINR
+
+   detector = Detector(RF_JINR)
+   result = detector.unfold_cvxpy(readings, regularization=1e-4)
+
+
+Dose Conversion Coefficients
+----------------------------
+
+4 dose conversion coefficient datasets are included for flexible dose rate
+calculations. The default is ICRP-116 effective dose.
+
+.. list-table:: Dose conversion coefficient datasets
+   :header-rows: 1
+   :widths: 20 15 25 20 20
+
+   * - Dataset
+     - Standard
+     - Quantities
+     - Energy Range
+     - Notes
+   * - ``ICRP116`` (default)
+     - ICRP-116
+     - AP, PA, LLAT, RLAT, ISO, ROT
+     - 1e-9 – 631 MeV
+     - Standard range
+   * - ``ICRP74_effective``
+     - ICRP-74
+     - AP, PA, RLAT, ROT, ISO
+     - 1e-9 – 398 MeV
+     - Effective dose
+   * - ``NRB99_2009_effective``
+     - NRB99-2009
+     - AP, ISO
+     - 25 eV – 20 MeV
+     - Limited range
+   * - ``ICRP74_operational``
+     - ICRP-74
+     - ADE, PDE0, PDE45, PDE60, PDE75
+     - 1e-9 – 398 MeV
+     - Operational quantities
+
+.. warning::
+
+   ``NRB99_2009_effective`` covers a limited energy range (25 eV – 20 MeV).
+   Values outside this range are set to zero during interpolation.
+
+.. code-block:: python
+
+   from bssunfold import Detector, get_coefficients, interpolate_coefficients
+
+   # Set on Detector (affects all subsequent unfolds)
+   detector = Detector(cc_type="ICRP74_effective")
+
+   # Change after creation
+   detector.set_dose_coefficients("ICRP74_operational")
+
+   # Get coefficients directly for custom use
+   cc = get_coefficients("NRB99_2009_effective")
+   cc_interp = interpolate_coefficients(cc, detector.E_MeV)
+
 
 Spectrum Comparison Metrics
 ---------------------------

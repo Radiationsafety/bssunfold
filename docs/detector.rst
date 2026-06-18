@@ -46,6 +46,14 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_tsvd.unfold_tsvd
 
+.. autofunction:: bssunfold.core.unfold_parametric.unfold_parametric
+
+.. autofunction:: bssunfold.core.unfold_parametric.solve_parametric_cvxpy
+
+.. autofunction:: bssunfold.core.unfold_parametric.solve_parametric_qpsolvers
+
+.. autofunction:: bssunfold.core.unfold_parametric.solve_parametric_combined
+
 Core Functions
 ==============
 

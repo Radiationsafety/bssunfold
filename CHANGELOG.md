@@ -7,6 +7,49 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.9.0] - 2026-06-17
+
+### Added
+- **Built-in dose conversion coefficient datasets** (4 datasets):
+  - `ICRP116` — ICRP-116 effective dose (AP, PA, LLAT, RLAT, ISO, ROT; 60 points, 1e-9 – 631 MeV)
+  - `ICRP74_effective` — ICRP-74 effective dose (AP, PA, RLAT, ROT, ISO; 60 points, 1e-9 – 631 MeV)
+  - `NRB99_2009_effective` — NRB99-2009 effective dose (AP, ISO; 24 points, 25 eV–20 MeV, limited range)
+  - `ICRP74_operational` — ICRP-74 operational quantities (ADE, PDE0, PDE45, PDE60, PDE75; 60 points, 1e-9 – 631 MeV)
+  - `get_coefficients(name)` — lookup coefficient datasets by string key
+  - `interpolate_coefficients(cc, E_target)` — interpolate coefficients to detector energy grid
+  - `Detector(cc_type=...)` — select dose coefficients at construction time
+  - `Detector.set_dose_coefficients(name)` — change dose coefficients after construction
+  - Exported from `bssunfold` package root
+- **Built-in response function datasets** (7 datasets from CSV sources):
+  - `RF_JINR` — JINR (Dubna): 9 detectors, 60 energy bins (1e-9–631 MeV)
+  - `RF_FERMILAB` — Fermilab: 8 detectors, 60 energy bins (1e-9–631 MeV)
+  - `RF_EURADOS` — EURADOS round-robin: 13 detectors, 105 energy bins (1e-9 – 20 MeV, narrower range)
+  - `RF_IHEP` — IHEP (Protvino): 12 detectors, 107 energy bins (1e-9–2000 MeV, wider range)
+  - Special detectors documented: Cd-covered (Cd0in, Cd2in), lead-shielded (10inPb)
+  - Exported from `bssunfold` package root alongside `RF_GSF`, `RF_PTB`, `RF_LANL`
+- **SQP-based parametric unfolding** (`unfold_parametric.py`):
+
+  - Numerical Jacobian with bound-aware clamping for SQP linearization
+  - Brute-force grid scan (`_find_initial_params`) for robust initial parameter estimation
+  - Fit quality warning when residual exceeds 10x the readings norm
+  - Unified `solver_backend` parameter format: `"auto"`, `"cvxpy"`, `"cvxpy:ECOS"`, `"qpsolvers"`, `"qpsolvers:osqp"`
+- Simplified parameter interface: replaced 6 params (`cvxpy_solver`, `qpsolver_name`, `qp_solver`, `norm`, `smoothness_order`, `smoothness_weight`) with single `solver_backend` string
+
+### Fixed
+- Combined method no longer re-runs lmfit redundantly after QP refinement
+- Jacobian perturbations now clamped within parameter bounds (backward difference at boundaries)
+- SQP penalty corrected from `α||Jδ + s_k||²` to `α||δ||²` (regularizes parameter updates, not spectrum values)
+- Brute-force scan finds better starting point for fast-dominated spectra (e.g., Cf-252)
+
+### Changed
+- Test suite: 632 tests (was 46 parametric-specific tests)
+- Updated docs: Sphinx API, README method table, Mermaid diagrams, examples
+
+### Security
+- Updated `pillow` 12.1.0 → 12.2.0 (CVE-2026-25990: out-of-bounds write via crafted PSD image)
+- Updated `pygments` 2.19.2 → 2.20.0 (CVE-2026-4539: DoS via inefficient regex in AdlLexer)
+- Updated `pytest` 9.0.2 → 9.1.0 (CVE-2025-71176: insecure temporary directory handling)
+
 ## [0.8.0] - 2026-06-15
 
 ### Added

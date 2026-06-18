@@ -35,7 +35,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (17 methods):
+- **Multiple Unfolding Algorithms** (21 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD)
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
@@ -43,6 +43,7 @@
   - **Statistical Regularization**: Turchin's method (StatReg)
   - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR)
   - **Pipeline**: Combined approach for chaining multiple methods
+  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined)
 
 - **Radiation Dose Calculations**:
   - Effective dose calculations for different irradiation types based on  conversion coefficients from 116 publication of International commission on radiological protection (ICRP)
@@ -174,6 +175,59 @@ readings = {
 }
 ```
 
+## 📦 Built-in Response Functions
+
+The package includes 7 built-in response function datasets for immediate use:
+
+| Dataset | Source | Detectors | Energy Range |
+|---------|--------|-----------|--------------|
+| `RF_GSF` | GSF (Germany) | 10 (0in–18in) | 1e-9 – 631 MeV |
+| `RF_PTB` | PTB (Germany) | 15 (0in–18in) | 1e-9 – 631 MeV |
+| `RF_LANL` | LANL (USA) | 11 (3in–18in, + Pb-shielded) | 1e-9 – 631 MeV |
+| `RF_JINR` | JINR (Dubna, Russia) | 9 (0in–12in, Cd0in, 10inPb) | 1e-9 – 631 MeV |
+| `RF_FERMILAB` | Fermilab (USA) | 8 (0in–18in) | 1e-9 – 631 MeV |
+| `RF_EURADOS` | EURADOS round-robin | 13 (0in–12in, Cd2in, 3.5in, 4.5in) | 1e-9 – 20 MeV ⚠️ |
+| `RF_IHEP` | IHEP (Protvino, Russia) | 12 (0in–18in, 15in) | 1e-9 – 2000 MeV ⚠️ |
+
+> **⚠️ Note:** `RF_EURADOS` has a narrower energy range (max 20 MeV) and `RF_IHEP` has a wider range (max 2000 MeV) compared to the standard 631 MeV used by GSF/PTB/LANL/JINR/Fermilab. Use caution when comparing results across datasets.
+
+```python
+from bssunfold import Detector, RF_JINR
+
+# Use built-in response functions directly
+detector = Detector(RF_JINR)
+result = detector.unfold_cvxpy(readings, regularization=1e-4)
+```
+
+## 🔢 Dose Conversion Coefficients
+
+The package includes 4 dose conversion coefficient datasets for flexible dose rate calculations:
+
+| Dataset | Standard | Quantities | Energy Range |
+|---------|----------|------------|--------------|
+| `ICRP116` (default) | ICRP-116 | AP, PA, LLAT, RLAT, ISO, ROT | 1e-9 – 631 MeV |
+| `ICRP74_effective` | ICRP-74 | AP, PA, RLAT, ROT, ISO | 1e-9 – 398 MeV |
+| `NRB99_2009_effective` | NRB99-2009 | AP, ISO | 25 eV – 20 MeV ⚠️ |
+| `ICRP74_operational` | ICRP-74 | ADE, PDE0, PDE45, PDE60, PDE75 | 1e-9 – 398 MeV |
+
+> **⚠️ Note:** `NRB99_2009_effective` covers a limited energy range (25 eV – 20 MeV). Values outside this range are set to zero.
+
+```python
+from bssunfold import Detector, get_coefficients
+
+# Method 1: Set on Detector (affects all subsequent unfolds)
+detector = Detector(cc_type="ICRP74_effective")
+result = detector.unfold_cvxpy(readings)
+
+# Method 2: Change after creation
+detector.set_dose_coefficients("ICRP74_operational")
+
+# Method 3: Get coefficients directly for custom use
+cc = get_coefficients("NRB99_2009_effective")
+from bssunfold import interpolate_coefficients
+cc_interp = interpolate_coefficients(cc, detector.E_MeV)
+```
+
 ## ⚙️ Available Unfolding Methods
 
 ```mermaid
@@ -185,6 +239,7 @@ graph TD
     A --> F[Statistical Regularization]
     A --> G[Optimization-based]
     A --> H[Pipeline]
+    A --> I[Parametric]
 
     B --> B1[unfold_cvxpy]
     B --> B2[unfold_qpsolvers]
@@ -209,6 +264,11 @@ graph TD
 
     H --> H1[unfold_combined]
 
+    I --> I1[unfold_parametric]
+    I --> I2[unfold_parametric_cvxpy]
+    I --> I3[unfold_parametric_qpsolvers]
+    I --> I4[unfold_parametric_combined]
+
     style A fill:#4a90d9,color:#fff
     style B fill:#e8f0fe
     style C fill:#e8f0fe
@@ -217,6 +277,7 @@ graph TD
     style F fill:#e8f0fe
     style G fill:#e8f0fe
     style H fill:#e8f0fe
+    style I fill:#e8f0fe
 ```
 
 ### Method Reference Table
@@ -240,6 +301,10 @@ graph TD
 | 15 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight` | lmfit | L1/L2/Elastic Net via lmfit |
 | 16 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |
 | 17 | `unfold_combined` | Pipeline | `pipeline` (list of `{method, params}` dicts) | — | Sequential multi-method pipeline |
+| 18 | `unfold_parametric` | Parametric | `parametric_method`, `optimizer`, `solver_backend`, `initial_params` | lmfit, cvxpy, qpsolvers | FRUIT-style thermal/epithermal/fast model |
+| 19 | `unfold_parametric_cvxpy` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | cvxpy | SQP solver using cvxpy for parametric fitting |
+| 20 | `unfold_parametric_qpsolvers` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | qpsolvers | SQP solver using qpsolvers backends |
+| 21 | `unfold_parametric_combined` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | lmfit, cvxpy, qpsolvers | lmfit first-pass + QP refinement |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -273,6 +338,22 @@ result = detector.unfold_combined(
     ],
     calculate_errors=True,
 )
+```
+
+### Parametric Example
+
+```python
+# FRUIT-style parametric model (thermal + epithermal + fast)
+result = detector.unfold_parametric(
+    readings=readings,
+    parametric_method='thermal+epithermal+fast',
+    optimizer='cvxpy',           # or 'lmfit', 'qpsolvers', 'combined'
+    solver_backend='cvxpy:ECOS', # or 'qpsolvers:osqp'
+    calculate_errors=True,
+)
+
+# The parametric model fit yields spectrum components
+print(result['doserates'])
 ```
 
 ## 📊 Spectrum Comparison
@@ -488,7 +569,7 @@ bssunfold/
 │   ├── conf.py
 │   └── requirements.txt
 ├── examples/                    # Jupyter notebooks
-├── tests/                       # 391 tests across 9 files
+├── tests/                       # 632 tests across 9 files
 └── src/
     └── bssunfold/
         ├── __init__.py          # Public API: Detector
@@ -519,7 +600,8 @@ bssunfold/
         │   ├── unfold_statreg.py
         │   ├── unfold_lmfit.py
         │   ├── unfold_scipy_direct_method.py
-        │   └── unfold_combined.py
+        │   ├── unfold_combined.py
+        │   └── unfold_parametric.py
         └── utils/
             ├── __init__.py
             ├── comparison.py    # 25 spectrum metrics

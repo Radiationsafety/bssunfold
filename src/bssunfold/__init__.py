@@ -16,9 +16,21 @@ import importlib.metadata
 from .core.detector import Detector
 from .constants import (
     ICRP116_COEFF_EFFECTIVE_DOSE,
+    ICRP74_COEFF_EFFECTIVE_DOSE,
+    NRB99_2009_COEFF_EFFECTIVE_DOSE,
+    ICRP74_COEFF_OPERATIONAL_QUANTITIES,
     RF_GSF,
     RF_PTB,
     RF_LANL,
+    RF_JINR,
+    RF_FERMILAB,
+    RF_EURADOS,
+    RF_IHEP,
+)
+from .core.dose_calculation import (
+    get_coefficients,
+    interpolate_coefficients,
+    DOSE_COEFFICIENTS_REGISTRY,
 )
 
 # Import utility modules for convenience
@@ -41,9 +53,20 @@ __all__ = [
     "Detector",
     # Constants
     "ICRP116_COEFF_EFFECTIVE_DOSE",
+    "ICRP74_COEFF_EFFECTIVE_DOSE",
+    "NRB99_2009_COEFF_EFFECTIVE_DOSE",
+    "ICRP74_COEFF_OPERATIONAL_QUANTITIES",
     "RF_GSF",
     "RF_PTB",
     "RF_LANL",
+    "RF_JINR",
+    "RF_FERMILAB",
+    "RF_EURADOS",
+    "RF_IHEP",
+    # Dose coefficient utilities
+    "get_coefficients",
+    "interpolate_coefficients",
+    "DOSE_COEFFICIENTS_REGISTRY",
     # Platform info
     "is_windows",
     "is_unix",

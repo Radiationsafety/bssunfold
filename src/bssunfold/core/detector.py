@@ -14,7 +14,11 @@ from ..logging_config import get_logger
 from ..utils.validators import validate_readings
 from ..utils.interpolation import discretize_spectra
 from ..utils.plotting import plot_with_uncertainty
-from .dose_calculation import calculate_dose_rates, get_icrp116_coefficients
+from .dose_calculation import (
+    calculate_dose_rates,
+    get_coefficients,
+    interpolate_coefficients,
+)
 from .regularization import (
     compare_regularization_methods as compare_reg_util,
     randomization_experiment as rand_exp_util,
@@ -84,7 +88,9 @@ class Detector:
     sensitivities : Dict[str, np.ndarray]
         Dictionary mapping detector names to their sensitivity arrays
     cc_icrp116 : Dict[str, np.ndarray]
-        ICRP-116 conversion coefficients for dose calculation
+        Raw (non-interpolated) conversion coefficients for dose calculation
+    cc_type : str
+        Name of the dose conversion coefficient dataset (default: "ICRP116")
     n_detectors : int
         Number of available detectors (property)
     n_energy_bins : int
@@ -105,6 +111,7 @@ class Detector:
         response_functions: Optional[Union[pd.DataFrame, Dict]] = None,
         E_MeV: Optional[np.ndarray] = None,
         sensitivities: Optional[Union[Dict, np.ndarray]] = None,
+        cc_type: str = "ICRP116",
     ):
         """Initialize Detector with response functions.
 
@@ -116,6 +123,10 @@ class Detector:
             Energy grid in MeV.
         sensitivities : dict or np.ndarray, optional
             Detector sensitivities.
+        cc_type : str, optional
+            Name of the dose conversion coefficient dataset to use.
+            Options: "ICRP116", "ICRP74_effective", "NRB99_2009_effective",
+            "ICRP74_operational". Default: "ICRP116".
 
         Raises
         ------
@@ -142,7 +153,8 @@ class Detector:
             self.detector_names[i]: np.array(Amat[:, i])
             for i in range(len(self.detector_names))
         }
-        self.cc_icrp116 = get_icrp116_coefficients()
+        self.cc_type = cc_type
+        self.cc_icrp116 = get_coefficients(cc_type)
 
         # Initialize results storage
         self.results_history: Dict[str, Dict[str, Any]] = {}
@@ -232,6 +244,44 @@ class Detector:
         """Number of energy bins."""
         return len(self.E_MeV)
 
+    def set_dose_coefficients(self, name: str) -> None:
+        """Change the dose conversion coefficient dataset.
+
+        Parameters
+        ----------
+        name : str
+            Name of the coefficient dataset. Options:
+
+            - ``"ICRP116"``: ICRP-116 effective dose (default)
+            - ``"ICRP74_effective"``: ICRP-74 effective dose
+            - ``"NRB99_2009_effective"``: NRB99-2009 effective dose
+            - ``"ICRP74_operational"``: ICRP-74 operational quantities
+
+        Raises
+        ------
+        ValueError
+            If the coefficient name is not found.
+
+        Examples
+        --------
+        >>> detector = Detector()
+        >>> detector.set_dose_coefficients("ICRP74_effective")
+        >>> detector.cc_type
+        'ICRP74_effective'
+        """
+        self.cc_icrp116 = get_coefficients(name)
+        self.cc_type = name
+
+    def _get_interpolated_cc(self) -> Dict[str, np.ndarray]:
+        """Get conversion coefficients interpolated to this detector's energy grid.
+
+        Returns
+        -------
+        Dict[str, np.ndarray]
+            Interpolated conversion coefficients on self.E_MeV.
+        """
+        return interpolate_coefficients(self.cc_icrp116, self.E_MeV)
+
     def _validate_readings(
         self, readings: Dict[str, float]
     ) -> Dict[str, float]:
@@ -276,7 +326,7 @@ class Detector:
             "residual": residual.copy(),
             "residual_norm": float(np.linalg.norm(residual)),
             "method": method,
-            "doserates": calculate_dose_rates(spectrum_nonneg, self.cc_icrp116),
+            "doserates": calculate_dose_rates(spectrum_nonneg, self._get_interpolated_cc()),
         }
         output.update(kwargs)
         return output
@@ -472,7 +522,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -533,7 +583,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -591,7 +641,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -665,7 +715,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -737,7 +787,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -800,7 +850,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -843,7 +893,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             pipeline=pipeline,
@@ -993,7 +1043,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1055,7 +1105,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1117,7 +1167,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1179,7 +1229,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1238,7 +1288,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1296,7 +1346,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1360,7 +1410,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1429,7 +1479,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1493,7 +1543,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1556,7 +1606,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1619,7 +1669,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1686,7 +1736,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1755,7 +1805,7 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1776,6 +1826,11 @@ class Detector:
         initial_spectrum: Optional[np.ndarray] = None,
         initial_params: Optional[Dict[str, float]] = None,
         method: str = "leastsq",
+        optimizer: str = "lmfit",
+        alpha: float = 1e-4,
+        solver_backend: str = "auto",
+        max_iter: int = 50,
+        tol: float = 1e-6,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -1786,7 +1841,14 @@ class Detector:
 
         Uses the three-component parameterization from Bedogni FRUIT /
         Pyshkina B3S: thermal (Maxwellian), epithermal (1/E with
-        exponential cutoffs), and fast (power-law × exponential).
+        exponential cutoffs), and fast (power-law x exponential).
+
+        The ``optimizer`` parameter selects the backend:
+
+        * ``"lmfit"``     -- classic lmfit least-squares (default).
+        * ``"cvxpy"``     -- sequential QP via cvxpy (SQP).
+        * ``"qpsolvers"`` -- sequential QP via qpsolvers (SQP).
+        * ``"combined"``  -- lmfit first, then QP refinement.
 
         Parameters
         ----------
@@ -1799,6 +1861,17 @@ class Detector:
             Keys: b, beta_prime, alpha, beta, P_th, P_epi.
         method : str, optional
             lmfit solver method (default: "leastsq").
+        optimizer : str, optional
+            Backend optimizer (default: "lmfit").
+        alpha : float, optional
+            Regularization weight for QP-based optimizers (default: 1e-4).
+        solver_backend : str, optional
+            QP solver backend: "auto", "cvxpy", "cvxpy:ECOS",
+            "qpsolvers", "qpsolvers:osqp", etc. (default: "auto").
+        max_iter : int, optional
+            Max SQP iterations (default: 50).
+        tol : float, optional
+            Convergence tolerance for SQP (default: 1e-6).
         calculate_errors : bool, optional
             Calculate Monte-Carlo errors (default: False).
         noise_level : float, optional
@@ -1820,12 +1893,17 @@ class Detector:
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
             sensitivities=self.sensitivities,
-            cc_icrp116=self.cc_icrp116,
+            cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
             initial_params=initial_params,
             method=method,
+            optimizer=optimizer,
+            alpha=alpha,
+            solver_backend=solver_backend,
+            max_iter=max_iter,
+            tol=tol,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
@@ -2105,7 +2183,7 @@ class Detector:
         r2 = readings2 if readings2 is not None else extra_readings[1]
         rm = response_matrix if response_matrix is not None else (extra_rm[0] if extra_rm[0] is not None else extra_rm[1])
         use_energy = self.E_MeV
-        use_cc = self.cc_icrp116
+        use_cc = self._get_interpolated_cc()
 
         # Single-pair comparison
         if len(parsed) == 2:

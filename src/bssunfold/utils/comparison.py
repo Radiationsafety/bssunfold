@@ -4,6 +4,7 @@ Each function follows single-responsibility principle and operates on
 1-D numpy arrays. All metrics are implemented with numpy/scipy only.
 """
 
+import logging
 import numpy as np
 from typing import Dict, List, Optional, Union
 
@@ -52,6 +53,32 @@ __all__ = [
 ]
 
 EPS = 1e-15
+
+
+def _extract_cc_array(
+    cc_icrp116: Optional[Dict[str, np.ndarray]],
+    energy: np.ndarray,
+    preferred_geom: str = "AP",
+) -> np.ndarray:
+    """Extract a 1D conversion coefficient array from a dict or array.
+
+    If cc_icrp116 is a dict, extracts the preferred geometry key (e.g., "AP").
+    If cc_icrp116 is an ndarray, returns it directly.
+    If None, returns ones_like(energy).
+    """
+    if cc_icrp116 is None:
+        return np.ones_like(energy)
+    if isinstance(cc_icrp116, dict):
+        # Try preferred geometry, then any non-E_MeV key
+        if preferred_geom in cc_icrp116:
+            return np.asarray(cc_icrp116[preferred_geom], dtype=float)
+        for key, val in cc_icrp116.items():
+            if key != "E_MeV":
+                return np.asarray(val, dtype=float)
+        return np.ones_like(energy)
+    return np.asarray(cc_icrp116, dtype=float)
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize(p: np.ndarray) -> np.ndarray:
@@ -472,7 +499,7 @@ def dose_difference_percent(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
     energy: np.ndarray,
-    cc_icrp116: Optional[np.ndarray] = None,
+    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
 ) -> float:
     """Relative difference in ambient dose equivalent H*(10) (%).
 
@@ -492,9 +519,7 @@ def dose_difference_percent(
     s2 = np.asarray(spectrum2, dtype=float)
     e = np.asarray(energy, dtype=float)
 
-    if cc_icrp116 is None:
-        cc_icrp116 = np.ones_like(e)
-    cc = np.asarray(cc_icrp116, dtype=float)
+    cc = _extract_cc_array(cc_icrp116, e, preferred_geom="AP")
 
     log_steps = np.zeros_like(e)
     log_e = np.log10(e + 1e-15)
@@ -539,7 +564,7 @@ def dose_averaged_energy_diff(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
     energy: np.ndarray,
-    cc_icrp116: Optional[np.ndarray] = None,
+    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
 ) -> float:
     """Relative difference in H*(10)-averaged energy (%).
 
@@ -552,9 +577,7 @@ def dose_averaged_energy_diff(
     s2 = np.asarray(spectrum2, dtype=float)
     e = np.asarray(energy, dtype=float)
 
-    if cc_icrp116 is None:
-        cc_icrp116 = np.ones_like(e)
-    cc = np.asarray(cc_icrp116, dtype=float)
+    cc = _extract_cc_array(cc_icrp116, e, preferred_geom="AP")
 
     log_steps = np.zeros_like(e)
     log_e = np.log10(e + 1e-15)
@@ -690,7 +713,7 @@ def dose_weighted_error(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
     energy: np.ndarray,
-    cc_icrp116: Optional[np.ndarray] = None,
+    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
 ) -> float:
     """Dose-weighted mean squared error.
 
@@ -703,9 +726,7 @@ def dose_weighted_error(
     s2 = np.asarray(spectrum2, dtype=float)
     e = np.asarray(energy, dtype=float)
 
-    if cc_icrp116 is None:
-        cc_icrp116 = np.ones_like(e)
-    cc = np.asarray(cc_icrp116, dtype=float)
+    cc = _extract_cc_array(cc_icrp116, e, preferred_geom="AP")
 
     log_steps = np.zeros_like(e)
     log_e = np.log10(e + 1e-15)
@@ -837,7 +858,7 @@ def compare_spectra(
     metrics: Optional[Union[str, List[str]]] = None,
     bins: Optional[np.ndarray] = None,
     energy: Optional[np.ndarray] = None,
-    cc_icrp116: Optional[np.ndarray] = None,
+    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
     readings1: Optional[np.ndarray] = None,
     readings2: Optional[np.ndarray] = None,
     response_matrix: Optional[np.ndarray] = None,
@@ -902,7 +923,8 @@ def compare_spectra(
     for key in simple_keys:
         try:
             results[key] = _METRIC_FUNCTIONS[key](spectrum1, spectrum2)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Metric %s failed: %s", key, exc)
             results[key] = float("nan")
 
     for key in eurados_keys:
@@ -927,7 +949,8 @@ def compare_spectra(
                     results["response_matrix_consistency_test"] = func(spectrum2, readings2 if readings2 is not None else readings1, response_matrix)
             else:
                 results[key] = func(spectrum1, spectrum2, energy, cc_icrp116)
-        except Exception:
+        except Exception as exc:
+            logger.debug("EURADOS metric %s failed: %s", key, exc)
             results[key] = float("nan")
 
     return results

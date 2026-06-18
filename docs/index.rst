@@ -26,7 +26,7 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (17 methods):
+- **Multiple Unfolding Algorithms** (21 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation
@@ -34,6 +34,7 @@ Features
   - **Statistical Regularisation**: Turchin's method (StatReg)
   - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR)
   - **Pipeline**: Combined approach for chaining multiple methods
+  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined)
 
 - **Radiation Dose Calculations**:
   - ICRP-116 conversion coefficients for effective dose

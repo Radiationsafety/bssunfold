@@ -144,8 +144,6 @@ def _metropolis_hastings(
     for k in samples:
         samples[k] = np.array(samples[k])
 
-    acceptance_rate = n_accepted / (n_samples + burn_in)
-
     means = {k: float(np.mean(v)) for k, v in samples.items()}
     return means, samples
 

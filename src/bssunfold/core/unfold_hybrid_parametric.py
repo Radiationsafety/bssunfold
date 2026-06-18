@@ -133,7 +133,6 @@ def solve_hybrid_parametric(
         (spectrum, success, message, nfev)
     """
     n_energy = A.shape[1]
-    n_det = A.shape[0]
 
     parametric_guess = np.ones(n_energy) * np.mean(b) / np.mean(A.sum(axis=1))
 
