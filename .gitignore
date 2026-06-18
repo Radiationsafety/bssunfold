@@ -208,3 +208,8 @@ tests/iaea_plots/*.png
 tests/iaea_validation_PTB.csv
 tests/iaea_validation_LANL.csv
 tests/iaea_validation_GSF.csv
+tests/dose_rate_results.csv
+tests/dose_rate_scatter.png
+tests/dose_rate_evaluation.md
+tests/iso_plots/
+tests/iaea_compendium_iso_plots
