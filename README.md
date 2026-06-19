@@ -227,7 +227,6 @@ cc = get_coefficients("NRB99_2009_effective")
 from bssunfold import interpolate_coefficients
 cc_interp = interpolate_coefficients(cc, detector.E_MeV)
 ```
-
 ## ⚙️ Available Unfolding Methods
 
 ```mermaid
@@ -355,6 +354,20 @@ result = detector.unfold_parametric(
 # The parametric model fit yields spectrum components
 print(result['doserates'])
 ```
+
+## 📊 5-Detector Comparison
+
+The dose rate evaluation scripts compare results across 5 detector configurations:
+
+| Detector | Origin | Detectors | Energy Range |
+|----------|--------|-----------|--------------|
+| GSF | Germany | 10 (0in–18in) | 1e-9 – 631 MeV |
+| PTB | Germany | 15 (0in–18in) | 1e-9 – 631 MeV |
+| LANL | USA | 11 (3in–18in, + Pb-shielded) | 1e-9 – 631 MeV |
+| JINR | Dubna, Russia | 9 (0in–12in, Cd0in, 10inPb) | 1e-9 – 631 MeV |
+| FERMILAB | Fermilab, USA | 8 (0in–18in) | 1e-9 – 631 MeV |
+
+ISO scatter plots with per-detector color coding are generated in `tests/iso_plots/` and `tests/iaea_compendium_iso_plots/`.
 
 ## 📊 Spectrum Comparison
 

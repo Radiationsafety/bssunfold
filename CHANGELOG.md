@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.9.1] - 2026-06-19
+
+### Added
+- **5-detector comparison** in dose rate evaluation scripts (`dose_rate_evaluation.py`, `dose_rate_iaea_compendium.py`):
+  - Added JINR and FERMILAB to detector configurations (now 5: GSF, PTB, LANL, JINR, FERMILAB)
+  - ISO scatter plots with per-detector color differentiation and legend
+  - Updated evaluation reports with 5-detector results
+
 ## [0.9.0] - 2026-06-17
 
 ### Added
