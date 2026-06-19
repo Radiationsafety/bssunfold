@@ -17,7 +17,14 @@ import numpy as np
 import pandas as pd
 
 from bssunfold import (
-    Detector, RF_GSF, RF_PTB, RF_LANL, RF_JINR, RF_FERMILAB, RF_EURADOS, RF_IHEP,
+    Detector,
+    RF_GSF,
+    RF_PTB,
+    RF_LANL,
+    RF_JINR,
+    RF_FERMILAB,
+    RF_EURADOS,
+    RF_IHEP,
 )
 from bssunfold.core.dose_calculation import calculate_dose_rates
 
@@ -30,16 +37,66 @@ OUTPUT_CSV = Path(__file__).parent / "qpsolvers_cvxpy_dose_rate_results.csv"
 
 CSV_ENERGIES = np.array(
     [
-        1e-9, 2.15e-9, 4.64e-9, 1e-8, 2.15e-8, 4.64e-8,
-        1e-7, 2.15e-7, 4.64e-7, 1e-6, 2.15e-6, 4.64e-6,
-        1e-5, 2.15e-5, 4.64e-5, 0.0001, 0.000215, 0.000464,
-        0.001, 0.00215, 0.00464, 0.01, 0.0125, 0.0158,
-        0.0199, 0.0251, 0.0316, 0.0398, 0.0501, 0.063,
-        0.0794, 0.1, 0.125, 0.158, 0.199, 0.251, 0.316,
-        0.398, 0.501, 0.63, 0.794, 1.0, 1.25, 1.58,
-        1.99, 2.51, 3.16, 3.98, 5.01, 6.3, 7.94,
-        10.0, 15.8, 25.1, 39.8, 63.0, 100.0, 158.0,
-        251.0, 398.0,
+        1e-9,
+        2.15e-9,
+        4.64e-9,
+        1e-8,
+        2.15e-8,
+        4.64e-8,
+        1e-7,
+        2.15e-7,
+        4.64e-7,
+        1e-6,
+        2.15e-6,
+        4.64e-6,
+        1e-5,
+        2.15e-5,
+        4.64e-5,
+        0.0001,
+        0.000215,
+        0.000464,
+        0.001,
+        0.00215,
+        0.00464,
+        0.01,
+        0.0125,
+        0.0158,
+        0.0199,
+        0.0251,
+        0.0316,
+        0.0398,
+        0.0501,
+        0.063,
+        0.0794,
+        0.1,
+        0.125,
+        0.158,
+        0.199,
+        0.251,
+        0.316,
+        0.398,
+        0.501,
+        0.63,
+        0.794,
+        1.0,
+        1.25,
+        1.58,
+        1.99,
+        2.51,
+        3.16,
+        3.98,
+        5.01,
+        6.3,
+        7.94,
+        10.0,
+        15.8,
+        25.1,
+        39.8,
+        63.0,
+        100.0,
+        158.0,
+        251.0,
+        398.0,
     ]
 )
 
@@ -55,9 +112,29 @@ DETECTOR_CONFIGS = {
     "IHEP": lambda: Detector(pd.DataFrame(RF_IHEP)),
 }
 
-QPSOLVERS_LIST = ["clarabel", "ecos", "highs", "osqp", "piqp", "proxqp", "qpalm", "scs"]
+QPSOLVERS_LIST = [
+    "clarabel",
+    "ecos",
+    "highs",
+    "osqp",
+    "piqp",
+    "proxqp",
+    "qpalm",
+    "scs",
+]
 
-CVXPY_LIST = ["CLARABEL", "ECOS", "ECOS_BB", "HIGHS", "OSQP", "PIQP", "PROXQP", "QPALM", "SCIPY", "SCS"]
+CVXPY_LIST = [
+    "CLARABEL",
+    "ECOS",
+    "ECOS_BB",
+    "HIGHS",
+    "OSQP",
+    "PIQP",
+    "PROXQP",
+    "QPALM",
+    "SCIPY",
+    "SCS",
+]
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -73,7 +150,10 @@ def compute_dose(spectrum):
 def try_unfold_qpsolvers(detector, readings, solver):
     try:
         result = detector.unfold_qpsolvers(
-            readings, regularization=1e-3, solver=solver, save_result=False
+            readings,
+            regularization_method="gcv",
+            solver=solver,
+            save_result=False,
         )
         if result and "spectrum" in result:
             return result["spectrum"], "OK"
@@ -85,7 +165,10 @@ def try_unfold_qpsolvers(detector, readings, solver):
 def try_unfold_cvxpy(detector, readings, solver):
     try:
         result = detector.unfold_cvxpy(
-            readings, regularization=1e-3, solver=solver, save_result=False
+            readings,
+            regularization_method="gcv",
+            solver=solver,
+            save_result=False,
         )
         if result and "spectrum" in result:
             return result["spectrum"], "OK"
@@ -119,12 +202,16 @@ def main():
         readings_map = {}
         for _, iaea_row in iaea_df.iterrows():
             place = iaea_row["Place"]
-            csv_spectrum = np.array([iaea_row[c] for c in energy_cols], dtype=float)
+            csv_spectrum = np.array(
+                [iaea_row[c] for c in energy_cols], dtype=float
+            )
             ref_dict = {"E_MeV": CSV_ENERGIES, "Phi": csv_spectrum}
             readings = detector.get_effective_readings_for_spectra(ref_dict)
             readings_map[place] = readings
         detector_readings[det_name] = (detector, readings_map)
-        print(f"  {det_name}: {detector.n_detectors} detectors, {len(readings_map)} readings computed")
+        print(
+            f"  {det_name}: {detector.n_detectors} detectors, {len(readings_map)} readings computed"
+        )
 
     # Also compute reference doses
     print("\nComputing reference doses...")
@@ -139,10 +226,18 @@ def main():
     print(f"  Reference doses computed for {len(ref_doses)} spectra")
 
     # Run all combinations
-    total = (len(QPSOLVERS_LIST) + len(CVXPY_LIST)) * len(DETECTOR_CONFIGS) * n_spectra
+    total = (
+        (len(QPSOLVERS_LIST) + len(CVXPY_LIST))
+        * len(DETECTOR_CONFIGS)
+        * n_spectra
+    )
     print(f"\nTotal unfold calls: {total}")
-    print(f"  qpsolvers: {len(QPSOLVERS_LIST)} solvers × {len(DETECTOR_CONFIGS)} detectors × {n_spectra} spectra")
-    print(f"  cvxpy: {len(CVXPY_LIST)} solvers × {len(DETECTOR_CONFIGS)} detectors × {n_spectra} spectra\n")
+    print(
+        f"  qpsolvers: {len(QPSOLVERS_LIST)} solvers × {len(DETECTOR_CONFIGS)} detectors × {n_spectra} spectra"
+    )
+    print(
+        f"  cvxpy: {len(CVXPY_LIST)} solvers × {len(DETECTOR_CONFIGS)} detectors × {n_spectra} spectra\n"
+    )
 
     rows = []
     done = 0
@@ -153,30 +248,36 @@ def main():
         for det_name, (detector, readings_map) in detector_readings.items():
             for place, readings in readings_map.items():
                 dose_ref = ref_doses[place]
-                spectrum, status = try_unfold_qpsolvers(detector, readings, solver)
+                spectrum, status = try_unfold_qpsolvers(
+                    detector, readings, solver
+                )
                 if spectrum is not None:
                     dose_unfolded = compute_dose(spectrum)
                 else:
                     dose_unfolded = {g: 0.0 for g in DOSE_GEOMETRIES}
 
                 for geom in DOSE_GEOMETRIES:
-                    rows.append({
-                        "detector": det_name,
-                        "place": place,
-                        "solver_type": "qpsolvers",
-                        "solver_name": solver,
-                        "geometry": geom,
-                        "dose_ref": dose_ref.get(geom, 0.0),
-                        "dose_unfolded": dose_unfolded.get(geom, 0.0),
-                        "status": status,
-                    })
+                    rows.append(
+                        {
+                            "detector": det_name,
+                            "place": place,
+                            "solver_type": "qpsolvers",
+                            "solver_name": solver,
+                            "geometry": geom,
+                            "dose_ref": dose_ref.get(geom, 0.0),
+                            "dose_unfolded": dose_unfolded.get(geom, 0.0),
+                            "status": status,
+                        }
+                    )
 
                 done += 1
                 if done % 500 == 0:
                     elapsed = time.time() - t0
                     rate = done / elapsed
                     eta = (total - done) / rate / 60
-                    print(f"  [{done}/{total}] qpsolvers/{solver} + {det_name} | {place} | {rate:.1f} calls/s | ETA: {eta:.0f} min")
+                    print(
+                        f"  [{done}/{total}] qpsolvers/{solver} + {det_name} | {place} | {rate:.1f} calls/s | ETA: {eta:.0f} min"
+                    )
 
     # CVXPY
     for solver in CVXPY_LIST:
@@ -190,26 +291,32 @@ def main():
                     dose_unfolded = {g: 0.0 for g in DOSE_GEOMETRIES}
 
                 for geom in DOSE_GEOMETRIES:
-                    rows.append({
-                        "detector": det_name,
-                        "place": place,
-                        "solver_type": "cvxpy",
-                        "solver_name": solver,
-                        "geometry": geom,
-                        "dose_ref": dose_ref.get(geom, 0.0),
-                        "dose_unfolded": dose_unfolded.get(geom, 0.0),
-                        "status": status,
-                    })
+                    rows.append(
+                        {
+                            "detector": det_name,
+                            "place": place,
+                            "solver_type": "cvxpy",
+                            "solver_name": solver,
+                            "geometry": geom,
+                            "dose_ref": dose_ref.get(geom, 0.0),
+                            "dose_unfolded": dose_unfolded.get(geom, 0.0),
+                            "status": status,
+                        }
+                    )
 
                 done += 1
                 if done % 500 == 0:
                     elapsed = time.time() - t0
                     rate = done / elapsed
                     eta = (total - done) / rate / 60
-                    print(f"  [{done}/{total}] cvxpy/{solver} + {det_name} | {place} | {rate:.1f} calls/s | ETA: {eta:.0f} min")
+                    print(
+                        f"  [{done}/{total}] cvxpy/{solver} + {det_name} | {place} | {rate:.1f} calls/s | ETA: {eta:.0f} min"
+                    )
 
     elapsed = time.time() - t0
-    print(f"\nDone: {len(rows)} rows ({done} unfold calls) in {elapsed/60:.1f} min")
+    print(
+        f"\nDone: {len(rows)} rows ({done} unfold calls) in {elapsed / 60:.1f} min"
+    )
 
     # Save
     df = pd.DataFrame(rows)

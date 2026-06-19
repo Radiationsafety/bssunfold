@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from bssunfold import Detector, RF_PTB, RF_LANL
+from bssunfold import Detector, RF_PTB, RF_LANL, RF_JINR, RF_FERMILAB
 from bssunfold.core.dose_calculation import calculate_dose_rates
 
 warnings.filterwarnings("ignore")
@@ -57,47 +57,51 @@ DETECTOR_CONFIGS = {
     "GSF": lambda: Detector(),
     "PTB": lambda: Detector(pd.DataFrame(RF_PTB)),
     "LANL": lambda: Detector(pd.DataFrame(RF_LANL)),
+    "JINR": lambda: Detector(pd.DataFrame(RF_JINR)),
+    "FERMILAB": lambda: Detector(pd.DataFrame(RF_FERMILAB)),
 }
 
 DOSE_GEOMETRIES = ["AP", "PA", "LLAT", "RLAT", "ROT", "ISO"]
 
+n_iter = 2000
+
 METHODS = {
     "cvxpy": lambda d, r: d.unfold_cvxpy(
-        r, regularization=1e-3, save_result=False
+        r, regularization_method="gcv", save_result=False
     ),
     "qpsolvers": lambda d, r: d.unfold_qpsolvers(
-        r, regularization=1e-3, save_result=False
+        r, regularization_method="gcv", save_result=False
     ),
     "landweber": lambda d, r: d.unfold_landweber(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "mlem": lambda d, r: d.unfold_mlem(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "doroshenko": lambda d, r: d.unfold_doroshenko(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "kaczmarz": lambda d, r: d.unfold_kaczmarz(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "gravel": lambda d, r: d.unfold_gravel(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "maxed": lambda d, r: d.unfold_maxed(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "tikhonov_legendre": lambda d, r: d.unfold_tikhonov_legendre(
-        r, delta=0.05, save_result=False
+        r, delta=0.05, n_polynomials=45, save_result=False, 
     ),
     "bayes": lambda d, r: d.unfold_bayes(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "bayes_spline": lambda d, r: d.unfold_bayes_spline_regularization(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "statreg": lambda d, r: d.unfold_statreg(r, save_result=False),
     "scipy_direct": lambda d, r: d.unfold_scipy_direct_method(
-        r, method="cg", max_iterations=500, save_result=False
+        r, method="cg", max_iterations=n_iter, save_result=False
     ),
     "tsvd": lambda d, r: d.unfold_tsvd(
         r, method="discrepancy", save_result=False
@@ -107,7 +111,7 @@ METHODS = {
         regularization=1e-4, save_result=False,
     ),
     "mlem_odl": lambda d, r: d.unfold_mlem_odl(
-        r, max_iterations=500, save_result=False
+        r, max_iterations=n_iter, save_result=False
     ),
     "fruit_like": lambda d, r: d.unfold_fruit_like(r, save_result=False),
     "hybrid_parametric_landweber": lambda d, r: d.unfold_hybrid_parametric(
@@ -395,13 +399,16 @@ def plot_iso_scatter(df, angles_df):
 
     from matplotlib.ticker import ScalarFormatter, LogLocator
 
+    det_colors = {
+        "GSF": "#377eb8",
+        "PTB": "#e41a1c",
+        "LANL": "#4daf4a",
+        "JINR": "#ff7f00",
+        "FERMILAB": "#984ea3",
+    }
+
     for method in methods:
         mdf = ok[ok["method"] == method]
-        xs = mdf["dose_ref"].values
-        ys = mdf["dose_unfolded"].values
-
-        mask = (xs > 0) & (ys > 0) & np.isfinite(xs) & np.isfinite(ys)
-        xs, ys = xs[mask], ys[mask]
 
         arow = angles_df[angles_df["method"] == method]
         if arow.empty:
@@ -410,14 +417,30 @@ def plot_iso_scatter(df, angles_df):
         theta = arow.iloc[0]["theta_ISO"]
         cls = classify_simple(theta)
 
-        fig, ax = plt.subplots(figsize=(6, 5))
-
-        ax.scatter(xs, ys, c="#377eb8", s=28, alpha=0.7, edgecolors="none", zorder=3)
-
-        vmin = float(np.min(np.concatenate([xs, ys])))
-        vmax = float(np.max(np.concatenate([xs, ys])))
+        all_xs = mdf["dose_ref"].values
+        all_ys = mdf["dose_unfolded"].values
+        mask = (all_xs > 0) & (all_ys > 0) & np.isfinite(all_xs) & np.isfinite(all_ys)
+        if mask.sum() < 2:
+            continue
+        vmin = float(np.min(np.concatenate([all_xs[mask], all_ys[mask]])))
+        vmax = float(np.max(np.concatenate([all_xs[mask], all_ys[mask]])))
         lo = vmin * 0.5
         hi = vmax * 2.0
+
+        fig, ax = plt.subplots(figsize=(6, 5))
+
+        for det_name, color in det_colors.items():
+            det_mdf = mdf[mdf["detector"] == det_name]
+            if det_mdf.empty:
+                continue
+            xs = det_mdf["dose_ref"].values
+            ys = det_mdf["dose_unfolded"].values
+            det_mask = (xs > 0) & (ys > 0) & np.isfinite(xs) & np.isfinite(ys)
+            ax.scatter(
+                xs[det_mask], ys[det_mask],
+                c=color, s=28, alpha=0.7, edgecolors="none", zorder=3,
+                label=det_name,
+            )
 
         line_x = np.logspace(np.log10(lo), np.log10(hi), 100)
         ax.plot(line_x, line_x, "k--", lw=1.2, alpha=0.5, label="45\u00b0 (perfect)")
@@ -446,7 +469,7 @@ def plot_iso_scatter(df, angles_df):
             f"\u03b8 = {theta:.2f}\u00b0 | k = {k:.4f} | {cls}",
             fontsize=11,
         )
-        ax.legend(fontsize=9, loc="upper left", frameon=True)
+        ax.legend(fontsize=8, loc="lower right", frameon=True)
         ax.grid(True, which="major", ls="--", alpha=0.3)
         ax.set_aspect("equal", adjustable="box")
 
@@ -516,7 +539,8 @@ def generate_report(df, angles_df):
 
     # ── ISO scatter plots ──
     a("## ISO Dose Scatter Plots\n")
-    a("Reference ISO dose vs unfolded ISO dose across all 20 spectra and 3 detectors. "
+    a("Reference ISO dose vs unfolded ISO dose across all 20 spectra and 5 detectors "
+      "(GSF, PTB, LANL, JINR, FERMILAB). "
       "Dashed line = perfect 45\u00b0 reconstruction; solid red = fitted line y = k\u00b7x.\n")
     methods_sorted = sorted(angles_df["method"].tolist())
     for method in methods_sorted:
