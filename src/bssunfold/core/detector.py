@@ -1828,6 +1828,7 @@ class Detector:
         method: str = "leastsq",
         optimizer: str = "lmfit",
         alpha: float = 1e-4,
+        alpha_auto: bool = False,
         solver_backend: str = "auto",
         max_iter: int = 50,
         tol: float = 1e-6,
@@ -1865,6 +1866,9 @@ class Detector:
             Backend optimizer (default: "lmfit").
         alpha : float, optional
             Regularization weight for QP-based optimizers (default: 1e-4).
+        alpha_auto : bool, optional
+            If True, select alpha automatically via GCV for the lmfit
+            optimizer (default: False).
         solver_backend : str, optional
             QP solver backend: "auto", "cvxpy", "cvxpy:ECOS",
             "qpsolvers", "qpsolvers:osqp", etc. (default: "auto").
@@ -1901,6 +1905,7 @@ class Detector:
             method=method,
             optimizer=optimizer,
             alpha=alpha,
+            alpha_auto=alpha_auto,
             solver_backend=solver_backend,
             max_iter=max_iter,
             tol=tol,

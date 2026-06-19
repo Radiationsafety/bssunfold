@@ -129,8 +129,20 @@ def parametric_model(
 #  Core solver (lmfit)
 # ------------------------------------------------------------------ #
 
-def _residuals(params, A_matrix, b_readings, E, log_steps):
-    """Residual function for lmfit minimization."""
+def _residuals(params, A_matrix, b_readings, E, log_steps,
+               reg_alpha=0.0, initial_param_vec=None):
+    """Residual function for lmfit minimization.
+
+    Parameters
+    ----------
+    reg_alpha : float
+        Tikhonov regularization weight.  When > 0, a penalty
+        ``sqrt(reg_alpha) * ||p - p0||`` is appended to the residual
+        vector, where ``p0`` is the initial parameter guess.
+    initial_param_vec : np.ndarray or None
+        Reference parameter vector (initial guess) for regularization.
+        If None, regularization is applied to raw parameter values.
+    """
     b_val = params['b'].value
     bp_val = params['beta_prime'].value
     alpha_val = params['alpha'].value
@@ -142,7 +154,17 @@ def _residuals(params, A_matrix, b_readings, E, log_steps):
     spectrum_with_steps = spectrum * log_steps
 
     computed = A_matrix @ spectrum_with_steps
-    return computed - b_readings
+    residual_data = computed - b_readings
+
+    if reg_alpha > 0:
+        param_vec = np.array([b_val, bp_val, alpha_val, beta_val, P_th_val, P_epi_val])
+        if initial_param_vec is not None:
+            reg_term = np.sqrt(reg_alpha) * (param_vec - initial_param_vec)
+        else:
+            reg_term = np.sqrt(reg_alpha) * param_vec
+        return np.concatenate([residual_data, reg_term])
+
+    return residual_data
 
 
 def solve_parametric(
@@ -152,8 +174,14 @@ def solve_parametric(
     log_steps: np.ndarray,
     initial_params: Optional[Dict[str, float]] = None,
     method: str = "leastsq",
+    alpha: float = 0.0,
+    alpha_auto: bool = False,
+    n_restarts: int = 5,
 ) -> Tuple[np.ndarray, bool, str, int]:
     """Solve unfolding using the FRUIT-based parametric model.
+
+    Uses multi-start optimization: runs lmfit from the top N
+    grid-scan starting points and returns the best result.
 
     Parameters
     ----------
@@ -166,10 +194,18 @@ def solve_parametric(
     log_steps : np.ndarray
         Logarithmic energy steps (d(ln E)).
     initial_params : dict, optional
-        Initial parameter values.  Keys: b, beta_prime, alpha, beta,
-        P_th, P_epi.
+        Initial parameter values.  If None, a grid scan over P_th
+        and P_epi is performed automatically.
     method : str, optional
         lmfit solver method (default: "leastsq").
+    alpha : float, optional
+        Tikhonov regularization weight (default: 0.0).
+        When > 0, penalizes deviation from initial guess.
+    alpha_auto : bool, optional
+        If True, select alpha automatically via GCV (default: False).
+    n_restarts : int, optional
+        Number of multi-start restarts from top grid-scan points
+        (default: 5).
 
     Returns
     -------
@@ -184,39 +220,78 @@ def solve_parametric(
             "Install with: pip install lmfit"
         ) from e
 
-    params = lmfit.Parameters()
+    # Grid scan for initial parameters if not provided
+    if initial_params is None:
+        initial_params = _find_initial_params(A_matrix, b_readings, E, log_steps,
+                                               n_grid=7, return_top=n_restarts)
+
+    # GCV-based alpha selection (uses best starting point)
+    if alpha_auto:
+        best_start = initial_params[0] if isinstance(initial_params, list) else initial_params
+        alpha = _gcv_select_alpha(A_matrix, b_readings, E, log_steps, best_start)
 
     defaults = {
         'b':         (1.0,   0.5,  2.0),
         'beta_prime': (0.01, 1e-4, 1.0),
         'alpha':     (0.5,   0.0,  5.0),
         'beta':      (2.0,   0.1,  20.0),
-        'P_th':      (1.0,   0.0,  None),
-        'P_epi':     (1.0,   0.0,  None),
+        'P_th':      (1.0,   0.0,  1.0),
+        'P_epi':     (1.0,   0.0,  1.0),
     }
 
-    for name, (val, lo, hi) in defaults.items():
-        if initial_params and name in initial_params:
-            val = initial_params[name]
-        params.add(name, value=val, min=lo, max=hi)
+    # Multi-start: collect top starting points from grid scan
+    if isinstance(initial_params, list):
+        start_points = initial_params[:n_restarts]
+    else:
+        start_points = [initial_params]
 
-    result = lmfit.minimize(
-        _residuals,
-        params,
-        args=(A_matrix, b_readings, E, log_steps),
-        method=method,
-    )
+    best_spectrum = None
+    best_residual = np.inf
+    best_success = False
+    best_message = ""
+    total_nfev = 0
 
-    fp = result.params
-    spectrum = parametric_model(
-        E,
-        fp['b'].value, fp['beta_prime'].value,
-        fp['alpha'].value, fp['beta'].value,
-        fp['P_th'].value, fp['P_epi'].value,
-    )
-    spectrum = spectrum * log_steps
+    for start_params in start_points:
+        params = lmfit.Parameters()
+        for name, (val, lo, hi) in defaults.items():
+            if name in start_params:
+                val = start_params[name]
+            params.add(name, value=val, min=lo, max=hi)
 
-    return spectrum, result.success, result.message, result.nfev
+        initial_param_vec = np.array([
+            start_params["b"], start_params["beta_prime"],
+            start_params["alpha"], start_params["beta"],
+            start_params["P_th"], start_params["P_epi"],
+        ])
+
+        result = lmfit.minimize(
+            _residuals,
+            params,
+            args=(A_matrix, b_readings, E, log_steps, alpha, initial_param_vec),
+            method=method,
+        )
+
+        total_nfev += result.nfev
+
+        fp = result.params
+        spectrum = parametric_model(
+            E,
+            fp['b'].value, fp['beta_prime'].value,
+            fp['alpha'].value, fp['beta'].value,
+            fp['P_th'].value, fp['P_epi'].value,
+        ) * log_steps
+
+        # Evaluate fit quality
+        computed = A_matrix @ spectrum
+        res = np.linalg.norm(computed - b_readings)
+
+        if res < best_residual:
+            best_residual = res
+            best_spectrum = spectrum
+            best_success = result.success
+            best_message = result.message
+
+    return best_spectrum, best_success, best_message, total_nfev
 
 
 # ------------------------------------------------------------------ #
@@ -230,8 +305,8 @@ _PARAM_DEFAULTS = {
     "beta_prime": (0.01, 1e-4, 1.0),
     "alpha":     (0.5,   0.0,  5.0),
     "beta":      (2.0,   0.1,  20.0),
-    "P_th":      (1.0,   0.0,  None),
-    "P_epi":     (1.0,   0.0,  None),
+    "P_th":      (1.0,   0.0,  1.0),
+    "P_epi":     (1.0,   0.0,  1.0),
 }
 
 
@@ -319,15 +394,21 @@ def _compute_jacobian(E, log_steps, params, delta=1e-8):
     return J
 
 
-def _find_initial_params(A_matrix, b_readings, E, log_steps, n_grid=5):
+def _find_initial_params(A_matrix, b_readings, E, log_steps, n_grid=5,
+                          return_top=1):
     """Brute-force scan over a small parameter grid to find best starting point.
 
     Scans P_th and P_epi on a coarse grid (the two parameters that most
     affect the spectral shape), keeps the best residual, and returns the
     full parameter dict.
+
+    Parameters
+    ----------
+    return_top : int
+        If > 1, return a list of the top N starting points sorted by
+        residual (best first).
     """
-    best_residual = np.inf
-    best_params = _get_initial_params(None)
+    candidates = []
 
     p_th_vals = np.linspace(0.0, 1.0, n_grid)
     p_epi_vals = np.linspace(0.0, 1.0, n_grid)
@@ -348,11 +429,89 @@ def _find_initial_params(A_matrix, b_readings, E, log_steps, n_grid=5):
 
             residual = A_matrix @ spectrum - b_readings
             res_norm = np.linalg.norm(residual)
-            if res_norm < best_residual:
-                best_residual = res_norm
-                best_params = dict(params)
+            candidates.append((res_norm, dict(params)))
 
-    return best_params
+    if not candidates:
+        return _get_initial_params(None) if return_top == 1 else [_get_initial_params(None)]
+
+    candidates.sort(key=lambda x: x[0])
+
+    if return_top == 1:
+        return candidates[0][1]
+
+    return [c[1] for c in candidates[:return_top]]
+
+
+def _gcv_select_alpha(A_matrix, b_readings, E, log_steps, initial_params,
+                       n_coarse=50, n_refine=20):
+    """Select Tikhonov regularization alpha via SVD-based GCV with refine.
+
+    Stage 1: coarse search on logspace [1e-8, 1e2].
+    Stage 2: refine on linspace [alpha_best/10, alpha_best*10].
+
+    Parameters
+    ----------
+    A_matrix : np.ndarray
+        Response matrix (m x n).
+    b_readings : np.ndarray
+        Measurement vector (m,).
+    E, log_steps : np.ndarray
+        Energy grid and log steps.
+    initial_params : dict
+        Starting parameters for the parametric model.
+    n_coarse : int
+        Number of coarse alpha candidates.
+    n_refine : int
+        Number of refine alpha candidates.
+
+    Returns
+    -------
+    float
+        Optimal alpha.
+    """
+    try:
+        from .regularization import compute_svd_components
+    except ImportError:
+        from bssunfold.core._matrix_utils import compute_svd_components
+
+    # Build effective A: the parametric model is nonlinear, so we
+    # linearize around initial_params to get a Jacobian J, then use
+    # A_eff = A_matrix @ J as the effective forward operator.
+    J = _compute_jacobian(E, log_steps, initial_params)
+    A_eff = A_matrix @ J  # (m, n_params)
+
+    m, n = A_eff.shape
+    if m < 2 or n < 2:
+        return 1e-4
+
+    U, s, Vt, s_sq = compute_svd_components(A_eff)
+    UTb = U.T @ b_readings
+
+    def _gcv_value(alpha):
+        filt = s_sq / (s_sq + alpha)
+        residual_coeff = alpha / (s_sq + alpha)
+        residual_sq = np.sum((residual_coeff * UTb) ** 2)
+        trace_term = np.sum(filt)
+        denom = (m - trace_term) ** 2
+        if denom < 1e-30:
+            return np.inf
+        return residual_sq / denom
+
+    # Stage 1: coarse search
+    alphas_coarse = np.logspace(-8, 2, n_coarse)
+    gcv_coarse = np.array([_gcv_value(a) for a in alphas_coarse])
+    best_idx = int(np.argmin(gcv_coarse))
+    alpha_best = alphas_coarse[best_idx]
+
+    # Stage 2: refine around best
+    lo = alpha_best / 10.0
+    hi = alpha_best * 10.0
+    alphas_refine = np.linspace(max(lo, 1e-10), hi, n_refine)
+    gcv_refine = np.array([_gcv_value(a) for a in alphas_refine])
+    best_idx_r = int(np.argmin(gcv_refine))
+    alpha_refined = alphas_refine[best_idx_r]
+
+    return float(alpha_refined)
 
 
 def _check_fit_quality(residual_norm, b_readings, method_name="parametric"):
@@ -903,6 +1062,7 @@ def unfold_parametric(
     method: str = "leastsq",
     optimizer: str = "lmfit",
     alpha: float = 1e-4,
+    alpha_auto: bool = False,
     solver_backend: str = "auto",
     max_iter: int = 50,
     tol: float = 1e-6,
@@ -952,6 +1112,10 @@ def unfold_parametric(
         "combined" (default: "lmfit").
     alpha : float, optional
         Regularization weight for QP-based optimizers (default: 1e-4).
+        Also used as initial alpha for lmfit when alpha_auto is True.
+    alpha_auto : bool, optional
+        If True, select alpha automatically via GCV for the lmfit
+        optimizer (default: False).
     solver_backend : str, optional
         QP solver backend string: "auto", "cvxpy", "cvxpy:ECOS",
         "qpsolvers", "qpsolvers:osqp", etc. (default: "auto").
@@ -987,15 +1151,21 @@ def unfold_parametric(
     ln_steps = log_steps * np.log(10)
 
     if optimizer == "lmfit":
+        # lmfit uses grid scan initialization; small Tikhonov
+        # regularization (deviation from initial guess) provides
+        # numerical stability for this ill-conditioned problem.
+        lmfit_alpha = alpha if alpha_auto else 1e-8
         def solve_wrapper(A_mat, b_vec, **kwargs):
             x_opt, success, message, nfev = solve_parametric(
                 A_mat, b_vec, E_MeV, ln_steps, initial_params, method,
+                alpha=lmfit_alpha, alpha_auto=alpha_auto,
             )
             return x_opt, nfev, success
         method_name = "parametric"
         extra = {
             "initial_params": initial_params,
             "lmfit_method": method,
+            "alpha_auto": alpha_auto,
             "T0": _T0,
             "Ed": _Ed,
         }
