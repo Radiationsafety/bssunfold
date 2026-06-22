@@ -134,7 +134,27 @@ def solve_hybrid_parametric(
     """
     n_energy = A.shape[1]
 
-    parametric_guess = np.ones(n_energy) * np.mean(b) / np.mean(A.sum(axis=1))
+    # Use parametric model as initial guess via grid scan
+    try:
+        from .unfold_parametric import _find_initial_params, parametric_model
+
+        log_steps = np.zeros(n_energy)
+        log_e = np.log10(E + 1e-15)
+        log_steps[0] = log_e[1] - log_e[0] if n_energy > 1 else 1.0
+        log_steps[-1] = log_e[-1] - log_e[-2] if n_energy > 1 else 1.0
+        log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+        ln_steps = log_steps * np.log(10)
+
+        best_params = _find_initial_params(A, b, E, ln_steps)
+        parametric_guess = parametric_model(
+            E, best_params["b"], best_params["beta_prime"],
+            best_params["alpha"], best_params["beta"],
+            best_params["P_th"], best_params["P_epi"],
+        ) * ln_steps
+        parametric_guess = np.maximum(parametric_guess, 1e-30)
+    except Exception:
+        # Fallback to flat spectrum if parametric model fails
+        parametric_guess = np.ones(n_energy) * np.mean(b) / np.mean(A.sum(axis=1))
 
     if refinement_method == "landweber":
         refined, n_iter = _landweber_iteration(
