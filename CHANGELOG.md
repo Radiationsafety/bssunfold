@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.10.0] - 2026-06-22
+
+### Added
+- **SQP-based parametric unfolding v2** (`unfold_parametric2.py`):
+  - Alternative parametric unfolding implementation with SQP optimization
+  - `Detector.unfold_parametric2()` method
+
 ## [0.9.1] - 2026-06-19
 
 ### Added
