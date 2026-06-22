@@ -15,7 +15,7 @@
 
 ## 🔍 Overview
 
-**BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities.
+**BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities. Iterative solvers are accelerated with Numba JIT compilation for 3–50x speedups.
 
 ![logo](assets/bssunfold_logo.png)
 
@@ -35,7 +35,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (21 methods):
+- **Multiple Unfolding Algorithms** (25 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD)
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
@@ -44,6 +44,11 @@
   - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR)
   - **Pipeline**: Combined approach for chaining multiple methods
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
+
+- **Numba JIT-Accelerated Iterative Solvers**:
+  - `@njit(cache=True)` compiled inner loops for Doroshenko, Kaczmarz, MLEM, GRAVEL
+  - 3–50x speedup on iterative solvers (see [Performance](#-performance))
+  - Automatic disk caching of compiled code; graceful fallback when numba is not installed
 
 - **Radiation Dose Calculations**:
   - Effective dose calculations for different irradiation types based on  conversion coefficients from 116 publication of International commission on radiological protection (ICRP)
@@ -87,6 +92,9 @@ pip install -e .
 ```bash
 # Basic installation (without additional solvers)
 pip install bssunfold
+
+# With numba JIT acceleration (recommended for iterative solvers)
+pip install "bssunfold[numba]"
 
 # With additional cross-platform solvers (recommended)
 pip install "bssunfold[solvers-core]"
@@ -268,6 +276,9 @@ graph TD
     I --> I3[unfold_parametric_qpsolvers]
     I --> I4[unfold_parametric_combined]
     I --> I5[unfold_parametric2]
+    I --> I6[unfold_fruit_like]
+    I --> I7[unfold_hybrid_parametric]
+    I --> I8[unfold_bayesian_parametric]
 
     style A fill:#4a90d9,color:#fff
     style B fill:#e8f0fe
@@ -306,6 +317,9 @@ graph TD
 | 20 | `unfold_parametric_qpsolvers` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | qpsolvers | SQP solver using qpsolvers backends |
 | 21 | `unfold_parametric_combined` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | lmfit, cvxpy, qpsolvers | lmfit first-pass + QP refinement |
 | 22 | `unfold_parametric2` | Parametric | `b_range`, `Tf_range`, `c_range`, `noise_level`, `max_iter`, `tol_chi2`, `optimizer`, `solver_backend` | grid, cvxpy, qpsolvers, combined | BON95 4-component model + directed-divergence iterations |
+| 23 | `unfold_fruit_like` | Parametric | `initial_params`, `max_iterations`, `tolerance` | — | FRUIT-like model: Maxwellian thermal + 1/E epithermal + evaporation fast |
+| 24 | `unfold_hybrid_parametric` | Parametric | `refinement_method` (landweber/mlem), `max_iterations`, `tolerance` | — | Parametric initial guess refined by Landweber or MLEM |
+| 25 | `unfold_bayesian_parametric` | Parametric | `n_samples`, `burn_in`, `proposal_scale`, `prior_mean`, `prior_std` | — | Metropolis-Hastings MCMC for spectral parameter estimation |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -584,7 +598,24 @@ bssunfold/
 │   ├── conf.py
 │   └── requirements.txt
 ├── examples/                    # Jupyter notebooks
-├── tests/                       # 632 tests across 9 files
+├── tests/                       # 910 tests across 16 files
+│   ├── test_all.py
+│   ├── test_comparison.py
+│   ├── test_coverage.py         # ~205 edge-case & fallback tests
+│   ├── test_detector.py
+│   ├── test_dose_coefficients.py
+│   ├── test_iaea_validation.py
+│   ├── test_improvements.py     # 110 new tests (validators, metrics, MC)
+│   ├── test_methods2.py
+│   ├── test_mlem.py
+│   ├── test_new_methods.py
+│   ├── test_new_methods_fixed.py
+│   ├── test_new_metrics.py
+│   ├── test_readings.py
+│   ├── test_refactored_fixed.py
+│   ├── test_response_functions.py
+│   ├── test_unfold_parametric.py
+│   └── test_unfold_parametric2.py
 └── src/
     └── bssunfold/
         ├── __init__.py          # Public API: Detector
@@ -595,7 +626,8 @@ bssunfold/
         │   ├── __init__.py
         │   ├── _base_unfolder.py
         │   ├── _matrix_utils.py # SVD, derivative matrix
-        │   ├── _montecarlo.py    # MC uncertainty
+        │   ├── _montecarlo.py   # MC uncertainty (optimized)
+        │   ├── _numba_jit.py    # Numba JIT inner loops ⚡
         │   ├── detector.py      # Main Detector class
         │   ├── dose_calculation.py
         │   ├── regularization.py   # L-curve, GCV, DP
@@ -616,7 +648,11 @@ bssunfold/
         │   ├── unfold_lmfit.py
         │   ├── unfold_scipy_direct_method.py
         │   ├── unfold_combined.py
-        │   └── unfold_parametric.py
+        │   ├── unfold_parametric.py
+        │   ├── unfold_parametric2.py
+        │   ├── unfold_fruit_like.py
+        │   ├── unfold_hybrid_parametric.py
+        │   └── unfold_bayesian_parametric.py
         └── utils/
             ├── __init__.py
             ├── comparison.py    # 25 spectrum metrics
@@ -634,6 +670,7 @@ bssunfold/
 - cvxpy[ecos] — convex optimisation framework (CVXPY-based methods)
 
 ### Optional Backends
+- `numba` — JIT compilation for iterative solvers (3–50x speedup)
 - `pytikhonov` — L-curve / GCV / DP regularisation (Tikhonov-type methods)
 - `qpsolvers[solvers-core]` — QP solvers (unfold_qpsolvers)
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
@@ -645,7 +682,23 @@ See [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pypr
 
 ## Performance
 
-- **Matrix Operations**: Optimized NumPy operations for response matrices
+All iterative solvers use Numba JIT-compiled inner loops when numba is installed, with automatic fallback to pure Python.
+
+| Solver | Before | After | Speedup |
+|--------|--------|-------|---------|
+| **Doroshenko** | 40.6 ms | 0.8 ms | **50x** |
+| **Kaczmarz** | 1.4 ms | 0.1 ms | **14x** |
+| **MLEM** | 2.7 ms | 0.4 ms | **7x** |
+| **GRAVEL** | ~2 ms | 0.6 ms | **3x** |
+| cvxpy | 84 ms | 78 ms | ~1x (external solver) |
+| qpsolvers | 1.7 ms | 1.6 ms | ~1x (external solver) |
+
+*Benchmarks on 60-bin energy grid, 500 iterations, macOS arm64.*
+
+Install numba for the best performance:
+```bash
+pip install bssunfold[numba]
+```
 
 ## 📖 Citation
 [![Google Scholar](https://img.shields.io/badge/Google%20Scholar-4285F4?style=for-the-badge&logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=CtXdf28AAAAJ&hl=en)

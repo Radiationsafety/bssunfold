@@ -7,6 +7,32 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.11.0] - 2026-06-22
+
+### Added
+- **Numba JIT-compiled inner loops** (`_numba_jit.py`) for iterative solvers:
+  - `@njit(cache=True)` compiled functions with automatic disk caching
+  - Graceful fallback to pure Python when numba is not installed
+  - JIT functions: `_doroshenko_inner`, `_kaczmarz_inner`, `_mlem_inner`, `_gravel_inner`, `_compute_log_steps_jit`, `_dose_weighted_mse_jit`
+- `numba` added as optional dependency (>=0.65.1)
+
+### Changed — Performance
+- **Doroshenko solver**: **50x speedup** (40.6 ms → 0.8 ms) — element-wise inner loop eliminates per-coordinate numpy overhead
+- **Kaczmarz solver**: **14x speedup** (1.4 ms → 0.1 ms) — JIT-compiled row update loop
+- **MLEM solver**: **7x speedup** (2.7 ms → 0.4 ms) — JIT-compiled multiplicative update
+- **GRAVEL solver**: **3x speedup** (~2 ms → 0.6 ms) — JIT-compiled weighted geometric mean update
+- **Monte Carlo uncertainty**: pre-generates all noise vectors at once instead of per-sample dict creation
+- **Comparison metrics**: `_compute_log_steps` and `dose_weighted_error` use JIT-compiled helpers when numba available
+
+### Fixed
+- `total_flux_ratio` returned `sum(reference)/sum(test)` instead of `sum(test)/sum(reference)` per docstring
+
+### Improved
+- Extracted `_compute_log_steps` DRY helper in `comparison.py` (was duplicated in 3 functions)
+- Extracted `_handle_extrapolation` DRY helper in `interpolation.py` (was duplicated in 2 functions)
+- 110 new tests in `tests/test_improvements.py` (validators, converters, matrix utils, Monte Carlo, dose calculation, interpolation, comparison metrics, EURADOS metrics, Detector integration)
+- Test suite: 910 tests (was ~800)
+
 ## [0.10.0] - 2026-06-22
 
 ### Added
