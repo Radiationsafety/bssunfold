@@ -46,10 +46,17 @@ def solve_doroshenko(
         Tuple of (solution, iterations, converged).
     """
     x = x0.copy()
-
     denominator_cache = np.sum(A * A, axis=0) + regularization
-    residual = b - A @ x
 
+    try:
+        from ._numba_jit import _doroshenko_inner, NUMBA_AVAILABLE
+        if NUMBA_AVAILABLE:
+            return _doroshenko_inner(A, x, b, denominator_cache, max_iterations, tolerance)
+    except ImportError:
+        pass
+
+    # Fallback: pure Python implementation
+    residual = b - A @ x
     converged = False
     iterations = 0
 

@@ -34,6 +34,7 @@ license-files = ["LICENSE"]
 dependencies = [
     "cvxpy[ecos]>=1.7.5",
     "matplotlib>=3.10.8",
+    "numba>=0.65.1",
     "numpy>=2.4.1",
     "pandas>=2.2.3",
     "pyzmq>=27.1.0",

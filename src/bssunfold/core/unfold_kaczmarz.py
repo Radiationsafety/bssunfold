@@ -51,6 +51,14 @@ def solve_kaczmarz(
 
     row_norms_sq = np.sum(A * A, axis=1)
 
+    try:
+        from ._numba_jit import _kaczmarz_inner, NUMBA_AVAILABLE
+        if NUMBA_AVAILABLE:
+            return _kaczmarz_inner(A, x, b, row_norms_sq, omega, max_iterations, tolerance)
+    except ImportError:
+        pass
+
+    # Fallback: pure Python implementation
     converged = False
     iterations = 0
     x_old = x.copy()

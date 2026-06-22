@@ -40,9 +40,16 @@ def solve_mlem(
         Tuple of (solution, iterations, converged).
     """
     x = np.maximum(x0.copy(), 1e-10)
-
     AT = A.T
 
+    try:
+        from ._numba_jit import _mlem_inner, NUMBA_AVAILABLE
+        if NUMBA_AVAILABLE:
+            return _mlem_inner(AT, A, x, b, max_iterations, tolerance)
+    except ImportError:
+        pass
+
+    # Fallback: pure Python implementation
     converged = False
     iterations = 0
 

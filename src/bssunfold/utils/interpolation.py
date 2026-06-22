@@ -16,6 +16,40 @@ __all__ = [
 ]
 
 
+def _handle_extrapolation(
+    interp_vals: np.ndarray,
+    u_source: np.ndarray,
+    u_target: np.ndarray,
+    fill_value: float = 0.0,
+    replace_negative: bool = True,
+) -> np.ndarray:
+    """Handle extrapolation and negative values for interpolated results.
+
+    Parameters
+    ----------
+    interp_vals : np.ndarray
+        Interpolated values.
+    u_source : np.ndarray
+        Source grid in log space.
+    u_target : np.ndarray
+        Target grid in log space.
+    fill_value : float
+        Value for extrapolated points.
+    replace_negative : bool
+        If True, replace negative values with 0.
+
+    Returns
+    -------
+    np.ndarray
+        Cleaned interpolated values.
+    """
+    mask_extrapolate = (u_target < u_source.min()) | (u_target > u_source.max())
+    interp_vals[mask_extrapolate] = fill_value
+    if replace_negative:
+        interp_vals = np.maximum(interp_vals, 0)
+    return interp_vals
+
+
 def interpolate_spectrum(
     spectrum: np.ndarray,
     E_from: np.ndarray,
@@ -56,15 +90,8 @@ def interpolate_spectrum(
     # Interpolate
     interp_vals = interpolator(u_to)
     
-    # Handle extrapolation
-    mask_extrapolate = (u_to < u_from.min()) | (u_to > u_from.max())
-    interp_vals[mask_extrapolate] = fill_value
-    
-    # Replace negative values
-    if replace_negative:
-        interp_vals = np.maximum(interp_vals, 0)
-    
-    return interp_vals
+    # Handle extrapolation and negatives
+    return _handle_extrapolation(interp_vals, u_from, u_to, fill_value, replace_negative)
 
 
 def discretize_spectra(
@@ -127,11 +154,7 @@ def discretize_spectra(
         interp_vals = interpolator(u_to)
         
         # Handle extrapolation and negatives
-        mask_extrapolate = (u_to < u_from.min()) | (u_to > u_from.max())
-        interp_vals[mask_extrapolate] = 0.0
-        interp_vals = np.maximum(interp_vals, 0)
-        
-        result[col] = interp_vals
+        result[col] = _handle_extrapolation(interp_vals, u_from, u_to)
     
     return result
 

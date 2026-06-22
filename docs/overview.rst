@@ -2,9 +2,9 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 21 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 25 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
-quantification.
+quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
 .. contents::
    :local:
@@ -13,7 +13,7 @@ quantification.
 Unfolding Methods
 -----------------
 
-All 21 methods are accessible as instance methods on the
+All 25 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -57,6 +57,9 @@ categories:
        I --> I3["unfold_parametric_qpsolvers"]
        I --> I4["unfold_parametric_combined"]
        I --> I5["unfold_parametric2"]
+       I --> I6["unfold_fruit_like"]
+       I --> I7["unfold_hybrid_parametric"]
+       I --> I8["unfold_bayesian_parametric"]
 
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
@@ -213,6 +216,24 @@ Method Reference
      - ``b_range``, ``Tf_range``, ``c_range``, ``noise_level``, ``max_iter``, ``tol_chi2``
      - —
      - BON95 4-component model (thermal + epithermal + intermediate + fast) with directed-divergence iterations
+   * - 23
+     - ``unfold_fruit_like``
+     - Parametric
+     - ``initial_params``, ``max_iterations``, ``tolerance``
+     - —
+     - FRUIT-like parametric model: Maxwellian thermal + 1/E epithermal + evaporation fast
+   * - 24
+     - ``unfold_hybrid_parametric``
+     - Parametric
+     - ``refinement_method`` (landweber/mlem), ``max_iterations``, ``tolerance``
+     - —
+     - Parametric initial guess refined by Landweber or MLEM iteration
+   * - 25
+     - ``unfold_bayesian_parametric``
+     - Parametric
+     - ``n_samples``, ``burn_in``, ``proposal_scale``, ``prior_mean``, ``prior_std``
+     - —
+     - Metropolis-Hastings MCMC sampling for spectral parameter estimation
 
 .. note::
 
@@ -505,3 +526,52 @@ Metrics Reference
      - ``standardized_mean_difference``
      - Cohen's d (standardized mean difference)
      - (-∞, ∞)
+
+
+Performance
+-----------
+
+All iterative solvers use Numba JIT-compiled inner loops when numba is installed,
+with automatic fallback to pure Python.
+
+.. list-table:: Benchmark results (60-bin grid, 500 iterations, macOS arm64)
+   :header-rows: 1
+   :widths: 20 15 15 15
+
+   * - Solver
+     - Before
+     - After
+     - Speedup
+   * - Doroshenko
+     - 40.6 ms
+     - 0.8 ms
+     - **50x**
+   * - Kaczmarz
+     - 1.4 ms
+     - 0.1 ms
+     - **14x**
+   * - MLEM
+     - 2.7 ms
+     - 0.4 ms
+     - **7x**
+   * - GRAVEL
+     - ~2 ms
+     - 0.6 ms
+     - **3x**
+   * - cvxpy
+     - 84 ms
+     - 78 ms
+     - ~1x (external solver)
+   * - qpsolvers
+     - 1.7 ms
+     - 1.6 ms
+     - ~1x (external solver)
+
+Install numba for the best performance:
+
+.. code-block:: bash
+
+   pip install bssunfold[numba]
+
+The JIT functions are defined in :mod:`bssunfold.core._numba_jit` and use
+``@njit(cache=True)`` for automatic disk caching of compiled code.

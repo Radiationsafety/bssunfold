@@ -56,13 +56,28 @@ def monte_carlo_uncertainty(
         - 'spectrum_uncert_all': all sample spectra (n_samples x n_energy_bins)
     """
     rng = np.random.default_rng(random_state)
+
+    # Pre-generate all noise factors at once for efficiency
+    # Shape: (n_samples, n_readings)
+    keys = list(readings.keys())
+    values = np.array([readings[k] for k in keys])
+    n_readings = len(keys)
+
+    # Generate all noise factors: shape (n_samples, n_readings)
+    noise_factors = 1.0 + rng.normal(0, noise_level, size=(n_samples, n_readings))
+
+    # Pre-allocate output array
     spectra_samples = np.zeros((n_samples, n_energy_bins))
 
+    # Run unfolding for each sample
     for i in range(n_samples):
-        noisy_readings = _add_noise(readings, noise_level, rng)
+        # Create noisy readings dict efficiently
+        noisy_values = values * noise_factors[i]
+        noisy_readings = {k: float(v) for k, v in zip(keys, noisy_values)}
         spectrum = func(noisy_readings, **kwargs)
         spectra_samples[i] = np.asarray(spectrum, dtype=float)
 
+    # Compute statistics using vectorized numpy operations
     return {
         "spectrum_uncert_mean": np.mean(spectra_samples, axis=0),
         "spectrum_uncert_std": np.std(spectra_samples, axis=0),

@@ -68,6 +68,12 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_parametric2.solve_bon95_combined
 
+.. autofunction:: bssunfold.core.unfold_fruit_like.unfold_fruit_like
+
+.. autofunction:: bssunfold.core.unfold_hybrid_parametric.unfold_hybrid_parametric
+
+.. autofunction:: bssunfold.core.unfold_bayesian_parametric.unfold_bayesian_parametric
+
 Core Functions
 ==============
 
