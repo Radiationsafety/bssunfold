@@ -40,6 +40,9 @@ from ._base_unfolder import run_unfolding
 
 __all__ = [
     "solve_bon95_parametric",
+    "solve_bon95_cvxpy",
+    "solve_bon95_qpsolvers",
+    "solve_bon95_combined",
     "directed_divergence_iteration",
     "solve_parametric2",
     "unfold_parametric2",
@@ -306,8 +309,550 @@ def solve_bon95_parametric(
 
 
 # ------------------------------------------------------------------ #
-#  Directed divergence iteration
+#  Shape parameter bounds and Jacobian for SQP solvers
 # ------------------------------------------------------------------ #
+
+_BON95_SHAPE_NAMES = ["b", "Tf", "c"]
+
+_BON95_SHAPE_BOUNDS = {
+    "b":  (0.5, 2.0),
+    "Tf": (0.5, 10.0),
+    "c":  (0.5, 3.0),
+}
+
+
+def _get_bon95_shape_bounds():
+    """Return {name: (lo, hi)} for shape parameters."""
+    return dict(_BON95_SHAPE_BOUNDS)
+
+
+def _clamp_bon95_shape(params, bounds):
+    """Clamp shape parameter values to stay within bounds."""
+    clamped = dict(params)
+    for name, (lo, hi) in bounds.items():
+        clamped[name] = max(lo, min(hi, clamped[name]))
+    return clamped
+
+
+def _solve_shape_nls(
+    A_matrix, b_readings, E, ln_steps, b, Tf, c, weights,
+):
+    """Solve for optimal (a1..a4) given shape params, return spectrum + chi2."""
+    a, chi2 = _solve_linear_coefficients(
+        A_matrix, b_readings, E, ln_steps, b, Tf, c, weights,
+    )
+    phi = bon95_spectrum(E, b, Tf, c, a[0], a[1], a[2], a[3])
+    phi = np.maximum(phi, 0.0)
+    phi = _clean_edge_bins(phi)
+    spectrum = phi * ln_steps
+    return spectrum, chi2, a
+
+
+def _compute_bon95_shape_jacobian(
+    A_matrix, b_readings, E, ln_steps, params, weights, delta=1e-6,
+):
+    """Jacobian of spectrum w.r.t. shape params (b, Tf, c).
+
+    At each perturbation, re-solves for optimal (a1..a4) to get the
+    correct gradient of the best-fit spectrum.
+
+    Returns
+    -------
+    J : np.ndarray
+        Jacobian matrix (n_energy x 3).
+    residual : np.ndarray
+        Current residual vector (n_det,).
+    """
+    bounds = _get_bon95_shape_bounds()
+
+    # Current spectrum and residual
+    s0, _, _ = _solve_shape_nls(
+        A_matrix, b_readings, E, ln_steps,
+        params["b"], params["Tf"], params["c"], weights,
+    )
+    residual = A_matrix @ s0 - b_readings
+
+    J = np.zeros((len(E), 3))
+
+    for i, name in enumerate(_BON95_SHAPE_NAMES):
+        lo, hi = bounds[name]
+        p_val = params[name]
+
+        # Forward difference with boundary handling
+        d = delta
+        if p_val + d > hi:
+            d = max(0, hi - p_val) * 0.5
+        if d < 1e-15:
+            # Backward difference
+            d = delta
+            if p_val - d >= lo:
+                p_pert = dict(params)
+                p_pert[name] = p_val - d
+                s_pert, _, _ = _solve_shape_nls(
+                    A_matrix, b_readings, E, ln_steps,
+                    p_pert["b"], p_pert["Tf"], p_pert["c"], weights,
+                )
+                J[:, i] = (s0 - s_pert) / d
+            else:
+                J[:, i] = 0.0
+            continue
+
+        p_pert = dict(params)
+        p_pert[name] = p_val + d
+        s_pert, _, _ = _solve_shape_nls(
+            A_matrix, b_readings, E, ln_steps,
+            p_pert["b"], p_pert["Tf"], p_pert["c"], weights,
+        )
+        J[:, i] = (s_pert - s0) / d
+
+    return J, residual
+
+
+# ------------------------------------------------------------------ #
+#  Solver backend helpers
+# ------------------------------------------------------------------ #
+
+def _parse_solver_backend(solver_backend):
+    """Parse 'auto', 'cvxpy', 'cvxpy:ECOS', 'qpsolvers:osqp' etc."""
+    if solver_backend == "auto":
+        return "auto", "default"
+    parts = solver_backend.split(":", 1)
+    library = parts[0]
+    backend = parts[1] if len(parts) > 1 else "default"
+    return library, backend
+
+
+def _resolve_cvxpy_solvers(backend):
+    """Return list of cvxpy solvers to try."""
+    try:
+        import cvxpy as cp
+        installed = cp.installed_solvers()
+    except ImportError:
+        installed = []
+    if backend == "default":
+        return [s for s in ["ECOS", "SCS", "CLARABEL"] if s in installed] or ["ECOS"]
+    fallbacks = [s for s in ["ECOS", "SCS", "CLARABEL"] if s != backend]
+    return [backend] + fallbacks
+
+
+def _resolve_qpsolver_name(backend):
+    """Return the qpsolvers backend name to use."""
+    if backend != "default":
+        return backend
+    try:
+        from qpsolvers import available_solvers
+        if "osqp" in available_solvers:
+            return "osqp"
+        if "ecos" in available_solvers:
+            return "ecos"
+    except ImportError:
+        pass
+    return "osqp"
+
+
+# ------------------------------------------------------------------ #
+#  SQP solver via cvxpy
+# ------------------------------------------------------------------ #
+
+def solve_bon95_cvxpy(
+    A_matrix: np.ndarray,
+    b_readings: np.ndarray,
+    E: np.ndarray,
+    ln_steps: np.ndarray,
+    b_meas: Optional[np.ndarray] = None,
+    initial_params: Optional[Dict[str, float]] = None,
+    alpha: float = 1e-4,
+    solver_backend: str = "auto",
+    max_iter: int = 50,
+    tol: float = 1e-6,
+) -> Tuple[np.ndarray, bool, str, int]:
+    """Solve BON95 parametric fitting via sequential QP using cvxpy.
+
+    Optimizes shape parameters (b, Tf, c) via SQP. At each iteration,
+    the nonlinear model is linearized w.r.t. shape params and the
+    resulting QP is solved with cvxpy. The linear coefficients (a1..a4)
+    are re-solved by NLS at each step.
+
+    Parameters
+    ----------
+    A_matrix : np.ndarray
+        Response matrix (n_det x n_energy).
+    b_readings : np.ndarray
+        Measured readings (n_det,).
+    E : np.ndarray
+        Energy grid in MeV.
+    ln_steps : np.ndarray
+        Logarithmic bin widths.
+    b_meas : np.ndarray, optional
+        Measurement uncertainties for weighting.
+    initial_params : dict, optional
+        Starting shape params {b, Tf, c}. If None, grid scan is used.
+    alpha : float
+        Tikhonov regularization weight (default: 1e-4).
+    solver_backend : str
+        CVXPY solver backend (default: "auto").
+    max_iter : int
+        Maximum SQP iterations (default: 50).
+    tol : float
+        Convergence tolerance on parameter update norm (default: 1e-6).
+
+    Returns
+    -------
+    Tuple[np.ndarray, bool, str, int]
+        (spectrum, success, message, nfev)
+    """
+    try:
+        import cvxpy as cp
+    except ImportError as e:
+        raise ImportError(
+            "cvxpy is required for solve_bon95_cvxpy. "
+            "Install with: pip install cvxpy"
+        ) from e
+
+    _, backend = _parse_solver_backend(solver_backend)
+    solvers_to_try = _resolve_cvxpy_solvers(backend)
+
+    # Weights
+    if b_meas is not None:
+        weights = np.where(b_meas > 0, 1.0 / (b_meas ** 2), 1.0)
+    else:
+        weights = np.ones(A_matrix.shape[0])
+
+    # Initial params: use grid scan if not provided
+    if initial_params is not None:
+        params = {k: initial_params[k] for k in _BON95_SHAPE_NAMES}
+    else:
+        best, _, _ = solve_bon95_parametric(
+            A_matrix, b_readings, E, ln_steps, b_meas=b_meas, top_n=1,
+        )
+        params = {"b": best["b"], "Tf": best["Tf"], "c": best["c"]}
+
+    params = _clamp_bon95_shape(params, _get_bon95_shape_bounds())
+    n_params = 3
+    message = ""
+    nfev = 0
+
+    for k in range(max_iter):
+        # Current spectrum via NLS for a1..a4
+        spectrum_k, chi2_k, _ = _solve_shape_nls(
+            A_matrix, b_readings, E, ln_steps,
+            params["b"], params["Tf"], params["c"], weights,
+        )
+        nfev += 1
+
+        residual = A_matrix @ spectrum_k - b_readings
+        if np.linalg.norm(residual) < tol:
+            _check_fit_quality(np.linalg.norm(residual), b_readings, "bon95_cvxpy")
+            return spectrum_k, True, f"Converged in {k} iterations", nfev
+
+        # Jacobian w.r.t. shape params
+        J, _ = _compute_bon95_shape_jacobian(
+            A_matrix, b_readings, E, ln_steps, params, weights,
+        )
+        nfev += 2 * n_params  # finite differences
+        A_eff = A_matrix @ J  # (n_det x 3) effective forward operator
+
+        # Build and solve QP: min ||A_eff @ delta + residual||^2 + alpha*||delta||^2
+        delta = cp.Variable(n_params)
+        data_term = cp.sum_squares(A_eff @ delta + residual)
+        penalty_term = alpha * cp.sum_squares(delta)
+        objective = cp.Minimize(data_term + penalty_term)
+
+        bounds = _get_bon95_shape_bounds()
+        constraints = []
+        for i, name in enumerate(_BON95_SHAPE_NAMES):
+            lo, hi = bounds[name]
+            constraints.append(delta[i] >= lo - params[name])
+            constraints.append(delta[i] <= hi - params[name])
+
+        problem = cp.Problem(objective, constraints)
+
+        solved = False
+        for s in solvers_to_try:
+            try:
+                problem.solve(solver=s)
+                if problem.status in ("optimal", "optimal_inaccurate"):
+                    if delta.value is not None:
+                        solved = True
+                        break
+            except Exception as exc:
+                logger.debug("CVXPY solver %s failed: %s", s, exc)
+                continue
+
+        if not solved:
+            message = f"QP subproblem failed at iteration {k}"
+            break
+
+        delta_val = np.asarray(delta.value)
+        for i, name in enumerate(_BON95_SHAPE_NAMES):
+            params[name] += delta_val[i]
+        params = _clamp_bon95_shape(params, bounds)
+
+        if np.linalg.norm(delta_val) < tol:
+            spectrum_final, _, _ = _solve_shape_nls(
+                A_matrix, b_readings, E, ln_steps,
+                params["b"], params["Tf"], params["c"], weights,
+            )
+            _check_fit_quality(
+                np.linalg.norm(A_matrix @ spectrum_final - b_readings),
+                b_readings, "bon95_cvxpy",
+            )
+            return spectrum_final, True, f"Converged in {k + 1} iterations", nfev
+
+    # Final spectrum
+    spectrum_final, _, _ = _solve_shape_nls(
+        A_matrix, b_readings, E, ln_steps,
+        params["b"], params["Tf"], params["c"], weights,
+    )
+    _check_fit_quality(
+        np.linalg.norm(A_matrix @ spectrum_final - b_readings),
+        b_readings, "bon95_cvxpy",
+    )
+    if not message:
+        message = f"Max iterations ({max_iter}) reached"
+    return spectrum_final, False, message, nfev
+
+
+# ------------------------------------------------------------------ #
+#  SQP solver via qpsolvers
+# ------------------------------------------------------------------ #
+
+def solve_bon95_qpsolvers(
+    A_matrix: np.ndarray,
+    b_readings: np.ndarray,
+    E: np.ndarray,
+    ln_steps: np.ndarray,
+    b_meas: Optional[np.ndarray] = None,
+    initial_params: Optional[Dict[str, float]] = None,
+    alpha: float = 1e-4,
+    solver_backend: str = "auto",
+    max_iter: int = 50,
+    tol: float = 1e-6,
+) -> Tuple[np.ndarray, bool, str, int]:
+    """Solve BON95 parametric fitting via sequential QP using qpsolvers.
+
+    Same algorithm as solve_bon95_cvxpy but uses qpsolvers backends
+    (OSQP, ECOS, etc.).
+
+    Parameters
+    ----------
+    A_matrix : np.ndarray
+        Response matrix (n_det x n_energy).
+    b_readings : np.ndarray
+        Measured readings (n_det,).
+    E : np.ndarray
+        Energy grid in MeV.
+    ln_steps : np.ndarray
+        Logarithmic bin widths.
+    b_meas : np.ndarray, optional
+        Measurement uncertainties for weighting.
+    initial_params : dict, optional
+        Starting shape params {b, Tf, c}.
+    alpha : float
+        Tikhonov regularization weight (default: 1e-4).
+    solver_backend : str
+        QP solver backend (default: "auto").
+    max_iter : int
+        Maximum SQP iterations (default: 50).
+    tol : float
+        Convergence tolerance (default: 1e-6).
+
+    Returns
+    -------
+    Tuple[np.ndarray, bool, str, int]
+        (spectrum, success, message, nfev)
+    """
+    try:
+        from qpsolvers import available_solvers, solve_qp
+    except ImportError as e:
+        raise ImportError(
+            "qpsolvers is required for solve_bon95_qpsolvers. "
+            "Install with: pip install qpsolvers"
+        ) from e
+
+    from scipy.sparse import csc_matrix
+
+    _, backend = _parse_solver_backend(solver_backend)
+    solver_name = _resolve_qpsolver_name(backend)
+    if solver_name not in available_solvers:
+        if "osqp" in available_solvers:
+            solver_name = "osqp"
+        elif "ecos" in available_solvers:
+            solver_name = "ecos"
+        else:
+            raise ValueError(f"No QP solver available. Available: {available_solvers}")
+
+    # Weights
+    if b_meas is not None:
+        weights = np.where(b_meas > 0, 1.0 / (b_meas ** 2), 1.0)
+    else:
+        weights = np.ones(A_matrix.shape[0])
+
+    # Initial params
+    if initial_params is not None:
+        params = {k: initial_params[k] for k in _BON95_SHAPE_NAMES}
+    else:
+        best, _, _ = solve_bon95_parametric(
+            A_matrix, b_readings, E, ln_steps, b_meas=b_meas, top_n=1,
+        )
+        params = {"b": best["b"], "Tf": best["Tf"], "c": best["c"]}
+
+    params = _clamp_bon95_shape(params, _get_bon95_shape_bounds())
+    n_params = 3
+    message = ""
+    nfev = 0
+
+    for k in range(max_iter):
+        spectrum_k, chi2_k, _ = _solve_shape_nls(
+            A_matrix, b_readings, E, ln_steps,
+            params["b"], params["Tf"], params["c"], weights,
+        )
+        nfev += 1
+
+        residual = A_matrix @ spectrum_k - b_readings
+        if np.linalg.norm(residual) < tol:
+            _check_fit_quality(np.linalg.norm(residual), b_readings, "bon95_qpsolvers")
+            return spectrum_k, True, f"Converged in {k} iterations", nfev
+
+        J, _ = _compute_bon95_shape_jacobian(
+            A_matrix, b_readings, E, ln_steps, params, weights,
+        )
+        nfev += 2 * n_params
+        A_eff = A_matrix @ J
+
+        # QP: min 0.5*delta^T P delta + q^T delta  s.t. G delta <= h
+        P = csc_matrix(A_eff.T @ A_eff + alpha * np.eye(n_params))
+        q = A_eff.T @ residual
+
+        bounds = _get_bon95_shape_bounds()
+        G_rows = []
+        h_rows = []
+        for i, name in enumerate(_BON95_SHAPE_NAMES):
+            lo, hi = bounds[name]
+            row_lo = np.zeros(n_params)
+            row_lo[i] = -1.0
+            G_rows.append(row_lo)
+            h_rows.append(-(lo - params[name]))
+            row_hi = np.zeros(n_params)
+            row_hi[i] = 1.0
+            G_rows.append(row_hi)
+            h_rows.append(hi - params[name])
+
+        G = csc_matrix(np.vstack(G_rows))
+        h = np.array(h_rows)
+
+        try:
+            delta_val = solve_qp(P=P, q=q, G=G, h=h, solver=solver_name, verbose=False)
+        except Exception as exc:
+            logger.debug("QP solver %s failed at iter %d: %s", solver_name, k, exc)
+            message = f"QP subproblem failed at iteration {k}"
+            break
+
+        if delta_val is None:
+            message = f"QP solver returned None at iteration {k}"
+            break
+
+        delta_val = np.asarray(delta_val)
+        for i, name in enumerate(_BON95_SHAPE_NAMES):
+            params[name] += delta_val[i]
+        params = _clamp_bon95_shape(params, bounds)
+
+        if np.linalg.norm(delta_val) < tol:
+            spectrum_final, _, _ = _solve_shape_nls(
+                A_matrix, b_readings, E, ln_steps,
+                params["b"], params["Tf"], params["c"], weights,
+            )
+            _check_fit_quality(
+                np.linalg.norm(A_matrix @ spectrum_final - b_readings),
+                b_readings, "bon95_qpsolvers",
+            )
+            return spectrum_final, True, f"Converged in {k + 1} iterations", nfev
+
+    spectrum_final, _, _ = _solve_shape_nls(
+        A_matrix, b_readings, E, ln_steps,
+        params["b"], params["Tf"], params["c"], weights,
+    )
+    _check_fit_quality(
+        np.linalg.norm(A_matrix @ spectrum_final - b_readings),
+        b_readings, "bon95_qpsolvers",
+    )
+    if not message:
+        message = f"Max iterations ({max_iter}) reached"
+    return spectrum_final, False, message, nfev
+
+
+# ------------------------------------------------------------------ #
+#  Combined: grid search first, then SQP refinement
+# ------------------------------------------------------------------ #
+
+def solve_bon95_combined(
+    A_matrix: np.ndarray,
+    b_readings: np.ndarray,
+    E: np.ndarray,
+    ln_steps: np.ndarray,
+    b_meas: Optional[np.ndarray] = None,
+    alpha: float = 1e-4,
+    solver_backend: str = "auto",
+    max_iter_qp: int = 50,
+    tol_qp: float = 1e-6,
+) -> Tuple[np.ndarray, bool, str, int]:
+    """Solve BON95: grid search first, then SQP refinement.
+
+    1. Grid search for best starting (b, Tf, c).
+    2. SQP refinement via cvxpy or qpsolvers.
+
+    Parameters
+    ----------
+    A_matrix, b_readings, E, ln_steps : as usual.
+    b_meas : np.ndarray, optional
+        Measurement uncertainties.
+    alpha : float
+        Tikhonov regularization for SQP (default: 1e-4).
+    solver_backend : str
+        QP backend: "auto", "cvxpy:ECOS", "qpsolvers:osqp", etc.
+    max_iter_qp : int
+        Max SQP iterations (default: 50).
+    tol_qp : float
+        SQP convergence tolerance (default: 1e-6).
+
+    Returns
+    -------
+    Tuple[np.ndarray, bool, str, int]
+        (spectrum, success, message, nfev)
+    """
+    # Step 1: Grid search
+    best, _, _ = solve_bon95_parametric(
+        A_matrix, b_readings, E, ln_steps, b_meas=b_meas, top_n=1,
+    )
+    init_params = {"b": best["b"], "Tf": best["Tf"], "c": best["c"]}
+    nfev_grid = 1
+
+    # Step 2: SQP refinement
+    library, _ = _parse_solver_backend(solver_backend)
+
+    if library == "cvxpy" or library == "auto":
+        try:
+            result = solve_bon95_cvxpy(
+                A_matrix, b_readings, E, ln_steps,
+                b_meas=b_meas, initial_params=init_params,
+                alpha=alpha, solver_backend=solver_backend,
+                max_iter=max_iter_qp, tol=tol_qp,
+            )
+            spectrum, success, msg, nfev_qp = result
+            return spectrum, success, f"grid + cvxpy ({msg})", nfev_grid + nfev_qp
+        except ImportError:
+            if library == "cvxpy":
+                raise
+
+    # Fallback to qpsolvers
+    result = solve_bon95_qpsolvers(
+        A_matrix, b_readings, E, ln_steps,
+        b_meas=b_meas, initial_params=init_params,
+        alpha=alpha, solver_backend=solver_backend,
+        max_iter=max_iter_qp, tol=tol_qp,
+    )
+    spectrum, success, msg, nfev_qp = result
+    return spectrum, success, f"grid + qpsolvers ({msg})", nfev_grid + nfev_qp
 
 def directed_divergence_iteration(
     A_matrix: np.ndarray,
@@ -426,15 +971,20 @@ def solve_parametric2(
     E: np.ndarray,
     ln_steps: np.ndarray,
     b_meas: Optional[np.ndarray] = None,
+    optimizer: str = "grid",
     b_range: Tuple[float, float, int] = _DEFAULT_B_RANGE,
     Tf_range: Tuple[float, float, int] = _DEFAULT_TF_RANGE,
     c_range: Tuple[float, float, int] = _DEFAULT_C_RANGE,
+    alpha: float = 1e-4,
+    solver_backend: str = "auto",
+    max_iter_qp: int = 50,
+    tol_qp: float = 1e-6,
     max_iter: int = 200,
     tol_chi2: float = 1.0,
 ) -> Tuple[np.ndarray, bool, str, int]:
     """Solve unfolding using the full BON95 parametric pipeline.
 
-    1. Grid search + NLS for parametric fit.
+    1. Parametric fit using the selected optimizer.
     2. Directed-divergence iteration refinement.
 
     Parameters
@@ -449,32 +999,79 @@ def solve_parametric2(
         Logarithmic bin widths.
     b_meas : np.ndarray, optional
         Measurement uncertainties for weighted NLS.
+    optimizer : str
+        Parametric fit optimizer (default: "grid"):
+        - ``"grid"``      -- grid search + NLS (default, no extra deps).
+        - ``"cvxpy"``     -- SQP via cvxpy.
+        - ``"qpsolvers"`` -- SQP via qpsolvers.
+        - ``"combined"``  -- grid search + SQP refinement.
     b_range, Tf_range, c_range : tuple
-        Grid search ranges for shape parameters.
+        Grid search ranges for shape parameters (used by "grid" and "combined").
+    alpha : float
+        Tikhonov regularization for SQP optimizers (default: 1e-4).
+    solver_backend : str
+        QP backend for SQP optimizers (default: "auto").
+    max_iter_qp : int
+        Max SQP iterations for QP-based optimizers (default: 50).
+    tol_qp : float
+        SQP convergence tolerance (default: 1e-6).
     max_iter : int
-        Max directed-divergence iterations.
+        Max directed-divergence iterations (default: 200).
     tol_chi2 : float
-        Chi-squared convergence threshold.
+        Chi-squared convergence threshold (default: 1.0).
 
     Returns
     -------
     Tuple[np.ndarray, bool, str, int]
         (spectrum, success, message, nfev)
     """
-    # Step 1: Parametric fit
-    best_params, best_chi2, top_candidates = solve_bon95_parametric(
-        A_matrix, b_readings, E, ln_steps,
-        b_range=b_range, Tf_range=Tf_range, c_range=c_range,
-        b_meas=b_meas, top_n=5,
-    )
+    nfev = 0
 
-    # Build initial spectrum from best parametric fit
-    phi_param = bon95_spectrum(
-        E,
-        best_params['b'], best_params['Tf'], best_params['c'],
-        best_params['a1'], best_params['a2'],
-        best_params['a3'], best_params['a4'],
-    )
+    # Step 1: Parametric fit using selected optimizer
+    if optimizer == "grid":
+        best_params, best_chi2, top_candidates = solve_bon95_parametric(
+            A_matrix, b_readings, E, ln_steps,
+            b_range=b_range, Tf_range=Tf_range, c_range=c_range,
+            b_meas=b_meas, top_n=5,
+        )
+        phi_param = bon95_spectrum(
+            E, best_params['b'], best_params['Tf'], best_params['c'],
+            best_params['a1'], best_params['a2'], best_params['a3'], best_params['a4'],
+        )
+        nfev = len(top_candidates)
+
+    elif optimizer == "cvxpy":
+        spectrum_fit, success, msg, nfev = solve_bon95_cvxpy(
+            A_matrix, b_readings, E, ln_steps,
+            b_meas=b_meas, alpha=alpha, solver_backend=solver_backend,
+            max_iter=max_iter_qp, tol=tol_qp,
+        )
+        phi_param = spectrum_fit / np.maximum(ln_steps, 1e-30)
+        best_chi2 = 0.0  # computed after DD
+
+    elif optimizer == "qpsolvers":
+        spectrum_fit, success, msg, nfev = solve_bon95_qpsolvers(
+            A_matrix, b_readings, E, ln_steps,
+            b_meas=b_meas, alpha=alpha, solver_backend=solver_backend,
+            max_iter=max_iter_qp, tol=tol_qp,
+        )
+        phi_param = spectrum_fit / np.maximum(ln_steps, 1e-30)
+        best_chi2 = 0.0
+
+    elif optimizer == "combined":
+        spectrum_fit, success, msg, nfev = solve_bon95_combined(
+            A_matrix, b_readings, E, ln_steps,
+            b_meas=b_meas, alpha=alpha, solver_backend=solver_backend,
+            max_iter_qp=max_iter_qp, tol_qp=tol_qp,
+        )
+        phi_param = spectrum_fit / np.maximum(ln_steps, 1e-30)
+        best_chi2 = 0.0
+
+    else:
+        raise ValueError(
+            f"Unknown optimizer: '{optimizer}'. "
+            "Choose from 'grid', 'cvxpy', 'qpsolvers', 'combined'."
+        )
 
     # Ensure non-negative
     phi_param = np.maximum(phi_param, 0.0)
@@ -495,11 +1092,16 @@ def solve_parametric2(
     residual_norm = np.linalg.norm(computed - b_readings)
     _check_fit_quality(residual_norm, b_readings, "parametric2")
 
-    message = (
-        f"BON95 parametric fit (chi2={best_chi2:.4f}) + "
-        f"DD iteration ({n_iter} iters, chi2={chi2_final:.4f})"
-    )
-    nfev = len(top_candidates)  # grid evaluations as proxy
+    if optimizer == "grid":
+        message = (
+            f"BON95 grid fit (chi2={best_chi2:.4f}) + "
+            f"DD iteration ({n_iter} iters, chi2={chi2_final:.4f})"
+        )
+    else:
+        message = (
+            f"BON95 {optimizer} fit + "
+            f"DD iteration ({n_iter} iters, chi2={chi2_final:.4f})"
+        )
 
     return spectrum, converged, message, nfev
 
@@ -583,9 +1185,14 @@ def unfold_parametric2(
     save_result_callback,
     readings: Dict[str, float],
     initial_spectrum: Optional[np.ndarray] = None,
+    optimizer: str = "grid",
     b_range: Tuple[float, float, int] = _DEFAULT_B_RANGE,
     Tf_range: Tuple[float, float, int] = _DEFAULT_TF_RANGE,
     c_range: Tuple[float, float, int] = _DEFAULT_C_RANGE,
+    alpha: float = 1e-4,
+    solver_backend: str = "auto",
+    max_iter_qp: int = 50,
+    tol_qp: float = 1e-6,
     noise_level: float = 0.05,
     max_iter: int = 200,
     tol_chi2: float = 1.0,
@@ -600,6 +1207,13 @@ def unfold_parametric2(
     thermal (Maxwellian), epithermal (1/E), intermediate, and
     fast (evaporation/cascade) components. After parametric fitting,
     the result is refined by directed-divergence iterations.
+
+    The ``optimizer`` parameter selects the parametric fit backend:
+
+    * ``"grid"``      -- grid search + NLS (default, no extra deps).
+    * ``"cvxpy"``     -- SQP via cvxpy.
+    * ``"qpsolvers"`` -- SQP via qpsolvers.
+    * ``"combined"``  -- grid search + SQP refinement.
 
     Parameters
     ----------
@@ -619,12 +1233,22 @@ def unfold_parametric2(
         Detector readings.
     initial_spectrum : Optional[np.ndarray], optional
         Initial spectrum guess (unused in parametric method).
+    optimizer : str
+        Parametric fit optimizer (default: "grid").
     b_range : tuple
-        Grid range for epithermal exponent b: (min, max, n_points).
+        Grid range for b: (min, max, n_points). Used by "grid"/"combined".
     Tf_range : tuple
-        Grid range for fast peak energy Tf (MeV): (min, max, n_points).
+        Grid range for Tf (MeV): (min, max, n_points). Used by "grid"/"combined".
     c_range : tuple
-        Grid range for fast peak width c: (min, max, n_points).
+        Grid range for c: (min, max, n_points). Used by "grid"/"combined".
+    alpha : float
+        Tikhonov regularization for SQP (default: 1e-4).
+    solver_backend : str
+        QP backend for SQP (default: "auto").
+    max_iter_qp : int
+        Max SQP iterations (default: 50).
+    tol_qp : float
+        SQP convergence tolerance (default: 1e-6).
     noise_level : float
         Relative uncertainty for measurements (default: 0.05 = 5%).
     max_iter : int
@@ -657,21 +1281,26 @@ def unfold_parametric2(
     ln_steps = log_steps * np.log(10)
 
     def solve_wrapper(A_mat, b_vec, **kwargs):
-        # Re-estimate uncertainties from the actual readings used
         b_meas_local = _build_measurement_uncertainties(b_vec, noise_level)
         x_opt, success, message, nfev = solve_parametric2(
             A_mat, b_vec, E_MeV, ln_steps,
             b_meas=b_meas_local,
+            optimizer=optimizer,
             b_range=b_range, Tf_range=Tf_range, c_range=c_range,
+            alpha=alpha, solver_backend=solver_backend,
+            max_iter_qp=max_iter_qp, tol_qp=tol_qp,
             max_iter=max_iter, tol_chi2=tol_chi2,
         )
         return x_opt, nfev, success
 
     method_name = "parametric2"
     extra = {
+        "optimizer": optimizer,
         "b_range": b_range,
         "Tf_range": Tf_range,
         "c_range": c_range,
+        "alpha": alpha,
+        "solver_backend": solver_backend,
         "noise_level": noise_level,
         "bon95_Tth": _Tth,
     }

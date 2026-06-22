@@ -182,5 +182,43 @@ directed-divergence (I-divergence) iterations.
    A = np.array([detector.sensitivities[n] for n in readings])
    b = np.array([readings[n] for n in readings])
 
-   spectrum, success, msg, nfev = solve_parametric2(A, b, E, ln_steps)
-   print(f"Converged: {success}, message: {msg}")
+    spectrum, success, msg, nfev = solve_parametric2(A, b, E, ln_steps)
+    print(f"Converged: {success}, message: {msg}")
+
+SQP Optimizers
+^^^^^^^^^^^^^^
+
+``unfold_parametric2`` supports multiple optimizers via the ``optimizer``
+parameter. The default is ``"grid"`` (exhaustive grid search + NLS).
+Three additional SQP-based solvers are available:
+
+- ``"cvxpy"`` — sequential quadratic programming via cvxpy
+- ``"qpsolvers"`` — sequential quadratic programming via qpsolvers
+- ``"combined"`` — grid search followed by SQP refinement
+
+.. code-block:: python
+
+   # Grid search (default) — thorough but slow for fine grids
+   result = detector.unfold_parametric2(
+       readings, optimizer="grid",
+       b_range=(0.5, 2.0, 5), Tf_range=(0.5, 10.0, 5), c_range=(0.5, 3.0, 4),
+   )
+
+   # CVXPY SQP — fast, no grid needed
+   result = detector.unfold_parametric2(
+       readings, optimizer="cvxpy",
+       initial_guess=(1.0, 2.0, 1.5),  # (b, Tf, c) initial guess
+   )
+
+   # QPSolvers SQP — alternative backend (requires OSQP, SCS, or similar)
+   result = detector.unfold_parametric2(
+       readings, optimizer="qpsolvers",
+       solver_backend="osqp",
+       initial_guess=(1.0, 2.0, 1.5),
+   )
+
+   # Combined — grid search for coarse optimum, then SQP refinement
+   result = detector.unfold_parametric2(
+       readings, optimizer="combined",
+       b_range=(0.5, 2.0, 5), Tf_range=(0.5, 10.0, 5), c_range=(0.5, 3.0, 4),
+   )

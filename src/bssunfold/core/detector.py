@@ -1921,9 +1921,14 @@ class Detector:
         self,
         readings: Dict[str, float],
         initial_spectrum: Optional[np.ndarray] = None,
+        optimizer: str = "grid",
         b_range: Tuple[float, float, int] = (0.5, 2.0, 5),
         Tf_range: Tuple[float, float, int] = (0.5, 10.0, 5),
         c_range: Tuple[float, float, int] = (0.5, 3.0, 4),
+        alpha: float = 1e-4,
+        solver_backend: str = "auto",
+        max_iter_qp: int = 50,
+        tol_qp: float = 1e-6,
         noise_level: float = 0.05,
         max_iter: int = 200,
         tol_chi2: float = 1.0,
@@ -1939,9 +1944,12 @@ class Detector:
         fast (evaporation/cascade) components. After parametric fitting,
         the result is refined by directed-divergence iterations.
 
-        This method implements the algorithm described in:
-          - Sannikov A.V., BON95, GSF report, Munich, 1995.
-          - Babintsev et al., Preprint IHEP 2022-4.
+        The ``optimizer`` parameter selects the parametric fit backend:
+
+        * ``"grid"``      -- grid search + NLS (default, no extra deps).
+        * ``"cvxpy"``     -- SQP via cvxpy.
+        * ``"qpsolvers"`` -- SQP via qpsolvers.
+        * ``"combined"``  -- grid search + SQP refinement.
 
         Parameters
         ----------
@@ -1949,12 +1957,22 @@ class Detector:
             Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
             Initial spectrum guess (unused in parametric method).
+        optimizer : str
+            Parametric fit optimizer (default: "grid").
         b_range : tuple
-            Grid range for epithermal exponent b: (min, max, n_points).
+            Grid range for b: (min, max, n_points). Used by "grid"/"combined".
         Tf_range : tuple
-            Grid range for fast peak energy Tf (MeV): (min, max, n_points).
+            Grid range for Tf (MeV): (min, max, n_points). Used by "grid"/"combined".
         c_range : tuple
-            Grid range for fast peak width c: (min, max, n_points).
+            Grid range for c: (min, max, n_points). Used by "grid"/"combined".
+        alpha : float
+            Tikhonov regularization for SQP (default: 1e-4).
+        solver_backend : str
+            QP backend for SQP (default: "auto").
+        max_iter_qp : int
+            Max SQP iterations (default: 50).
+        tol_qp : float
+            SQP convergence tolerance (default: 1e-6).
         noise_level : float
             Relative uncertainty for measurements (default: 0.05 = 5%).
         max_iter : int
@@ -1984,9 +2002,14 @@ class Detector:
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
+            optimizer=optimizer,
             b_range=b_range,
             Tf_range=Tf_range,
             c_range=c_range,
+            alpha=alpha,
+            solver_backend=solver_backend,
+            max_iter_qp=max_iter_qp,
+            tol_qp=tol_qp,
             noise_level=noise_level,
             max_iter=max_iter,
             tol_chi2=tol_chi2,

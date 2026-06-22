@@ -14,6 +14,9 @@ from bssunfold.core.unfold_parametric2 import (
     bon95_spectrum,
     _solve_linear_coefficients,
     solve_bon95_parametric,
+    solve_bon95_cvxpy,
+    solve_bon95_qpsolvers,
+    solve_bon95_combined,
     directed_divergence_iteration,
     solve_parametric2,
     unfold_parametric2,
@@ -459,3 +462,147 @@ class TestDictInitialSpectrum:
             c_range=(0.8, 2.0, 3),
         )
         assert 'spectrum' in result
+
+
+# ─── SQP solver tests ─────────────────────────────────────────────
+
+
+class TestSolveBon95Cvxpy:
+    def test_returns_spectrum(self, detector, sample_readings):
+        E = detector.E_MeV
+        ln_steps = _make_ln_steps(E)
+        selected = list(sample_readings.keys())
+        A = np.array([detector.sensitivities[n] for n in selected])
+        b = np.array([sample_readings[n] for n in selected])
+
+        spectrum, success, message, nfev = solve_bon95_cvxpy(
+            A, b, E, ln_steps,
+            max_iter=10,
+        )
+        assert spectrum.shape == E.shape
+        assert isinstance(success, bool)
+        assert isinstance(message, str)
+
+    def test_nonnegative_output(self, detector, sample_readings):
+        E = detector.E_MeV
+        ln_steps = _make_ln_steps(E)
+        selected = list(sample_readings.keys())
+        A = np.array([detector.sensitivities[n] for n in selected])
+        b = np.array([sample_readings[n] for n in selected])
+
+        spectrum, _, _, _ = solve_bon95_cvxpy(A, b, E, ln_steps, max_iter=10)
+        assert_array_less(-1e-30, spectrum)
+
+
+class TestSolveBon95Qpsolvers:
+    def test_returns_spectrum(self, detector, sample_readings):
+        E = detector.E_MeV
+        ln_steps = _make_ln_steps(E)
+        selected = list(sample_readings.keys())
+        A = np.array([detector.sensitivities[n] for n in selected])
+        b = np.array([sample_readings[n] for n in selected])
+
+        spectrum, success, message, nfev = solve_bon95_qpsolvers(
+            A, b, E, ln_steps,
+            max_iter=10,
+        )
+        assert spectrum.shape == E.shape
+        assert isinstance(success, bool)
+
+    def test_nonnegative_output(self, detector, sample_readings):
+        E = detector.E_MeV
+        ln_steps = _make_ln_steps(E)
+        selected = list(sample_readings.keys())
+        A = np.array([detector.sensitivities[n] for n in selected])
+        b = np.array([sample_readings[n] for n in selected])
+
+        spectrum, _, _, _ = solve_bon95_qpsolvers(A, b, E, ln_steps, max_iter=10)
+        assert_array_less(-1e-30, spectrum)
+
+
+class TestSolveBon95Combined:
+    def test_returns_spectrum(self, detector, sample_readings):
+        E = detector.E_MeV
+        ln_steps = _make_ln_steps(E)
+        selected = list(sample_readings.keys())
+        A = np.array([detector.sensitivities[n] for n in selected])
+        b = np.array([sample_readings[n] for n in selected])
+
+        spectrum, success, message, nfev = solve_bon95_combined(
+            A, b, E, ln_steps,
+            max_iter_qp=10,
+        )
+        assert spectrum.shape == E.shape
+        assert isinstance(success, bool)
+
+    def test_nonnegative_output(self, detector, sample_readings):
+        E = detector.E_MeV
+        ln_steps = _make_ln_steps(E)
+        selected = list(sample_readings.keys())
+        A = np.array([detector.sensitivities[n] for n in selected])
+        b = np.array([sample_readings[n] for n in selected])
+
+        spectrum, _, _, _ = solve_bon95_combined(A, b, E, ln_steps, max_iter_qp=10)
+        assert_array_less(-1e-30, spectrum)
+
+
+# ─── Optimizer parameter tests ────────────────────────────────────
+
+
+class TestOptimizerParam:
+    def test_grid_optimizer_default(self, detector, sample_readings):
+        result = detector.unfold_parametric2(
+            readings=sample_readings,
+            optimizer="grid",
+            b_range=(0.8, 1.5, 3),
+            Tf_range=(1.0, 5.0, 3),
+            c_range=(0.8, 2.0, 3),
+        )
+        assert 'spectrum' in result
+        assert result['spectrum'].shape == (detector.n_energy_bins,)
+
+    def test_cvxpy_optimizer(self, detector, sample_readings):
+        result = detector.unfold_parametric2(
+            readings=sample_readings,
+            optimizer="cvxpy",
+            max_iter_qp=10,
+        )
+        assert 'spectrum' in result
+        assert result['spectrum'].shape == (detector.n_energy_bins,)
+
+    def test_qpsolvers_optimizer(self, detector, sample_readings):
+        result = detector.unfold_parametric2(
+            readings=sample_readings,
+            optimizer="qpsolvers",
+            max_iter_qp=10,
+        )
+        assert 'spectrum' in result
+        assert result['spectrum'].shape == (detector.n_energy_bins,)
+
+    def test_combined_optimizer(self, detector, sample_readings):
+        result = detector.unfold_parametric2(
+            readings=sample_readings,
+            optimizer="combined",
+            max_iter_qp=10,
+        )
+        assert 'spectrum' in result
+        assert result['spectrum'].shape == (detector.n_energy_bins,)
+
+    def test_invalid_optimizer_raises(self, detector, sample_readings):
+        with pytest.raises(ValueError, match="Unknown optimizer"):
+            detector.unfold_parametric2(
+                readings=sample_readings,
+                optimizer="invalid",
+            )
+
+    def test_all_optimizers_nonnegative(self, detector, sample_readings):
+        for opt in ["grid", "cvxpy", "qpsolvers", "combined"]:
+            result = detector.unfold_parametric2(
+                readings=sample_readings,
+                optimizer=opt,
+                max_iter_qp=10,
+                b_range=(0.8, 1.5, 3),
+                Tf_range=(1.0, 5.0, 3),
+                c_range=(0.8, 2.0, 3),
+            )
+            assert_array_less(-1e-30, result['spectrum'], err_msg=f"Failed for optimizer={opt}")
