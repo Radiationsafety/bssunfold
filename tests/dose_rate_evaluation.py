@@ -521,7 +521,6 @@ def generate_report(df, angles_df):
         a(f"### {geom}\n")
         col_theta = f"theta_{geom}"
         col_k = f"k_{geom}"
-        col_cls = f"class_{geom}"
         gdf = angles_df.copy()
         gdf["_theta"] = gdf[col_theta]
         gdf["_k"] = gdf[col_k]
