@@ -330,12 +330,14 @@ class TestFluxMetrics:
     def test_total_flux_ratio_double(self):
         s1 = np.array([1.0, 2.0, 3.0])
         s2 = np.array([2.0, 4.0, 6.0])
-        assert_almost_equal(total_flux_ratio(s1, s2), 2.0)
+        # ratio = sum(s1) / sum(s2) = 6 / 12 = 0.5
+        assert_almost_equal(total_flux_ratio(s1, s2), 0.5)
 
     def test_total_flux_ratio_half(self):
         s1 = np.array([4.0, 6.0])
         s2 = np.array([2.0, 3.0])
-        assert_almost_equal(total_flux_ratio(s1, s2), 0.5)
+        # ratio = sum(s1) / sum(s2) = 10 / 5 = 2.0
+        assert_almost_equal(total_flux_ratio(s1, s2), 2.0)
 
     def test_total_flux_ratio_zero_reference(self):
         s1 = np.zeros(5)

@@ -55,6 +55,30 @@ __all__ = [
 EPS = 1e-15
 
 
+def _compute_log_steps(energy: np.ndarray) -> np.ndarray:
+    """Compute logarithmic energy steps for integration.
+
+    Parameters
+    ----------
+    energy : np.ndarray
+        Energy grid in MeV.
+
+    Returns
+    -------
+    np.ndarray
+        Logarithmic steps (ln(E_{i+1}/E_{i}) approximation).
+    """
+    log_e = np.log10(energy + EPS)
+    n = len(energy)
+    log_steps = np.zeros(n)
+    if n > 1:
+        log_steps[0] = log_e[1] - log_e[0]
+        log_steps[-1] = log_e[-1] - log_e[-2]
+        if n > 2:
+            log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    return log_steps * np.log(10)
+
+
 def _extract_cc_array(
     cc_icrp116: Optional[Dict[str, np.ndarray]],
     energy: np.ndarray,
@@ -264,19 +288,19 @@ def median_absolute_error(p: np.ndarray, q: np.ndarray) -> float:
 
 
 def total_flux_ratio(p: np.ndarray, q: np.ndarray) -> float:
-    """Ratio of total fluxes: sum(unfolded) / sum(reference).
+    """Ratio of total fluxes: sum(p) / sum(q).
 
     1.0 = perfect conservation of total flux.
-    > 1.0 = unfolded overestimates total flux.
-    < 1.0 = unfolded underestimates total flux.
-    Returns 0.0 if reference flux is zero.
+    > 1.0 = p overestimates total flux relative to q.
+    < 1.0 = p underestimates total flux relative to q.
+    Returns 0.0 if q (reference) flux is zero.
     """
     _check_same_length(p, q)
     p_sum = np.sum(np.asarray(p, dtype=float))
     q_sum = np.sum(np.asarray(q, dtype=float))
-    if p_sum == 0:
+    if q_sum == 0:
         return 0.0
-    return float(q_sum / p_sum)
+    return float(p_sum / q_sum)
 
 
 # ─── Kernel / similarity ──────────────────────────────────────────
@@ -520,13 +544,7 @@ def dose_difference_percent(
     e = np.asarray(energy, dtype=float)
 
     cc = _extract_cc_array(cc_icrp116, e, preferred_geom="AP")
-
-    log_steps = np.zeros_like(e)
-    log_e = np.log10(e + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if len(e) > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if len(e) > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
-    ln_steps = log_steps * np.log(10)
+    ln_steps = _compute_log_steps(e)
 
     dose1 = np.sum(s1 * cc * ln_steps)
     dose2 = np.sum(s2 * cc * ln_steps)
@@ -578,16 +596,13 @@ def dose_averaged_energy_diff(
     e = np.asarray(energy, dtype=float)
 
     cc = _extract_cc_array(cc_icrp116, e, preferred_geom="AP")
+    ln_steps = _compute_log_steps(e)
 
-    log_steps = np.zeros_like(e)
-    log_e = np.log10(e + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if len(e) > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if len(e) > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
-    ln_steps = log_steps * np.log(10)
+    weight1 = np.sum(s1 * cc * ln_steps)
+    weight2 = np.sum(s2 * cc * ln_steps)
 
-    h1 = np.sum(e * s1 * cc * ln_steps) / np.sum(s1 * cc * ln_steps) if np.sum(s1 * cc * ln_steps) > 0 else 0.0
-    h2 = np.sum(e * s2 * cc * ln_steps) / np.sum(s2 * cc * ln_steps) if np.sum(s2 * cc * ln_steps) > 0 else 0.0
+    h1 = np.sum(e * s1 * cc * ln_steps) / weight1 if weight1 > 0 else 0.0
+    h2 = np.sum(e * s2 * cc * ln_steps) / weight2 if weight2 > 0 else 0.0
 
     if abs(h1) < EPS:
         return 0.0
@@ -727,13 +742,7 @@ def dose_weighted_error(
     e = np.asarray(energy, dtype=float)
 
     cc = _extract_cc_array(cc_icrp116, e, preferred_geom="AP")
-
-    log_steps = np.zeros_like(e)
-    log_e = np.log10(e + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if len(e) > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if len(e) > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
-    ln_steps = log_steps * np.log(10)
+    ln_steps = _compute_log_steps(e)
 
     weights = cc * ln_steps
     total_weight = np.sum(weights)
