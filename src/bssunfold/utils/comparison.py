@@ -68,6 +68,13 @@ def _compute_log_steps(energy: np.ndarray) -> np.ndarray:
     np.ndarray
         Logarithmic steps (ln(E_{i+1}/E_{i}) approximation).
     """
+    try:
+        from ..core._numba_jit import _compute_log_steps_jit, NUMBA_AVAILABLE
+        if NUMBA_AVAILABLE:
+            return _compute_log_steps_jit(np.asarray(energy, dtype=np.float64))
+    except ImportError:
+        pass
+
     log_e = np.log10(energy + EPS)
     n = len(energy)
     log_steps = np.zeros(n)
@@ -743,6 +750,13 @@ def dose_weighted_error(
 
     cc = _extract_cc_array(cc_icrp116, e, preferred_geom="AP")
     ln_steps = _compute_log_steps(e)
+
+    try:
+        from ..core._numba_jit import _dose_weighted_mse_jit, NUMBA_AVAILABLE
+        if NUMBA_AVAILABLE:
+            return float(_dose_weighted_mse_jit(s1, s2, cc, ln_steps))
+    except ImportError:
+        pass
 
     weights = cc * ln_steps
     total_weight = np.sum(weights)

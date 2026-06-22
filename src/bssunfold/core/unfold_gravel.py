@@ -54,6 +54,14 @@ def solve_gravel(
     A_valid = A[valid]
     b_valid = b[valid]
 
+    try:
+        from ._numba_jit import _gravel_inner, NUMBA_AVAILABLE
+        if NUMBA_AVAILABLE:
+            return _gravel_inner(A_valid, x, b_valid, regularization, max_iterations, tolerance)
+    except ImportError:
+        pass
+
+    # Fallback: pure Python implementation
     J_prev = 0.0
     dJ_prev = 1.0
 

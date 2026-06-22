@@ -50,20 +50,26 @@ def solve_landweber(
     step_size = 1.0 / (sigma_max ** 2)
     AT = A.T
 
+    # Precompute ATb for efficiency
+    ATb = AT @ b
+
     converged = False
     iterations = 0
 
     for i in range(max_iterations):
-        residual = A @ x - b
-        residual_norm = np.linalg.norm(residual)
+        # Compute residual and its norm efficiently
+        # residual = A @ x - b, so AT @ residual = AT @ A @ x - ATb
+        ATAx = AT @ (A @ x)
+        grad = ATAx - ATb
+        residual_norm = np.linalg.norm(A @ x - b)
 
         if residual_norm < tolerance:
             converged = True
             iterations = i
             break
 
-        x = x - step_size * (AT @ residual)
-        x = np.maximum(x, 0)
+        x = x - step_size * grad
+        np.maximum(x, 0, out=x)
 
     if not converged:
         iterations = max_iterations
