@@ -57,7 +57,6 @@ class TestSolverFallbackPaths:
 
     def _mock_numba_and_clear(self):
         """Return context manager that forces pure-Python fallback."""
-        import sys
         import types
         from unittest.mock import MagicMock
 
@@ -1185,7 +1184,6 @@ class TestBaseUnfolder:
 class TestDetectorFallbackSolvers:
     def _mock_numba_and_clear(self):
         """Return context manager that forces pure-Python fallback."""
-        import sys
         import types
         from unittest.mock import MagicMock
 
@@ -1253,7 +1251,6 @@ class TestDetectorFallbackSolvers:
 
 class TestNumbaFallbackViaComparison:
     def _mock_numba_and_clear(self):
-        import sys
         import types
         from unittest.mock import MagicMock
 
@@ -2075,7 +2072,6 @@ class TestComparisonEdgeCases:
 
     def _mock_numba_fallback(self):
         """Force numba fallback for comparison.py paths."""
-        import sys
         import types
         saved = sys.modules.get("bssunfold.core._numba_jit")
         mock_numba = types.ModuleType("bssunfold.core._numba_jit")
