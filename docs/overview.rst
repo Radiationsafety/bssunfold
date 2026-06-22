@@ -56,6 +56,7 @@ categories:
        I --> I2["unfold_parametric_cvxpy"]
        I --> I3["unfold_parametric_qpsolvers"]
        I --> I4["unfold_parametric_combined"]
+       I --> I5["unfold_parametric2"]
 
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
@@ -204,8 +205,14 @@ Method Reference
      - ``unfold_parametric_combined``
      - Parametric
      - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
-     - lmfit, cvxpy, qpsolvers
-     - lmfit first-pass + QP refinement for parametric model
+      - lmfit, cvxpy, qpsolvers
+      - lmfit first-pass + QP refinement for parametric model
+   * - 22
+     - ``unfold_parametric2``
+     - Parametric
+     - ``b_range``, ``Tf_range``, ``c_range``, ``noise_level``, ``max_iter``, ``tol_chi2``
+     - —
+     - BON95 4-component model (thermal + epithermal + intermediate + fast) with directed-divergence iterations
 
 .. note::
 

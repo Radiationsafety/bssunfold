@@ -34,7 +34,7 @@ Features
   - **Statistical Regularisation**: Turchin's method (StatReg)
   - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR)
   - **Pipeline**: Combined approach for chaining multiple methods
-  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined)
+   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
 - **Radiation Dose Calculations**:
   - ICRP-116 conversion coefficients for effective dose

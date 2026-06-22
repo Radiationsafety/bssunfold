@@ -20,6 +20,7 @@ from .unfold_bayes_spline_regularization import solve_bayes_spline
 from .unfold_statreg import solve_statreg
 from .unfold_scipy_direct_method import solve_scipy_direct
 from .unfold_tsvd import solve_tsvd
+from .unfold_parametric2 import solve_parametric2
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_hybrid_parametric import solve_hybrid_parametric
 from .unfold_bayesian_parametric import solve_bayesian_parametric
@@ -50,6 +51,7 @@ from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularizati
 from .unfold_statreg import unfold_statreg
 from .unfold_scipy_direct_method import unfold_scipy_direct_method
 from .unfold_tsvd import unfold_tsvd
+from .unfold_parametric2 import unfold_parametric2
 
 __all__ = [
     # detector
@@ -70,6 +72,7 @@ __all__ = [
     "solve_statreg",
     "solve_scipy_direct",
     "solve_tsvd",
+    "solve_parametric2",
     "solve_fruit_like",
     "solve_hybrid_parametric",
     "solve_bayesian_parametric",
@@ -91,6 +94,7 @@ __all__ = [
     "unfold_statreg",
     "unfold_scipy_direct_method",
     "unfold_tsvd",
+    "unfold_parametric2",
     "unfold_fruit_like",
     "unfold_hybrid_parametric",
     "unfold_bayesian_parametric",

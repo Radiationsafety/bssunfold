@@ -202,6 +202,10 @@ def _normalize_initial(
 ) -> np.ndarray:
     """Return normalized initial spectrum or default."""
     if initial_spectrum is not None:
+        if isinstance(initial_spectrum, dict):
+            initial_spectrum = initial_spectrum.get('spectrum', None)
+            if initial_spectrum is None:
+                return default_initial.copy()
         spectrum = np.asarray(initial_spectrum, dtype=float)
         if len(spectrum) == n_energy_bins:
             return np.maximum(spectrum, 0)
