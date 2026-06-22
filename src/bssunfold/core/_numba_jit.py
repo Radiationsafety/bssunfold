@@ -10,7 +10,7 @@ The functions use numba.prange for automatic parallelization where beneficial.
 import numpy as np
 
 try:
-    from numba import njit, prange
+    from numba import njit
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
