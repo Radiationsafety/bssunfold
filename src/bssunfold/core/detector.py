@@ -44,6 +44,7 @@ from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_parametric_impl
 from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
+from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 
 __all__ = ["Detector"]
 
@@ -1911,6 +1912,85 @@ class Detector:
             tol=tol,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_parametric2(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        b_range: Tuple[float, float, int] = (0.5, 2.0, 5),
+        Tf_range: Tuple[float, float, int] = (0.5, 10.0, 5),
+        c_range: Tuple[float, float, int] = (0.5, 3.0, 4),
+        noise_level: float = 0.05,
+        max_iter: int = 200,
+        tol_chi2: float = 1.0,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the BON95 parametric method.
+
+        Uses the four-component parameterization from Sannikov BON95:
+        thermal (Maxwellian), epithermal (1/E), intermediate, and
+        fast (evaporation/cascade) components. After parametric fitting,
+        the result is refined by directed-divergence iterations.
+
+        This method implements the algorithm described in:
+          - Sannikov A.V., BON95, GSF report, Munich, 1995.
+          - Babintsev et al., Preprint IHEP 2022-4.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused in parametric method).
+        b_range : tuple
+            Grid range for epithermal exponent b: (min, max, n_points).
+        Tf_range : tuple
+            Grid range for fast peak energy Tf (MeV): (min, max, n_points).
+        c_range : tuple
+            Grid range for fast peak width c: (min, max, n_points).
+        noise_level : float
+            Relative uncertainty for measurements (default: 0.05 = 5%).
+        max_iter : int
+            Max directed-divergence iterations (default: 200).
+        tol_chi2 : float
+            Chi-squared convergence threshold (default: 1.0).
+        calculate_errors : bool
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_parametric2_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            b_range=b_range,
+            Tf_range=Tf_range,
+            c_range=c_range,
+            noise_level=noise_level,
+            max_iter=max_iter,
+            tol_chi2=tol_chi2,
+            calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,
