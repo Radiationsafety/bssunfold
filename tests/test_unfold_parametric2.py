@@ -19,6 +19,7 @@ from bssunfold.core.unfold_parametric2 import (
     unfold_parametric2,
     _Tth,
     _build_measurement_uncertainties,
+    _clean_edge_bins,
 )
 
 
@@ -390,3 +391,71 @@ class TestMeasurementUncertainties:
         r1 = _build_measurement_uncertainties(b, noise_level=0.01)
         r2 = _build_measurement_uncertainties(b, noise_level=0.10)
         assert_allclose(r2, r1 * 10.0, rtol=1e-10)
+
+
+# ─── Edge-bin cleaning tests ──────────────────────────────────────
+
+
+class TestCleanEdgeBins:
+    def test_no_change_for_normal_spectrum(self):
+        phi = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        result = _clean_edge_bins(phi)
+        assert_allclose(result, phi)
+
+    def test_zeros_first_bin_if_spike(self):
+        phi = np.array([100.0, 1.0, 2.0, 3.0, 4.0])
+        result = _clean_edge_bins(phi, factor=10.0)
+        assert result[0] == 0.0
+        assert result[1] == 1.0
+
+    def test_zeros_last_bin_if_spike(self):
+        phi = np.array([1.0, 2.0, 3.0, 4.0, 100.0])
+        result = _clean_edge_bins(phi, factor=10.0)
+        assert result[-1] == 0.0
+        assert result[-2] == 4.0
+
+    def test_does_not_modify_input(self):
+        phi = np.array([100.0, 1.0, 2.0, 3.0, 4.0])
+        original = phi.copy()
+        _clean_edge_bins(phi, factor=10.0)
+        assert_allclose(phi, original)
+
+    def test_short_array_unchanged(self):
+        phi = np.array([100.0, 1.0])
+        result = _clean_edge_bins(phi)
+        assert_allclose(result, phi)
+
+    def test_all_zeros_unchanged(self):
+        phi = np.zeros(10)
+        result = _clean_edge_bins(phi)
+        assert_allclose(result, phi)
+
+
+# ─── Dict initial_spectrum tests ──────────────────────────────────
+
+
+class TestDictInitialSpectrum:
+    def test_unfold_parametric2_accepts_dict_initial_spectrum(self, detector, sample_readings):
+        # Get a spectrum from a previous run to use as initial
+        r1 = detector.unfold_parametric(readings=sample_readings)
+        # Pass the entire result dict as initial_spectrum
+        result = detector.unfold_parametric2(
+            readings=sample_readings,
+            initial_spectrum=r1,
+            b_range=(0.8, 1.5, 3),
+            Tf_range=(1.0, 5.0, 3),
+            c_range=(0.8, 2.0, 3),
+        )
+        assert 'spectrum' in result
+        assert result['spectrum'].shape == (detector.n_energy_bins,)
+
+    def test_unfold_parametric2_accepts_array_initial_spectrum(self, detector, sample_readings):
+        r1 = detector.unfold_parametric(readings=sample_readings)
+        result = detector.unfold_parametric2(
+            readings=sample_readings,
+            initial_spectrum=r1['spectrum'],
+            b_range=(0.8, 1.5, 3),
+            Tf_range=(1.0, 5.0, 3),
+            c_range=(0.8, 2.0, 3),
+        )
+        assert 'spectrum' in result

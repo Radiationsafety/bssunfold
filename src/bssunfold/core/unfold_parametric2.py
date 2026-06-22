@@ -478,6 +478,7 @@ def solve_parametric2(
 
     # Ensure non-negative
     phi_param = np.maximum(phi_param, 0.0)
+    phi_param = _clean_edge_bins(phi_param)
 
     # Step 2: Directed-divergence refinement
     phi_refined, n_iter, chi2_final, converged = directed_divergence_iteration(
@@ -486,6 +487,7 @@ def solve_parametric2(
     )
 
     # Build final spectrum: Phi(E) * ln_steps for the system matrix
+    phi_refined = _clean_edge_bins(phi_refined)
     spectrum = phi_refined * ln_steps
 
     # Compute residual for fit quality check
