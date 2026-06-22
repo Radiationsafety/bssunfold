@@ -28,12 +28,10 @@ and this project adheres to [Semantic Versioning].
   - `Detector(cc_type=...)` — select dose coefficients at construction time
   - `Detector.set_dose_coefficients(name)` — change dose coefficients after construction
   - Exported from `bssunfold` package root
-- **Built-in response function datasets** (7 datasets from CSV sources):
+- **Built-in response function  datasets** (7 datasets from CSV sources):
   - `RF_JINR` — JINR (Dubna): 9 detectors, 60 energy bins (1e-9–631 MeV)
   - `RF_FERMILAB` — Fermilab: 8 detectors, 60 energy bins (1e-9–631 MeV)
   - `RF_EURADOS` — EURADOS round-robin: 13 detectors, 105 energy bins (1e-9 – 20 MeV, narrower range)
-  - `RF_IHEP` — IHEP (Protvino): 12 detectors, 107 energy bins (1e-9–2000 MeV, wider range)
-  - Special detectors documented: Cd-covered (Cd0in, Cd2in), lead-shielded (10inPb)
   - Exported from `bssunfold` package root alongside `RF_GSF`, `RF_PTB`, `RF_LANL`
 - **SQP-based parametric unfolding** (`unfold_parametric.py`):
 
