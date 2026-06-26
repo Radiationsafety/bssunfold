@@ -286,7 +286,6 @@ source = { editable = "." }
 dependencies = [
     { name = "cvxpy", extra = ["ecos"] },
     { name = "matplotlib" },
-    { name = "numba" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pyzmq" },
@@ -296,6 +295,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "lmfit" },
+    { name = "numba" },
     { name = "odl" },
     { name = "pytest" },
     { name = "pytikhonov" },
@@ -313,6 +313,9 @@ lmfit = [
 ]
 mlem = [
     { name = "odl" },
+]
+numba = [
+    { name = "numba" },
 ]
 qpsolvers = [
     { name = "qpsolvers" },
@@ -380,6 +383,7 @@ dev = [
 requires-dist = [
     { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mlem"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["numba"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["qpsolvers"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["solvers-core"], marker = "extra == 'all-solvers'" },
     { name = "bssunfold", extras = ["solvers-core"], marker = "extra == 'windows'" },
@@ -394,7 +398,7 @@ requires-dist = [
     { name = "jaxopt", marker = "extra == 'solvers-jax'", specifier = ">=0.8.0" },
     { name = "lmfit", marker = "extra == 'lmfit'", specifier = ">=1.3.4" },
     { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "numba", specifier = ">=0.65.1" },
+    { name = "numba", marker = "extra == 'numba'", specifier = ">=0.65.1" },
     { name = "numpy", specifier = ">=2.4.1" },
     { name = "odl", marker = "extra == 'mlem'", specifier = ">=1.0.0" },
     { name = "pandas", specifier = ">=2.2.3" },
@@ -406,7 +410,7 @@ requires-dist = [
     { name = "qpsolvers", extras = ["osqp", "piqp", "qpalm", "ecos", "scs", "clarabel"], marker = "extra == 'solvers-core'", specifier = ">=4.10.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
-provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
