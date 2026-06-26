@@ -42,6 +42,8 @@ from .unfold_doroshenko import unfold_doroshenko
 from .unfold_kaczmarz import unfold_kaczmarz
 from .unfold_lmfit import unfold_lmfit
 from .unfold_mlem_odl import unfold_mlem_odl
+from .unfold_mlem_stop import solve_mlem_stop
+from .unfold_mlem_stop import unfold_mlem_stop
 from .unfold_combined import unfold_combined
 from .unfold_gravel import unfold_gravel
 from .unfold_maxed import unfold_maxed
@@ -76,6 +78,7 @@ __all__ = [
     "solve_fruit_like",
     "solve_hybrid_parametric",
     "solve_bayesian_parametric",
+    "solve_mlem_stop",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
@@ -85,6 +88,7 @@ __all__ = [
     "unfold_kaczmarz",
     "unfold_lmfit",
     "unfold_mlem_odl",
+    "unfold_mlem_stop",
     "unfold_combined",
     "unfold_gravel",
     "unfold_maxed",
