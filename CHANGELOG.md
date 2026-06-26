@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.11.1] - 2026-06-26
+
+### Changed 
+- `numba` fix as optional dependency for conda-forge
+
 ## [0.11.0] - 2026-06-22
 
 ### Added
