@@ -31,6 +31,7 @@ from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
 from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
 from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
+from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
 from .unfold_gravel import unfold_gravel as unfold_gravel_impl
 from .unfold_maxed import unfold_maxed as unfold_maxed_impl
@@ -857,6 +858,73 @@ class Detector:
             initial_spectrum=initial_spectrum,
             tolerance=tolerance,
             max_iterations=max_iterations,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_mlem_stop(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 15000,
+        cps_crossover: float = 30000.0,
+        j_threshold: Optional[float] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using MLEM-STOP with J-factor early stopping criterion.
+
+        Uses the modified MLEM-STOP method from Montgomery et al. (2020).
+        The J-factor indicator (Bouallegue et al. 2013) is computed at each
+        iteration: J = sum((meas - est)^2) / sum(est). The algorithm stops
+        when J falls below the threshold (mean(measurements) / cps_crossover).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations (default: 15000).
+        cps_crossover : float, optional
+            Crossover CPS value for automatic J threshold (default: 30000).
+        j_threshold : float, optional
+            Explicit J threshold. If None, computed from cps_crossover.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_mlem_stop_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            cps_crossover=cps_crossover,
+            j_threshold=j_threshold,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
@@ -2238,16 +2306,34 @@ class Detector:
         parsed = []
         extra_readings = [None, None]
         extra_rm = [None, None]
+        _meta_keys = {
+            "E_MeV", "energy", "readings", "response_matrix",
+            "effective_readings", "doserates",
+            "spectrum_uncert_min", "spectrum_uncert_max",
+            "spectrum_uncert_std", "spectrum_uncert_mean",
+        }
         for i, s in enumerate(spectra):
             if isinstance(s, dict):
                 if "spectrum" in s:
                     parsed.append(np.asarray(s["spectrum"], dtype=float))
-                elif "Phi" in s:
-                    parsed.append(np.asarray(s["Phi"], dtype=float))
                 else:
-                    raise ValueError(
-                        f"Spectrum {i} is a dict but has no 'spectrum' or 'Phi' key"
-                    )
+                    spectrum_key = None
+                    if "Phi" in s:
+                        spectrum_key = "Phi"
+                    else:
+                        for key in s:
+                            if key not in _meta_keys and isinstance(
+                                s[key], (np.ndarray, list, tuple)
+                            ):
+                                spectrum_key = key
+                                break
+                    if spectrum_key is not None:
+                        parsed.append(np.asarray(s[spectrum_key], dtype=float))
+                    else:
+                        raise ValueError(
+                            f"Spectrum {i} is a dict but has no recognizable "
+                            f"spectrum key. Available keys: {list(s.keys())}"
+                        )
                 if i < 2:
                     if readings1 is None and "readings" in s and i == 0:
                         extra_readings[0] = np.asarray(s["readings"], dtype=float)

@@ -573,12 +573,13 @@ class TestDetectorUncovered:
         with pytest.raises(ValueError, match="must be 1-D"):
             detector.compare(s1, s2)
 
-    def test_compare_dict_no_spectrum_or_phi(self, detector):
-        """Test dict without 'spectrum' or 'Phi' key."""
+    def test_compare_dict_arbitrary_key(self, detector):
+        """Test dict with arbitrary key name (not 'spectrum' or 'Phi')."""
         s1 = {"bad_key": np.ones(detector.n_energy_bins)}
         s2 = np.ones(detector.n_energy_bins) * 0.02
-        with pytest.raises(ValueError, match="no 'spectrum' or 'Phi' key"):
-            detector.compare(s1, s2)
+        result = detector.compare(s1, s2, metrics="mean_squared_error")
+        assert isinstance(result, dict)
+        assert "mean_squared_error" in result
 
 
 # ============================================================================

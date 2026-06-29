@@ -28,6 +28,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_mlem_odl.unfold_mlem_odl
 
+.. autofunction:: bssunfold.core.unfold_mlem_stop.unfold_mlem_stop
+
 .. autofunction:: bssunfold.core.unfold_combined.unfold_combined
 
 .. autofunction:: bssunfold.core.unfold_gravel.unfold_gravel
@@ -84,6 +86,8 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_landweber.solve_landweber
 
 .. autofunction:: bssunfold.core.unfold_mlem.solve_mlem
+
+.. autofunction:: bssunfold.core.unfold_mlem_stop.solve_mlem_stop
 
 .. autofunction:: bssunfold.core.unfold_qpsolvers.solve_qpsolvers
 

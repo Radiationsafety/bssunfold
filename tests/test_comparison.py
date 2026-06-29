@@ -521,7 +521,7 @@ class TestDetectorCompare:
             detector.compare(np.ones(detector.n_energy_bins))
 
     def test_dict_without_spectrum_key_raises(self, detector):
-        with pytest.raises(ValueError, match="no 'spectrum'"):
+        with pytest.raises(ValueError, match="no recognizable spectrum key"):
             detector.compare({"wrong": "data"}, np.ones(detector.n_energy_bins))
 
     def test_invalid_type_raises(self, detector):
