@@ -26,9 +26,9 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (25 methods):
+- **Multiple Unfolding Algorithms** (26 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD
-  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
+  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP, GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
   - **Statistical Regularisation**: Turchin's method (StatReg)

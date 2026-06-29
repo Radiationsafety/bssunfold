@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 25 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 26 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 25 methods are accessible as instance methods on the
+All 26 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -35,11 +35,12 @@ categories:
        B --> B4["unfold_tikhonov_legendre"]
 
        C --> C1["unfold_landweber"]
-       C --> C2["unfold_mlem"]
-       C --> C3["unfold_mlem_odl"]
-       C --> C4["unfold_gravel"]
-       C --> C5["unfold_doroshenko"]
-       C --> C6["unfold_kaczmarz"]
+        C --> C2["unfold_mlem"]
+        C --> C3["unfold_mlem_stop"]
+        C --> C4["unfold_mlem_odl"]
+        C --> C5["unfold_gravel"]
+        C --> C6["unfold_doroshenko"]
+        C --> C7["unfold_kaczmarz"]
 
        D --> D1["unfold_bayes"]
        D --> D2["unfold_bayes_spline_regularization"]
@@ -121,119 +122,125 @@ Method Reference
      - —
      - Pure-NumPy MLEM (expectation maximization)
    * - 7
-     - ``unfold_mlem_odl``
-     - Iterative
-     - ``max_iterations``, ``tolerance``
-     - odl
-     - MLEM via ODL operator framework
+      - ``unfold_mlem_stop``
+      - Iterative
+      - ``max_iterations``, ``cps_crossover``, ``j_threshold``
+      - —
+      - MLEM with J-factor early stopping (Montgomery et al. 2020)
    * - 8
-     - ``unfold_gravel``
-     - Iterative
-     - ``max_iterations``, ``tolerance``, ``regularization``
-     - —
-     - GRAVEL with relative entropy weighting
+      - ``unfold_mlem_odl``
+      - Iterative
+      - ``max_iterations``, ``tolerance``
+      - odl
+      - MLEM via ODL operator framework
    * - 9
-     - ``unfold_doroshenko``
-     - Iterative
-     - ``max_iterations``, ``tolerance``, ``regularization``
-     - —
-     - Coordinate-update iterative method
+      - ``unfold_gravel``
+      - Iterative
+      - ``max_iterations``, ``tolerance``, ``regularization``
+      - —
+      - GRAVEL with relative entropy weighting
    * - 10
-     - ``unfold_kaczmarz``
-     - Iterative
-     - ``max_iterations``, ``omega``, ``tolerance``
-     - —
-     - ART (Algebraic Reconstruction Technique)
+      - ``unfold_doroshenko``
+      - Iterative
+      - ``max_iterations``, ``tolerance``, ``regularization``
+      - —
+      - Coordinate-update iterative method
    * - 11
-     - ``unfold_bayes``
-     - Bayesian
-     - ``max_iterations``, ``tolerance``
-     - —
-     - D'Agostini Bayesian iterative unfolding
+      - ``unfold_kaczmarz``
+      - Iterative
+      - ``max_iterations``, ``omega``, ``tolerance``
+      - —
+      - ART (Algebraic Reconstruction Technique)
    * - 12
-     - ``unfold_bayes_spline_regularization``
-     - Bayesian
-     - ``max_iterations``, ``tolerance``, ``spline_degree``, ``spline_smooth``
-     - —
-     - Bayes with spline smoothing on log10-spectrum
+      - ``unfold_bayes``
+      - Bayesian
+      - ``max_iterations``, ``tolerance``
+      - —
+      - D'Agostini Bayesian iterative unfolding
    * - 13
-     - ``unfold_maxed``
-     - MaxEnt
-     - ``sigma_factor``, ``max_iterations``, ``tolerance``
-     - —
-     - Maximum entropy deconvolution
+      - ``unfold_bayes_spline_regularization``
+      - Bayesian
+      - ``max_iterations``, ``tolerance``, ``spline_degree``, ``spline_smooth``
+      - —
+      - Bayes with spline smoothing on log10-spectrum
    * - 14
-     - ``unfold_statreg``
-     - Statistical Reg.
-     - ``unfoldermethod`` (EmpiricalBayes/...), ``regularization``, ``basis_name``, ``boundary``, ``derivative_degree``
-     - —
-     - Turchin's statistical regularization
+      - ``unfold_maxed``
+      - MaxEnt
+      - ``sigma_factor``, ``max_iterations``, ``tolerance``
+      - —
+      - Maximum entropy deconvolution
    * - 15
-     - ``unfold_lmfit``
-     - Optimization
-     - ``method`` (lbfgsb/leastsq/...), ``model_name`` (elastic/lasso/ridge), ``regularization``, ``regularization2``, ``l1_weight``
-     - lmfit
-     - L1/L2/Elastic Net via lmfit
+      - ``unfold_statreg``
+      - Statistical Reg.
+      - ``unfoldermethod`` (EmpiricalBayes/...), ``regularization``, ``basis_name``, ``boundary``, ``derivative_degree``
+      - —
+      - Turchin's statistical regularization
    * - 16
-     - ``unfold_scipy_direct_method``
-     - Optimization
-     - ``method`` (cg/gmres/lsqr/lsmr/minres), ``tolerance``, ``max_iterations``
-     - —
-     - Direct SciPy linear solvers
+      - ``unfold_lmfit``
+      - Optimization
+      - ``method`` (lbfgsb/leastsq/...), ``model_name`` (elastic/lasso/ridge), ``regularization``, ``regularization2``, ``l1_weight``
+      - lmfit
+      - L1/L2/Elastic Net via lmfit
    * - 17
-     - ``unfold_combined``
-     - Pipeline
-     - ``pipeline`` (list of ``{"method", "params"}`` dicts)
-     - —
-     - Sequential multi-method pipeline
+      - ``unfold_scipy_direct_method``
+      - Optimization
+      - ``method`` (cg/gmres/lsqr/lsmr/minres), ``tolerance``, ``max_iterations``
+      - —
+      - Direct SciPy linear solvers
    * - 18
-     - ``unfold_parametric``
-     - Parametric
-     - ``parametric_method`` (thermal/epithermal/fast/custom), ``optimizer`` (lmfit/cvxpy/qpsolvers/combined), ``solver_backend``, ``initial_params``, ``max_iter``, ``tolerance``
-     - lmfit, cvxpy, qpsolvers
-     - FRUIT-style parametric spectrum model (thermal + epithermal + fast)
+      - ``unfold_combined``
+      - Pipeline
+      - ``pipeline`` (list of ``{"method", "params"}`` dicts)
+      - —
+      - Sequential multi-method pipeline
    * - 19
-     - ``unfold_parametric_cvxpy``
-     - Parametric
-     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
-     - cvxpy
-     - SQP solver using cvxpy for parametric model fitting
-   * - 20
-     - ``unfold_parametric_qpsolvers``
-     - Parametric
-     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
-     - qpsolvers
-     - SQP solver using qpsolvers backends for parametric model fitting
-   * - 21
-     - ``unfold_parametric_combined``
-     - Parametric
-     - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+      - ``unfold_parametric``
+      - Parametric
+      - ``parametric_method`` (thermal/epithermal/fast/custom), ``optimizer`` (lmfit/cvxpy/qpsolvers/combined), ``solver_backend``, ``initial_params``, ``max_iter``, ``tolerance``
       - lmfit, cvxpy, qpsolvers
-      - lmfit first-pass + QP refinement for parametric model
+      - FRUIT-style parametric spectrum model (thermal + epithermal + fast)
+   * - 20
+      - ``unfold_parametric_cvxpy``
+      - Parametric
+      - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+      - cvxpy
+      - SQP solver using cvxpy for parametric model fitting
+   * - 21
+      - ``unfold_parametric_qpsolvers``
+      - Parametric
+      - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+      - qpsolvers
+      - SQP solver using qpsolvers backends for parametric model fitting
    * - 22
-     - ``unfold_parametric2``
-     - Parametric
-     - ``b_range``, ``Tf_range``, ``c_range``, ``noise_level``, ``max_iter``, ``tol_chi2``
-     - —
-     - BON95 4-component model (thermal + epithermal + intermediate + fast) with directed-divergence iterations
+      - ``unfold_parametric_combined``
+      - Parametric
+      - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
+       - lmfit, cvxpy, qpsolvers
+       - lmfit first-pass + QP refinement for parametric model
    * - 23
-     - ``unfold_fruit_like``
-     - Parametric
-     - ``initial_params``, ``max_iterations``, ``tolerance``
-     - —
-     - FRUIT-like parametric model: Maxwellian thermal + 1/E epithermal + evaporation fast
+      - ``unfold_parametric2``
+      - Parametric
+      - ``b_range``, ``Tf_range``, ``c_range``, ``noise_level``, ``max_iter``, ``tol_chi2``
+      - —
+      - BON95 4-component model (thermal + epithermal + intermediate + fast) with directed-divergence iterations
    * - 24
-     - ``unfold_hybrid_parametric``
-     - Parametric
-     - ``refinement_method`` (landweber/mlem), ``max_iterations``, ``tolerance``
-     - —
-     - Parametric initial guess refined by Landweber or MLEM iteration
+      - ``unfold_fruit_like``
+      - Parametric
+      - ``initial_params``, ``max_iterations``, ``tolerance``
+      - —
+      - FRUIT-like parametric model: Maxwellian thermal + 1/E epithermal + evaporation fast
    * - 25
-     - ``unfold_bayesian_parametric``
-     - Parametric
-     - ``n_samples``, ``burn_in``, ``proposal_scale``, ``prior_mean``, ``prior_std``
-     - —
-     - Metropolis-Hastings MCMC sampling for spectral parameter estimation
+      - ``unfold_hybrid_parametric``
+      - Parametric
+      - ``refinement_method`` (landweber/mlem), ``max_iterations``, ``tolerance``
+      - —
+      - Parametric initial guess refined by Landweber or MLEM iteration
+   * - 26
+      - ``unfold_bayesian_parametric``
+      - Parametric
+      - ``n_samples``, ``burn_in``, ``proposal_scale``, ``prior_mean``, ``prior_std``
+      - —
+      - Metropolis-Hastings MCMC sampling for spectral parameter estimation
 
 .. note::
 

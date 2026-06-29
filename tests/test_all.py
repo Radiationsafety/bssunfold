@@ -41,6 +41,7 @@ class TestImports:
             solve_doroshenko,
             solve_kaczmarz,
             solve_lmfit,
+            solve_mlem_stop,
             unfold_cvxpy,
             unfold_landweber,
             unfold_mlem,
@@ -49,6 +50,7 @@ class TestImports:
             unfold_kaczmarz,
             unfold_lmfit,
             unfold_mlem_odl,
+            unfold_mlem_stop,
             unfold_combined,
         )
         assert Detector is not None
@@ -178,6 +180,12 @@ class TestDetector:
         result = detector.unfold_mlem_odl(readings, max_iterations=50)
         assert 'spectrum' in result
         assert result['method'] == 'MLEM (ODL)'
+
+    def test_unfold_mlem_stop(self, detector, readings):
+        """Test unfold_mlem_stop method."""
+        result = detector.unfold_mlem_stop(readings, max_iterations=50, cps_crossover=100.0)
+        assert 'spectrum' in result
+        assert result['method'] == 'MLEM-STOP'
 
     def test_results_history(self, detector, readings):
         """Test results history functionality."""

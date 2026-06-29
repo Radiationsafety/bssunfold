@@ -197,13 +197,23 @@ def plot_with_uncertainty(
     
     # Plot reference if provided
     if reference_spectrum is not None:
-        ax.plot(
-            reference_spectrum["E_MeV"],
-            reference_spectrum["Phi"],
-            label="reference",
-            linestyle=":",
-            color="black",
-        )
+        ref_energy = reference_spectrum["E_MeV"]
+        if "Phi" in reference_spectrum:
+            ref_values = reference_spectrum["Phi"]
+        else:
+            ref_values = None
+            for key in reference_spectrum:
+                if key != "E_MeV":
+                    ref_values = reference_spectrum[key]
+                    break
+        if ref_values is not None:
+            ax.plot(
+                ref_energy,
+                ref_values,
+                label="reference",
+                linestyle=":",
+                color="black",
+            )
     
     # Plot uncertainty
     if plot_style == "fill_between" and uncert_min is not None and uncert_max is not None:
@@ -393,14 +403,24 @@ def plot_comparison(
         )
 
     if reference_spectrum is not None:
-        ax[0].plot(
-            reference_spectrum["E_MeV"],
-            reference_spectrum["Phi"],
-            label="reference",
-            linewidth=1,
-            linestyle=":",
-            color=colors[0],
-        )
+        ref_energy = reference_spectrum["E_MeV"]
+        if "Phi" in reference_spectrum:
+            ref_values = reference_spectrum["Phi"]
+        else:
+            ref_values = None
+            for key in reference_spectrum:
+                if key != "E_MeV":
+                    ref_values = reference_spectrum[key]
+                    break
+        if ref_values is not None:
+            ax[0].plot(
+                ref_energy,
+                ref_values,
+                label="reference",
+                linewidth=1,
+                linestyle=":",
+                color=colors[0],
+            )
 
     ax[0].set_xlabel("Energy, MeV")
     ax[0].set_ylabel("Fluence per unit lethargy, F(E)E, neutron/(cm² ∙ s)")

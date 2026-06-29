@@ -2306,16 +2306,34 @@ class Detector:
         parsed = []
         extra_readings = [None, None]
         extra_rm = [None, None]
+        _meta_keys = {
+            "E_MeV", "energy", "readings", "response_matrix",
+            "effective_readings", "doserates",
+            "spectrum_uncert_min", "spectrum_uncert_max",
+            "spectrum_uncert_std", "spectrum_uncert_mean",
+        }
         for i, s in enumerate(spectra):
             if isinstance(s, dict):
                 if "spectrum" in s:
                     parsed.append(np.asarray(s["spectrum"], dtype=float))
-                elif "Phi" in s:
-                    parsed.append(np.asarray(s["Phi"], dtype=float))
                 else:
-                    raise ValueError(
-                        f"Spectrum {i} is a dict but has no 'spectrum' or 'Phi' key"
-                    )
+                    spectrum_key = None
+                    if "Phi" in s:
+                        spectrum_key = "Phi"
+                    else:
+                        for key in s:
+                            if key not in _meta_keys and isinstance(
+                                s[key], (np.ndarray, list, tuple)
+                            ):
+                                spectrum_key = key
+                                break
+                    if spectrum_key is not None:
+                        parsed.append(np.asarray(s[spectrum_key], dtype=float))
+                    else:
+                        raise ValueError(
+                            f"Spectrum {i} is a dict but has no recognizable "
+                            f"spectrum key. Available keys: {list(s.keys())}"
+                        )
                 if i < 2:
                     if readings1 is None and "readings" in s and i == 0:
                         extra_readings[0] = np.asarray(s["readings"], dtype=float)

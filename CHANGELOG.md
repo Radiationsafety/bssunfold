@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.12.0] - 2026-06-29
+
+### Added
+- **MLEM with J-factor early stopping criterion** — new `unfold_mlem_stop()` method
+  based on Montgomery et al. (2020), "A novel MLEM stopping criterion for unfolding
+  neutron fluence spectra in radiation therapy", Nucl. Instrum. Meth. A 957, 163400.
+  Uses J-factor + CPS crossover rule for automatic iteration termination
+  (see `examples/19-MLEM_stopping_criteria.ipynb`).
+- **Flexible column names** in `Detector.compare()`, `plot_with_uncertainty()`,
+  `plot_comparison()` — arbitrary spectrum column names accepted (was hardcoded `'Phi'`)
+
+### Changed
+- Methods table in README updated to 26 methods (+ `unfold_mlem_stop`)
+
 ## [0.11.1] - 2026-06-26
 
 ### Changed 
