@@ -10,6 +10,7 @@ bssunfold is a Python package for neutron spectrum unfolding using various algor
    overview
    detector
    examples
+   reconst_comparison
 
 Indices and tables
 ==================
