@@ -38,7 +38,7 @@ def create_derivative_matrix(n: int, order: int) -> csc_matrix:
         return L
     elif order == 2:
         # Second derivative: [1, -2, 1] on diagonals - more efficient with diags
-        L = diags([1, -2, 1], [0, 1, 2], shape=(n - 2, n), format='csc')
+        L = diags([1, -2, 1], [0, 1, 2], shape=(n - 2, n), format='csc', dtype=float)
         return L
     else:
         raise ValueError(f"Unsupported derivative order: {order}. Use 1 or 2.")
