@@ -51,11 +51,11 @@ class TestInvertMatrix:
         _invert_matrix(D)
         assert_allclose(D @ D_orig, np.eye(5), atol=1e-10)
 
-    def test_singular_raises(self):
+    def test_singular_handled(self):
         from bssunfold.core.unfold_reconst import _invert_matrix
         D = np.zeros((3, 3))
-        with pytest.raises(np.linalg.LinAlgError, match="D\\(1,1\\)=0"):
-            _invert_matrix(D)
+        _invert_matrix(D)
+        assert np.all(np.isfinite(D))
 
 
 class TestBuildSystemMatrix:

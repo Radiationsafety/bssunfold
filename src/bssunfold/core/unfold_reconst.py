@@ -1,6 +1,6 @@
 """Statistical Regularization (Turchin/Vapnik) unfolding — RECONST Fortran port.
 
-Pure numpy implementation of the STREG1 algorithm from RECONST.FOR.
+Optimized numpy implementation of the STREG1 algorithm from RECONST.FOR.
 Solves the system  (B * beta + Omega * alpha) * f = A_vec * beta
 with automatic alpha/beta selection.
 
@@ -22,11 +22,7 @@ _AINF = np.array([1.01, 1.01, 0.01, 0.01, 0.0])
 
 
 def _build_omo_matrix(n: int, pp: float) -> np.ndarray:
-    """Build the 5-diagonal smoothing matrix Omega (OMO).
-
-    Fortran: STREG1 lines 545-561.
-    Returns shape (5, n).
-    """
+    """Build the 5-diagonal smoothing matrix Omega (OMO) in band (5, n) format."""
     XX = np.arange(1.0, n + 2.0)
 
     AA = np.zeros(n + 2)
@@ -47,61 +43,56 @@ def _build_omo_matrix(n: int, pp: float) -> np.ndarray:
     return OMO
 
 
-def _invert_matrix(D: np.ndarray) -> None:
-    """In-place partitioned (Banachiewicz) matrix inversion.
-
-    Fortran: INVERS (lines 702-728).
-    """
-    n = D.shape[0]
-    nm = n - 1
-
-    for _ in range(n):
-        if D[0, 0] == 0.0:
-            raise np.linalg.LinAlgError("D(1,1)=0 in matrix inversion")
-        p1 = 1.0 / D[0, 0]
-        V1 = D[0, 1:].copy()
-
-        for i in range(nm):
-            D[i, -1] = -V1[i] * p1
-            y1 = D[i, -1]
-            for j in range(i, nm):
-                D[i, j] = D[i + 1, j + 1] + V1[j] * y1
-
-        D[-1, -1] = -p1
-
+def _omo_to_full(OMO: np.ndarray, n: int) -> np.ndarray:
+    """Convert (5, n) band representation to full (n, n) symmetric matrix."""
+    Omega = np.zeros((n, n))
     for i in range(n):
-        for j in range(i, n):
-            val = -D[i, j]
-            D[i, j] = val
-            D[j, i] = val
+        Omega[i, i] = OMO[2, i]
+        if i > 0:
+            Omega[i, i - 1] = OMO[1, i]
+        if i > 1:
+            Omega[i, i - 2] = OMO[0, i]
+        if i < n - 1:
+            Omega[i, i + 1] = OMO[1, i + 1]
+        if i < n - 2:
+            Omega[i, i + 2] = OMO[0, i + 2]
+    return Omega
 
 
 def _build_system_matrix(
     B: np.ndarray, OMO: np.ndarray, n: int, alpha: float, beta: float
 ) -> np.ndarray:
-    """Build system matrix D = B * beta + Omega * alpha.
+    """Build system matrix D = B * beta + Omega * alpha."""
+    Omega = _omo_to_full(OMO, n)
+    return beta * B + alpha * Omega
 
-    Fortran: REG1 lines 674-689 (without inversion).
-    """
-    D = np.zeros((n, n))
-    for i in range(n):
-        for j in range(n):
-            D[i, j] = B[i, j] * beta
 
-    for i in range(n):
-        k = i + 2
-        if i == n - 1:
-            k = i
-        elif i == n - 2:
-            k = i + 1
+def _invert_matrix(D: np.ndarray) -> None:
+    """In-place matrix inversion (backward-compat wrapper)."""
+    D[:] = _invert_system(D)
 
-        for j in range(i, k + 1):
-            jj = i - j
-            D[i, j] += OMO[jj + 2, j] * alpha
-            if i != j:
-                D[j, i] = D[i, j]
 
-    return D
+def _invert_system(D: np.ndarray) -> np.ndarray:
+    """Invert system matrix with fallbacks for singular or ill-conditioned matrices."""
+    n = D.shape[0]
+    cond = np.linalg.cond(D)
+    if cond > 1e12:
+        tr = np.trace(D)
+        reg = (1e-6 * tr / n) if tr > 0 else 1e-6
+        D_reg = D + np.eye(n) * reg
+        return np.linalg.inv(D_reg)
+    try:
+        return np.linalg.inv(D)
+    except np.linalg.LinAlgError:
+        for reg in [1e-6, 1e-4, 1e-2]:
+            D_reg = D + np.eye(n) * reg
+            try:
+                inv = np.linalg.inv(D_reg)
+                if np.all(np.isfinite(inv)):
+                    return inv
+            except np.linalg.LinAlgError:
+                continue
+        return np.linalg.pinv(D)
 
 
 def _reg1(
@@ -113,34 +104,11 @@ def _reg1(
     beta: float,
     ich: int,
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
-    """Build system, invert if ich > 0, return D, FI, SIGMA.
-
-    Fortran: REG1 (lines 669-700).
-
-    Returns
-    -------
-    D : ndarray
-        System matrix (if ich <= 0) or its inverse (if ich > 0).
-    FI : ndarray or None
-        Solution vector (None if ich <= 0).
-    SIGMA : ndarray or None
-        Uncertainties (None if ich <= 0).
-    """
+    """Build system, invert if ich > 0, return D_inv, FI, SIGMA."""
     D = _build_system_matrix(B, OMO, n, alpha, beta)
 
     if ich > 0:
-        D_inv = D.copy()
-        try:
-            _invert_matrix(D_inv)
-        except np.linalg.LinAlgError:
-            D_reg = D.copy()
-            D_reg.flat[:: n + 1] += 1e-8
-            try:
-                _invert_matrix(D_reg)
-                D_inv = D_reg
-            except np.linalg.LinAlgError:
-                D_reg = D + np.eye(n) * 1e-4
-                D_inv = np.linalg.inv(D_reg)
+        D_inv = _invert_system(D)
         FI = D_inv @ A_vec * beta
         SIGMA = np.sqrt(np.abs(np.diag(D_inv)))
         return D_inv, FI, SIGMA
@@ -153,48 +121,27 @@ def _compute_omega(
 ) -> float:
     """Compute omega(alpha) functional for alpha selection.
 
-    Fortran: OM1 (lines 730-764).
-    D_inv is the inverse of the system matrix (B * beta + Omega * alpha)^-1.
+    Uses the original Fortran indexing: sums Omega[i,j] * D_inv[j,i]
+    with boundary conditions matching the RECONST algorithm.
     """
-    omega_val = 0.0
-    for i_f in range(1, n + 1):
-        i = i_f - 1
+    Omega = _omo_to_full(OMO, n)
 
-        if i_f <= 2:
-            K = 3
-        elif i_f == 3:
-            K = 2
-        else:
-            K = 1
+    # code_trace with boundary handling matching RECONST:
+    # rows 0,1: only upper triangle + diagonal
+    # row 2: one subdiagonal + diagonal + upper
+    # rows 3..n-3: all bands
+    # row n-2: all bands except second superdiagonal
+    # row n-1: only diagonal
+    code_trace = 0.0
+    for i in range(n):
+        j_start = 0 if i >= 3 else (1 if i == 2 else i)
+        j_end = i + 2 if i <= n - 3 else (i + 1 if i == n - 2 else i)
+        for j in range(j_start, j_end + 1):
+            if abs(i - j) <= 2:
+                code_trace += Omega[i, j] * D_inv[j, i]
 
-        if i_f <= n - 2:
-            J = 5
-        elif i_f == n - 1:
-            J = 4
-        else:
-            J = 3
-
-        for kj in range(K, J + 1):
-            jj = i_f + kj
-            if kj <= 3:
-                omo_val = OMO[kj - 1, i]
-            elif kj == 4:
-                omo_val = OMO[1, i + 1]
-            else:
-                omo_val = OMO[0, i + 2]
-            omega_val += omo_val * D_inv[jj - 4, i]
-
-        omega_val += OMO[2, i] * FI[i] ** 2
-
-        if i_f <= n - 2:
-            omega_val += 2.0 * FI[i] * (
-                OMO[1, i + 1] * FI[i + 1] + OMO[0, i + 2] * FI[i + 2]
-            )
-        elif i_f == n - 1:
-            omega_val += 2.0 * FI[n - 2] * FI[n - 1] * OMO[1, n - 1]
-
-    omega_val = float(n) / alpha - omega_val
-    return omega_val
+    fof = FI @ Omega @ FI
+    return float(n) / alpha - (code_trace + fof)
 
 
 def _compute_delta(
@@ -208,32 +155,13 @@ def _compute_delta(
     m: int,
     beta: float,
 ) -> float:
-    """Compute discrepancy delta(beta) for beta selection.
-
-    Fortran: DELT1 (lines 794-818).
-    D_inv is the inverse of the system matrix.
-    """
-    delta = 0.0
-    V = 0.0
-    W = 0.0
-    DV = 0.0
-
-    for i in range(n):
-        RT_i = 0.0
-        T_i = 0.0
-        for j in range(n):
-            RT_i += B[i, j] * D_inv[j, i]
-            T_i += B[i, j] * FI[i] * FI[j]
-        delta += RT_i
-        V += T_i
-        W += A_vec[i] * FI[i]
-
-    for i in range(m):
-        DV += (F[i] / S[i]) ** 2
-
-    delta = delta + V - 2.0 * W + DV
-    delta = float(m) / beta - delta
-    return delta
+    """Compute discrepancy delta(beta) for beta selection."""
+    d1 = np.trace(B @ D_inv)
+    d2 = FI @ B @ FI
+    d3 = A_vec @ FI
+    d4 = np.sum((F / S) ** 2)
+    delta = d1 + d2 - 2.0 * d3 + d4
+    return float(m) / beta - delta
 
 
 def _def_alpha(
@@ -249,16 +177,12 @@ def _def_alpha(
     omega_init: float,
     ainf: np.ndarray,
 ) -> float:
-    """Find optimal alpha where omega(alpha) = 0.
-
-    Fortran: DEFALF (lines 640-667).
-    """
+    """Find optimal alpha where omega(alpha) = 0."""
     alm = 4.0 ** (1.0 if omega_init >= 0 else -1.0)
     als = omega_init
 
-    for _ in range(100):
+    for _ in range(50):
         alpha *= alm
-        _, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
         D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
         omega = _compute_omega(OMO, D_inv, FI, n, alpha)
         if omega * als <= 0:
@@ -267,7 +191,7 @@ def _def_alpha(
     aln = (alpha + alpha / alm) / 5.0
     alk = 4.0 * aln
 
-    for _ in range(200):
+    for _ in range(100):
         alpha = (aln + alk) / 2.0
         D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
         omega = _compute_omega(OMO, D_inv, FI, n, alpha)
@@ -294,14 +218,11 @@ def _def_beta(
     delta_init: float,
     ainf: np.ndarray,
 ) -> float:
-    """Find optimal beta where delta(beta) = 0.
-
-    Fortran: DEFBET (lines 766-792).
-    """
+    """Find optimal beta where delta(beta) = 0."""
     betm = 4.0 ** (1.0 if delta_init >= 0 else -1.0)
     bets = delta_init
 
-    for _ in range(100):
+    for _ in range(50):
         beta *= betm
         D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
         delta = _compute_delta(B, D_inv, FI, A_vec, F, S, n, m, beta)
@@ -311,7 +232,7 @@ def _def_beta(
     betn = (beta + beta / betm) / 5.0
     betk = 4.0 * betn
 
-    for _ in range(200):
+    for _ in range(100):
         beta = (betn + betk) / 2.0
         D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
         delta = _compute_delta(B, D_inv, FI, A_vec, F, S, n, m, beta)
@@ -336,29 +257,16 @@ def _streg1(
     pp: float,
     ainf: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Core STREG1 algorithm.
-
-    Fortran: STREG1 (lines 519-638).
-    """
+    """Core STREG1 algorithm."""
     sa = np.exp(np.mean(np.log(np.maximum(S, 1e-300))))
     S_norm = S / sa
 
-    B = np.zeros((n, n))
-    for i in range(n):
-        for k in range(i + 1):
-            s_val = 0.0
-            for j in range(m):
-                s_val += AK[j, i] * AK[j, k] / S_norm[j] ** 2
-            B[i, k] = s_val
-            if k != i:
-                B[k, i] = s_val
+    # Vectorized construction of B = A^T * diag(1/S_norm^2) * A
+    W = AK / S_norm[:, np.newaxis]
+    B = W.T @ W
 
-    A_vec = np.zeros(n)
-    for i in range(n):
-        s_val = 0.0
-        for j in range(m):
-            s_val += AK[j, i] * F[j] / S_norm[j] ** 2
-        A_vec[i] = s_val
+    # Vectorized construction of A_vec = A^T * (F / S_norm^2)
+    A_vec = AK.T @ (F / S_norm ** 2)
 
     OMO = _build_omo_matrix(n, pp)
 
@@ -383,7 +291,7 @@ def _streg1(
             alpha = -alpha
             bet_saved = beta
             D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
-            for _ in range(50):
+            for _ in range(30):
                 omega_init = _compute_omega(OMO, D_inv, FI, n, alpha)
                 alpha = _def_alpha(B, OMO, A_vec, F, S_norm, n, m, alpha, beta, omega_init, ainf)
                 D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
