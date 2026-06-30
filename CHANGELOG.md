@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.13.0] - 2026-06-30
+
+### Added
+- **RECONST statistical regularization** — `unfold_reconst()` method, a direct numpy port
+  of the FORTRAN STREG1 algorithm (Turchin/Vapnik, 1967). Solves
+  `(B·β + Ω·α)·f = A_vec·β` with automatic α/β selection via discrepancy
+  principle and ω-criterion. Supports manual α, β, and pp tuning parameters.
+  - New file: `core/unfold_reconst.py`
+  - New example notebook: `examples/20-RECONST.ipynb`
+  - 52 new tests in `tests/test_reconst.py`
+
 ## [0.12.0] - 2026-06-29
 
 ### Added
