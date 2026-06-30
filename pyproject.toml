@@ -170,6 +170,7 @@ Changelog = "https://github.com/Radiationsafety/bssunfold/blob/main/CHANGELOG.md
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-p no:odl_plugins"
+markers = ["slow: marks tests as slow (deselect with '-k not slow')"]
 
 [tool.coverage.run]
 source = ["src/bssunfold"]

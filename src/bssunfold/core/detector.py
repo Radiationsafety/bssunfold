@@ -27,6 +27,7 @@ from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_landweber import unfold_landweber as unfold_landweber_impl
 from .unfold_mlem import unfold_mlem as unfold_mlem_impl
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
+from .unfold_reconst import unfold_reconst as unfold_reconst_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
 from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
@@ -732,6 +733,73 @@ class Detector:
             noise_var=noise_var,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            random_state=random_state,
+        )
+
+    def unfold_reconst(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        pp: float = 1e-3,
+        alpha: float = -1.0,
+        beta: float = 0.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Turchin's statistical regularization.
+
+        Pure numpy port of the RECONST.FOR algorithm (STREG1).
+        Solves  (B * beta + Omega * alpha) * f = A_vec * beta
+        with automatic alpha/beta selection.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Ignored (for API compatibility).
+        pp : float, optional
+            PP parameter for the smoothing matrix (default: 1e-3).
+        alpha : float, optional
+            Regularization parameter. >0 fixed, <0 auto-select absolute value
+            (default: -1).
+        beta : float, optional
+            Data fidelity weight. >0 fixed, <=0 auto-select (default: 0).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: True).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_reconst_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            pp=pp,
+            alpha=alpha,
+            beta=beta,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
             random_state=random_state,
         )
 

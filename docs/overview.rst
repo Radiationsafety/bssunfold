@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 26 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 27 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 26 methods are accessible as instance methods on the
+All 27 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -46,7 +46,8 @@ categories:
        D --> D2["unfold_bayes_spline_regularization"]
 
        E --> E1["unfold_maxed"]
-       F --> F1["unfold_statreg"]
+        F --> F1["unfold_statreg"]
+        F --> F2["unfold_reconst"]
 
        G --> G1["unfold_lmfit"]
        G --> G2["unfold_scipy_direct_method"]
@@ -176,66 +177,72 @@ Method Reference
       - —
       - Turchin's statistical regularization
    * - 16
+      - ``unfold_reconst``
+      - Statistical Reg.
+      - ``alpha``, ``beta``, ``max_iter_alpha``, ``max_iter_beta``, ``tol_alpha``, ``tol_beta``
+      - —
+      - Fortran STREG1 port: auto α/β with discrepancy principle & ω-criterion
+   * - 17
       - ``unfold_lmfit``
       - Optimization
       - ``method`` (lbfgsb/leastsq/...), ``model_name`` (elastic/lasso/ridge), ``regularization``, ``regularization2``, ``l1_weight``
       - lmfit
       - L1/L2/Elastic Net via lmfit
-   * - 17
+   * - 18
       - ``unfold_scipy_direct_method``
       - Optimization
       - ``method`` (cg/gmres/lsqr/lsmr/minres), ``tolerance``, ``max_iterations``
       - —
       - Direct SciPy linear solvers
-   * - 18
+   * - 19
       - ``unfold_combined``
       - Pipeline
       - ``pipeline`` (list of ``{"method", "params"}`` dicts)
       - —
       - Sequential multi-method pipeline
-   * - 19
+   * - 20
       - ``unfold_parametric``
       - Parametric
       - ``parametric_method`` (thermal/epithermal/fast/custom), ``optimizer`` (lmfit/cvxpy/qpsolvers/combined), ``solver_backend``, ``initial_params``, ``max_iter``, ``tolerance``
       - lmfit, cvxpy, qpsolvers
       - FRUIT-style parametric spectrum model (thermal + epithermal + fast)
-   * - 20
+   * - 21
       - ``unfold_parametric_cvxpy``
       - Parametric
       - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
       - cvxpy
       - SQP solver using cvxpy for parametric model fitting
-   * - 21
+   * - 22
       - ``unfold_parametric_qpsolvers``
       - Parametric
       - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
       - qpsolvers
       - SQP solver using qpsolvers backends for parametric model fitting
-   * - 22
+   * - 23
       - ``unfold_parametric_combined``
       - Parametric
       - ``parametric_method``, ``initial_params``, ``max_iter``, ``tolerance``, ``solver_backend``
        - lmfit, cvxpy, qpsolvers
        - lmfit first-pass + QP refinement for parametric model
-   * - 23
+   * - 24
       - ``unfold_parametric2``
       - Parametric
       - ``b_range``, ``Tf_range``, ``c_range``, ``noise_level``, ``max_iter``, ``tol_chi2``
       - —
       - BON95 4-component model (thermal + epithermal + intermediate + fast) with directed-divergence iterations
-   * - 24
+   * - 25
       - ``unfold_fruit_like``
       - Parametric
       - ``initial_params``, ``max_iterations``, ``tolerance``
       - —
       - FRUIT-like parametric model: Maxwellian thermal + 1/E epithermal + evaporation fast
-   * - 25
+   * - 26
       - ``unfold_hybrid_parametric``
       - Parametric
       - ``refinement_method`` (landweber/mlem), ``max_iterations``, ``tolerance``
       - —
       - Parametric initial guess refined by Landweber or MLEM iteration
-   * - 26
+   * - 27
       - ``unfold_bayesian_parametric``
       - Parametric
       - ``n_samples``, ``burn_in``, ``proposal_scale``, ``prior_mean``, ``prior_std``

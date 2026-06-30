@@ -44,6 +44,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_statreg.unfold_statreg
 
+.. autofunction:: bssunfold.core.unfold_reconst.unfold_reconst
+
 .. autofunction:: bssunfold.core.unfold_scipy_direct_method.unfold_scipy_direct_method
 
 .. autofunction:: bssunfold.core.unfold_tsvd.unfold_tsvd
@@ -108,6 +110,8 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_bayes_spline_regularization.solve_bayes_spline
 
 .. autofunction:: bssunfold.core.unfold_statreg.solve_statreg
+
+.. autofunction:: bssunfold.core.unfold_reconst.solve_reconst
 
 .. autofunction:: bssunfold.core.unfold_scipy_direct_method.solve_scipy_direct
 

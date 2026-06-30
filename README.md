@@ -40,7 +40,7 @@
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
-  - **Statistical Regularization**: Turchin's method (StatReg)
+  - **Statistical Regularization**: Turchin's method (StatReg, Reconst — Fortran STREG1 port)
   - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR)
   - **Pipeline**: Combined approach for chaining multiple methods
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
@@ -266,6 +266,7 @@ graph TD
 
     E --> E1[unfold_maxed]
     F --> F1[unfold_statreg]
+    F --> F2[unfold_reconst]
 
     G --> G1[unfold_lmfit]
     G --> G2[unfold_scipy_direct_method]
@@ -311,17 +312,18 @@ graph TD
 | 13 | `unfold_bayes_spline_regularization` | Bayesian | `max_iterations`, `tolerance`, `spline_degree`, `spline_smooth` | — | Bayes iteration with spline smoothing |
 | 14 | `unfold_maxed` | MaxEnt | `sigma_factor`, `max_iterations`, `tolerance` | — | Maximum entropy deconvolution (Reginatto & Goldhagen) |
 | 15 | `unfold_statreg` | Statistical Reg. | `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree` | — | Turchin's statistical regularization |
-| 16 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight` | lmfit | L1/L2/Elastic Net via lmfit |
-| 17 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |
-| 18 | `unfold_combined` | Pipeline | `pipeline` (list of `{method, params}` dicts) | — | Sequential multi-method pipeline |
-| 19 | `unfold_parametric` | Parametric | `parametric_method`, `optimizer`, `solver_backend`, `initial_params` | lmfit, cvxpy, qpsolvers | FRUIT-style thermal/epithermal/fast model |
-| 20 | `unfold_parametric_cvxpy` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | cvxpy | SQP solver using cvxpy for parametric fitting |
-| 21 | `unfold_parametric_qpsolvers` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | qpsolvers | SQP solver using qpsolvers backends |
-| 22 | `unfold_parametric_combined` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | lmfit, cvxpy, qpsolvers | lmfit first-pass + QP refinement |
-| 23 | `unfold_parametric2` | Parametric | `b_range`, `Tf_range`, `c_range`, `noise_level`, `max_iter`, `tol_chi2`, `optimizer`, `solver_backend` | grid, cvxpy, qpsolvers, combined | BON95 4-component model + directed-divergence iterations |
-| 24 | `unfold_fruit_like` | Parametric | `initial_params`, `max_iterations`, `tolerance` | — | FRUIT-like model: Maxwellian thermal + 1/E epithermal + evaporation fast |
-| 25 | `unfold_hybrid_parametric` | Parametric | `refinement_method` (landweber/mlem), `max_iterations`, `tolerance` | — | Parametric initial guess refined by Landweber or MLEM |
-| 26 | `unfold_bayesian_parametric` | Parametric | `n_samples`, `burn_in`, `proposal_scale`, `prior_mean`, `prior_std` | — | Metropolis-Hastings MCMC for spectral parameter estimation |
+| 16 | `unfold_reconst` | Statistical Reg. | `alpha`, `beta`, `max_iter_alpha`, `max_iter_beta`, `tol_alpha`, `tol_beta` | — | Fortran STREG1 port: auto α/β with discrepancy principle & ω-criterion |
+| 17 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight` | lmfit | L1/L2/Elastic Net via lmfit |
+| 18 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |
+| 19 | `unfold_combined` | Pipeline | `pipeline` (list of `{method, params}` dicts) | — | Sequential multi-method pipeline |
+| 20 | `unfold_parametric` | Parametric | `parametric_method`, `optimizer`, `solver_backend`, `initial_params` | lmfit, cvxpy, qpsolvers | FRUIT-style thermal/epithermal/fast model |
+| 21 | `unfold_parametric_cvxpy` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | cvxpy | SQP solver using cvxpy for parametric fitting |
+| 22 | `unfold_parametric_qpsolvers` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | qpsolvers | SQP solver using qpsolvers backends |
+| 23 | `unfold_parametric_combined` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | lmfit, cvxpy, qpsolvers | lmfit first-pass + QP refinement |
+| 24 | `unfold_parametric2` | Parametric | `b_range`, `Tf_range`, `c_range`, `noise_level`, `max_iter`, `tol_chi2`, `optimizer`, `solver_backend` | grid, cvxpy, qpsolvers, combined | BON95 4-component model + directed-divergence iterations |
+| 25 | `unfold_fruit_like` | Parametric | `initial_params`, `max_iterations`, `tolerance` | — | FRUIT-like model: Maxwellian thermal + 1/E epithermal + evaporation fast |
+| 26 | `unfold_hybrid_parametric` | Parametric | `refinement_method` (landweber/mlem), `max_iterations`, `tolerance` | — | Parametric initial guess refined by Landweber or MLEM |
+| 27 | `unfold_bayesian_parametric` | Parametric | `n_samples`, `burn_in`, `proposal_scale`, `prior_mean`, `prior_std` | — | Metropolis-Hastings MCMC for spectral parameter estimation |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -647,6 +649,7 @@ bssunfold/
         │   ├── unfold_bayes_spline_regularization.py
         │   ├── unfold_maxed.py
         │   ├── unfold_statreg.py
+        │   ├── unfold_reconst.py
         │   ├── unfold_lmfit.py
         │   ├── unfold_scipy_direct_method.py
         │   ├── unfold_combined.py
@@ -678,7 +681,7 @@ bssunfold/
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
 - `odl` — Operator Discretization Library (unfold_mlem_odl)
 
-All other methods (GRAVEL, MAXED, Bayes, StatReg, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre) have **no extra dependencies** beyond NumPy/SciPy.
+All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre) have **no extra dependencies** beyond NumPy/SciPy.
 
 See [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml) for version constraints.
 
