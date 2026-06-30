@@ -219,3 +219,4 @@ tests/iaea_compendium_dose_rate_evaluation.md
 tests/qpsolvers_cvxpy_dose_rate_results.csv
 presentation/
 presentation.zip
+addon/

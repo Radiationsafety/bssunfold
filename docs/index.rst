@@ -26,14 +26,14 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (26 methods):
+- **Multiple Unfolding Algorithms** (27 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP, GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
-  - **Statistical Regularisation**: Turchin's method (StatReg)
+  - **Statistical Regularisation**: Turchin's method (StatReg), Fortran STREG1 port (Reconst)
   - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR)
-  - **Pipeline**: Combined approach for chaining multiple methods
+   - **Pipeline**: Combined approach for chaining multiple methods
    - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
 - **Numba JIT-Accelerated Iterative Solvers**:
