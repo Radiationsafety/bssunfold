@@ -114,3 +114,261 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+
+# AGENTS.md
+
+## Purpose
+This repository is developed with AI-assisted workflows in OpenCode.
+Agents working in this repo must prioritize:
+- correctness
+- maintainability
+- explicit architecture
+- testability
+- safe incremental delivery
+- business value per stage
+
+Do not treat this repo as a one-shot generation task.
+Work in small, reviewable increments.
+
+---
+
+## Working model
+
+### Default execution model
+For any non-trivial task:
+1. Start with a plan.
+2. Limit scope to the current stage only.
+3. Implement the minimum viable increment.
+4. Run relevant verification.
+5. Produce a concise change report.
+
+Do not attempt broad uncontrolled rewrites unless explicitly asked.
+
+### Stage discipline
+Work must be organized into stages.
+Each stage should:
+- produce demonstrable value
+- be testable
+- be reviewable
+- have clear acceptance criteria
+- have clear out-of-scope boundaries
+
+### End-to-end preference
+Prefer vertical slices over layer-by-layer delivery.
+Do not build the whole backend first and postpone frontend/integration until later unless explicitly requested.
+For product features, prefer:
+- backend changes
+- frontend changes
+- DB changes
+- integration
+- tests
+within the same stage.
+
+---
+
+## Planning rules
+
+Before making large or risky changes, produce a plan that includes:
+- objective
+- scope
+- out of scope
+- impacted modules
+- data model changes
+- API changes
+- frontend changes
+- risks
+- verification strategy
+- rollout / migration notes if applicable
+
+If the task is ambiguous, choose the simplest extensible design and state assumptions explicitly.
+
+---
+
+## Code quality rules
+
+### General
+- Prefer simple, explicit code over clever abstractions.
+- Keep functions and modules cohesive.
+- Avoid hidden side effects.
+- Avoid premature generalization.
+- Follow existing project conventions unless they are clearly harmful.
+
+### Readability
+- Write code for future maintainers.
+- Use descriptive names.
+- Keep files focused.
+- Remove dead code when safe to do so.
+- Do not leave unexplained hacks.
+
+### Architecture
+- Respect module boundaries.
+- Do not introduce circular dependencies.
+- Keep business logic out of UI glue code.
+- Keep transport concerns separate from domain logic.
+- Keep persistence concerns separate from application behavior where practical.
+
+### Change safety
+- Minimize blast radius.
+- Avoid unnecessary rewrites.
+- Preserve backward compatibility unless the task explicitly allows breaking changes.
+- If a breaking change is introduced, document it clearly.
+
+---
+
+## Testing rules
+
+Testing is required for meaningful changes.
+
+### Minimum expectations
+For each completed stage, add or update the appropriate level of tests:
+- unit tests for isolated logic
+- integration tests for contracts and boundaries
+- end-to-end or smoke tests for critical user flows
+- migration verification for DB changes
+- type checks / lint / static analysis where applicable
+
+### Required mindset
+Do not say "done" if code was written but not verified.
+If tests cannot be run, state exactly why.
+
+### Test priority
+Prioritize tests for:
+- critical business flows
+- auth / permissions
+- money-related logic
+- order / workflow transitions
+- data integrity
+- external integrations
+- error handling
+
+---
+
+## Database and migrations
+
+For any DB change:
+- prefer explicit migrations
+- make schema changes reversible when practical
+- document data migration implications
+- avoid destructive changes without explicit warning
+- preserve production safety
+
+If changing schema:
+- update related models
+- update seeds / fixtures if needed
+- update integration tests
+- mention rollout order if relevant
+
+---
+
+## API and contracts
+
+For any API change:
+- keep contracts explicit
+- update request/response types
+- update docs or examples if applicable
+- preserve backward compatibility where possible
+- document breaking changes clearly
+
+When frontend and backend both change:
+- keep payload contracts aligned
+- do not leave frontend relying on stale mocks unless explicitly temporary
+- state temporary mismatches clearly if they exist
+
+---
+
+## Frontend rules
+
+Frontend changes must prioritize:
+- clarity
+- predictable state flow
+- loading/error/empty states
+- accessibility basics
+- minimal but consistent UX
+
+Do not build visual complexity before flow correctness.
+Prefer working user paths over decorative completeness.
+
+---
+
+## Infrastructure and operations
+
+Treat infra changes as production-sensitive.
+
+### For infra-related tasks
+- prefer configuration as code
+- show intended changes explicitly
+- mention rollout order
+- mention rollback path
+- do not run destructive commands unless explicitly authorized
+
+### Secrets and safety
+- never hardcode secrets
+- do not expose credentials in logs or code
+- prefer environment-based configuration
+- preserve least privilege assumptions
+
+---
+
+## Expected final response format for implementation tasks
+
+At the end of a task, provide:
+
+1. Summary of changes
+2. Files/modules affected
+3. Verification performed
+4. Known risks / tech debt / assumptions
+5. Manual QA steps
+6. Recommended next step
+
+Do not claim verification that was not actually run.
+
+---
+
+## Review expectations
+
+A review pass should look for:
+- correctness issues
+- edge cases
+- missing tests
+- risky migrations
+- contract drift
+- architecture drift
+- unnecessary complexity
+- maintainability issues
+
+Review output should separate:
+- critical issues
+- important follow-ups
+- optional improvements
+
+---
+
+## Delivery philosophy
+
+The goal is not maximal code generation.
+The goal is controlled delivery of working software.
+
+Favor:
+- small stages
+- explicit assumptions
+- visible progress
+- stable contracts
+- end-to-end validation
+- maintainable code
+over:
+- giant rewrites
+- implicit decisions
+- hidden complexity
+- unverified output
+
+---
+
+## If unsure
+
+If unsure:
+- inspect relevant code first
+- propose a small safe plan
+- choose the minimal extensible design
+- document assumptions
+- avoid pretending certainty

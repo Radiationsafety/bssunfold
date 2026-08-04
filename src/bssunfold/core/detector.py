@@ -27,6 +27,7 @@ from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_landweber import unfold_landweber as unfold_landweber_impl
 from .unfold_mlem import unfold_mlem as unfold_mlem_impl
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
+from .unfold_mystic import unfold_mystic as unfold_mystic_impl
 from .unfold_reconst import unfold_reconst as unfold_reconst_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
@@ -725,6 +726,97 @@ class Detector:
             regularization=regularization,
             norm=norm,
             solver=solver,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            random_state=random_state,
+        )
+
+    def unfold_mystic(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        solver: str = "fmin_powell",
+        maxiter: Optional[int] = 2000,
+        maxfun: Optional[int] = 20000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using mystic with regularization selection.
+
+        Solves ``min ||A x - b||^2 + alpha * ||x||_norm`` subject to
+        ``x >= 0`` with the constrained-optimization framework `mystic`.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess.
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        solver : str, optional
+            Mystic solver name: 'fmin', 'fmin_powell', 'diffev' or
+            'diffev2', default: 'fmin_powell'.
+        maxiter : int, optional
+            Maximum number of solver iterations, default: 2000.
+        maxfun : int, optional
+            Maximum number of function evaluations, default: 20000.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        regularization_method : str, optional
+            Method for selecting regularization parameter.
+            Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for smoothness term, default: 1.0.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_mystic_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            solver=solver,
+            maxiter=maxiter,
+            maxfun=maxfun,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

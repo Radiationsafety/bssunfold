@@ -11,6 +11,7 @@ from .unfold_kaczmarz import solve_kaczmarz
 from .unfold_doroshenko import solve_doroshenko
 from .unfold_cvxpy import solve_cvxpy
 from .unfold_qpsolvers import solve_qpsolvers
+from .unfold_mystic import solve_mystic
 from .unfold_lmfit import solve_lmfit
 from .unfold_gravel import solve_gravel
 from .unfold_maxed import solve_maxed
@@ -39,6 +40,7 @@ from .unfold_cvxpy import unfold_cvxpy
 from .unfold_landweber import unfold_landweber
 from .unfold_mlem import unfold_mlem
 from .unfold_qpsolvers import unfold_qpsolvers
+from .unfold_mystic import unfold_mystic
 from .unfold_doroshenko import unfold_doroshenko
 from .unfold_kaczmarz import unfold_kaczmarz
 from .unfold_lmfit import unfold_lmfit
@@ -65,6 +67,7 @@ __all__ = [
     "solve_landweber",
     "solve_mlem",
     "solve_qpsolvers",
+    "solve_mystic",
     "solve_doroshenko",
     "solve_kaczmarz",
     "solve_lmfit",
@@ -87,6 +90,7 @@ __all__ = [
     "unfold_landweber",
     "unfold_mlem",
     "unfold_qpsolvers",
+    "unfold_mystic",
     "unfold_doroshenko",
     "unfold_kaczmarz",
     "unfold_lmfit",
