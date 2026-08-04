@@ -4,12 +4,15 @@
 
 ```bash
 uv sync --group dev          # install all deps including dev
-uv run pytest tests/         # run all 391 tests
+uv run pytest tests/         # run all 1160 tests
 uv run pytest -v --tb=short  # verbose, short traceback
 uv run pytest tests/test_coverage.py  # primary coverage test file
 uv run pytest --cov=src/bssunfold --cov-report=term-missing --cov-fail-under=95
 uv run ruff check src/ tests/
 uv run flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+uv run bandit -r src/bssunfold                 # static security scan (src is clean)
+uv run pip-audit --skip-editable -s osv -f json  # dependency vuln scan (needs network; -s osv dedupes)
+uv run python tools/run_dynapyt.py             # DynaPyt dynamic analysis (BranchCoverage over a fast subset)
 ```
 
 Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -v`
@@ -31,7 +34,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 
 ## Testing
 
-### Test files (9 files, 391 tests)
+### Test files (27 files, 1160 tests)
 
 | File | Focus |
 |------|-------|
@@ -43,6 +46,24 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 | `tests/test_readings.py` | Readings/effective readings tests |
 | `tests/test_refactored_fixed.py` | Post-refactoring tests |
 | `tests/test_new_methods_fixed.py` | New unfold_* method tests |
+| `tests/test_security.py` | bandit static security scan (no HIGH findings) |
+
+### Analysis tools
+
+- **DynaPyt** (`tools/run_dynapyt.py`) — dynamic analysis. Instruments a throwaway
+  copy of the repo (`.dynapyt/` via `git archive`, real `src/` is never touched),
+  runs BranchCoverage over a fast subset (`test_detector.py`, `test_readings.py`),
+  writes the report to `.dynapyt_report/`. Use `--keep` to debug, `--analysis` to
+  swap in other analyses. ⚠️ `CallGraph` and `TraceAll` are extremely slow on this
+  codebase — avoid. Requires the `PYTHONPATH` trick in the script: the copy's root
+  must shadow the editable install so `import src.bssunfold` hits instrumented code.
+- **bandit** — static security scan (`uv run bandit -r src/bssunfold`). `src/` is
+  clean (no eval/exec/subprocess/pickle/assert). Config in `[tool.bandit]`.
+- **pip-audit** — dependency vulnerability scan. Needs network (OSV). Runs in the
+  `security-analysis.yml` CI job, not the unit suite. Current allowlist:
+  `CVE-2026-61632` (pymdown-extensions path traversal, dev-only docs tool,
+  jupyter-book pins `<11`). Other dev-tool transitives were fixed by upgrading
+  cryptography, jupyter-server, mistune, pillow, setuptools in `uv.lock`.
 
 ### Coverage quirks
 

@@ -159,6 +159,9 @@ dev = [
     "lmfit>=1.3.4",
     "odl>=1.0.0",
     "pytikhonov>=0.0.1",
+    "dynapyt>=4.1.0",
+    "pip-audit>=2.10.1",
+    "bandit>=1.9.4",
 ]
 
 [project.urls]
@@ -195,6 +198,11 @@ exclude_lines = [
 
 # [tool.coverage.report]
 # fail_under = 80  # минимальный процент coverage
+
+[tool.bandit]
+targets = ["src"]
+recursive = true
+exclude_dirs = ["tests", "docs", "examples", "addon", "graphify-out"]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
