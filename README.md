@@ -642,7 +642,7 @@ bssunfold/
         │   ├── _base_unfolder.py
         │   ├── _matrix_utils.py # SVD, derivative matrix
         │   ├── _montecarlo.py   # MC uncertainty (optimized)
-        │   ├── _numba_jit.py    # Numba JIT inner loops ⚡
+        │   ├── _numba_jit.py    # Numba JIT inner loops 
         │   ├── detector.py      # Main Detector class
         │   ├── dose_calculation.py
         │   ├── regularization.py   # L-curve, GCV, DP
@@ -795,7 +795,7 @@ For questions, bug reports, or feature requests:
 - University "Dubna", School of Big Data Analytics
 
 ## 🎓  Publications
-
+1. Chizhov A. V., Chizhov K. A. TSVD-Based Iterative Algorithm of Landweber for Neutron Spectra Unfolding by Bonner Multi-Sphere Spectrometer Readings // Phys. Part. Nuclei. 2026. Т. 57. № 4. С. 750–752. https://doi.org/10.1134/S1063779626700735
 1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. Дубна, 26 – 31 января 2026 г., [https://mce.su](https://mce.su/rus/presentations/p507586/)
 1. Chizhov, K., Chizhov, A. Optimization of the Neutron Spectrum Unfolding Algorithm Using Shifted Legendre Polynomials Based on Weighted Tikhonov Regularization. Phys. Part. Nuclei 56, 1395–1399 (2025). https://doi.org/10.1134/S106377962570056X
 2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X
