@@ -33,6 +33,20 @@ and this project adheres to [Semantic Versioning].
   - Registered in `unfold_combined()` pipelines as `'smt'`
   - Optional dependency group: `bssunfold[smt]` (`z3-solver>=4.13.0`)
   - New tests in `tests/test_smt.py`
+- **Genetic / meta-heuristic unfolding** — new `unfold_genetic()` method
+  using population-based meta-heuristic algorithms from MEALPY. Minimizes
+  `||A·x − b||²/||b||² + α·||x||_norm` with `x ≥ 0` and optional
+  second-difference smoothing and Shannon-entropy terms, following the
+  PSO (Shahabinejad & Sohrabpour 2017), GA (Suman & Sarkar 2012) and
+  entropy-based (Woo et al. 2019) unfolding works. No initial spectrum is
+  required (random population initialization).
+  - New file: `core/unfold_genetic.py` (`solve_genetic` + `unfold_genetic`)
+  - 8 MEALPY solvers: `pso` (chaotic PSO, default), `ga`, `de`, `es`, `ep`,
+    `abc`, `gwo`, `cmaes`
+  - New `Detector.unfold_genetic()` method
+  - Registered in `unfold_combined()` pipelines as `'genetic'`
+  - Optional dependency group: `bssunfold[mealpy]` (`mealpy>=3.0.2`)
+  - 30 new tests in `tests/test_genetic.py`
 
 ### Changed
 - `numba` promoted to a core dependency (the `bssunfold[numba]` extra is kept

@@ -22,6 +22,10 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_mystic.unfold_mystic
 
+.. autofunction:: bssunfold.core.unfold_genetic.unfold_genetic
+
+.. autofunction:: bssunfold.core.unfold_smt.unfold_smt
+
 .. autofunction:: bssunfold.core.unfold_doroshenko.unfold_doroshenko
 
 .. autofunction:: bssunfold.core.unfold_kaczmarz.unfold_kaczmarz
@@ -96,6 +100,10 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_qpsolvers.solve_qpsolvers
 
 .. autofunction:: bssunfold.core.unfold_mystic.solve_mystic
+
+.. autofunction:: bssunfold.core.unfold_genetic.solve_genetic
+
+.. autofunction:: bssunfold.core.unfold_smt.solve_smt
 
 .. autofunction:: bssunfold.core.unfold_doroshenko.solve_doroshenko
 
