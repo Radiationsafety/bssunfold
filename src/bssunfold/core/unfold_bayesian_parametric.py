@@ -18,7 +18,8 @@ The Bayesian framework provides:
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, _build_system
+from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_bayesian_parametric", "unfold_bayesian_parametric"]
 
@@ -284,15 +285,9 @@ def unfold_bayesian_parametric(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, selected = _build_system(readings, detector_names, sensitivities)
 
-    log_steps = np.zeros(n_energy_bins)
-    log_e = np.log10(E_MeV + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if n_energy_bins > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if n_energy_bins > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    log_steps = compute_log_steps(E_MeV, n_energy_bins)
 
     def solve_wrapper(A_mat, b_vec, **kwargs):
         x_opt, success, message, nfev = solve_bayesian_parametric(

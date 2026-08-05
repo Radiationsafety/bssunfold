@@ -18,70 +18,6 @@ except ImportError:
 
 if NUMBA_AVAILABLE:
     @njit(cache=True)
-    def _landweber_inner(AT, A, x, b, step_size, max_iterations, tolerance):
-        """JIT-compiled Landweber iteration inner loop.
-
-        Parameters
-        ----------
-        AT : np.ndarray
-            Transposed response matrix (n x m).
-        A : np.ndarray
-            Response matrix (m x n).
-        x : np.ndarray
-            Solution vector (n,).
-        b : np.ndarray
-            Measurement vector (m,).
-        step_size : float
-            Step size (1 / sigma_max^2).
-        max_iterations : int
-            Maximum iterations.
-        tolerance : float
-            Convergence tolerance.
-
-        Returns
-        -------
-        tuple
-            (solution, iterations, converged)
-        """
-        m = A.shape[0]
-        n = A.shape[1]
-        converged = False
-        iterations = 0
-
-        for i in range(max_iterations):
-            # Compute residual = A @ x - b
-            residual_norm = 0.0
-            for k in range(m):
-                ax_k = 0.0
-                for j in range(n):
-                    ax_k += A[k, j] * x[j]
-                r_k = ax_k - b[k]
-                residual_norm += r_k * r_k
-            residual_norm = np.sqrt(residual_norm)
-
-            if residual_norm < tolerance:
-                converged = True
-                iterations = i
-                break
-
-            # x = x - step_size * (AT @ residual)
-            for j in range(n):
-                at_r = 0.0
-                for k in range(m):
-                    ax_k = 0.0
-                    for l in range(n):
-                        ax_k += A[k, l] * x[l]
-                    at_r += AT[j, k] * (ax_k - b[k])
-                x[j] -= step_size * at_r
-                if x[j] < 0.0:
-                    x[j] = 0.0
-
-        if not converged:
-            iterations = max_iterations
-
-        return x, iterations, converged
-
-    @njit(cache=True)
     def _mlem_inner(AT, A, x, b, max_iterations, tolerance):
         """JIT-compiled MLEM iteration inner loop.
 
@@ -427,36 +363,8 @@ if NUMBA_AVAILABLE:
             return 0.0
         return np.sqrt(weighted_sq_sum / total_weight)
 
-    @njit(cache=True)
-    def _monte_carlo_add_noise_jit(readings_values, noise_level, rng_state):
-        """JIT-compiled noise addition for Monte Carlo.
-
-        Parameters
-        ----------
-        readings_values : np.ndarray
-            Reading values.
-        noise_level : float
-            Noise level.
-        rng_state : np.ndarray
-            RNG state array.
-
-        Returns
-        -------
-        np.ndarray
-            Noisy readings.
-        """
-        n = len(readings_values)
-        noisy = np.empty(n)
-        for i in range(n):
-            # Simple Box-Muller transform using numpy rng
-            noisy[i] = readings_values[i] * (1.0 + np.random.normal(0, noise_level))
-        return noisy
-
 else:
     # Fallback: no-op functions that will raise ImportError if called
-    def _landweber_inner(*args, **kwargs):
-        raise ImportError("numba is required for JIT-compiled solvers")
-
     def _mlem_inner(*args, **kwargs):
         raise ImportError("numba is required for JIT-compiled solvers")
 
@@ -473,7 +381,4 @@ else:
         raise ImportError("numba is required for JIT-compiled functions")
 
     def _dose_weighted_mse_jit(*args, **kwargs):
-        raise ImportError("numba is required for JIT-compiled functions")
-
-    def _monte_carlo_add_noise_jit(*args, **kwargs):
         raise ImportError("numba is required for JIT-compiled functions")

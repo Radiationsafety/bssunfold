@@ -13,7 +13,7 @@ from typing import Dict, Optional, Any, List
 
 from ._matrix_utils import create_derivative_matrix
 from .regularization import select_regularization_parameter
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._base_unfolder import run_unfolding, make_solve_wrapper, _build_system
 
 __all__ = ["solve_mystic", "unfold_mystic"]
 
@@ -238,9 +238,7 @@ def unfold_mystic(
     Dict[str, Any]
         Unfolding results including spectrum, residuals, and metadata.
     """
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, selected = _build_system(readings, detector_names, sensitivities)
 
     if regularization_method == "manual":
         alpha = regularization

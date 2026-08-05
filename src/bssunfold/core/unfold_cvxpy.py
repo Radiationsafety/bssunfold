@@ -11,7 +11,7 @@ from typing import Dict, Optional, Any, List
 
 from ..platform_check import get_recommended_solver
 from .regularization import select_regularization_parameter
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._base_unfolder import run_unfolding, make_solve_wrapper, _build_system
 
 __all__ = ["solve_cvxpy", "unfold_cvxpy"]
 
@@ -171,9 +171,7 @@ def unfold_cvxpy(
         except ImportError:
             solver = get_recommended_solver()
 
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, selected = _build_system(readings, detector_names, sensitivities)
 
     if regularization_method == "manual":
         alpha = regularization
