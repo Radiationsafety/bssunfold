@@ -19,6 +19,24 @@ published genetic / evolutionary unfolding works:
 The ``unfold_genetic`` / ``solve_genetic`` pair exposes a ``solver``
 selector that maps to different meta-heuristic algorithms implemented in
 MEALPY (PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES).
+
+Numerical strategy
+------------------
+The unfolding problem is severely ill-posed (many more energy bins than
+detectors), so a naive population-based search over a wide linear range
+converges to a noisy, arbitrary spectrum. To obtain results comparable to
+deterministic methods (landweber, cvxpy, MLEM) the optimizer:
+
+- searches in **log space** (``y = log(x)``) so the wide dynamic range of
+  neutron spectra is handled naturally;
+- is **seeded with a Landweber warm-start solution** (or a user-provided
+  ``initial_spectrum``) so the population starts from a smooth,
+  physically-plausible spectrum;
+- is bounded to ``log(seed) +/- half_range`` decades;
+- minimises a **scale-consistent objective** in which the residual,
+  regularisation and second-difference smoothness terms are all
+  dimensionless and comparable, preventing the optimizer from inflating
+  ``x`` without penalty.
 """
 
 import warnings
@@ -77,17 +95,42 @@ def _normalize_solver(solver: str) -> str:
     return name
 
 
-def _build_bounds(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]):
-    """Build non-negativity upper bounds from the response matrix and readings."""
+def _build_seed(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> np.ndarray:
+    """Build the seed spectrum used to initialise the population.
+
+    If a non-trivial initial guess ``x0`` is provided it is used directly.
+    Otherwise a Landweber warm-start solution (from a zero initial guess) is
+    computed, which gives the meta-heuristic a smooth, physically-plausible
+    starting point. This is essential because the unfolding problem is
+    severely ill-posed (many more energy bins than detectors) and a purely
+    random population converges to a noisy, arbitrary spectrum.
+    """
     n = A.shape[1]
-    x0_arr = np.zeros(n)
-    if x0 is not None:
-        x0_arr = np.maximum(np.asarray(x0, dtype=float), 0)
-    col_norm = float(np.max(np.linalg.norm(A, axis=0))) or 1.0
-    scale = float(np.max(np.abs(b))) / max(col_norm, 1e-12)
-    ub = np.maximum(2.0 * np.abs(x0_arr), scale)
-    ub = np.maximum(ub, 1e-3)
-    return x0_arr, ub
+    if x0 is not None and np.any(np.asarray(x0, dtype=float) > 0):
+        return np.maximum(np.asarray(x0, dtype=float), 1e-12)
+    try:
+        from .unfold_landweber import solve_landweber
+        lw, _, _ = solve_landweber(A, b, np.zeros(n), max_iterations=500)
+        seed = np.maximum(np.asarray(lw, dtype=float), 1e-12)
+    except Exception:
+        # Fallback: flat spectrum scaled to match the readings.
+        A_fro = float(np.linalg.norm(A)) or 1.0
+        x_scale = float(np.linalg.norm(b)) / A_fro
+        seed = np.full(n, max(x_scale / np.sqrt(n), 1e-12))
+    return seed
+
+
+def _build_log_bounds(seed: np.ndarray, half_range: float):
+    """Build log-space bounds around the seed.
+
+    The optimizer searches in log space (``y = log(x)``) so that the wide
+    dynamic range of neutron spectra (many orders of magnitude) is handled
+    naturally. Bounds are ``log(seed) +/- half_range`` decades.
+    """
+    y0 = np.log(np.maximum(np.asarray(seed, dtype=float), 1e-300))
+    lb = y0 - half_range * np.log(10.0)
+    ub = y0 + half_range * np.log(10.0)
+    return lb, ub
 
 
 def _build_fitness(
@@ -99,33 +142,45 @@ def _build_fitness(
     smoothness_weight: float,
     entropy_weight: float,
 ) -> Callable[[np.ndarray], float]:
-    """Build the unfolding objective function.
+    """Build the unfolding objective function in log space.
 
-    ``f(x) = ||b - A x||^2 / ||b||^2 + alpha * ||x||_norm
-            + alpha * smoothness_weight * ||L x||^2
-            - entropy_weight * H(x)``
+    The optimizer searches for ``y`` with ``x = exp(y)``. All terms are
+    normalised by their natural scales so that the residual, regularisation
+    and smoothness contributions are dimensionless and comparable:
 
-    where ``H`` is the Shannon information entropy of the (normalised)
-    spectrum. Positive weights only; a zero/negative weight disables the
-    corresponding term.
+    ``f(y) = ||b - A exp(y)||^2 / ||b||^2
+           + alpha * ||exp(y)||_norm / x_scale
+           + smoothness_weight * ||L exp(y)||^2 / x_scale^2
+           - entropy_weight * H(exp(y))``
+
+    where ``x_scale = ||b|| / ||A||`` is the characteristic magnitude of a
+    spectrum that reproduces the readings. This scale-consistent formulation
+    fixes the previous scaling bug where the relative residual was
+    dimensionless but the regularisation term carried units of ``x^2``,
+    letting the optimizer inflate ``x`` without penalty and produce noise.
     """
     denom = float(np.dot(b, b))
     if denom <= 0.0:
         denom = 1.0
+    A_fro = float(np.linalg.norm(A))
+    if A_fro <= 0.0:
+        A_fro = 1.0
+    x_scale = np.sqrt(denom) / A_fro
+    x_scale2 = x_scale * x_scale
 
-    def fitness(x: np.ndarray) -> float:
-        x = np.asarray(x, dtype=float)
-        x = np.maximum(x, 0.0)
+    def fitness(y: np.ndarray) -> float:
+        y = np.asarray(y, dtype=float)
+        x = np.exp(y)
         residual = A @ x - b
         value = float(np.dot(residual, residual)) / denom
         if alpha > 0:
             if norm == 2:
-                value += alpha * float(np.dot(x, x))
+                value += alpha * float(np.dot(x, x)) / x_scale2
             elif norm == 1:
-                value += alpha * float(np.sum(np.abs(x)))
-        if L is not None and alpha > 0 and smoothness_weight > 0:
+                value += alpha * float(np.sum(np.abs(x))) / x_scale
+        if L is not None and smoothness_weight > 0:
             Lx = L @ x
-            value += alpha * smoothness_weight * float(np.dot(Lx, Lx))
+            value += smoothness_weight * float(np.dot(Lx, Lx)) / x_scale2
         if entropy_weight > 0:
             total = float(np.sum(x))
             if total > 0:
@@ -138,20 +193,18 @@ def _build_fitness(
 
 
 def _make_starting_solutions(
-    x0: np.ndarray, ub: np.ndarray, pop_size: int
-) -> Optional[np.ndarray]:
-    """Build a starting-solutions matrix with ``x0`` as the first individual.
+    seed: np.ndarray, lb: np.ndarray, ub: np.ndarray, pop_size: int
+) -> np.ndarray:
+    """Build a starting-solutions matrix with the seed as the first individual.
 
-    Returns None when ``x0`` is effectively zero so that MEALPY performs a
-    pure random initialisation (the default, matching the published works
-    that need no initial guess).
+    The population is sampled uniformly in log space within the bounds, with
+    the seed (``log(seed)``) placed as the first individual so the optimizer
+    always starts from a good warm-start solution.
     """
-    if np.all(np.asarray(x0, dtype=float) == 0.0):
-        return None
-    n = len(x0)
+    n = len(seed)
     rng = np.random.default_rng(0)
-    starting = rng.uniform(0.0, ub, size=(pop_size, n))
-    starting[0] = np.asarray(x0, dtype=float)
+    starting = rng.uniform(lb, ub, size=(pop_size, n))
+    starting[0] = np.log(np.maximum(np.asarray(seed, dtype=float), 1e-300))
     return starting
 
 
@@ -189,20 +242,25 @@ def solve_genetic(
     solver: str = "pso",
     epoch: int = 500,
     pop_size: int = 50,
-    regularization: float = 1e-4,
+    regularization: float = 1e-2,
     norm: int = 2,
-    smoothness_order: int = 0,
+    smoothness_order: int = 2,
     smoothness_weight: float = 1.0,
     entropy_weight: float = 0.0,
     n_runs: int = 1,
     early_stop: Optional[int] = None,
+    half_range: float = 2.0,
     random_state: Optional[int] = None,
     verbose: bool = False,
 ) -> np.ndarray:
     """Solve the unfolding problem using a meta-heuristic optimizer.
 
-    Minimises the relative-residual objective described in the module
-    docstring subject to ``0 <= x`` using MEALPY population-based solvers.
+    The optimizer searches in log space (``y = log(x)``) so that the wide
+    dynamic range of neutron spectra is handled naturally. The population is
+    seeded with a Landweber warm-start solution (or the provided ``x0``) and
+    bounded to ``log(seed) +/- half_range`` decades. All objective terms are
+    scale-consistent (dimensionless), which prevents the optimizer from
+    producing a noisy, arbitrary spectrum.
 
     Parameters
     ----------
@@ -211,8 +269,8 @@ def solve_genetic(
     b : np.ndarray
         Measurement vector (m,).
     x0 : np.ndarray, optional
-        Initial spectrum guess. If None (or all zeros), the population is
-        initialised randomly (no prior spectrum required).
+        Initial spectrum guess. If None (or all zeros), a Landweber
+        warm-start solution is used to seed the population.
     solver : str, optional
         Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
         'gwo' or 'cmaes' (default: 'pso').
@@ -221,14 +279,13 @@ def solve_genetic(
     pop_size : int, optional
         Population size (default: 50).
     regularization : float, optional
-        Tikhonov regularisation weight alpha (default: 1e-4).
+        Tikhonov regularisation weight alpha (default: 1e-2).
     norm : int, optional
         Norm for the regularisation term (1 for L1, 2 for L2), default: 2.
     smoothness_order : int, optional
-        Second-difference smoothing order (0, 1 or 2), default: 0.
+        Second-difference smoothing order (0, 1 or 2), default: 2.
     smoothness_weight : float, optional
-        Weight of the smoothing term relative to the regularisation
-        (default: 1.0).
+        Weight of the smoothing term (default: 1.0).
     entropy_weight : float, optional
         Weight of the negative Shannon-entropy objective (0 disables it).
     n_runs : int, optional
@@ -237,6 +294,9 @@ def solve_genetic(
     early_stop : int, optional
         Stop if the global best does not improve for this many consecutive
         epochs (MEALPY early stopping).
+    half_range : float, optional
+        Half-width of the log-space search bounds in decades around the seed
+        (default: 2.0).
     random_state : int, optional
         Random seed for reproducibility.
     verbose : bool, optional
@@ -254,8 +314,8 @@ def solve_genetic(
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
             entropy_weight=entropy_weight, n_runs=n_runs,
-            early_stop=early_stop, random_state=random_state,
-            verbose=verbose,
+            early_stop=early_stop, half_range=half_range,
+            random_state=random_state, verbose=verbose,
         )
     except ImportError:
         raise
@@ -281,6 +341,7 @@ def _solve_genetic_impl(
     entropy_weight: float,
     n_runs: int,
     early_stop: Optional[int],
+    half_range: float,
     random_state: Optional[int],
     verbose: bool,
 ) -> np.ndarray:
@@ -306,11 +367,12 @@ def _solve_genetic_impl(
     fitness = _build_fitness(
         A, b, regularization, norm, L, smoothness_weight, entropy_weight
     )
-    x0_arr, ub = _build_bounds(A, b, x0)
+    seed = _build_seed(A, b, x0)
+    lb, ub = _build_log_bounds(seed, half_range)
 
     problem = {
         "obj_func": fitness,
-        "bounds": FloatVar(lb=np.zeros(n), ub=ub),
+        "bounds": FloatVar(lb=lb, ub=ub),
         "minmax": "min",
         "log_to": "console" if verbose else None,
     }
@@ -319,24 +381,25 @@ def _solve_genetic_impl(
     if early_stop is not None:
         termination = {"max_early_stop": int(early_stop)}
 
-    starting = _make_starting_solutions(x0_arr, ub, pop_size)
+    starting = _make_starting_solutions(seed, lb, ub, pop_size)
     runs = max(1, int(n_runs))
     spectra = []
     for run in range(runs):
         model = _build_model(mealpy, solver, int(epoch), int(pop_size))
-        seed = None
+        seed_val = None
         if random_state is not None:
-            seed = int(random_state) + run
+            seed_val = int(random_state) + run
         g_best = None
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             g_best = model.solve(
                 problem,
-                seed=seed,
+                seed=seed_val,
                 termination=termination,
                 starting_solutions=starting,
             )
-        spectra.append(np.asarray(g_best.solution, dtype=float))
+        # Convert back from log space to the actual spectrum.
+        spectra.append(np.exp(np.asarray(g_best.solution, dtype=float)))
 
     spectrum = np.mean(spectra, axis=0) if runs > 1 else spectra[0]
     return np.maximum(spectrum, 0)
@@ -354,13 +417,14 @@ def unfold_genetic(
     solver: str = "pso",
     epoch: int = 500,
     pop_size: int = 50,
-    regularization: float = 1e-4,
+    regularization: float = 1e-2,
     norm: int = 2,
-    smoothness_order: int = 0,
+    smoothness_order: int = 2,
     smoothness_weight: float = 1.0,
     entropy_weight: float = 0.0,
     n_runs: int = 1,
     early_stop: Optional[int] = None,
+    half_range: float = 2.0,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -369,6 +433,10 @@ def unfold_genetic(
     verbose: bool = False,
 ) -> Dict[str, Any]:
     """Unfold a neutron spectrum using a meta-heuristic algorithm.
+
+    The optimizer searches in log space seeded with a Landweber warm-start
+    solution (or the provided ``initial_spectrum``), bounded to
+    ``log(seed) +/- half_range`` decades, with a scale-consistent objective.
 
     Parameters
     ----------
@@ -387,7 +455,8 @@ def unfold_genetic(
     readings : Dict[str, float]
         Detector readings.
     initial_spectrum : np.ndarray, optional
-        Initial spectrum guess. If None, no prior is used.
+        Initial spectrum guess. If None, a Landweber warm-start solution is
+        used to seed the population.
     solver : str, optional
         Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
         'gwo' or 'cmaes' (default: 'pso').
@@ -396,11 +465,11 @@ def unfold_genetic(
     pop_size : int, optional
         Population size (default: 50).
     regularization : float, optional
-        Tikhonov regularisation weight (default: 1e-4).
+        Tikhonov regularisation weight (default: 1e-2).
     norm : int, optional
         Norm for the regularisation term (1 or 2), default: 2.
     smoothness_order : int, optional
-        Second-difference smoothing order (0, 1 or 2), default: 0.
+        Second-difference smoothing order (0, 1 or 2), default: 2.
     smoothness_weight : float, optional
         Weight of the smoothing term (default: 1.0).
     entropy_weight : float, optional
@@ -409,6 +478,9 @@ def unfold_genetic(
         Number of independent runs to average (default: 1).
     early_stop : int, optional
         Early-stopping patience (epochs without improvement).
+    half_range : float, optional
+        Half-width of the log-space search bounds in decades around the seed
+        (default: 2.0).
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty, default: False.
     noise_level : float, optional
@@ -452,6 +524,7 @@ def unfold_genetic(
             entropy_weight=entropy_weight,
             n_runs=n_runs,
             early_stop=early_stop,
+            half_range=half_range,
             random_state=random_state,
             verbose=verbose,
         ),
@@ -468,6 +541,7 @@ def unfold_genetic(
             "entropy_weight": entropy_weight,
             "n_runs": n_runs,
             "early_stop": early_stop,
+            "half_range": half_range,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level,

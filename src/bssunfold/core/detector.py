@@ -840,13 +840,14 @@ class Detector:
         solver: str = "pso",
         epoch: int = 500,
         pop_size: int = 50,
-        regularization: float = 1e-4,
+        regularization: float = 1e-2,
         norm: int = 2,
-        smoothness_order: int = 0,
+        smoothness_order: int = 2,
         smoothness_weight: float = 1.0,
         entropy_weight: float = 0.0,
         n_runs: int = 1,
         early_stop: Optional[int] = None,
+        half_range: float = 2.0,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -856,9 +857,10 @@ class Detector:
     ) -> Dict[str, Any]:
         """Unfold using a meta-heuristic (evolutionary) algorithm.
 
-        Solves ``min ||A x - b||^2 / ||b||^2 + alpha * ||x||_norm`` subject
-        to ``x >= 0`` with a population-based meta-heuristic optimizer from
-        `mealpy`. Inspired by the genetic / PSO unfolding works of
+        The optimizer searches in log space seeded with a Landweber
+        warm-start solution (or the provided ``initial_spectrum``), bounded
+        to ``log(seed) +/- half_range`` decades, with a scale-consistent
+        objective. Inspired by the genetic / PSO unfolding works of
         Shahabinejad & Sohrabpour (2017), Suman & Sarkar (2012), Woo et al.
         (2019) and Mukherjee (2004).
 
@@ -867,8 +869,8 @@ class Detector:
         readings : Dict[str, float]
             Detector readings.
         initial_spectrum : np.ndarray, optional
-            Initial spectrum guess. If None, the population is initialized
-            randomly (no prior spectrum is required).
+            Initial spectrum guess. If None, a Landweber warm-start solution
+            is used to seed the population.
         solver : str, optional
             Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
             'gwo' or 'cmaes', default: 'pso'.
@@ -877,11 +879,11 @@ class Detector:
         pop_size : int, optional
             Population size, default: 50.
         regularization : float, optional
-            Tikhonov regularization weight, default: 1e-4.
+            Tikhonov regularization weight, default: 1e-2.
         norm : int, optional
             Norm for the regularization term (1 or 2), default: 2.
         smoothness_order : int, optional
-            Smoothness constraint order (0, 1, or 2), default: 0.
+            Smoothness constraint order (0, 1, or 2), default: 2.
         smoothness_weight : float, optional
             Weight for the smoothness term, default: 1.0.
         entropy_weight : float, optional
@@ -892,6 +894,9 @@ class Detector:
         early_stop : int, optional
             Stop if the global best does not improve for this many
             consecutive epochs.
+        half_range : float, optional
+            Half-width of the log-space search bounds in decades around the
+            seed, default: 2.0.
         calculate_errors : bool, optional
             If True, calculate Monte-Carlo uncertainty, default: False.
         noise_level : float, optional
@@ -929,6 +934,7 @@ class Detector:
             entropy_weight=entropy_weight,
             n_runs=n_runs,
             early_stop=early_stop,
+            half_range=half_range,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

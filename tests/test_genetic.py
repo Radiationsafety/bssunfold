@@ -58,7 +58,7 @@ def test_unfold_genetic_basic(detector, readings):
 
     assert result["solver"] == "pso"
     assert result["norm"] == 2
-    assert result["regularization"] == pytest.approx(1e-4)
+    assert result["regularization"] == pytest.approx(1e-2)
     assert result["epoch"] == 40
     assert result["pop_size"] == 20
 
@@ -150,6 +150,52 @@ def test_unfold_genetic_early_stop(detector, readings):
     )
     assert result["early_stop"] == 10
     assert np.all(result["spectrum"] >= 0)
+
+
+def test_unfold_genetic_half_range(detector, readings):
+    """The log-space bound half-range is accepted and stored in metadata."""
+    result = detector.unfold_genetic(
+        readings, half_range=3.0, epoch=40, pop_size=20, save_result=False
+    )
+    assert result["half_range"] == pytest.approx(3.0)
+    assert np.all(result["spectrum"] >= 0)
+
+
+def test_build_seed_uses_landweber_when_x0_zero(detector, readings):
+    """_build_seed falls back to a Landweber warm start for a zero x0."""
+    from bssunfold.core.unfold_genetic import _build_seed
+
+    selected = [name for name in detector.detector_names if name in readings]
+    A = np.array([detector.sensitivities[name] for name in selected])
+    b = np.array([readings[name] for name in selected], dtype=float)
+
+    seed = _build_seed(A, b, np.zeros(detector.n_energy_bins))
+    assert seed.shape == (detector.n_energy_bins,)
+    assert np.all(seed > 0)
+
+
+def test_build_seed_uses_provided_x0(detector, readings):
+    """_build_seed uses a non-trivial x0 directly."""
+    from bssunfold.core.unfold_genetic import _build_seed
+
+    selected = [name for name in detector.detector_names if name in readings]
+    A = np.array([detector.sensitivities[name] for name in selected])
+    b = np.array([readings[name] for name in selected], dtype=float)
+
+    x0 = np.full(detector.n_energy_bins, 0.5)
+    seed = _build_seed(A, b, x0)
+    assert np.allclose(seed, 0.5)
+
+
+def test_build_log_bounds_centered_on_seed(detector, readings):
+    """_build_log_bounds produces log-space bounds around the seed."""
+    from bssunfold.core.unfold_genetic import _build_log_bounds
+
+    seed = np.full(detector.n_energy_bins, 1.0)
+    lb, ub = _build_log_bounds(seed, half_range=2.0)
+    assert np.allclose(lb, -2.0 * np.log(10.0))
+    assert np.allclose(ub, 2.0 * np.log(10.0))
+    assert np.all(lb < ub)
 
 
 def test_unfold_genetic_initial_spectrum(detector, readings, initial):
