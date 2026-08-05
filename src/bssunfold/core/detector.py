@@ -28,6 +28,7 @@ from .unfold_landweber import unfold_landweber as unfold_landweber_impl
 from .unfold_mlem import unfold_mlem as unfold_mlem_impl
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
 from .unfold_mystic import unfold_mystic as unfold_mystic_impl
+from .unfold_genetic import unfold_genetic as unfold_genetic_impl
 from .unfold_reconst import unfold_reconst as unfold_reconst_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
@@ -827,6 +828,110 @@ class Detector:
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
             random_state=random_state,
+        )
+
+    def unfold_genetic(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        solver: str = "pso",
+        epoch: int = 500,
+        pop_size: int = 50,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        entropy_weight: float = 0.0,
+        n_runs: int = 1,
+        early_stop: Optional[int] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        verbose: bool = False,
+    ) -> Dict[str, Any]:
+        """Unfold using a meta-heuristic (evolutionary) algorithm.
+
+        Solves ``min ||A x - b||^2 / ||b||^2 + alpha * ||x||_norm`` subject
+        to ``x >= 0`` with a population-based meta-heuristic optimizer from
+        `mealpy`. Inspired by the genetic / PSO unfolding works of
+        Shahabinejad & Sohrabpour (2017), Suman & Sarkar (2012), Woo et al.
+        (2019) and Mukherjee (2004).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess. If None, the population is initialized
+            randomly (no prior spectrum is required).
+        solver : str, optional
+            Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
+            'gwo' or 'cmaes', default: 'pso'.
+        epoch : int, optional
+            Maximum number of generations, default: 500.
+        pop_size : int, optional
+            Population size, default: 50.
+        regularization : float, optional
+            Tikhonov regularization weight, default: 1e-4.
+        norm : int, optional
+            Norm for the regularization term (1 or 2), default: 2.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        entropy_weight : float, optional
+            Weight of the negative Shannon-entropy objective (0 disables it).
+        n_runs : int, optional
+            Number of independent runs whose results are averaged,
+            default: 1.
+        early_stop : int, optional
+            Stop if the global best does not improve for this many
+            consecutive epochs.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        random_state : int, optional
+            Random seed for reproducibility.
+        verbose : bool, optional
+            If True, print the MEALPY optimization progress.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_genetic_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            solver=solver,
+            epoch=epoch,
+            pop_size=pop_size,
+            regularization=regularization,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            entropy_weight=entropy_weight,
+            n_runs=n_runs,
+            early_stop=early_stop,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            verbose=verbose,
         )
 
     def unfold_smt(

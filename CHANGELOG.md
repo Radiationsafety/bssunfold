@@ -7,9 +7,20 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [Unreleased]
+## [0.14.0] - 2026-08-04
 
 ### Added
+- **Mystic-based unfolding** — new `unfold_mystic()` method using the
+  `mystic` constrained-optimization framework. Minimizes
+  `||A·x − b||² + α·||x||_norm` with `x ≥ 0` via a quadratic penalty.
+  Supports `norm` (L1/L2), smoothness constraints (order 1/2), multiple
+  mystic solvers (`fmin`, `fmin_powell`, `diffev`, `diffev2`) and all
+  regularization selection methods (manual/cosine/lcurve/gcv/dp).
+  - New file: `core/unfold_mystic.py` (`solve_mystic` + `unfold_mystic`)
+  - Optional dependency group: `bssunfold[mystic]` (`mystic>=0.4.5`)
+  - Registered in `unfold_combined()` pipelines as `'mystic'`
+  - 24 new tests in `tests/test_mystic.py`
+- Static (bandit, pip-audit) and dynamic (DynaPyt) security analysis.
 - **SMT-based unfolding** — new `unfold_smt()` method, a port of the
   Haskell/SBV `linearEqSolver` backed by the optional Z3 solver. Minimizes
   `||A·x − b||₁` and then the total fluence `Σx` over the non-negative
@@ -30,22 +41,6 @@ and this project adheres to [Semantic Versioning].
   excluded from coverage via `# pragma: no cover` (compiled to LLVM, never run
   as CPython bytecode) and targeted branch tests added in
   `tests/test_coverage.py` and `tests/test_coverage_boost.py`.
-
-## [0.14.0] - 2026-08-04
-
-### Added
-- **Mystic-based unfolding** — new `unfold_mystic()` method using the
-  `mystic` constrained-optimization framework. Minimizes
-  `||A·x − b||² + α·||x||_norm` with `x ≥ 0` via a quadratic penalty.
-  Supports `norm` (L1/L2), smoothness constraints (order 1/2), multiple
-  mystic solvers (`fmin`, `fmin_powell`, `diffev`, `diffev2`) and all
-  regularization selection methods (manual/cosine/lcurve/gcv/dp).
-  - New file: `core/unfold_mystic.py` (`solve_mystic` + `unfold_mystic`)
-  - Optional dependency group: `bssunfold[mystic]` (`mystic>=0.4.5`)
-  - Registered in `unfold_combined()` pipelines as `'mystic'`
-  - 24 new tests in `tests/test_mystic.py`
-- Static (bandit, pip-audit) and dynamic (DynaPyt) security analysis.
-
 
 ## [0.13.0] - 2026-06-30
 

@@ -301,7 +301,6 @@ source = { editable = "." }
 dependencies = [
     { name = "cvxpy", extra = ["ecos"] },
     { name = "matplotlib" },
-    { name = "numba" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pyzmq" },
@@ -311,6 +310,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "lmfit" },
+    { name = "mealpy" },
     { name = "mystic" },
     { name = "numba" },
     { name = "odl" },
@@ -328,6 +328,9 @@ all-solvers = [
 ]
 lmfit = [
     { name = "lmfit" },
+]
+mealpy = [
+    { name = "mealpy" },
 ]
 mlem = [
     { name = "odl" },
@@ -386,6 +389,7 @@ dev = [
     { name = "jupyter-book" },
     { name = "lmfit" },
     { name = "marimo" },
+    { name = "mealpy" },
     { name = "mystic" },
     { name = "odl" },
     { name = "pandas-stubs" },
@@ -411,6 +415,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["mealpy"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mlem"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mystic"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["numba"], marker = "extra == 'all'" },
@@ -429,8 +434,8 @@ requires-dist = [
     { name = "jaxopt", marker = "extra == 'solvers-jax'", specifier = ">=0.8.0" },
     { name = "lmfit", marker = "extra == 'lmfit'", specifier = ">=1.3.4" },
     { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "mealpy", marker = "extra == 'mealpy'", specifier = ">=3.0.2" },
     { name = "mystic", marker = "extra == 'mystic'", specifier = ">=0.4.5" },
-    { name = "numba", specifier = ">=0.65.1" },
     { name = "numba", marker = "extra == 'numba'", specifier = ">=0.65.1" },
     { name = "numpy", specifier = ">=2.4.1" },
     { name = "odl", marker = "extra == 'mlem'", specifier = ">=1.0.0" },
@@ -444,7 +449,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.16.3" },
     { name = "z3-solver", marker = "extra == 'smt'", specifier = ">=4.13.0" },
 ]
-provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "mystic", "smt", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "mystic", "mealpy", "smt", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -464,6 +469,7 @@ dev = [
     { name = "jupyter-book", specifier = ">=2.1.0" },
     { name = "lmfit", specifier = ">=1.3.4" },
     { name = "marimo", specifier = ">=0.19.0" },
+    { name = "mealpy", specifier = ">=3.0.2" },
     { name = "mystic", specifier = ">=0.4.5" },
     { name = "odl", specifier = ">=1.0.0" },
     { name = "pandas-stubs", specifier = ">=2.2.3" },
@@ -2635,6 +2641,22 @@ wheels = [
 ]
 
 [[package]]
+name = "mealpy"
+version = "3.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "opfunu" },
+    { name = "pandas" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4f/b3/e6ca3aff71223a485c1f9a0ae36cde0c04d5a955670f0a246862ecc83382/mealpy-3.0.2.tar.gz", hash = "sha256:979190bd1fb3844f7be313ba333296ff0a0f0d6e825de30d203cc9f953043972", size = 332354, upload-time = "2025-05-30T09:09:26.273Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/6a/e693dfe9fb94d950522a565f69b60d26951aa250ed970dd48da18d46ff74/mealpy-3.0.2-py3-none-any.whl", hash = "sha256:9c6f90305b9ca9badfa462ac251f61f03d9c09383aaebb65ca9d386852425f25", size = 397938, upload-time = "2025-05-30T09:09:23.243Z" },
+]
+
+[[package]]
 name = "mistune"
 version = "3.3.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3099,6 +3121,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ff/fb/818471611eea06e4f9c94f98aed288b7330a06e563364e70b2b54c87b4de/odl-1.0.0.tar.gz", hash = "sha256:d0f43a03a9c1d3329c58c5a56117cc0e3dd933b52de9e034068308b55e0cab9c", size = 1422803, upload-time = "2026-03-11T14:57:05.487Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/77/b6e9138a77b0f78139756f930cd50ecc7228e44b00c44d724bec4c2c053a/odl-1.0.0-py3-none-any.whl", hash = "sha256:b7ebf6725b3f200e5b4b86f60d219b78d0bfcb5c2ae6b621860f975441249f29", size = 824867, upload-time = "2026-03-11T14:57:03.471Z" },
+]
+
+[[package]]
+name = "opfunu"
+version = "1.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e0/58/85896b99b009be89825a672e2f108b4ee5cbc8d9c3f553fc9e6640ddb97a/opfunu-1.0.4.tar.gz", hash = "sha256:1ae4e83f435c155d6a6ad28f6118d78df8c73d6827a59323167637d6a1d3bf07", size = 12343973, upload-time = "2024-06-04T16:43:37.074Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5c/83/56a5d39c16fcfbd9665afbbf04e4d770bdb93d93a69a08483767efb6e430/opfunu-1.0.4-py3-none-any.whl", hash = "sha256:ca2af1816552cb28ac4eb71519627bc32e8000514b6b7b34a654f70afbbd2240", size = 13012221, upload-time = "2024-06-04T16:43:34.392Z" },
 ]
 
 [[package]]
