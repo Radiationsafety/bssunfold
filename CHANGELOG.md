@@ -7,6 +7,68 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.14.0] - 2026-08-04
+
+### Added
+- **Mystic-based unfolding** — new `unfold_mystic()` method using the
+  `mystic` constrained-optimization framework. Minimizes
+  `||A·x − b||² + α·||x||_norm` with `x ≥ 0` via a quadratic penalty.
+  Supports `norm` (L1/L2), smoothness constraints (order 1/2), multiple
+  mystic solvers (`fmin`, `fmin_powell`, `diffev`, `diffev2`) and all
+  regularization selection methods (manual/cosine/lcurve/gcv/dp).
+  - New file: `core/unfold_mystic.py` (`solve_mystic` + `unfold_mystic`)
+  - Optional dependency group: `bssunfold[mystic]` (`mystic>=0.4.5`)
+  - Registered in `unfold_combined()` pipelines as `'mystic'`
+  - 24 new tests in `tests/test_mystic.py`
+- Static (bandit, pip-audit) and dynamic (DynaPyt) security analysis.
+- **SMT-based unfolding** — new `unfold_smt()` method, a port of the
+  Haskell/SBV `linearEqSolver` backed by the optional Z3 solver. Minimizes
+  `||A·x − b||₁` and then the total fluence `Σx` over the non-negative
+  orthant using Z3's optimizer, with exact solvers for integer and rational
+  systems.
+  - New file: `core/unfold_smt.py` (`solve_integer_linear_eqs`,
+    `solve_integer_linear_eqs_all`, `solve_rational_linear_eqs`,
+    `solve_rational_linear_eqs_all`, `solve_smt`, `unfold_smt`)
+  - New `Detector.unfold_smt()` method
+  - Registered in `unfold_combined()` pipelines as `'smt'`
+  - Optional dependency group: `bssunfold[smt]` (`z3-solver>=4.13.0`)
+  - New tests in `tests/test_smt.py`
+- **Genetic / meta-heuristic unfolding** — new `unfold_genetic()` method
+  using population-based meta-heuristic algorithms from MEALPY. Minimizes
+  `||A·x − b||²/||b||² + α·||x||_norm` with `x ≥ 0` and optional
+  second-difference smoothing and Shannon-entropy terms, following the
+  PSO (Shahabinejad & Sohrabpour 2017), GA (Suman & Sarkar 2012) and
+  entropy-based (Woo et al. 2019) unfolding works. No initial spectrum is
+  required (random population initialization).
+  - New file: `core/unfold_genetic.py` (`solve_genetic` + `unfold_genetic`)
+  - 8 MEALPY solvers: `pso` (chaotic PSO, default), `ga`, `de`, `es`, `ep`,
+    `abc`, `gwo`, `cmaes`
+  - New `Detector.unfold_genetic()` method
+  - Registered in `unfold_combined()` pipelines as `'genetic'`
+  - Optional dependency group: `bssunfold[mealpy]` (`mealpy>=3.0.2`)
+  - 30 new tests in `tests/test_genetic.py`
+  - **scip and cplex**
+  - **Compressive Sensing (CS) unfolding** — new `unfold_cs()` method based on
+  compressive sensing. The spectrum is represented sparsely in a learned
+  dictionary (`x = D @ alpha`), the dictionary is learned with **K-SVD**,
+  sparse coding is performed with **OMP**, and reconstruction is done with the
+  **SL0** algorithm. Well suited for the highly underdetermined problem where
+  the number of energy groups greatly exceeds the number of detector readings.
+  - New file: `core/unfold_cs.py` (`solve_omp`, `solve_ksvd`, `solve_sl0`,
+    `solve_cs`, `unfold_cs`)
+  - New `Detector.unfold_cs()` method
+  - No extra dependencies (pure NumPy)
+  - 21 new tests in `tests/test_cs.py`
+  - New example notebook: `examples/23-CS.ipynb`
+
+### Changed
+- `numba` promoted to a core dependency (the `bssunfold[numba]` extra is kept
+  for compatibility).
+- Test-suite coverage gate raised to 98.3% (was 91.9%): numba JIT bodies are
+  excluded from coverage via `# pragma: no cover` (compiled to LLVM, never run
+  as CPython bytecode) and targeted branch tests added in
+  `tests/test_coverage.py` and `tests/test_coverage_boost.py`.
+
 ## [0.13.0] - 2026-06-30
 
 ### Added

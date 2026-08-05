@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 27 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 29 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 27 methods are accessible as instance methods on the
+All 29 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -51,6 +51,8 @@ categories:
 
        G --> G1["unfold_lmfit"]
        G --> G2["unfold_scipy_direct_method"]
+       G --> G3["unfold_mystic"]
+       G --> G4["unfold_cs"]
 
        H --> H1["unfold_combined"]
 
@@ -248,6 +250,18 @@ Method Reference
       - ``n_samples``, ``burn_in``, ``proposal_scale``, ``prior_mean``, ``prior_std``
       - —
       - Metropolis-Hastings MCMC sampling for spectral parameter estimation
+   * - 28
+     - ``unfold_mystic``
+     - Optimization
+     - ``regularization``, ``norm`` (1/2), ``solver`` (fmin/fmin_powell/diffev/diffev2), ``maxiter``, ``maxfun``, ``smoothness_order``, ``smoothness_weight``, ``regularization_method``
+     - mystic
+     - Direct-search minimization of the penalized least-squares objective
+   * - 29
+     - ``unfold_cs``
+     - Optimization
+     - ``n_atoms``, ``sparsity``, ``dictionary``, ``n_dictionary_iterations``, ``sigma_min``, ``sigma_decrease_factor``, ``mu_0``, ``L``, ``max_iterations``, ``tolerance``
+     - —
+     - Compressive sensing: K-SVD dictionary + OMP sparse coding + SL0 reconstruction
 
 .. note::
 

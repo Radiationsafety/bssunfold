@@ -27,6 +27,8 @@ from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_landweber import unfold_landweber as unfold_landweber_impl
 from .unfold_mlem import unfold_mlem as unfold_mlem_impl
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
+from .unfold_mystic import unfold_mystic as unfold_mystic_impl
+from .unfold_genetic import unfold_genetic as unfold_genetic_impl
 from .unfold_reconst import unfold_reconst as unfold_reconst_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
@@ -47,6 +49,10 @@ from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_
 from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
+from .unfold_smt import unfold_smt as unfold_smt_impl
+from .unfold_scip import unfold_scip as unfold_scip_impl
+from .unfold_docplex import unfold_docplex as unfold_docplex_impl
+from .unfold_cs import unfold_cs as unfold_cs_impl
 
 __all__ = ["Detector"]
 
@@ -733,6 +739,534 @@ class Detector:
             noise_var=noise_var,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            random_state=random_state,
+        )
+
+    def unfold_mystic(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        solver: str = "fmin_powell",
+        maxiter: Optional[int] = 2000,
+        maxfun: Optional[int] = 20000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using mystic with regularization selection.
+
+        Solves ``min ||A x - b||^2 + alpha * ||x||_norm`` subject to
+        ``x >= 0`` with the constrained-optimization framework `mystic`.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess.
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        solver : str, optional
+            Mystic solver name: 'fmin', 'fmin_powell', 'diffev' or
+            'diffev2', default: 'fmin_powell'.
+        maxiter : int, optional
+            Maximum number of solver iterations, default: 2000.
+        maxfun : int, optional
+            Maximum number of function evaluations, default: 20000.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        regularization_method : str, optional
+            Method for selecting regularization parameter.
+            Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for smoothness term, default: 1.0.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_mystic_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            solver=solver,
+            maxiter=maxiter,
+            maxfun=maxfun,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            random_state=random_state,
+        )
+
+    def unfold_genetic(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        solver: str = "pso",
+        epoch: int = 500,
+        pop_size: int = 50,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        entropy_weight: float = 0.0,
+        n_runs: int = 1,
+        early_stop: Optional[int] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        verbose: bool = False,
+    ) -> Dict[str, Any]:
+        """Unfold using a meta-heuristic (evolutionary) algorithm.
+
+        Solves ``min ||A x - b||^2 / ||b||^2 + alpha * ||x||_norm`` subject
+        to ``x >= 0`` with a population-based meta-heuristic optimizer from
+        `mealpy`. Inspired by the genetic / PSO unfolding works of
+        Shahabinejad & Sohrabpour (2017), Suman & Sarkar (2012), Woo et al.
+        (2019) and Mukherjee (2004).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess. If None, the population is initialized
+            randomly (no prior spectrum is required).
+        solver : str, optional
+            Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
+            'gwo' or 'cmaes', default: 'pso'.
+        epoch : int, optional
+            Maximum number of generations, default: 500.
+        pop_size : int, optional
+            Population size, default: 50.
+        regularization : float, optional
+            Tikhonov regularization weight, default: 1e-4.
+        norm : int, optional
+            Norm for the regularization term (1 or 2), default: 2.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        entropy_weight : float, optional
+            Weight of the negative Shannon-entropy objective (0 disables it).
+        n_runs : int, optional
+            Number of independent runs whose results are averaged,
+            default: 1.
+        early_stop : int, optional
+            Stop if the global best does not improve for this many
+            consecutive epochs.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        random_state : int, optional
+            Random seed for reproducibility.
+        verbose : bool, optional
+            If True, print the MEALPY optimization progress.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_genetic_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            solver=solver,
+            epoch=epoch,
+            pop_size=pop_size,
+            regularization=regularization,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            entropy_weight=entropy_weight,
+            n_runs=n_runs,
+            early_stop=early_stop,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            verbose=verbose,
+        )
+
+    def unfold_smt(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        nonneg: bool = True,
+        timeout_ms: int = 10000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using an SMT solver.
+
+        Minimizes ``||A x - b||_1`` and then the total fluence ``sum(x)``
+        over the non-negative orthant using the Z3 optimizer
+        (z3-solver package, optional dependency).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (accepted for API compatibility).
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        timeout_ms : int, optional
+            SMT solver timeout in milliseconds, default: 10000.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_smt_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            nonneg=nonneg,
+            timeout_ms=timeout_ms,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_scip(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using the SCIP optimizer.
+
+        Minimizes the Tikhonov-regularized least-squares objective
+        ``0.5 * ||A x - b||^2 + penalty(x)`` with the SCIP Optimization
+        Suite (pyscipopt package, optional dependency).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess, used as a warm start.
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_scip_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+
+    def unfold_docplex(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using CPLEX (docplex).
+
+        Minimizes the Tikhonov-regularized least-squares objective
+        ``0.5 * ||A x - b||^2 + penalty(x)`` with IBM Decision Optimization
+        CPLEX Modeling for Python (docplex + cplex packages, optional
+        dependencies).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (accepted for API compatibility).
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_docplex_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+
+    def unfold_cs(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_atoms: Optional[int] = None,
+        sparsity: Optional[int] = None,
+        dictionary: Optional[np.ndarray] = None,
+        n_dictionary_iterations: int = 20,
+        sigma_min: float = 0.01,
+        sigma_decrease_factor: float = 0.5,
+        mu_0: float = 1.0,
+        L: int = 3,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Compressive Sensing (CS).
+
+        The spectrum is represented sparsely in a learned dictionary (K-SVD),
+        sparse coding is performed with OMP, and reconstruction is done with
+        the SL0 algorithm. This method is well suited for the highly
+        underdetermined problem where the number of energy groups greatly
+        exceeds the number of detector readings.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        n_atoms : int, optional
+            Number of dictionary atoms.
+        sparsity : int, optional
+            Target sparsity for dictionary learning.
+        dictionary : np.ndarray, optional
+            Pre-learned dictionary (n x n_atoms).
+        n_dictionary_iterations : int, optional
+            Number of K-SVD iterations (default: 20).
+        sigma_min : float, optional
+            SL0 minimum sigma (default: 0.01).
+        sigma_decrease_factor : float, optional
+            SL0 sigma decrease factor (default: 0.5).
+        mu_0 : float, optional
+            SL0 step-size factor (default: 1.0).
+        L : int, optional
+            SL0 inner iterations per sigma (default: 3).
+        max_iterations : int, optional
+            SL0 maximum outer iterations (default: 1000).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_cs_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_atoms=n_atoms,
+            sparsity=sparsity,
+            dictionary=dictionary,
+            n_dictionary_iterations=n_dictionary_iterations,
+            sigma_min=sigma_min,
+            sigma_decrease_factor=sigma_decrease_factor,
+            mu_0=mu_0,
+            L=L,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
             random_state=random_state,
         )
 

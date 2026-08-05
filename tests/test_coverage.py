@@ -162,6 +162,60 @@ class TestRegularization:
         assert isinstance(lam, float)
         assert lam > 0
 
+    def test_cosine_similarity_selection_zero_solution(self, ab):
+        from bssunfold.core.regularization import cosine_similarity_selection
+        A, b = ab
+        b_zero = np.zeros_like(b)
+        initial = np.ones(10)
+        lam = cosine_similarity_selection(A, b_zero, initial)
+        assert isinstance(lam, float)
+
+    def test_lcurve_pytikhonov_none_lambda(self, ab):
+        import pytikhonov
+        from bssunfold.core.regularization import lcurve_selection
+        A, b = ab
+        with patch.object(pytikhonov, "lcorner", return_value={"opt_lambdah": None}):
+            with pytest.raises(ValueError, match="L-curve"):
+                lcurve_selection(A, b)
+
+    def test_gcv_pytikhonov_none_lambda(self, ab):
+        import pytikhonov
+        from bssunfold.core.regularization import gcv_selection
+        A, b = ab
+        with patch.object(pytikhonov, "gcvmin", return_value={"opt_lambdah": None}):
+            with pytest.raises(ValueError, match="GCV"):
+                gcv_selection(A, b)
+
+    def test_dp_pytikhonov_none_lambda(self, ab):
+        import pytikhonov
+        from bssunfold.core.regularization import discrepancy_principle_selection
+        A, b = ab
+        with patch.object(pytikhonov, "discrepancy_principle", return_value={"opt_lambdah": None}):
+            with pytest.raises(ValueError, match="Discrepancy"):
+                discrepancy_principle_selection(A, b, noise_var=0.01)
+
+    def test_dp_pytikhonov_noise_var_none(self, ab):
+        import pytikhonov
+        from bssunfold.core.regularization import discrepancy_principle_selection
+        A, b = ab
+        with patch.object(pytikhonov, "discrepancy_principle", return_value={"opt_lambdah": None}):
+            with pytest.raises(ValueError, match="Discrepancy"):
+                discrepancy_principle_selection(A, b, noise_var=None)
+
+    def test_lcurve_fallback_singular(self, ab):
+        from bssunfold.core.regularization import _lcurve_fallback
+        A, b = ab
+        with patch.object(np.linalg, "solve", side_effect=np.linalg.LinAlgError("sing")):
+            lam = _lcurve_fallback(A, b, n_alphas=5)
+        assert lam == 1.0
+
+    def test_dp_fallback_singular(self, ab):
+        from bssunfold.core.regularization import _dp_fallback
+        A, b = ab
+        with patch.object(np.linalg, "solve", side_effect=np.linalg.LinAlgError("sing")):
+            lam = _dp_fallback(A, b, noise_var=0.01, n_alphas=5)
+        assert isinstance(lam, float)
+
     def test_cosine_similarity_selection_zero_norm(self, ab):
         from bssunfold.core.regularization import cosine_similarity_selection
         A, b = ab
@@ -801,6 +855,87 @@ class TestPlotting:
         save_path = str(tmp_path / "comparison.png")
         fig, ax = plot_comparison(results, readings, save_to=save_path, show=False)
         assert tmp_path.joinpath("comparison.png").exists()
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_spectrum_show_true(self):
+        from bssunfold.utils.plotting import plot_spectrum
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        spec = np.array([1.0, 2.0, 3.0, 4.0])
+        fig, ax = plot_spectrum(E, spec, show=True)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_response_functions_show_true(self):
+        from bssunfold.utils.plotting import plot_response_functions
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        sens = {'det1': np.array([1.0, 2.0, 3.0, 4.0])}
+        fig, ax = plot_response_functions(E, sens, show=True)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_with_uncertainty_with_ax(self):
+        from bssunfold.utils.plotting import plot_with_uncertainty
+        import matplotlib.pyplot as plt
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        spec = np.array([1.0, 2.0, 3.0, 4.0])
+        _, ax = plt.subplots()
+        fig, ax = plot_with_uncertainty(E, spec, ax=ax, show=False)
+        plt.close(fig)
+
+    def test_plot_with_uncertainty_reference_no_phi(self):
+        from bssunfold.utils.plotting import plot_with_uncertainty
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        spec = np.array([1.0, 2.0, 3.0, 4.0])
+        ref = {'E_MeV': E, 'flux': np.array([1.0, 2.0, 3.0, 4.0])}
+        fig, ax = plot_with_uncertainty(E, spec, reference_spectrum=ref, show=False)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_with_uncertainty_show_true(self):
+        from bssunfold.utils.plotting import plot_with_uncertainty
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        spec = np.array([1.0, 2.0, 3.0, 4.0])
+        fig, ax = plot_with_uncertainty(E, spec, show=True)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_residuals_show_true(self):
+        from bssunfold.utils.plotting import plot_residuals
+        measured = np.array([1.0, 2.0, 3.0])
+        calculated = np.array([0.9, 2.1, 2.8])
+        fig, ax = plot_residuals(measured, calculated, show=True)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_comparison_reference_no_phi(self):
+        from bssunfold.utils.plotting import plot_comparison
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        ref = {"E_MeV": E, "flux": np.array([1.0, 2.0, 3.0, 4.0])}
+        results = {
+            "method_a": {
+                "energy": E,
+                "spectrum": np.array([1.0, 2.0, 3.0, 4.0]),
+                "effective_readings": {"det1": 1.1},
+            },
+        }
+        readings = {"det1": 1.0}
+        fig, ax = plot_comparison(results, readings, reference_spectrum=ref, show=False)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
+    def test_plot_comparison_show_true(self):
+        from bssunfold.utils.plotting import plot_comparison
+        E = np.array([0.1, 0.2, 0.5, 1.0])
+        results = {
+            "method_a": {
+                "energy": E,
+                "spectrum": np.array([1.0, 2.0, 3.0, 4.0]),
+                "effective_readings": {"det1": 1.1},
+            },
+        }
+        readings = {"det1": 1.0}
+        fig, ax = plot_comparison(results, readings, show=True)
         import matplotlib.pyplot as plt
         plt.close(fig)
 
@@ -1810,4 +1945,132 @@ class TestDoseCalculationCoverage:
         result = get_icrp116_coefficients()
         assert isinstance(result, dict)
         assert 'E_MeV' in result
+
+
+# ============================================================================
+# unfold_reconst.py: singular-matrix inversion fallback chain
+# ============================================================================
+
+class TestUnfoldReconstInvert:
+    def test_invert_system_linalg_error_retry_success(self):
+        from bssunfold.core.unfold_reconst import _invert_system
+        D = np.eye(3)
+        real_inv = np.linalg.inv
+
+        def _first_fails(*args, **kwargs):
+            if not _first_fails.raised:
+                _first_fails.raised = True
+                raise np.linalg.LinAlgError("sing")
+            return real_inv(*args, **kwargs)
+        _first_fails.raised = False
+
+        with patch.object(np.linalg, "cond", return_value=100.0):
+            with patch.object(np.linalg, "inv", side_effect=_first_fails):
+                result = _invert_system(D)
+        assert result.shape == (3, 3)
+
+    def test_invert_system_linalg_error_all_retries_fail(self):
+        from bssunfold.core.unfold_reconst import _invert_system
+        D = np.eye(2)
+        with patch.object(np.linalg, "cond", return_value=100.0):
+            with patch.object(np.linalg, "inv", side_effect=np.linalg.LinAlgError("sing")):
+                with patch.object(np.linalg, "pinv", return_value=np.eye(2)):
+                    result = _invert_system(D)
+        assert result.shape == (2, 2)
+
+
+# ============================================================================
+# detector.py: get_effective_readings_for_spectra + compare edge cases
+# ============================================================================
+
+class TestDetectorEffectiveReadings:
+    @pytest.fixture
+    def detector(self):
+        from bssunfold import Detector
+        return Detector()
+
+    def test_no_emeV_column(self, detector):
+        df = pd.DataFrame({
+            "energy": detector.E_MeV,
+            "flux": np.ones(detector.n_energy_bins),
+        })
+        result = detector.get_effective_readings_for_spectra(df)
+        assert isinstance(result, dict)
+        assert len(result) == len(detector.detector_names)
+
+    def test_interpolate_no_phi_column(self, detector):
+        E_new = detector.E_MeV * 0.5
+        df = pd.DataFrame({
+            "energy": E_new,
+            "flux": np.ones_like(E_new),
+        })
+        result = detector.get_effective_readings_for_spectra(df)
+        assert isinstance(result, dict)
+        assert len(result) == len(detector.detector_names)
+
+
+class TestDetectorCompareCoverage:
+    @pytest.fixture
+    def detector(self):
+        from bssunfold import Detector
+        return Detector()
+
+    def test_compare_labels_mismatch(self, detector):
+        n = detector.n_energy_bins
+        s1 = np.ones(n)
+        s2 = np.ones(n) * 0.5
+        s3 = np.ones(n) * 0.25
+        with pytest.raises(ValueError, match="labels"):
+            detector.compare(s1, s2, s3, labels=["a"])
+
+    def test_compare_three_spectra_plot_dataframe(self, detector):
+        n = detector.n_energy_bins
+        s1 = np.ones(n)
+        s2 = np.ones(n) * 0.5
+        s3 = np.ones(n) * 0.25
+        result = detector.compare(
+            s1, s2, s3,
+            labels=["A", "B", "C"],
+            plot=True,
+        )
+        assert isinstance(result, pd.DataFrame)
+
+
+# ============================================================================
+# comparison.py: degenerate-input branches
+# ============================================================================
+
+class TestComparisonCoverage:
+    def test_relative_entropy_zero_hp(self):
+        from bssunfold.utils.comparison import entropy_difference_percent
+        p = np.array([1.0])
+        q = np.array([1.0])
+        assert entropy_difference_percent(p, q) == 0.0
+
+    def test_fwhm_degenerate_nan(self):
+        from bssunfold.utils.comparison import peak_width_error
+        s = np.array([np.nan, np.nan])
+        e = np.array([0.1, 1.0])
+        assert peak_width_error(s, s, e) == 0.0
+
+    def test_compute_log_steps_numba_path(self):
+        from bssunfold.utils.comparison import _compute_log_steps
+        import bssunfold.core._numba_jit as nj
+        energy = np.array([1e-3, 1e-2, 1e-1, 1.0])
+        with patch.object(nj, "NUMBA_AVAILABLE", True):
+            with patch.object(nj, "_compute_log_steps_jit", return_value=np.ones(4)):
+                result = _compute_log_steps(energy)
+        assert result.shape == (4,)
+
+    def test_dose_weighted_error_numba_path(self):
+        from bssunfold.utils.comparison import dose_weighted_error
+        import bssunfold.core._numba_jit as nj
+        s1 = np.ones(4)
+        s2 = np.ones(4) * 0.5
+        e = np.array([1e-3, 1e-2, 1e-1, 1.0])
+        cc = {"E_MeV": e, "AP": np.ones(4)}
+        with patch.object(nj, "NUMBA_AVAILABLE", True):
+            with patch.object(nj, "_dose_weighted_mse_jit", return_value=0.1):
+                result = dose_weighted_error(s1, s2, e, cc)
+        assert result == pytest.approx(0.1)
 

@@ -129,6 +129,68 @@ class TestSolverFallbackPaths:
         assert iters > 0
 
 
+class TestNumbaJitFallback:
+    """Reload _numba_jit with numba blocked to test the fallback functions.
+
+    The jitted bodies are excluded from coverage (they run in LLVM), but the
+    else-branch fallbacks are real Python code and must be exercised.
+    """
+
+    FALLBACK_NAMES = [
+        "_mlem_inner", "_kaczmarz_inner", "_doroshenko_inner",
+        "_gravel_inner", "_compute_log_steps_jit", "_dose_weighted_mse_jit",
+    ]
+
+    def _reload_without_numba(self):
+        """Import the real _numba_jit module as if numba were missing.
+
+        Returns (module, cleanup) where cleanup restores sys.modules.
+        """
+        import builtins
+        import importlib
+
+        saved_numba = sys.modules.get("numba")
+        saved_njit = sys.modules.get("bssunfold.core._numba_jit")
+        sys.modules.pop("numba", None)
+        sys.modules.pop("bssunfold.core._numba_jit", None)
+
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "numba":
+                raise ImportError("mocked numba")
+            return orig_import(name, *args, **kwargs)
+
+        def cleanup():
+            if saved_numba is not None:
+                sys.modules["numba"] = saved_numba
+            else:
+                sys.modules.pop("numba", None)
+            if saved_njit is not None:
+                sys.modules["bssunfold.core._numba_jit"] = saved_njit
+            else:
+                sys.modules.pop("bssunfold.core._numba_jit", None)
+
+        try:
+            with patch("builtins.__import__", side_effect=mock_import):
+                mod = importlib.import_module("bssunfold.core._numba_jit")
+        except BaseException:
+            cleanup()
+            raise
+        return mod, cleanup
+
+    def test_fallback_functions_raise_importerror(self):
+        mod, cleanup = self._reload_without_numba()
+        try:
+            assert mod.NUMBA_AVAILABLE is False
+            for name in self.FALLBACK_NAMES:
+                fn = getattr(mod, name)
+                with pytest.raises(ImportError, match="numba"):
+                    fn(np.ones(1), np.ones(1), np.ones(1))
+        finally:
+            cleanup()
+
+
 # ============================================================================
 # 2. platform_check.py uncovered lines (44-46, 63-64, 93-95)
 # ============================================================================
@@ -1140,6 +1202,344 @@ class TestParametric:
         with patch("builtins.__import__", side_effect=mock_import):
             with pytest.raises(ImportError):
                 solve_parametric_combined(A, b, E, ln, solver_backend="qpsolvers")
+
+
+class TestParametricCoverage:
+    """Branch coverage for unfold_parametric.py helper functions."""
+
+    @staticmethod
+    def _data(n_det=4, n_energy=10):
+        np.random.seed(7)
+        E = np.logspace(-6, 1, n_energy)
+        ln = np.ones(n_energy)
+        A = np.random.rand(n_det, n_energy)
+        b = A @ np.ones(n_energy)
+        return A, b, E, ln
+
+    def test_residuals_reg_without_initial_vec(self):
+        from lmfit import Parameters
+        from bssunfold.core.unfold_parametric import _residuals
+        A, b, E, ln = self._data()
+        p = Parameters()
+        for name, val in [("b", 1.0), ("beta_prime", 0.01), ("alpha", 0.5),
+                          ("beta", 2.0), ("P_th", 0.5), ("P_epi", 0.5)]:
+            p.add(name, value=val)
+        r = _residuals(p, A, b, E, ln, reg_alpha=0.1)
+        assert len(r) == len(b) + 6
+
+    def test_compute_jacobian_boundary_backward_diff(self):
+        from bssunfold.core.unfold_parametric import _compute_jacobian, _get_initial_params
+        A, b, E, ln = self._data()
+        params = _get_initial_params(None)
+        params["beta"] = 25.0
+        J = _compute_jacobian(E, ln, params)
+        assert J.shape == (len(E), 6)
+
+    def test_compute_jacobian_boundary_zero(self):
+        from bssunfold.core.unfold_parametric import _compute_jacobian, _get_initial_params
+        A, b, E, ln = self._data()
+        params = _get_initial_params(None)
+        params["P_th"] = -0.5
+        J = _compute_jacobian(E, ln, params)
+        assert J.shape == (len(E), 6)
+
+    def test_find_initial_params_empty_grid(self):
+        from bssunfold.core.unfold_parametric import _find_initial_params
+        A, b, E, ln = self._data()
+        result = _find_initial_params(A, b, E, ln, n_grid=0)
+        assert "b" in result
+        result_list = _find_initial_params(A, b, E, ln, n_grid=0, return_top=3)
+        assert isinstance(result_list, list)
+
+    def test_gcv_select_alpha_too_few(self):
+        from bssunfold.core.unfold_parametric import _gcv_select_alpha, _get_initial_params
+        E = np.logspace(-6, 1, 10)
+        ln = np.ones(10)
+        A = np.random.rand(1, 10)
+        b = np.random.rand(1)
+        alpha = _gcv_select_alpha(A, b, E, ln, _get_initial_params(None))
+        assert alpha == 1e-4
+
+    def test_gcv_select_alpha_degenerate_svd(self):
+        from bssunfold.core.unfold_parametric import _gcv_select_alpha, _get_initial_params
+        E = np.logspace(-6, 1, 10)
+        ln = np.ones(10)
+        A = np.random.rand(4, 10)
+        b = np.random.rand(4)
+        U = np.eye(4)
+        fake = MagicMock(return_value=(U, np.ones(4), np.ones((4, 4)), np.full(4, 1e18)))
+        with patch("bssunfold.core.regularization.compute_svd_components", fake):
+            alpha = _gcv_select_alpha(A, b, E, ln, _get_initial_params(None), n_coarse=3, n_refine=3)
+        assert isinstance(alpha, float)
+
+    def test_gcv_select_alpha_import_fallback(self):
+        from bssunfold.core.unfold_parametric import _gcv_select_alpha, _get_initial_params
+        E = np.logspace(-6, 1, 10)
+        ln = np.ones(10)
+        A = np.random.rand(4, 10)
+        b = np.random.rand(4)
+        import builtins
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "bssunfold.core.regularization":
+                raise ImportError("mocked")
+            return orig_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            alpha = _gcv_select_alpha(A, b, E, ln, _get_initial_params(None))
+        assert isinstance(alpha, float)
+
+    def test_resolve_cvxpy_solvers_import_error(self):
+        from bssunfold.core.unfold_parametric import _resolve_cvxpy_solvers
+        import builtins
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "cvxpy":
+                raise ImportError("mocked")
+            return orig_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            assert _resolve_cvxpy_solvers("default") == ["ECOS"]
+
+    def test_resolve_qpsolver_name_ecos(self):
+        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
+        import qpsolvers
+        with patch.object(qpsolvers, "available_solvers", ["ecos"]):
+            assert _resolve_qpsolver_name("default") == "ecos"
+
+    def test_resolve_qpsolver_name_import_error(self):
+        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
+        import builtins
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "qpsolvers":
+                raise ImportError("mocked")
+            return orig_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            assert _resolve_qpsolver_name("default") == "osqp"
+
+    def test_solve_parametric_qpsolvers_solver_fallback(self):
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
+        import qpsolvers
+        A, b, E, ln = self._data()
+        with patch.object(qpsolvers, "available_solvers", ["osqp", "proxqp"]):
+            with patch.object(qpsolvers, "solve_qp", return_value=None):
+                spectrum, success, msg, nfev = solve_parametric_qpsolvers(
+                    A, b, E, ln, solver_backend="qpsolvers:ecos"
+                )
+        assert spectrum.shape == (len(E),)
+
+    def test_solve_parametric_qpsolvers_no_solver(self):
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
+        import qpsolvers
+        A, b, E, ln = self._data()
+        with patch.object(qpsolvers, "available_solvers", ["proxqp"]):
+            with pytest.raises(ValueError, match="not available"):
+                solve_parametric_qpsolvers(A, b, E, ln, solver_backend="qpsolvers:osqp")
+
+    def test_solve_parametric_qpsolvers_no_bounds(self):
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
+        import qpsolvers
+        A, b, E, ln = self._data()
+        all_none = {n: (None, None) for n in
+                    ["b", "beta_prime", "alpha", "beta", "P_th", "P_epi"]}
+        with patch("bssunfold.core.unfold_parametric._get_param_bounds", return_value=all_none):
+            with patch.object(qpsolvers, "available_solvers", ["osqp"]):
+                with patch.object(qpsolvers, "solve_qp", return_value=np.zeros(6)):
+                    spectrum, success, msg, nfev = solve_parametric_qpsolvers(
+                        A, b, E, ln, solver_backend="qpsolvers:osqp"
+                    )
+        assert spectrum.shape == (len(E),)
+
+    def test_combined_auto_fallback_to_qpsolvers(self):
+        from bssunfold.core.unfold_parametric import solve_parametric_combined
+        import qpsolvers
+        A, b, E, ln = self._data()
+        dummy_spectrum = np.linspace(0.5, 2.0, len(E))
+        import builtins
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "cvxpy":
+                raise ImportError("mocked")
+            return orig_import(name, *args, **kwargs)
+
+        with patch("bssunfold.core.unfold_parametric.solve_parametric",
+                   return_value=(dummy_spectrum, True, "ok", 1)):
+            with patch("builtins.__import__", side_effect=mock_import):
+                with patch.object(qpsolvers, "solve_qp", return_value=None):
+                    spectrum, success, msg, nfev = solve_parametric_combined(
+                        A, b, E, ln, solver_backend="auto"
+                    )
+        assert spectrum.shape == (len(E),)
+
+    def test_combined_cvxpy_import_error(self):
+        from bssunfold.core.unfold_parametric import solve_parametric_combined
+        A, b, E, ln = self._data()
+        dummy_spectrum = np.linspace(0.5, 2.0, len(E))
+        import builtins
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "cvxpy":
+                raise ImportError("mocked")
+            return orig_import(name, *args, **kwargs)
+
+        with patch("bssunfold.core.unfold_parametric.solve_parametric",
+                   return_value=(dummy_spectrum, True, "ok", 1)):
+            with patch("builtins.__import__", side_effect=mock_import):
+                with pytest.raises(ImportError, match="cvxpy is required"):
+                    solve_parametric_combined(A, b, E, ln, solver_backend="cvxpy")
+
+    def test_combined_qpsolvers_no_solver(self):
+        from bssunfold.core.unfold_parametric import solve_parametric_combined
+        import qpsolvers
+        A, b, E, ln = self._data()
+        dummy_spectrum = np.linspace(0.5, 2.0, len(E))
+        with patch("bssunfold.core.unfold_parametric.solve_parametric",
+                   return_value=(dummy_spectrum, True, "ok", 1)):
+            with patch.object(qpsolvers, "available_solvers", ["proxqp"]):
+                spectrum, success, msg, nfev = solve_parametric_combined(
+                    A, b, E, ln, solver_backend="qpsolvers"
+                )
+        assert spectrum.shape == (len(E),)
+        assert "No QP solver" in msg
+
+
+class TestParametric2Coverage:
+    """Branch coverage for unfold_parametric2.py."""
+
+    @staticmethod
+    def _data_bon95(n_det=4, n_energy=10):
+        np.random.seed(11)
+        E = np.logspace(-6, 1, n_energy)
+        ln = np.ones(n_energy)
+        A = np.random.rand(n_det, n_energy) + 0.1
+        b = A @ np.ones(n_energy)
+        return A, b, E, ln
+
+    def test_bon95_jacobian_degenerate_bounds(self):
+        from bssunfold.core.unfold_parametric2 import _compute_bon95_shape_jacobian
+        A, b, E, ln = self._data_bon95()
+        params = {"b": 0.5, "Tf": 0.5, "c": 0.5}
+        degenerate = {"b": (0.5, 0.5), "Tf": (0.5, 0.5), "c": (0.5, 0.5)}
+        with patch("bssunfold.core.unfold_parametric2._get_bon95_shape_bounds",
+                   return_value=degenerate):
+            J, residual = _compute_bon95_shape_jacobian(A, b, E, ln, params, np.ones(4))
+        assert J.shape == (len(E), 3)
+        assert residual.shape == (4,)
+
+    def test_bon95_resolve_cvxpy_solvers_import_error(self):
+        from bssunfold.core.unfold_parametric2 import _resolve_cvxpy_solvers
+        import builtins
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "cvxpy":
+                raise ImportError("mocked")
+            return orig_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            assert _resolve_cvxpy_solvers("default") == ["ECOS"]
+
+    def test_bon95_resolve_qpsolver_name_ecos(self):
+        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
+        import qpsolvers
+        with patch.object(qpsolvers, "available_solvers", ["ecos"]):
+            assert _resolve_qpsolver_name("default") == "ecos"
+
+    def test_bon95_resolve_qpsolver_name_import_error(self):
+        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
+        import builtins
+        orig_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "qpsolvers":
+                raise ImportError("mocked")
+            return orig_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            assert _resolve_qpsolver_name("default") == "osqp"
+
+    def test_solve_bon95_cvxpy_converged(self):
+        from bssunfold.core.unfold_parametric2 import solve_bon95_cvxpy
+        A, b, E, ln = self._data_bon95()
+        exact_spectrum = np.linalg.lstsq(A, b, rcond=None)[0]
+        with patch("bssunfold.core.unfold_parametric2._solve_shape_nls",
+                   return_value=(exact_spectrum, 0.0, np.ones(4))):
+            spectrum, success, msg, nfev = solve_bon95_cvxpy(
+                A, b, E, ln, initial_params={"b": 1.0, "Tf": 1.0, "c": 1.0},
+            )
+        assert success
+        assert spectrum.shape == (len(E),)
+
+    def test_solve_bon95_qpsolvers_solver_fallback(self):
+        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
+        import qpsolvers
+        A, b, E, ln = self._data_bon95()
+        exact_spectrum = np.linalg.lstsq(A, b, rcond=None)[0]
+        with patch.object(qpsolvers, "available_solvers", ["osqp", "proxqp"]):
+            with patch("bssunfold.core.unfold_parametric2._solve_shape_nls",
+                       return_value=(exact_spectrum, 0.0, np.ones(4))):
+                spectrum, success, msg, nfev = solve_bon95_qpsolvers(
+                    A, b, E, ln, initial_params={"b": 1.0, "Tf": 1.0, "c": 1.0},
+                    solver_backend="qpsolvers:ecos",
+                )
+        assert success
+        assert spectrum.shape == (len(E),)
+
+    def test_solve_bon95_qpsolvers_no_solver(self):
+        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
+        import qpsolvers
+        A, b, E, ln = self._data_bon95()
+        with patch.object(qpsolvers, "available_solvers", ["proxqp"]):
+            with pytest.raises(ValueError, match="No QP solver available"):
+                solve_bon95_qpsolvers(
+                    A, b, E, ln, initial_params={"b": 1.0, "Tf": 1.0, "c": 1.0},
+                    solver_backend="qpsolvers:osqp",
+                )
+
+    def test_bon95_combined_cvxpy_import_error(self):
+        from bssunfold.core.unfold_parametric2 import solve_bon95_combined
+        A, b, E, ln = self._data_bon95()
+        dummy = {"b": 1.0, "Tf": 1.0, "c": 1.0}
+        with patch("bssunfold.core.unfold_parametric2.solve_bon95_parametric",
+                   return_value=(dummy, 1.0, np.ones(4))):
+            with patch("bssunfold.core.unfold_parametric2.solve_bon95_cvxpy",
+                       side_effect=ImportError("no cvxpy")):
+                with pytest.raises(ImportError):
+                    solve_bon95_combined(A, b, E, ln, solver_backend="cvxpy")
+
+    def test_bon95_combined_auto_fallback(self):
+        from bssunfold.core.unfold_parametric2 import solve_bon95_combined
+        A, b, E, ln = self._data_bon95()
+        dummy = {"b": 1.0, "Tf": 1.0, "c": 1.0}
+        with patch("bssunfold.core.unfold_parametric2.solve_bon95_parametric",
+                   return_value=(dummy, 1.0, np.ones(4))):
+            with patch("bssunfold.core.unfold_parametric2.solve_bon95_cvxpy",
+                       side_effect=ImportError("no cvxpy")):
+                with patch("bssunfold.core.unfold_parametric2.solve_bon95_qpsolvers",
+                           return_value=(np.ones(len(E)), True, "ok", 1)):
+                    spectrum, success, msg, nfev = solve_bon95_combined(
+                        A, b, E, ln, solver_backend="auto"
+                    )
+        assert "qpsolvers" in msg
+        assert spectrum.shape == (len(E),)
+
+    def test_directed_divergence_converged(self):
+        from bssunfold.core.unfold_parametric2 import directed_divergence_iteration
+        A, b, E, ln = self._data_bon95()
+        phi0 = np.linspace(0.1, 1.0, len(E))
+        b_readings = A @ (phi0 * ln)
+        phi, iters, chi2, conv = directed_divergence_iteration(
+            A, b_readings, E, ln, phi0, tol_chi2=-1.0,
+        )
+        assert conv
+        assert phi.shape == (len(E),)
 
 
 # ============================================================================

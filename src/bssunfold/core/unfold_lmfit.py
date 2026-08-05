@@ -7,7 +7,7 @@ wrapper for use with the Detector class.
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = [
     "solve_lmfit",
@@ -28,7 +28,7 @@ def _residual_lasso(params, A, b, regularization, method, m):
     x = np.array([params[f"x{i}"].value for i in range(m)])
     residual = A @ x - b
     if method == "leastsq":
-        reg_residual = np.sqrt(regularization) * np.sqrt(m) * x
+        reg_residual = np.sqrt(regularization) * np.sqrt(np.abs(x))
         return np.concatenate([residual, reg_residual])
     return np.sum(residual ** 2) + regularization * np.sum(np.abs(x))
 
@@ -48,9 +48,7 @@ def _residual_elastic(params, A, b, regularization, regularization2, l1_weight, 
     x = np.array([params[f"x{i}"].value for i in range(m)])
     residual = A @ x - b
     if method == "leastsq":
-        l1_residual = (
-            np.sqrt(regularization * l1_weight) * np.sqrt(m) * np.abs(x)
-        )
+        l1_residual = np.sqrt(regularization * l1_weight) * np.sqrt(np.abs(x))
         l2_residual = np.sqrt(regularization2 * (1 - l1_weight)) * x
         reg_residual = np.concatenate([l1_residual, l2_residual])
         return np.concatenate([residual, reg_residual])
@@ -209,9 +207,7 @@ def unfold_lmfit(
     Dict[str, Any]
         Dictionary containing unfolding results.
     """
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, selected = _build_system(readings, detector_names, sensitivities)
 
     initial_spec_for_output = None
 

@@ -11,6 +11,8 @@ from .unfold_kaczmarz import solve_kaczmarz
 from .unfold_doroshenko import solve_doroshenko
 from .unfold_cvxpy import solve_cvxpy
 from .unfold_qpsolvers import solve_qpsolvers
+from .unfold_mystic import solve_mystic
+from .unfold_genetic import solve_genetic
 from .unfold_lmfit import solve_lmfit
 from .unfold_gravel import solve_gravel
 from .unfold_maxed import solve_maxed
@@ -25,6 +27,15 @@ from .unfold_parametric2 import solve_parametric2
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_hybrid_parametric import solve_hybrid_parametric
 from .unfold_bayesian_parametric import solve_bayesian_parametric
+from .unfold_smt import (
+    solve_integer_linear_eqs,
+    solve_integer_linear_eqs_all,
+    solve_rational_linear_eqs,
+    solve_rational_linear_eqs_all,
+    solve_smt,
+)
+from .unfold_scip import solve_scip
+from .unfold_docplex import solve_docplex
 from .regularization import (
     select_regularization_parameter,
     lcurve_selection,
@@ -39,6 +50,8 @@ from .unfold_cvxpy import unfold_cvxpy
 from .unfold_landweber import unfold_landweber
 from .unfold_mlem import unfold_mlem
 from .unfold_qpsolvers import unfold_qpsolvers
+from .unfold_mystic import unfold_mystic
+from .unfold_genetic import unfold_genetic
 from .unfold_doroshenko import unfold_doroshenko
 from .unfold_kaczmarz import unfold_kaczmarz
 from .unfold_lmfit import unfold_lmfit
@@ -56,6 +69,10 @@ from .unfold_reconst import unfold_reconst
 from .unfold_scipy_direct_method import unfold_scipy_direct_method
 from .unfold_tsvd import unfold_tsvd
 from .unfold_parametric2 import unfold_parametric2
+from .unfold_smt import unfold_smt
+from .unfold_scip import unfold_scip
+from .unfold_docplex import unfold_docplex
+from .unfold_cs import solve_cs, solve_omp, solve_ksvd, solve_sl0, unfold_cs
 
 __all__ = [
     # detector
@@ -65,6 +82,8 @@ __all__ = [
     "solve_landweber",
     "solve_mlem",
     "solve_qpsolvers",
+    "solve_mystic",
+    "solve_genetic",
     "solve_doroshenko",
     "solve_kaczmarz",
     "solve_lmfit",
@@ -82,11 +101,24 @@ __all__ = [
     "solve_hybrid_parametric",
     "solve_bayesian_parametric",
     "solve_mlem_stop",
+    "solve_integer_linear_eqs",
+    "solve_integer_linear_eqs_all",
+    "solve_rational_linear_eqs",
+    "solve_rational_linear_eqs_all",
+    "solve_smt",
+    "solve_scip",
+    "solve_docplex",
+    "solve_cs",
+    "solve_omp",
+    "solve_ksvd",
+    "solve_sl0",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
     "unfold_mlem",
     "unfold_qpsolvers",
+    "unfold_mystic",
+    "unfold_genetic",
     "unfold_doroshenko",
     "unfold_kaczmarz",
     "unfold_lmfit",
@@ -106,6 +138,10 @@ __all__ = [
     "unfold_fruit_like",
     "unfold_hybrid_parametric",
     "unfold_bayesian_parametric",
+    "unfold_smt",
+    "unfold_scip",
+    "unfold_docplex",
+    "unfold_cs",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

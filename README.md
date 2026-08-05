@@ -2,11 +2,12 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/BSSUnfold)](https://pypi.org/project/bssunfold/)
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/bssunfold)](https://anaconda.org/conda-forge/bssunfold)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
-[![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13%20|%203.14%20|%203.15-blue)](https://www.python.org/downloads/)
+[![Python 3.11–3.15](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13%20|%203.14%20|%203.15-blue)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Documentation](https://img.shields.io/badge/docs-sphinx-blue)](https://bssunfold.readthedocs.io/)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
+[![CodeFactor](https://www.codefactor.io/repository/github/radiationsafety/bssunfold/badge/main)](https://www.codefactor.io/repository/github/radiationsafety/bssunfold/overview/main)
 [![DOI](https://zenodo.org/badge/1122800086.svg)](https://doi.org/10.5281/zenodo.18056376)
 [![Tests: Ubuntu](https://img.shields.io/github/actions/workflow/status/Radiationsafety/bssunfold/cross-platform-tests.yml?branch=main&label=ubuntu&logo=ubuntu)](https://github.com/Radiationsafety/bssunfold/actions/workflows/cross-platform-tests.yml)
 [![Tests: Windows](https://img.shields.io/github/actions/workflow/status/Radiationsafety/bssunfold/cross-platform-tests.yml?branch=main&label=windows&logo=windows)](https://github.com/Radiationsafety/bssunfold/actions/workflows/cross-platform-tests.yml)
@@ -35,13 +36,13 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (26 methods):
+- **Multiple Unfolding Algorithms** (30 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD)
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
   - **Statistical Regularization**: Turchin's method (StatReg, Reconst — Fortran STREG1 port)
-  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR)
+  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY)
   - **Pipeline**: Combined approach for chaining multiple methods
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
@@ -270,6 +271,11 @@ graph TD
 
     G --> G1[unfold_lmfit]
     G --> G2[unfold_scipy_direct_method]
+    G --> G3[unfold_mystic]
+    G --> G4[unfold_smt]
+    G --> G5[unfold_genetic]
+    G --> G6[unfold_scip]
+    G --> G7[unfold_docplex]
 
     H --> H1[unfold_combined]
 
@@ -324,6 +330,11 @@ graph TD
 | 25 | `unfold_fruit_like` | Parametric | `initial_params`, `max_iterations`, `tolerance` | — | FRUIT-like model: Maxwellian thermal + 1/E epithermal + evaporation fast |
 | 26 | `unfold_hybrid_parametric` | Parametric | `refinement_method` (landweber/mlem), `max_iterations`, `tolerance` | — | Parametric initial guess refined by Landweber or MLEM |
 | 27 | `unfold_bayesian_parametric` | Parametric | `n_samples`, `burn_in`, `proposal_scale`, `prior_mean`, `prior_std` | — | Metropolis-Hastings MCMC for spectral parameter estimation |
+| 28 | `unfold_mystic` | Optimization | `regularization`, `norm` (1/2), `solver` (fmin/fmin_powell/diffev/diffev2), `maxiter`, `maxfun`, `smoothness_order`, `smoothness_weight`, `regularization_method` | mystic | Direct-search minimization of the penalized least-squares objective |
+| 29 | `unfold_smt` | Optimization | `nonneg`, `timeout_ms` | z3-solver | Exact SMT solving of `A·x = b` (integer/rational) with fluence minimization |
+| 30 | `unfold_genetic` | Optimization | `solver` (pso/ga/de/es/ep/abc/gwo/cmaes), `epoch`, `pop_size`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `n_runs`, `early_stop` | mealpy | Population-based meta-heuristic unfolding (PSO/GA/DE/ES/EP/ABC/GWO/CMA-ES) |
+| 31 | `unfold_scip` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | pyscipopt | Tikhonov QP solved by the SCIP Optimization Suite (global NLP/QP optimizer) |
+| 32 | `unfold_docplex` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | docplex, cplex | Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition) |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -631,7 +642,7 @@ bssunfold/
         │   ├── _base_unfolder.py
         │   ├── _matrix_utils.py # SVD, derivative matrix
         │   ├── _montecarlo.py   # MC uncertainty (optimized)
-        │   ├── _numba_jit.py    # Numba JIT inner loops ⚡
+        │   ├── _numba_jit.py    # Numba JIT inner loops 
         │   ├── detector.py      # Main Detector class
         │   ├── dose_calculation.py
         │   ├── regularization.py   # L-curve, GCV, DP
@@ -678,6 +689,11 @@ bssunfold/
 - `numba` — JIT compilation for iterative solvers (3–50x speedup)
 - `pytikhonov` — L-curve / GCV / DP regularisation (Tikhonov-type methods)
 - `qpsolvers[solvers-core]` — QP solvers (unfold_qpsolvers)
+- `mystic` — constrained/direct-search optimization (unfold_mystic)
+- `z3-solver` — SMT exact solving (unfold_smt)
+- `pyscipopt` — SCIP Optimization Suite interface (unfold_scip)
+- `docplex` + `cplex` — IBM CPLEX modeling & engine (unfold_docplex)
+- `mealpy` — population-based meta-heuristic optimization (unfold_genetic)
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
 - `odl` — Operator Discretization Library (unfold_mlem_odl)
 
@@ -779,7 +795,7 @@ For questions, bug reports, or feature requests:
 - University "Dubna", School of Big Data Analytics
 
 ## 🎓  Publications
-
+1. Chizhov A. V., Chizhov K. A. TSVD-Based Iterative Algorithm of Landweber for Neutron Spectra Unfolding by Bonner Multi-Sphere Spectrometer Readings // Phys. Part. Nuclei. 2026. Т. 57. № 4. С. 750–752. https://doi.org/10.1134/S1063779626700735
 1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. Дубна, 26 – 31 января 2026 г., [https://mce.su](https://mce.su/rus/presentations/p507586/)
 1. Chizhov, K., Chizhov, A. Optimization of the Neutron Spectrum Unfolding Algorithm Using Shifted Legendre Polynomials Based on Weighted Tikhonov Regularization. Phys. Part. Nuclei 56, 1395–1399 (2025). https://doi.org/10.1134/S106377962570056X
 2. Chizhov K., Beskrovnaya L., Chizhov A. Neutron spectrum unfolding method based on shifted Legendre polynomials, its application to the IREN facility // Phys. Part. Nucl. Lett. — 2025. — V. 22, no. 2. — P. 337–340. — DOI: https://doi.org/10.1134/S154747712470239X

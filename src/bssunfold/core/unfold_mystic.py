@@ -1,33 +1,72 @@
-"""QP solvers-based unfolding method with regularization selection.
+"""Mystic-based unfolding method with regularization selection.
 
-This module provides the core solve_qpsolvers solver and the unfold_qpsolvers
-wrapper with various regularization selection methods.
+This module provides the core solve_mystic solver and the unfold_mystic
+wrapper with various regularization selection methods. The optimization is
+performed with the ``mystic`` constrained-optimization framework
+(https://pypi.org/project/mystic/), using a direct-search solver on the
+penalized least-squares objective.
 """
 
 import warnings
 import numpy as np
 from typing import Dict, Optional, Any, List
 
-from scipy.sparse import csc_matrix
-
 from ._matrix_utils import create_derivative_matrix
-from .regularization import select_regularization_parameter, cosine_similarity_selection
-from ._base_unfolder import run_unfolding, _build_system
+from .regularization import select_regularization_parameter
+from ._base_unfolder import run_unfolding, make_solve_wrapper, _build_system
 
-__all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
+__all__ = ["solve_mystic", "unfold_mystic"]
+
+# Supported mystic minimal-interface solvers
+_SUPPORTED_SOLVERS = ("fmin", "fmin_powell", "diffev", "diffev2")
 
 
-def solve_qpsolvers(
+def _solver_function(solver: str):
+    """Import and return the mystic minimal-interface solver callable."""
+    from mystic.solvers import fmin, fmin_powell, diffev, diffev2
+
+    solver_functions = {
+        "fmin": fmin,
+        "fmin_powell": fmin_powell,
+        "diffev": diffev,
+        "diffev2": diffev2,
+    }
+    return solver_functions[solver]
+
+
+def _nonneg_condition(x: np.ndarray) -> float:
+    """Scalar measure of non-negativity violation (x >= 0)."""
+    x = np.asarray(x, dtype=float)
+    return float(np.sum(np.maximum(-x, 0.0)))
+
+
+def _build_bounds(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> list:
+    """Build non-negativity bounds for population-based solvers."""
+    n = A.shape[1]
+    x0_arr = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float)
+    col_norm = float(np.max(np.linalg.norm(A, axis=0))) or 1.0
+    scale = float(np.max(np.abs(b))) / max(col_norm, 1e-12)
+    ub = np.maximum(2.0 * np.abs(x0_arr), scale)
+    ub = np.maximum(ub, 1e-3)
+    return [(0.0, float(ub_i)) for ub_i in ub]
+
+
+def solve_mystic(
     A: np.ndarray,
     b: np.ndarray,
     alpha: float,
     norm: int = 2,
-    solver: str = "osqp",
+    solver: str = "fmin_powell",
     x0: Optional[np.ndarray] = None,
+    maxiter: Optional[int] = None,
+    maxfun: Optional[int] = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
-) -> Optional[np.ndarray]:
-    """Solve unfolding problem using qpsolvers.
+) -> np.ndarray:
+    """Solve unfolding problem using mystic.
+
+    Minimizes ``||A x - b||^2 + alpha * ||x||_norm`` with the non-negativity
+    constraint ``x >= 0`` imposed via a quadratic penalty.
 
     Parameters
     ----------
@@ -40,105 +79,88 @@ def solve_qpsolvers(
     norm : int, optional
         Norm type (1 for L1, 2 for L2).
     solver : str, optional
-        QP solver name (default: 'osqp').
+        Mystic solver name: 'fmin', 'fmin_powell', 'diffev' or 'diffev2'
+        (default: 'fmin_powell').
     x0 : np.ndarray, optional
-        Initial values.
+        Initial values. Defaults to the zero vector.
+    maxiter : int, optional
+        Maximum number of solver iterations.
+    maxfun : int, optional
+        Maximum number of function evaluations.
     smoothness_order : int, optional
         Smoothness constraint order (0, 1, or 2).
     smoothness_weight : float, optional
-        Weight for smoothness term.
+        Weight for the smoothness term.
 
     Returns
     -------
-    Optional[np.ndarray]
-        Unfolded spectrum or None if solving failed.
+    np.ndarray
+        Unfolded spectrum (n,). Returns a zero vector if solving failed.
     """
     try:
-        from qpsolvers import available_solvers, solve_qp
+        from mystic.penalty import quadratic_inequality
     except ImportError as e:
         raise ImportError(
-            "qpsolvers is required for unfold_qpsolvers. "
-            "Install with: pip install qpsolvers"
+            "mystic is required for unfold_mystic. "
+            "Install with: pip install mystic"
         ) from e
 
-    if solver not in available_solvers:
-        if "osqp" in available_solvers:
-            solver = "osqp"
-        elif "ecos" in available_solvers:
-            solver = "ecos"
-        else:
-            warnings.warn(
-                f"Solver '{solver}' not available. Available: {available_solvers}"
-            )
-            return None
+    if solver not in _SUPPORTED_SOLVERS:
+        warnings.warn(
+            f"Solver '{solver}' not supported. "
+            f"Available solvers: {_SUPPORTED_SOLVERS}. Using 'fmin_powell'."
+        )
+        solver = "fmin_powell"
 
     n = A.shape[1]
 
-    P_base = csc_matrix(A.T @ A)
-    q_base = -A.T @ b
+    L = None
+    if smoothness_order in (1, 2):
+        L = create_derivative_matrix(n, smoothness_order)
 
-    if norm == 2:
-        P = P_base.copy()
-
-        if smoothness_order == 1:
-            L = create_derivative_matrix(n, 1)
-            P += alpha * smoothness_weight * (L.T @ L)
-        elif smoothness_order == 2:
-            L = create_derivative_matrix(n, 2)
-            P += alpha * smoothness_weight * (L.T @ L)
+    def cost(x: np.ndarray) -> float:
+        x = np.asarray(x, dtype=float)
+        residual = A @ x - b
+        value = float(np.dot(residual, residual))
+        if norm == 2:
+            value += alpha * float(np.dot(x, x))
+        elif norm == 1:
+            value += alpha * float(np.sum(np.abs(x)))
         else:
-            P += alpha * csc_matrix(np.eye(n))
+            raise ValueError(f"Unsupported norm type: {norm}")
+        if L is not None:
+            value += alpha * smoothness_weight * float(np.dot(L @ x, L @ x))
+        return value
 
-        G = csc_matrix(-np.eye(n))
-        h = np.zeros(n)
+    @quadratic_inequality(_nonneg_condition)
+    def penalty(x: np.ndarray) -> float:
+        return 0.0
 
-        x = solve_qp(
-            P=P,
-            q=q_base,
-            G=G,
-            h=h,
-            solver=solver,
-            initvals=x0,
-            verbose=False,
+    x0_arr = np.zeros(n)
+    if x0 is not None:
+        x0_arr = np.maximum(np.asarray(x0, dtype=float), 0)
+
+    kw = {"disp": 0, "penalty": penalty}
+    if maxiter is not None:
+        kw["maxiter"] = maxiter
+    if maxfun is not None:
+        kw["maxfun"] = maxfun
+
+    try:
+        solver_func = _solver_function(solver)
+        if solver in ("diffev", "diffev2"):
+            kw["bounds"] = _build_bounds(A, b, x0_arr)
+        result = solver_func(cost, x0_arr, **kw)
+    except Exception as exc:
+        warnings.warn(
+            f"Mystic solver '{solver}' failed: {exc}. Returning zero vector."
         )
+        return np.zeros(n)
 
-    elif norm == 1:
-        # L1 regularization under the non-negativity constraint x >= 0:
-        #   min 0.5 * ||A x - b||^2 + alpha * ||x||_1  s.t.  x >= 0
-        # The penalty term alpha * sum(x) is linear, so it shifts q by alpha.
-        P = P_base.copy()
-        q = q_base + alpha * np.ones(n)
-
-        if smoothness_order == 1:
-            L = create_derivative_matrix(n, 1)
-            P += alpha * smoothness_weight * (L.T @ L)
-        elif smoothness_order == 2:
-            L = create_derivative_matrix(n, 2)
-            P += alpha * smoothness_weight * (L.T @ L)
-
-        G = csc_matrix(-np.eye(n))
-        h = np.zeros(n)
-
-        x = solve_qp(
-            P=P,
-            q=q,
-            G=G,
-            h=h,
-            solver=solver,
-            initvals=x0,
-            verbose=False,
-        )
-    else:
-        raise ValueError(f"Unsupported norm type: {norm}")
-
-    if x is None:
-        warnings.warn(f"Solver '{solver}' did not find a solution.")
-        return None
-
-    return np.asarray(x)
+    return np.asarray(result, dtype=float)
 
 
-def unfold_qpsolvers(
+def unfold_mystic(
     detector_names: List[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
@@ -149,7 +171,9 @@ def unfold_qpsolvers(
     initial_spectrum: Optional[np.ndarray] = None,
     regularization: float = 1e-4,
     norm: int = 2,
-    solver: str = "osqp",
+    solver: str = "fmin_powell",
+    maxiter: Optional[int] = 2000,
+    maxfun: Optional[int] = 20000,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -160,7 +184,7 @@ def unfold_qpsolvers(
     smoothness_weight: float = 1.0,
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Unfold using qpsolvers with regularization selection.
+    """Unfold using mystic with regularization selection.
 
     Parameters
     ----------
@@ -185,7 +209,11 @@ def unfold_qpsolvers(
     norm : int, optional
         Norm type (1 for L1, 2 for L2), default: 2.
     solver : str, optional
-        QP solver name, default: 'osqp'.
+        Mystic solver name, default: 'fmin_powell'.
+    maxiter : int, optional
+        Maximum number of solver iterations, default: 2000.
+    maxfun : int, optional
+        Maximum number of function evaluations, default: 20000.
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty, default: False.
     noise_level : float, optional
@@ -233,9 +261,8 @@ def unfold_qpsolvers(
                 f"Initial spectrum length ({len(initial_spectrum)}) "
                 f"must match number of energy bins ({n_energy_bins})"
             )
-
-        selected_lambda = cosine_similarity_selection(
-            A, b, initial_spectrum_norm, norm=norm
+        selected_lambda = select_regularization_parameter(
+            A, b, method="cosine", initial_spectrum=initial_spectrum_norm
         )
         alpha = selected_lambda
         print(
@@ -266,18 +293,6 @@ def unfold_qpsolvers(
 
     x0_default = np.zeros(n_energy_bins)
 
-    def solve_wrapper(A, b, **kwargs):
-        kwargs.pop('x0', None)
-        x = solve_qpsolvers(
-            A, b, alpha, norm, solver,
-            smoothness_order=smoothness_order,
-            smoothness_weight=smoothness_weight,
-        )
-        if x is None:
-            x = np.zeros(A.shape[1])
-            warnings.warn("Solution not found, returning zero spectrum.")
-        return x
-
     return run_unfolding(
         detector_names=detector_names,
         n_energy_bins=n_energy_bins,
@@ -288,11 +303,21 @@ def unfold_qpsolvers(
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
-        solve_func=solve_wrapper,
+        solve_func=make_solve_wrapper(
+            solve_mystic,
+            alpha=alpha,
+            norm=norm,
+            solver=solver,
+            maxiter=maxiter,
+            maxfun=maxfun,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+        ),
         solve_kwargs={},
-        method_name=f"qpsolvers_{solver}",
+        method_name=f"mystic_{solver}",
         extra_output={
             "norm": norm,
+            "solver": solver,
             "regularization": regularization,
             "regularization_method": regularization_method,
             "selected_regularization": float(selected_lambda),

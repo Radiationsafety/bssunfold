@@ -1,0 +1,93 @@
+# Static (bandit, pip-audit) and dynamic (DynaPyt) security analysis
+name: Security analysis
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 3 * * 1"  # еженедельно, понедельник 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-security:
+    name: Static security scan
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Install dependencies
+      run: uv sync --group dev
+
+    - name: Bandit static security scan
+      run: uv run bandit -r src/bssunfold -f json -o bandit.json
+
+    - name: Upload bandit report
+      uses: actions/upload-artifact@v4
+      with:
+        name: bandit-report
+        path: bandit.json
+        if-no-files-found: error
+
+    - name: pip-audit dependency vulnerability scan
+      # CVE-2026-61632: pymdown-extensions path traversal in the b64 docs
+      # extension (dev-only docs tool, jupyter-book pins <11, not exploitable
+      # for this project's trusted docs).
+      run: uv run pip-audit --skip-editable -s osv --ignore-vuln CVE-2026-61632 -f json | tee pip-audit.json
+
+    - name: Upload pip-audit report
+      uses: actions/upload-artifact@v4
+      with:
+        name: pip-audit-report
+        path: pip-audit.json
+        if-no-files-found: error
+
+  dynamic-analysis:
+    name: DynaPyt dynamic analysis
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Install dependencies
+      run: uv sync --group dev
+
+    - name: Run DynaPyt dynamic analysis
+      run: uv run python tools/run_dynapyt.py
+
+    # run_dynapyt.py always writes .dynapyt_report/ (even on failure), but keep
+    # the upload non-fatal as a safety net. The "(node:...) [DEP0040]
+    # DeprecationWarning: The `punycode` module is deprecated" message emitted
+    # by upload-artifact@v4 is a harmless Node.js runner warning from the
+    # action's own dependencies and cannot be fixed from this repository.
+    - name: Upload DynaPyt report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dynapyt-report
+        path: .dynapyt_report/
+        if-no-files-found: warn

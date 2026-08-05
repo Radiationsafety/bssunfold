@@ -1,144 +1,174 @@
-"""QP solvers-based unfolding method with regularization selection.
+"""SCIP-based unfolding method.
 
-This module provides the core solve_qpsolvers solver and the unfold_qpsolvers
-wrapper with various regularization selection methods.
+This module provides a core ``solve_scip`` solver and the ``unfold_scip``
+wrapper that solve the unfolding problem with the SCIP Optimization Suite
+(https://www.scipopt.org/) through the ``pyscipopt`` package. SCIP is a
+general-purpose optimization solver (MIP/NLP/QP); here it minimizes the
+Tikhonov-regularized least-squares objective under non-negativity
+constraints.
+
+The ``pyscipopt`` package is an optional dependency imported lazily inside
+the function bodies.
 """
 
 import warnings
+
 import numpy as np
 from typing import Dict, Optional, Any, List
-
-from scipy.sparse import csc_matrix
 
 from ._matrix_utils import create_derivative_matrix
 from .regularization import select_regularization_parameter, cosine_similarity_selection
 from ._base_unfolder import run_unfolding, _build_system
 
-__all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
+__all__ = ["solve_scip", "unfold_scip"]
 
 
-def solve_qpsolvers(
+def _import_pyscipopt():
+    """Import and return the pyscipopt module, raising a helpful ImportError."""
+    try:
+        import pyscipopt
+    except ImportError as e:
+        raise ImportError(
+            "pyscipopt is required for unfold_scip. "
+            "Install with: pip install pyscipopt"
+        ) from e
+    return pyscipopt
+
+
+def solve_scip(
     A: np.ndarray,
     b: np.ndarray,
-    alpha: float,
-    norm: int = 2,
-    solver: str = "osqp",
     x0: Optional[np.ndarray] = None,
+    alpha: float = 1e-4,
+    norm: int = 2,
+    timeout: float = 10.0,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
+    nonneg: bool = True,
+    random_state: Optional[int] = None,
 ) -> Optional[np.ndarray]:
-    """Solve unfolding problem using qpsolvers.
+    """Solve the unfolding problem with the SCIP optimizer.
+
+    Minimizes ``0.5 * ||A x - b||^2 + penalty(x)`` with ``penalty`` given by
+    ``alpha * ||x||^2`` (L2), ``alpha * sum(x)`` (L1, exact under ``x >= 0``)
+    or a derivative smoothness term, subject to ``x >= 0`` when ``nonneg``.
 
     Parameters
     ----------
     A : np.ndarray
-        Response matrix (m x n).
+        Response matrix of size (m, n).
     b : np.ndarray
-        Measurement vector (m,).
-    alpha : float
-        Regularization parameter.
-    norm : int, optional
-        Norm type (1 for L1, 2 for L2).
-    solver : str, optional
-        QP solver name (default: 'osqp').
+        Measurement vector of size (m,).
     x0 : np.ndarray, optional
-        Initial values.
+        Initial values, used as a warm start for the solver.
+    alpha : float, optional
+        Regularization parameter, default: 1e-4.
+    norm : int, optional
+        Norm type (1 for L1, 2 for L2), default: 2.
+    timeout : float, optional
+        Time limit in seconds, default: 10.0.
     smoothness_order : int, optional
-        Smoothness constraint order (0, 1, or 2).
+        Smoothness constraint order (0, 1, or 2), default: 0.
     smoothness_weight : float, optional
-        Weight for smoothness term.
+        Weight for the smoothness term, default: 1.0.
+    nonneg : bool, optional
+        Constrain the solution to ``x >= 0``, default: True.
+    random_state : int, optional
+        Random seed for the solver, for reproducibility.
 
     Returns
     -------
     Optional[np.ndarray]
-        Unfolded spectrum or None if solving failed.
+        Unfolded spectrum (n,), or None if solving failed.
     """
-    try:
-        from qpsolvers import available_solvers, solve_qp
-    except ImportError as e:
-        raise ImportError(
-            "qpsolvers is required for unfold_qpsolvers. "
-            "Install with: pip install qpsolvers"
-        ) from e
+    pyscipopt = _import_pyscipopt()
+    from pyscipopt.recipes.nonlinear import set_nonlinear_objective
 
-    if solver not in available_solvers:
-        if "osqp" in available_solvers:
-            solver = "osqp"
-        elif "ecos" in available_solvers:
-            solver = "ecos"
-        else:
-            warnings.warn(
-                f"Solver '{solver}' not available. Available: {available_solvers}"
-            )
-            return None
+    Model = pyscipopt.Model
+    quicksum = pyscipopt.quicksum
+
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float)
+    if A.ndim != 2 or b.ndim != 1 or A.shape[0] != b.shape[0]:
+        raise ValueError("SCIP solver: received ill-formed input.")
+    n = A.shape[1]
+    m = A.shape[0]
+
+    model = Model("bssunfold_scip")
+    model.setParam("limits/time", max(float(timeout), 1e-3))
+    model.setParam("display/verblevel", 0)
+    if random_state is not None:
+        model.setParam("randomization/randomseedshift", int(random_state))
+
+    lb = 0.0 if nonneg else None
+    x = [model.addVar(lb=lb, name=f"x{i}") for i in range(n)]
+
+    residual = quicksum(
+        (b[i] - quicksum(A[i, j] * x[j] for j in range(n))) ** 2 for i in range(m)
+    )
+    penalty = _build_penalty(x, A, alpha, norm, smoothness_order, smoothness_weight)
+
+    set_nonlinear_objective(model, 0.5 * residual + penalty, sense="minimize")
+
+    if x0 is not None:
+        x0a = np.asarray(x0, dtype=float)
+        if x0a.ndim == 1 and len(x0a) == n:
+            sol = model.createSol()
+            for j in range(n):
+                val = float(x0a[j])
+                if nonneg:
+                    val = max(val, 0.0)
+                model.setSolVal(sol, x[j], val)
+            model.addSol(sol)
+
+    model.optimize()
+    status = model.getStatus()
+    best = model.getBestSol() if model.getNSols() > 0 else None
+    if best is None:
+        warnings.warn(
+            f"SCIP solver did not find a solution (status={status})."
+        )
+        return None
+    return np.array([model.getSolVal(best, xj) for xj in x])
+
+
+def _build_penalty(
+    x,
+    A: np.ndarray,
+    alpha: float,
+    norm: int,
+    smoothness_order: int,
+    smoothness_weight: float,
+):
+    """Build the SCIP regularization expression for the objective."""
+    from pyscipopt import quicksum
 
     n = A.shape[1]
 
-    P_base = csc_matrix(A.T @ A)
-    q_base = -A.T @ b
-
     if norm == 2:
-        P = P_base.copy()
+        if smoothness_order in (1, 2):
+            L = create_derivative_matrix(n, smoothness_order).toarray()
+            smooth = alpha * smoothness_weight * quicksum(
+                (quicksum(L[k, j] * x[j] for j in range(n))) ** 2
+                for k in range(L.shape[0])
+            )
+            return smooth
+        return alpha * quicksum(x[j] ** 2 for j in range(n))
 
-        if smoothness_order == 1:
-            L = create_derivative_matrix(n, 1)
-            P += alpha * smoothness_weight * (L.T @ L)
-        elif smoothness_order == 2:
-            L = create_derivative_matrix(n, 2)
-            P += alpha * smoothness_weight * (L.T @ L)
-        else:
-            P += alpha * csc_matrix(np.eye(n))
+    if norm == 1:
+        penalty = alpha * quicksum(x[j] for j in range(n))
+        if smoothness_order in (1, 2):
+            L = create_derivative_matrix(n, smoothness_order).toarray()
+            penalty += alpha * smoothness_weight * quicksum(
+                (quicksum(L[k, j] * x[j] for j in range(n))) ** 2
+                for k in range(L.shape[0])
+            )
+        return penalty
 
-        G = csc_matrix(-np.eye(n))
-        h = np.zeros(n)
-
-        x = solve_qp(
-            P=P,
-            q=q_base,
-            G=G,
-            h=h,
-            solver=solver,
-            initvals=x0,
-            verbose=False,
-        )
-
-    elif norm == 1:
-        # L1 regularization under the non-negativity constraint x >= 0:
-        #   min 0.5 * ||A x - b||^2 + alpha * ||x||_1  s.t.  x >= 0
-        # The penalty term alpha * sum(x) is linear, so it shifts q by alpha.
-        P = P_base.copy()
-        q = q_base + alpha * np.ones(n)
-
-        if smoothness_order == 1:
-            L = create_derivative_matrix(n, 1)
-            P += alpha * smoothness_weight * (L.T @ L)
-        elif smoothness_order == 2:
-            L = create_derivative_matrix(n, 2)
-            P += alpha * smoothness_weight * (L.T @ L)
-
-        G = csc_matrix(-np.eye(n))
-        h = np.zeros(n)
-
-        x = solve_qp(
-            P=P,
-            q=q,
-            G=G,
-            h=h,
-            solver=solver,
-            initvals=x0,
-            verbose=False,
-        )
-    else:
-        raise ValueError(f"Unsupported norm type: {norm}")
-
-    if x is None:
-        warnings.warn(f"Solver '{solver}' did not find a solution.")
-        return None
-
-    return np.asarray(x)
+    raise ValueError(f"Unsupported norm type: {norm}")
 
 
-def unfold_qpsolvers(
+def unfold_scip(
     detector_names: List[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
@@ -149,18 +179,19 @@ def unfold_qpsolvers(
     initial_spectrum: Optional[np.ndarray] = None,
     regularization: float = 1e-4,
     norm: int = 2,
-    solver: str = "osqp",
+    timeout: float = 10.0,
+    smoothness_order: int = 0,
+    smoothness_weight: float = 1.0,
+    nonneg: bool = True,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
     regularization_method: str = "manual",
     noise_var: Optional[float] = None,
-    smoothness_order: int = 0,
-    smoothness_weight: float = 1.0,
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Unfold using qpsolvers with regularization selection.
+    """Unfold a neutron spectrum using the SCIP optimizer.
 
     Parameters
     ----------
@@ -184,8 +215,14 @@ def unfold_qpsolvers(
         Regularization parameter, default: 1e-4.
     norm : int, optional
         Norm type (1 for L1, 2 for L2), default: 2.
-    solver : str, optional
-        QP solver name, default: 'osqp'.
+    timeout : float, optional
+        Time limit in seconds, default: 10.0.
+    smoothness_order : int, optional
+        Smoothness constraint order (0, 1, or 2), default: 0.
+    smoothness_weight : float, optional
+        Weight for the smoothness term, default: 1.0.
+    nonneg : bool, optional
+        Constrain the spectrum to be non-negative, default: True.
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty, default: False.
     noise_level : float, optional
@@ -195,13 +232,10 @@ def unfold_qpsolvers(
     save_result : bool, optional
         Save result to history, default: True.
     regularization_method : str, optional
-        Method for selecting regularization parameter.
+        Method for selecting the regularization parameter
+        ('manual', 'cosine', 'lcurve', 'gcv', 'dp').
     noise_var : float, optional
         Noise variance for discrepancy principle ('dp' method).
-    smoothness_order : int, optional
-        Smoothness constraint order (0, 1, or 2), default: 0.
-    smoothness_weight : float, optional
-        Weight for smoothness term, default: 1.0.
     random_state : int, optional
         Random seed for reproducibility.
 
@@ -233,7 +267,6 @@ def unfold_qpsolvers(
                 f"Initial spectrum length ({len(initial_spectrum)}) "
                 f"must match number of energy bins ({n_energy_bins})"
             )
-
         selected_lambda = cosine_similarity_selection(
             A, b, initial_spectrum_norm, norm=norm
         )
@@ -268,10 +301,15 @@ def unfold_qpsolvers(
 
     def solve_wrapper(A, b, **kwargs):
         kwargs.pop('x0', None)
-        x = solve_qpsolvers(
-            A, b, alpha, norm, solver,
+        x = solve_scip(
+            A, b,
+            alpha=alpha,
+            norm=norm,
+            timeout=timeout,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            random_state=random_state,
         )
         if x is None:
             x = np.zeros(A.shape[1])
@@ -290,7 +328,7 @@ def unfold_qpsolvers(
         default_initial=x0_default,
         solve_func=solve_wrapper,
         solve_kwargs={},
-        method_name=f"qpsolvers_{solver}",
+        method_name="SCIP",
         extra_output={
             "norm": norm,
             "regularization": regularization,
@@ -298,6 +336,8 @@ def unfold_qpsolvers(
             "selected_regularization": float(selected_lambda),
             "smoothness_order": smoothness_order,
             "smoothness_weight": smoothness_weight,
+            "timeout": timeout,
+            "nonneg": nonneg,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level,

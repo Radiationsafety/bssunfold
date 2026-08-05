@@ -93,3 +93,37 @@ def compute_svd_components(
     """
     U, s, Vt = np.linalg.svd(A, full_matrices=False)
     return U, s, Vt, s ** 2
+
+
+def compute_log_steps(E_MeV: np.ndarray, n_energy_bins: int) -> np.ndarray:
+    """Compute logarithmic bin-width steps for an energy grid.
+
+    Uses log10(energy + 1e-15) with edge differences at the boundaries and
+    central differences for interior points, matching the convention used
+    across the parametric unfolding modules.
+
+    Parameters
+    ----------
+    E_MeV : np.ndarray
+        Energy grid in MeV.
+    n_energy_bins : int
+        Number of energy bins.
+
+    Returns
+    -------
+    np.ndarray
+        Log10 bin-width steps of length ``n_energy_bins``.
+    """
+    log_steps = np.zeros(n_energy_bins)
+    log_e = np.log10(np.asarray(E_MeV, dtype=float) + 1e-15)
+
+    if n_energy_bins > 1:
+        log_steps[0] = log_e[1] - log_e[0]
+        log_steps[-1] = log_e[-1] - log_e[-2]
+    else:
+        log_steps[0] = 1.0
+
+    if n_energy_bins > 2:
+        log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+
+    return log_steps

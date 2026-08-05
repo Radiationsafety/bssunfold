@@ -173,17 +173,14 @@ class TestUnfoldingMethods:
         self, detector, sample_readings
     ):
         """Тест unfold_landweber с некорректным начальным спектром.
-        
-        Неправильный размер начального спектра игнорируется и используется
-        значение по умолчанию.
+
+        Неправильный размер начального спектра должен вызывать ValueError.
         """
         initial_spectrum = np.ones(10)  # Неправильный размер
-        # Должен использовать спектр по умолчанию без ошибки
-        result = detector.unfold_landweber(
-            sample_readings, initial_spectrum=initial_spectrum
-        )
-        assert result["method"] == "Landweber"
-        assert "spectrum" in result
+        with pytest.raises(ValueError, match="must match number of energy bins"):
+            detector.unfold_landweber(
+                sample_readings, initial_spectrum=initial_spectrum
+            )
 
     def test_clear_results(self, detector, sample_readings):
         """Тест очистки результатов."""

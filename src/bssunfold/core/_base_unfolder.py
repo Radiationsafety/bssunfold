@@ -41,7 +41,7 @@ def make_solve_wrapper(solve_func, **fixed_params):
     """
     def wrapper(A, b, **kwargs):
         x0 = kwargs.pop('x0', None)
-        return solve_func(A, b, x0=x0, **fixed_params)
+        return solve_func(A, b, x0=x0, **kwargs, **fixed_params)
     wrapper.__name__ = f"{solve_func.__name__}_wrapper"
     return wrapper
 
@@ -200,15 +200,26 @@ def _normalize_initial(
     default_initial: np.ndarray,
     n_energy_bins: int,
 ) -> np.ndarray:
-    """Return normalized initial spectrum or default."""
+    """Return normalized initial spectrum or default.
+
+    Raises
+    ------
+    ValueError
+        If the provided initial spectrum length does not match the number
+        of energy bins (or if it is not one-dimensional).
+    """
     if initial_spectrum is not None:
         if isinstance(initial_spectrum, dict):
             initial_spectrum = initial_spectrum.get('spectrum', None)
             if initial_spectrum is None:
                 return default_initial.copy()
         spectrum = np.asarray(initial_spectrum, dtype=float)
-        if len(spectrum) == n_energy_bins:
-            return np.maximum(spectrum, 0)
+        if spectrum.ndim != 1 or len(spectrum) != n_energy_bins:
+            raise ValueError(
+                f"Initial spectrum length ({len(spectrum)}) must match "
+                f"number of energy bins ({n_energy_bins})"
+            )
+        return np.maximum(spectrum, 0)
     return default_initial.copy()
 
 

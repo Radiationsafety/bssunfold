@@ -64,9 +64,14 @@ def unfold_combined(
     from .unfold_mlem import unfold_mlem
     from .unfold_mlem_odl import unfold_mlem_odl
     from .unfold_qpsolvers import unfold_qpsolvers
+    from .unfold_mystic import unfold_mystic
+    from .unfold_genetic import unfold_genetic
     from .unfold_doroshenko import unfold_doroshenko
     from .unfold_kaczmarz import unfold_kaczmarz
     from .unfold_lmfit import unfold_lmfit
+    from .unfold_smt import unfold_smt
+    from .unfold_scip import unfold_scip
+    from .unfold_docplex import unfold_docplex
 
     current_spectrum = None
     intermediate_results = {}
@@ -96,9 +101,14 @@ def unfold_combined(
             'mlem': unfold_mlem,
             'mlem_odl': unfold_mlem_odl,
             'qpsolvers': unfold_qpsolvers,
+            'mystic': unfold_mystic,
+            'genetic': unfold_genetic,
             'doroshenko': unfold_doroshenko,
             'kaczmarz': unfold_kaczmarz,
             'lmfit': unfold_lmfit,
+            'smt': unfold_smt,
+            'scip': unfold_scip,
+            'docplex': unfold_docplex,
         }
 
         if method not in unfold_funcs:
