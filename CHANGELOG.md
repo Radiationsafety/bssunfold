@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [0.14.0] - 2026-08-04
+## [0.14.0] - 2026-08-05
 
 ### Added
 - **Mystic-based unfolding** — new `unfold_mystic()` method using the
