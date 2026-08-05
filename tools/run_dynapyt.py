@@ -22,7 +22,7 @@ import argparse
 import io
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 -- required to run git archive and DynaPyt
 import sys
 import tarfile
 from pathlib import Path
@@ -82,16 +82,18 @@ def make_repo_copy():
         shutil.rmtree(WORKDIR)
     WORKDIR.mkdir(parents=True)
     try:
-        proc = subprocess.run(
-            ["git", "archive", "HEAD"], cwd=ROOT, capture_output=True, check=True
-        )
+        # nosec B603 B607 -- list-form subprocess call, no shell=True; the
+        # command is a fixed literal from this repository.
+        proc = subprocess.run(["git", "archive", "HEAD"], cwd=ROOT, capture_output=True, check=True)  # nosec B603 B607
     except (subprocess.CalledProcessError, FileNotFoundError):
         shutil.copytree(
             ROOT, WORKDIR, ignore=shutil.ignore_patterns(*IGNORE_COPY)
         )
         return
     with tarfile.open(fileobj=io.BytesIO(proc.stdout), mode="r:*") as tar:
-        tar.extractall(WORKDIR)
+        # nosec B202 -- archive is produced locally by `git archive HEAD` from
+        # this repository, so its members are trusted.
+        tar.extractall(WORKDIR)  # nosec B202
 
 
 def instrument(analyses):
@@ -99,7 +101,9 @@ def instrument(analyses):
         sys.executable, "-m", "dynapyt.run_instrumentation",
         "--directory", str(WORKDIR / "src"), "--analysis", *analyses,
     ]
-    subprocess.run(cmd, cwd=WORKDIR, check=True)
+    # nosec B603 -- list-form subprocess call, no shell=True; command is
+    # assembled from trusted local values only.
+    subprocess.run(cmd, cwd=WORKDIR, check=True)  # nosec B603
 
 
 def write_entry(tests):
@@ -115,7 +119,9 @@ def run_analysis(entry, analyses):
         sys.executable, "-m", "dynapyt.run_analysis",
         "--entry", str(entry), "--analysis", *analyses,
     ]
-    return subprocess.run(cmd, cwd=WORKDIR, env=env, capture_output=True, text=True)
+    # nosec B603 -- list-form subprocess call, no shell=True; command is
+    # assembled from trusted local values only.
+    return subprocess.run(cmd, cwd=WORKDIR, env=env, capture_output=True, text=True)  # nosec B603
 
 
 def write_report(proc, analyses):
@@ -141,6 +147,30 @@ def write_report(proc, analyses):
     )
 
 
+def write_error_report(analyses, error):
+    """Write a minimal report so the artifact upload always has files.
+
+    Called when instrumentation or analysis fails before a normal report can
+    be produced, so the CI upload step never hits "no files found".
+    """
+    if REPORT_DIR.exists():
+        shutil.rmtree(REPORT_DIR)
+    REPORT_DIR.mkdir(parents=True)
+    (REPORT_DIR / "dynapyt_run.log").write_text(
+        f"ERROR: {error}\n", encoding="utf-8"
+    )
+    (REPORT_DIR / "branch_coverage.txt").write_text("", encoding="utf-8")
+    (REPORT_DIR / "summary.txt").write_text(
+        "\n".join([
+            f"analyses: {', '.join(analyses)}",
+            "branch events: 0",
+            "exit code: 1",
+            f"error: {error}",
+        ]) + "\n",
+        encoding="utf-8",
+    )
+
+
 def main(argv=None):
     args = parse_args(argv)
     try:
@@ -154,6 +184,10 @@ def main(argv=None):
         print(f"DynaPyt analysis finished (exit code {proc.returncode}); "
               f"report in {REPORT_DIR}/")
         return proc.returncode
+    except Exception as exc:  # noqa: BLE001 -- report failures, don't crash CI
+        print(f"DynaPyt analysis failed: {exc}", file=sys.stderr)
+        write_error_report(args.analysis, exc)
+        return 1
     finally:
         if not args.keep:
             shutil.rmtree(WORKDIR, ignore_errors=True)

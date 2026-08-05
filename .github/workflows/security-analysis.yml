@@ -80,9 +80,14 @@ jobs:
     - name: Run DynaPyt dynamic analysis
       run: uv run python tools/run_dynapyt.py
 
+    # run_dynapyt.py always writes .dynapyt_report/ (even on failure), but keep
+    # the upload non-fatal as a safety net. The "(node:...) [DEP0040]
+    # DeprecationWarning: The `punycode` module is deprecated" message emitted
+    # by upload-artifact@v4 is a harmless Node.js runner warning from the
+    # action's own dependencies and cannot be fixed from this repository.
     - name: Upload DynaPyt report
       uses: actions/upload-artifact@v4
       with:
         name: dynapyt-report
         path: .dynapyt_report/
-        if-no-files-found: error
+        if-no-files-found: warn
