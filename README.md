@@ -274,6 +274,8 @@ graph TD
     G --> G3[unfold_mystic]
     G --> G4[unfold_smt]
     G --> G5[unfold_genetic]
+    G --> G6[unfold_scip]
+    G --> G7[unfold_docplex]
 
     H --> H1[unfold_combined]
 
@@ -331,6 +333,8 @@ graph TD
 | 28 | `unfold_mystic` | Optimization | `regularization`, `norm` (1/2), `solver` (fmin/fmin_powell/diffev/diffev2), `maxiter`, `maxfun`, `smoothness_order`, `smoothness_weight`, `regularization_method` | mystic | Direct-search minimization of the penalized least-squares objective |
 | 29 | `unfold_smt` | Optimization | `nonneg`, `timeout_ms` | z3-solver | Exact SMT solving of `A·x = b` (integer/rational) with fluence minimization |
 | 30 | `unfold_genetic` | Optimization | `solver` (pso/ga/de/es/ep/abc/gwo/cmaes), `epoch`, `pop_size`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `n_runs`, `early_stop` | mealpy | Population-based meta-heuristic unfolding (PSO/GA/DE/ES/EP/ABC/GWO/CMA-ES) |
+| 31 | `unfold_scip` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | pyscipopt | Tikhonov QP solved by the SCIP Optimization Suite (global NLP/QP optimizer) |
+| 32 | `unfold_docplex` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | docplex, cplex | Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition) |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -687,6 +691,8 @@ bssunfold/
 - `qpsolvers[solvers-core]` — QP solvers (unfold_qpsolvers)
 - `mystic` — constrained/direct-search optimization (unfold_mystic)
 - `z3-solver` — SMT exact solving (unfold_smt)
+- `pyscipopt` — SCIP Optimization Suite interface (unfold_scip)
+- `docplex` + `cplex` — IBM CPLEX modeling & engine (unfold_docplex)
 - `mealpy` — population-based meta-heuristic optimization (unfold_genetic)
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
 - `odl` — Operator Discretization Library (unfold_mlem_odl)

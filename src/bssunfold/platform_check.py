@@ -13,11 +13,15 @@ __all__ = [
     "check_jax_availability",
     "check_proxsuite_availability",
     "check_qpsolvers_extra_availability",
+    "check_scip_availability",
+    "check_docplex_availability",
     "get_available_solvers",
     "get_recommended_solver",
     "JAX_AVAILABLE",
     "PROXSUITE_AVAILABLE",
     "QPSOLVERS_EXTRA_AVAILABLE",
+    "SCIP_AVAILABLE",
+    "DOCPLEX_AVAILABLE",
 ]
 
 # Platform detection
@@ -28,6 +32,8 @@ is_unix = sys.platform in ("linux", "darwin")
 JAX_AVAILABLE: bool = False
 PROXSUITE_AVAILABLE: bool = False
 QPSOLVERS_EXTRA_AVAILABLE: bool = False
+SCIP_AVAILABLE: bool = False
+DOCPLEX_AVAILABLE: bool = False
 
 
 def check_jax_availability() -> bool:
@@ -95,6 +101,43 @@ def check_qpsolvers_extra_availability() -> bool:
         return False
 
 
+def check_scip_availability() -> bool:
+    """Check if pyscipopt (SCIP Optimization Suite interface) is available.
+
+    Returns
+    -------
+    bool
+        True if pyscipopt can be imported, False otherwise.
+    """
+    global SCIP_AVAILABLE
+    try:
+        import pyscipopt  # noqa: F401
+        SCIP_AVAILABLE = True
+        return True
+    except ImportError:
+        SCIP_AVAILABLE = False
+        return False
+
+
+def check_docplex_availability() -> bool:
+    """Check if docplex and the CPLEX engine are available.
+
+    Returns
+    -------
+    bool
+        True if docplex and cplex can be imported, False otherwise.
+    """
+    global DOCPLEX_AVAILABLE
+    try:
+        import docplex  # noqa: F401
+        import cplex  # noqa: F401
+        DOCPLEX_AVAILABLE = True
+        return True
+    except ImportError:
+        DOCPLEX_AVAILABLE = False
+        return False
+
+
 def get_available_solvers() -> Dict[str, Any]:
     """Get dictionary of available solvers with their status.
 
@@ -106,6 +149,8 @@ def get_available_solvers() -> Dict[str, Any]:
     check_jax_availability()
     check_proxsuite_availability()
     check_qpsolvers_extra_availability()
+    check_scip_availability()
+    check_docplex_availability()
 
     # Base solvers always available via cvxpy
     solvers = {
@@ -113,6 +158,10 @@ def get_available_solvers() -> Dict[str, Any]:
         "scs": True,
         "clarabel": True,
     }
+
+    # Algebraic modeling / optimization backends
+    solvers["scip"] = SCIP_AVAILABLE
+    solvers["docplex"] = DOCPLEX_AVAILABLE
 
     # Extra qpsolvers (may require solvers-core optional dependency)
     solvers["osqp"] = QPSOLVERS_EXTRA_AVAILABLE
@@ -146,3 +195,5 @@ def get_recommended_solver() -> str:
 check_jax_availability()
 check_proxsuite_availability()
 check_qpsolvers_extra_availability()
+check_scip_availability()
+check_docplex_availability()

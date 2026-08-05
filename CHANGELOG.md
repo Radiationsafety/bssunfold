@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning].
   - Registered in `unfold_combined()` pipelines as `'genetic'`
   - Optional dependency group: `bssunfold[mealpy]` (`mealpy>=3.0.2`)
   - 30 new tests in `tests/test_genetic.py`
+  - **scip and cplex**
 
 ### Changed
 - `numba` promoted to a core dependency (the `bssunfold[numba]` extra is kept

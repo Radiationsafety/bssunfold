@@ -34,6 +34,8 @@ from .unfold_smt import (
     solve_rational_linear_eqs_all,
     solve_smt,
 )
+from .unfold_scip import solve_scip
+from .unfold_docplex import solve_docplex
 from .regularization import (
     select_regularization_parameter,
     lcurve_selection,
@@ -68,6 +70,8 @@ from .unfold_scipy_direct_method import unfold_scipy_direct_method
 from .unfold_tsvd import unfold_tsvd
 from .unfold_parametric2 import unfold_parametric2
 from .unfold_smt import unfold_smt
+from .unfold_scip import unfold_scip
+from .unfold_docplex import unfold_docplex
 
 __all__ = [
     # detector
@@ -101,6 +105,8 @@ __all__ = [
     "solve_rational_linear_eqs",
     "solve_rational_linear_eqs_all",
     "solve_smt",
+    "solve_scip",
+    "solve_docplex",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
@@ -128,6 +134,8 @@ __all__ = [
     "unfold_hybrid_parametric",
     "unfold_bayesian_parametric",
     "unfold_smt",
+    "unfold_scip",
+    "unfold_docplex",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

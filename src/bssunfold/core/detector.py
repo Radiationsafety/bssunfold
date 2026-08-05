@@ -50,6 +50,8 @@ from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bay
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_smt import unfold_smt as unfold_smt_impl
+from .unfold_scip import unfold_scip as unfold_scip_impl
+from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 
 __all__ = ["Detector"]
 
@@ -993,6 +995,181 @@ class Detector:
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
             save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_scip(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using the SCIP optimizer.
+
+        Minimizes the Tikhonov-regularized least-squares objective
+        ``0.5 * ||A x - b||^2 + penalty(x)`` with the SCIP Optimization
+        Suite (pyscipopt package, optional dependency).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess, used as a warm start.
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_scip_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+
+    def unfold_docplex(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using CPLEX (docplex).
+
+        Minimizes the Tikhonov-regularized least-squares objective
+        ``0.5 * ||A x - b||^2 + penalty(x)`` with IBM Decision Optimization
+        CPLEX Modeling for Python (docplex + cplex packages, optional
+        dependencies).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (accepted for API compatibility).
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: True.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_docplex_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
             random_state=random_state,
         )
 
