@@ -24,7 +24,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/detector.py` — main `Detector` class (245 stmts). The public API entry point.
 - `core/regularization.py` — L-curve, GCV, discrepancy principle, cosine similarity (pytikhonov wrappers + fallbacks)
 - `core/unfolding_methods.py` — all `solve_*` functions, ~222 stmts
-- `core/unfold_qpsolvers.py`, `unfold_cvxpy.py`, `unfold_landweber.py`, `unfold_mlem.py`, `unfold_mlem_odl.py`, `unfold_doroshenko.py`, `unfold_kaczmarz.py`, `unfold_lmfit.py`, `unfold_combined.py` — one file per unfolding algorithm
+- `core/unfold_qpsolvers.py`, `unfold_cvxpy.py`, `unfold_landweber.py`, `unfold_mlem.py`, `unfold_mlem_odl.py`, `unfold_doroshenko.py`, `unfold_kaczmarz.py`, `unfold_lmfit.py`, `unfold_smt.py`, `unfold_combined.py` — one file per unfolding algorithm (unfold_smt.py is a port of the Haskell/SBV `linearEqSolver`, backed by optional z3-solver)
 - `core/_matrix_utils.py` — SVD, derivative matrix, tikhonov system building
 - `core/_base_unfolder.py`, `core/_montecarlo.py` — internal base class and Monte Carlo uncertainty
 - `utils/converters.py`, `interpolation.py`, `plotting.py`, `validators.py` — utility functions
@@ -46,6 +46,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 | `tests/test_readings.py` | Readings/effective readings tests |
 | `tests/test_refactored_fixed.py` | Post-refactoring tests |
 | `tests/test_new_methods_fixed.py` | New unfold_* method tests |
+| `tests/test_smt.py` | SMT-based unfolding: exact solvers + solve_smt/unfold_smt (skipped if z3-solver not installed) |
 | `tests/test_security.py` | bandit static security scan (no HIGH findings) |
 
 ### Analysis tools

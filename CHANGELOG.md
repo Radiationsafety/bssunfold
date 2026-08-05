@@ -7,6 +7,30 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+- **SMT-based unfolding** — new `unfold_smt()` method, a port of the
+  Haskell/SBV `linearEqSolver` backed by the optional Z3 solver. Minimizes
+  `||A·x − b||₁` and then the total fluence `Σx` over the non-negative
+  orthant using Z3's optimizer, with exact solvers for integer and rational
+  systems.
+  - New file: `core/unfold_smt.py` (`solve_integer_linear_eqs`,
+    `solve_integer_linear_eqs_all`, `solve_rational_linear_eqs`,
+    `solve_rational_linear_eqs_all`, `solve_smt`, `unfold_smt`)
+  - New `Detector.unfold_smt()` method
+  - Registered in `unfold_combined()` pipelines as `'smt'`
+  - Optional dependency group: `bssunfold[smt]` (`z3-solver>=4.13.0`)
+  - New tests in `tests/test_smt.py`
+
+### Changed
+- `numba` promoted to a core dependency (the `bssunfold[numba]` extra is kept
+  for compatibility).
+- Test-suite coverage gate raised to 98.3% (was 91.9%): numba JIT bodies are
+  excluded from coverage via `# pragma: no cover` (compiled to LLVM, never run
+  as CPython bytecode) and targeted branch tests added in
+  `tests/test_coverage.py` and `tests/test_coverage_boost.py`.
+
 ## [0.14.0] - 2026-08-04
 
 ### Added

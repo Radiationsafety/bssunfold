@@ -26,6 +26,13 @@ from .unfold_parametric2 import solve_parametric2
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_hybrid_parametric import solve_hybrid_parametric
 from .unfold_bayesian_parametric import solve_bayesian_parametric
+from .unfold_smt import (
+    solve_integer_linear_eqs,
+    solve_integer_linear_eqs_all,
+    solve_rational_linear_eqs,
+    solve_rational_linear_eqs_all,
+    solve_smt,
+)
 from .regularization import (
     select_regularization_parameter,
     lcurve_selection,
@@ -58,6 +65,7 @@ from .unfold_reconst import unfold_reconst
 from .unfold_scipy_direct_method import unfold_scipy_direct_method
 from .unfold_tsvd import unfold_tsvd
 from .unfold_parametric2 import unfold_parametric2
+from .unfold_smt import unfold_smt
 
 __all__ = [
     # detector
@@ -85,6 +93,11 @@ __all__ = [
     "solve_hybrid_parametric",
     "solve_bayesian_parametric",
     "solve_mlem_stop",
+    "solve_integer_linear_eqs",
+    "solve_integer_linear_eqs_all",
+    "solve_rational_linear_eqs",
+    "solve_rational_linear_eqs_all",
+    "solve_smt",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
@@ -110,6 +123,7 @@ __all__ = [
     "unfold_fruit_like",
     "unfold_hybrid_parametric",
     "unfold_bayesian_parametric",
+    "unfold_smt",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

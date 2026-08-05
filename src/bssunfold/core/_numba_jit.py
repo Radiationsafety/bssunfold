@@ -18,7 +18,9 @@ except ImportError:
 
 if NUMBA_AVAILABLE:
     @njit(cache=True)
-    def _mlem_inner(AT, A, x, b, max_iterations, tolerance):
+    def _mlem_inner(AT, A, x, b, max_iterations, tolerance):  # pragma: no cover
+        # numba JIT bodies are compiled to LLVM and never run as CPython
+        # bytecode, so coverage.py cannot trace them.
         """JIT-compiled MLEM iteration inner loop.
 
         Parameters
@@ -83,7 +85,7 @@ if NUMBA_AVAILABLE:
         return x, iterations, converged
 
     @njit(cache=True)
-    def _kaczmarz_inner(A, x, b, row_norms_sq, omega, max_iterations, tolerance):
+    def _kaczmarz_inner(A, x, b, row_norms_sq, omega, max_iterations, tolerance):  # pragma: no cover
         """JIT-compiled Kaczmarz iteration inner loop.
 
         Parameters
@@ -145,7 +147,7 @@ if NUMBA_AVAILABLE:
         return x, iterations, converged
 
     @njit(cache=True)
-    def _doroshenko_inner(A, x, b, denominator_cache, max_iterations, tolerance):
+    def _doroshenko_inner(A, x, b, denominator_cache, max_iterations, tolerance):  # pragma: no cover
         """JIT-compiled Doroshenko coordinate update inner loop.
 
         Parameters
@@ -216,7 +218,7 @@ if NUMBA_AVAILABLE:
         return x, iterations, converged
 
     @njit(cache=True)
-    def _gravel_inner(A_valid, x, b_valid, regularization, max_iterations, tolerance):
+    def _gravel_inner(A_valid, x, b_valid, regularization, max_iterations, tolerance):  # pragma: no cover
         """JIT-compiled GRAVEL algorithm inner loop.
 
         Parameters
@@ -298,7 +300,7 @@ if NUMBA_AVAILABLE:
         return x, max_iterations, False
 
     @njit(cache=True)
-    def _compute_log_steps_jit(energy):
+    def _compute_log_steps_jit(energy):  # pragma: no cover
         """JIT-compiled log step computation for dose calculations.
 
         Parameters
@@ -332,7 +334,7 @@ if NUMBA_AVAILABLE:
         return log_steps
 
     @njit(cache=True)
-    def _dose_weighted_mse_jit(s1, s2, cc, ln_steps):
+    def _dose_weighted_mse_jit(s1, s2, cc, ln_steps):  # pragma: no cover
         """JIT-compiled dose-weighted MSE calculation.
 
         Parameters

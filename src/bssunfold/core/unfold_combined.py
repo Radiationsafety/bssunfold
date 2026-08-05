@@ -68,6 +68,7 @@ def unfold_combined(
     from .unfold_doroshenko import unfold_doroshenko
     from .unfold_kaczmarz import unfold_kaczmarz
     from .unfold_lmfit import unfold_lmfit
+    from .unfold_smt import unfold_smt
 
     current_spectrum = None
     intermediate_results = {}
@@ -101,6 +102,7 @@ def unfold_combined(
             'doroshenko': unfold_doroshenko,
             'kaczmarz': unfold_kaczmarz,
             'lmfit': unfold_lmfit,
+            'smt': unfold_smt,
         }
 
         if method not in unfold_funcs:
