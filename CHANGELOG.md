@@ -48,6 +48,18 @@ and this project adheres to [Semantic Versioning].
   - Optional dependency group: `bssunfold[mealpy]` (`mealpy>=3.0.2`)
   - 30 new tests in `tests/test_genetic.py`
   - **scip and cplex**
+  - **Compressive Sensing (CS) unfolding** — new `unfold_cs()` method based on
+  compressive sensing. The spectrum is represented sparsely in a learned
+  dictionary (`x = D @ alpha`), the dictionary is learned with **K-SVD**,
+  sparse coding is performed with **OMP**, and reconstruction is done with the
+  **SL0** algorithm. Well suited for the highly underdetermined problem where
+  the number of energy groups greatly exceeds the number of detector readings.
+  - New file: `core/unfold_cs.py` (`solve_omp`, `solve_ksvd`, `solve_sl0`,
+    `solve_cs`, `unfold_cs`)
+  - New `Detector.unfold_cs()` method
+  - No extra dependencies (pure NumPy)
+  - 21 new tests in `tests/test_cs.py`
+  - New example notebook: `examples/23-CS.ipynb`
 
 ### Changed
 - `numba` promoted to a core dependency (the `bssunfold[numba]` extra is kept

@@ -222,3 +222,46 @@ Three additional SQP-based solvers are available:
        readings, optimizer="combined",
        b_range=(0.5, 2.0, 5), Tf_range=(0.5, 10.0, 5), c_range=(0.5, 3.0, 4),
    )
+
+Compressive Sensing (CS) Unfolding
+----------------------------------
+
+The ``unfold_cs`` method unfolds a neutron spectrum using **Compressive
+Sensing (CS)**. The spectrum ``x`` is represented sparsely in a learned
+dictionary ``D`` as ``x = D @ alpha``, where ``alpha`` is a sparse coefficient
+vector. The measurement equation ``b = A @ x`` becomes ``b = (A @ D) @ alpha``,
+which is solved for the sparse ``alpha`` using the **SL0** algorithm. The
+dictionary is learned with **K-SVD** and sparse coding is performed with
+**OMP**. This approach is well suited for the highly underdetermined problem
+where the number of energy groups greatly exceeds the number of detector
+readings.
+
+.. code-block:: python
+
+   import pandas as pd
+   from bssunfold import Detector
+
+   detector = Detector(pd.read_csv('response_functions.csv'))
+   readings = {"0in": 0.0003, "2in": 0.0099, "3in": 0.0536, "5in": 0.1841}
+
+   # Compressive sensing unfolding (K-SVD dictionary + OMP + SL0)
+   result_cs = detector.unfold_cs(
+       readings,
+       n_atoms=80,          # number of dictionary atoms
+       sparsity=6,          # target sparsity of the coefficient vector
+       max_iterations=200,  # SL0 outer iterations
+       random_state=0,      # reproducibility
+       calculate_errors=True,
+   )
+
+   print("CS spectrum shape:", result_cs['spectrum'].shape)
+   print("CS method:", result_cs['method'])
+
+   # Standalone CS solver
+   from bssunfold.core.unfold_cs import solve_cs
+   import numpy as np
+
+   A = np.array([detector.sensitivities[n] for n in readings])
+   b = np.array([readings[n] for n in readings])
+   spectrum, iterations, converged = solve_cs(A, b, n_atoms=80, sparsity=6)
+   print(f"Converged: {converged}, iterations: {iterations}")

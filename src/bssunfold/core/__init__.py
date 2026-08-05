@@ -72,6 +72,7 @@ from .unfold_parametric2 import unfold_parametric2
 from .unfold_smt import unfold_smt
 from .unfold_scip import unfold_scip
 from .unfold_docplex import unfold_docplex
+from .unfold_cs import solve_cs, solve_omp, solve_ksvd, solve_sl0, unfold_cs
 
 __all__ = [
     # detector
@@ -107,6 +108,10 @@ __all__ = [
     "solve_smt",
     "solve_scip",
     "solve_docplex",
+    "solve_cs",
+    "solve_omp",
+    "solve_ksvd",
+    "solve_sl0",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
@@ -136,6 +141,7 @@ __all__ = [
     "unfold_smt",
     "unfold_scip",
     "unfold_docplex",
+    "unfold_cs",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

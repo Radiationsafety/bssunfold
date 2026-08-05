@@ -52,6 +52,7 @@ from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_smt import unfold_smt as unfold_smt_impl
 from .unfold_scip import unfold_scip as unfold_scip_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
+from .unfold_cs import unfold_cs as unfold_cs_impl
 
 __all__ = ["Detector"]
 
@@ -1170,6 +1171,102 @@ class Detector:
             save_result=save_result,
             regularization_method=regularization_method,
             noise_var=noise_var,
+            random_state=random_state,
+        )
+
+    def unfold_cs(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_atoms: Optional[int] = None,
+        sparsity: Optional[int] = None,
+        dictionary: Optional[np.ndarray] = None,
+        n_dictionary_iterations: int = 20,
+        sigma_min: float = 0.01,
+        sigma_decrease_factor: float = 0.5,
+        mu_0: float = 1.0,
+        L: int = 3,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Compressive Sensing (CS).
+
+        The spectrum is represented sparsely in a learned dictionary (K-SVD),
+        sparse coding is performed with OMP, and reconstruction is done with
+        the SL0 algorithm. This method is well suited for the highly
+        underdetermined problem where the number of energy groups greatly
+        exceeds the number of detector readings.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        n_atoms : int, optional
+            Number of dictionary atoms.
+        sparsity : int, optional
+            Target sparsity for dictionary learning.
+        dictionary : np.ndarray, optional
+            Pre-learned dictionary (n x n_atoms).
+        n_dictionary_iterations : int, optional
+            Number of K-SVD iterations (default: 20).
+        sigma_min : float, optional
+            SL0 minimum sigma (default: 0.01).
+        sigma_decrease_factor : float, optional
+            SL0 sigma decrease factor (default: 0.5).
+        mu_0 : float, optional
+            SL0 step-size factor (default: 1.0).
+        L : int, optional
+            SL0 inner iterations per sigma (default: 3).
+        max_iterations : int, optional
+            SL0 maximum outer iterations (default: 1000).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_cs_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_atoms=n_atoms,
+            sparsity=sparsity,
+            dictionary=dictionary,
+            n_dictionary_iterations=n_dictionary_iterations,
+            sigma_min=sigma_min,
+            sigma_decrease_factor=sigma_decrease_factor,
+            mu_0=mu_0,
+            L=L,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
             random_state=random_state,
         )
 
