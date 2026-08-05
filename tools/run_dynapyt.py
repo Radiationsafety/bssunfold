@@ -101,9 +101,9 @@ def instrument(analyses):
         sys.executable, "-m", "dynapyt.run_instrumentation",
         "--directory", str(WORKDIR / "src"), "--analysis", *analyses,
     ]
-    # nosec B603 -- list-form subprocess call, no shell=True; command is
+    # nosec -- list-form subprocess call, no shell=True; command is
     # assembled from trusted local values only.
-    subprocess.run(cmd, cwd=WORKDIR, check=True)  # nosec B603
+    subprocess.run(cmd, cwd=WORKDIR, check=True)  # nosec
 
 
 def write_entry(tests):
