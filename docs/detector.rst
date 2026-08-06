@@ -230,6 +230,17 @@ Statistical tests
 
 .. autofunction:: bssunfold.utils.comparison.standardized_mean_difference
 
+Integral quantity metrics
+-----------------------------------
+
+.. autofunction:: bssunfold.utils.comparison.fluence_averaged_energy
+
+.. autofunction:: bssunfold.utils.comparison.energy_group_fluence
+
+.. autofunction:: bssunfold.utils.comparison.dose_averaged_energy
+
+.. autofunction:: bssunfold.utils.comparison.ambient_dose_equivalent_rate
+
 Regularization Selection
 ========================
 

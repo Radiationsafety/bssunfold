@@ -7,6 +7,39 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.14.1] - 2026-08-06
+
+### Added
+- **EURADOS integral-quantity comparison metrics** (following Gómez-Ros et al.,
+  Radiat. Meas. 153 (2022) 106755) in `utils/comparison.py`:
+  - `fluence_averaged_energy` — fluence-averaged energy Ē
+  - `energy_group_fluence` — fluence rate in the thermal (E<0.4 eV),
+    epithermal (0.4 eV–0.1 MeV) and fast (E>0.1 MeV) energy regions
+  - `dose_averaged_energy` — ambient dose equivalent-averaged energy Ẽ
+    (ISO 2001, ICRP-74 ADE coefficients)
+  - `ambient_dose_equivalent_rate` — ambient dose equivalent rate H*(10)
+  - New `_get_ade_cc()` helper resolves ICRP-74 operational coefficients by
+    default (`get_coefficients("ICRP74_operational")`).
+  - `compare_spectra()` now accepts the new single-spectrum metrics by name
+    (`metrics="fluence_averaged_energy"`, etc.) and returns them under
+    `_ref`/`_test` keys (energy-group fluence flattened to
+    `energy_group_fluence_{thermal,epithermal,fast}_{ref,test}`); NaNs are
+    reported when `energy` is missing or a metric raises.
+  - Exported via `bssunfold.utils.__init__` and documented in
+    `docs/detector.rst`.
+- Tests: `tests/test_new_metrics.py`, edge cases in
+  `tests/test_coverage_boost.py`, extended metric-key set in
+  `tests/test_iaea_validation.py`.
+
+### Fixed
+- ICRP-74 operational dose-coefficient energy grid in `constants.py`
+  (`ICRP74_COEFF_OPERATIONAL_QUANTITIES`): added the missing bin boundary
+  node at 398.0 MeV (last bin now 398–630.957 MeV, 61 points total), with the
+  coefficient value duplicated onto the 630.957 node. Previously the last
+  coefficient applied to a narrower bin than the source table.
+  - `tests/test_dose_coefficients.py` updated to the 61-point grid plus a
+    duplicate-last-bin regression test.
+
 ## [0.14.0] - 2026-08-05
 
 ### Added

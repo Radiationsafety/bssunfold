@@ -16,7 +16,13 @@ from pathlib import Path
 import logging
 
 from bssunfold import Detector, RF_PTB, RF_LANL
-from bssunfold.utils.comparison import compare_spectra, _ALL_METRICS, _METRIC_FUNCTIONS, _METRIC_FUNCTIONS_WITH_PARAMS
+from bssunfold.utils.comparison import (
+    compare_spectra,
+    _ALL_METRICS,
+    _METRIC_FUNCTIONS,
+    _METRIC_FUNCTIONS_WITH_PARAMS,
+    _SINGLE_SPECTRUM_METRICS,
+)
 
 logger = logging.getLogger("iaea_validation")
 
@@ -25,6 +31,16 @@ ALL_METRIC_KEYS = list(_METRIC_FUNCTIONS.keys()) + list(_METRIC_FUNCTIONS_WITH_P
 # energy_group_fluence_diff returns a dict and gets flattened into per-group columns
 ALL_METRIC_KEYS = [k for k in ALL_METRIC_KEYS if k != "energy_group_fluence_diff"]
 ALL_METRIC_KEYS += ["energy_group_fluence_diff_thermal", "energy_group_fluence_diff_epithermal", "energy_group_fluence_diff_fast"]
+# Single-spectrum integral quantities are reported per spectrum with _ref/_test suffixes
+for m in _SINGLE_SPECTRUM_METRICS:
+    if m == "energy_group_fluence":
+        ALL_METRIC_KEYS += [
+            f"energy_group_fluence_{g}_{sfx}"
+            for g in ("thermal", "epithermal", "fast")
+            for sfx in ("ref", "test")
+        ]
+    else:
+        ALL_METRIC_KEYS += [f"{m}_ref", f"{m}_test"]
 
 WARNING_THRESHOLDS = {
     "cosine_similarity": ("lt", 0.85),
