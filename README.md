@@ -36,7 +36,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (30 methods):
+- **Multiple Unfolding Algorithms** (31 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD)
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
@@ -276,6 +276,7 @@ graph TD
     G --> G5[unfold_genetic]
     G --> G6[unfold_scip]
     G --> G7[unfold_docplex]
+    G --> G8[unfold_epic]
 
     H --> H1[unfold_combined]
 
@@ -335,6 +336,7 @@ graph TD
 | 30 | `unfold_genetic` | Optimization | `solver` (pso/ga/de/es/ep/abc/gwo/cmaes), `epoch`, `pop_size`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `n_runs`, `early_stop` | mealpy | Population-based meta-heuristic unfolding (PSO/GA/DE/ES/EP/ABC/GWO/CMA-ES) |
 | 31 | `unfold_scip` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | pyscipopt | Tikhonov QP solved by the SCIP Optimization Suite (global NLP/QP optimizer) |
 | 32 | `unfold_docplex` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | docplex, cplex | Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition) |
+| 33 | `unfold_epic` | Regularization | `target_sigmas`, `sigma_frac`, `regularization_order` (0/1/2), `non_neg`, `noise_var`, `homogeneous_step`, `regularize`, `beta_shift_k`, `beta_distance`, `EPIC_bool`, `V`, `LSQpar` | — | EPIC Tikhonov regularization (Ortega-Culaciati et al. 2021): prior variances chosen so a posteriori variances match target sigmas |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -668,6 +670,7 @@ bssunfold/
         │   ├── unfold_parametric2.py
         │   ├── unfold_fruit_like.py
         │   ├── unfold_hybrid_parametric.py
+        │   ├── unfold_epic.py
         │   └── unfold_bayesian_parametric.py
         └── utils/
             ├── __init__.py

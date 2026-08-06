@@ -30,9 +30,9 @@ def create_derivative_matrix(n: int, order: int) -> csc_matrix:
         If order is not 1 or 2.
     """
     if order == 1:
-        # First derivative: [-1, 1] on diagonals
+        # First derivative: [-1, 1] on shifted rows
         data = np.concatenate([[-1] * (n - 1), [1] * (n - 1)])
-        row = np.arange(2 * (n - 1)) // 2
+        row = np.concatenate([np.arange(n - 1), np.arange(n - 1)])
         col = np.concatenate([np.arange(n - 1), np.arange(1, n)])
         L = csc_matrix((data, (row, col)), shape=(n - 1, n))
         return L

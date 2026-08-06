@@ -53,6 +53,7 @@ from .unfold_smt import unfold_smt as unfold_smt_impl
 from .unfold_scip import unfold_scip as unfold_scip_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
+from .unfold_epic import unfold_epic as unfold_epic_impl
 
 __all__ = ["Detector"]
 
@@ -1533,6 +1534,115 @@ class Detector:
             max_iterations=max_iterations,
             cps_crossover=cps_crossover,
             j_threshold=j_threshold,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_epic(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        target_sigmas: Optional[np.ndarray] = None,
+        sigma_frac: float = 0.1,
+        regularization_order: int = 1,
+        non_neg: bool = True,
+        noise_var: Optional[float] = None,
+        homogeneous_step: bool = True,
+        regularize: Optional[Dict[str, Any]] = None,
+        beta_shift_k: float = 0,
+        beta_distance: float = 2,
+        EPIC_bool: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        LSQpar: Optional[Dict[str, Any]] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using EPIC Tikhonov regularization.
+
+        Selects the prior variances of the regularization operator such that the
+        a posteriori variances of the model parameters match the target sigmas
+        (Equal Posterior Information Condition), then solves the weighted least
+        squares problem. Port of the EPIC_LS method of Ortega-Culaciati et al.
+        (2021), https://github.com/frortega/EPIC_LS.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (unused by this method).
+        target_sigmas : np.ndarray, optional
+            Target a posteriori standard deviations of the model parameters. If
+            None, derived as ``sigma_frac`` times the magnitude of the naive
+            least-squares solution.
+        sigma_frac : float, optional
+            Fraction used to derive the default target sigmas, default: 0.1.
+        regularization_order : int, optional
+            Regularization operator order: 0 (identity), 1 (first derivative,
+            default) or 2 (second derivative).
+        non_neg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        noise_var : float, optional
+            Variance of the i.i.d. misfit errors used to build Cx, default:
+            None (identity Cx).
+        homogeneous_step : bool, optional
+            Run a preliminary homogeneous Ch search, default: True.
+        regularize : dict, optional
+            If given (can be empty), damp the EPIC weights towards a
+            minimum-norm solution.
+        beta_shift_k : float, optional
+            Center shift for the beta bounds, default: 0.
+        beta_distance : float, optional
+            Distance kept from the representability limit, default: 2.
+        EPIC_bool : np.ndarray, optional
+            Boolean mask of which parameters are subject to the EPIC.
+        V : np.ndarray, optional
+            Matrix mapping the searched betas to the regularization rows, beta = V @ y (shape (H.shape[0], len(y))).
+        LSQpar : dict, optional
+            Tuning parameters for the nonlinear least-squares solver.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_epic_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            target_sigmas=target_sigmas,
+            sigma_frac=sigma_frac,
+            regularization_order=regularization_order,
+            non_neg=non_neg,
+            noise_var=noise_var,
+            homogeneous_step=homogeneous_step,
+            regularize=regularize,
+            beta_shift_k=beta_shift_k,
+            beta_distance=beta_distance,
+            EPIC_bool=EPIC_bool,
+            V=V,
+            LSQpar=LSQpar,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

@@ -30,6 +30,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_docplex.unfold_docplex
 
+.. autofunction:: bssunfold.core.unfold_epic.unfold_epic
+
 .. autofunction:: bssunfold.core.unfold_cs.unfold_cs
 
 .. autofunction:: bssunfold.core.unfold_doroshenko.unfold_doroshenko
@@ -114,6 +116,8 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_scip.solve_scip
 
 .. autofunction:: bssunfold.core.unfold_docplex.solve_docplex
+
+.. autofunction:: bssunfold.core.unfold_epic.solve_epic
 
 .. autofunction:: bssunfold.core.unfold_cs.solve_cs
 

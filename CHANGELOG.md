@@ -7,6 +7,26 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.15.0] - 2026-08-06
+
+### Added
+- **EPIC Tikhonov regularization unfolding** — new `unfold_epic()` method and
+  `solve_epic()` solver (port of EPIC_LS, Ortega-Culaciati et al. 2021,
+  https://github.com/frortega/EPIC_LS). Prior variances of the regularization
+  operator are chosen so the a posteriori variances of the model parameters
+  match target sigmas (Equal Posterior Information Condition); the weighted
+  least-squares problem is then solved under optional non-negativity.
+  - Defaults: first-derivative operator (`regularization_order=1`), target
+    sigmas = `sigma_frac * max(|x_ls|)` with `sigma_frac=0.1`.
+  - `EPIC_bool`, `V` (change of variables), `noise_var` (data covariance),
+    `regularize` (minimum-norm damping) and `LSQpar` (solver tuning, incl.
+    `tr_solver`) exposed for advanced use.
+  - Registered in `unfold_combined()` pipelines (`"epic"`).
+  - Fix: `create_derivative_matrix(order=1)` produced a rank-deficient
+    operator (two `-1` per row with a stagger); rows now place `-1`/`+1` at
+    the correct indices.
+  - Tests: `tests/test_epic.py`.
+
 ## [0.14.1] - 2026-08-06
 
 ### Added

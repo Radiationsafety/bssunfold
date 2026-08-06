@@ -73,6 +73,7 @@ from .unfold_smt import unfold_smt
 from .unfold_scip import unfold_scip
 from .unfold_docplex import unfold_docplex
 from .unfold_cs import solve_cs, solve_omp, solve_ksvd, solve_sl0, unfold_cs
+from .unfold_epic import solve_epic, unfold_epic
 
 __all__ = [
     # detector
@@ -142,6 +143,8 @@ __all__ = [
     "unfold_scip",
     "unfold_docplex",
     "unfold_cs",
+    "solve_epic",
+    "unfold_epic",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",
