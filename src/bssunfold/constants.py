@@ -7467,7 +7467,7 @@ NRB99_2009_COEFF_EFFECTIVE_DOSE = {
 
 # ICRP-74 operational quantity conversion coefficients (pSv cm^2)
 # Quantities: ADE (ambient dose equiv.), PDE0/45/60/75 (personal dose equiv.)
-# Energy range: 1e-9 to 631 MeV (60 points)
+# Energy range: 1e-9 to 630.957 MeV (61 points; last bin 398-630.957, coeff duplicated)
 # Source: ICRP Publication 74
 ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
     "E_MeV": [
@@ -7530,6 +7530,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         100,
         158,
         251,
+        398,
         630.9573444801944,
     ],
     "ADE": [
@@ -7593,6 +7594,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         259,
         0,
         0,
+        0,
     ],
     "PDE0": [
         8.3,
@@ -7648,6 +7650,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         459,
         527,
         600,
+        0,
         0,
         0,
         0,
@@ -7717,6 +7720,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         0,
         0,
         0,
+        0,
     ],
     "PDE60": [
         2.65,
@@ -7779,6 +7783,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         0,
         0,
         0,
+        0,
     ],
     "PDE75": [
         1.15,
@@ -7834,6 +7839,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         397,
         476,
         570,
+        0,
         0,
         0,
         0,

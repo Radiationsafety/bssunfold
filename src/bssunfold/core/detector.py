@@ -44,6 +44,7 @@ from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularizati
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_scipy_direct_method import unfold_scipy_direct_method as unfold_scipy_direct_impl
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
+from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_parametric_impl
 from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
@@ -53,6 +54,12 @@ from .unfold_smt import unfold_smt as unfold_smt_impl
 from .unfold_scip import unfold_scip as unfold_scip_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
+from .unfold_epic import unfold_epic as unfold_epic_impl
+from ._base_unfolder import _build_system
+from .unfold_interpret import (
+    interpret_qp as interpret_qp_impl,
+    unfold_interpret as unfold_interpret_impl,
+)
 
 __all__ = ["Detector"]
 
@@ -1540,6 +1547,115 @@ class Detector:
             random_state=random_state,
         )
 
+    def unfold_epic(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        target_sigmas: Optional[np.ndarray] = None,
+        sigma_frac: float = 0.1,
+        regularization_order: int = 1,
+        non_neg: bool = True,
+        noise_var: Optional[float] = None,
+        homogeneous_step: bool = True,
+        regularize: Optional[Dict[str, Any]] = None,
+        beta_shift_k: float = 0,
+        beta_distance: float = 2,
+        EPIC_bool: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        LSQpar: Optional[Dict[str, Any]] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using EPIC Tikhonov regularization.
+
+        Selects the prior variances of the regularization operator such that the
+        a posteriori variances of the model parameters match the target sigmas
+        (Equal Posterior Information Condition), then solves the weighted least
+        squares problem. Port of the EPIC_LS method of Ortega-Culaciati et al.
+        (2021), https://github.com/frortega/EPIC_LS.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (unused by this method).
+        target_sigmas : np.ndarray, optional
+            Target a posteriori standard deviations of the model parameters. If
+            None, derived as ``sigma_frac`` times the magnitude of the naive
+            least-squares solution.
+        sigma_frac : float, optional
+            Fraction used to derive the default target sigmas, default: 0.1.
+        regularization_order : int, optional
+            Regularization operator order: 0 (identity), 1 (first derivative,
+            default) or 2 (second derivative).
+        non_neg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        noise_var : float, optional
+            Variance of the i.i.d. misfit errors used to build Cx, default:
+            None (identity Cx).
+        homogeneous_step : bool, optional
+            Run a preliminary homogeneous Ch search, default: True.
+        regularize : dict, optional
+            If given (can be empty), damp the EPIC weights towards a
+            minimum-norm solution.
+        beta_shift_k : float, optional
+            Center shift for the beta bounds, default: 0.
+        beta_distance : float, optional
+            Distance kept from the representability limit, default: 2.
+        EPIC_bool : np.ndarray, optional
+            Boolean mask of which parameters are subject to the EPIC.
+        V : np.ndarray, optional
+            Matrix mapping the searched betas to the regularization rows, beta = V @ y (shape (H.shape[0], len(y))).
+        LSQpar : dict, optional
+            Tuning parameters for the nonlinear least-squares solver.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_epic_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            target_sigmas=target_sigmas,
+            sigma_frac=sigma_frac,
+            regularization_order=regularization_order,
+            non_neg=non_neg,
+            noise_var=noise_var,
+            homogeneous_step=homogeneous_step,
+            regularize=regularize,
+            beta_shift_k=beta_shift_k,
+            beta_distance=beta_distance,
+            EPIC_bool=EPIC_bool,
+            V=V,
+            LSQpar=LSQpar,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
     def unfold_combined(
         self,
         readings: Dict[str, float],
@@ -1577,6 +1693,172 @@ class Detector:
             calculate_errors=calculate_errors,
             verbose=verbose,
         )
+
+    def unfold_interpret(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        enforce_norm: bool = False,
+        norm_value: float = 1.0,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        tolerance: float = 1e-8,
+        interpret_options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum and interpret the solution with pyoptexplain.
+
+        Solves the same unfolding QP as :meth:`unfold_qpsolvers` through
+        pyoptexplain and attaches an interpretation report. The returned dict is
+        the standard bssunfold result with two extra keys:
+
+        - ``report``                 -- Markdown interpretation report.
+        - ``interpretation_metrics`` -- JSON-friendly metrics dictionary.
+        - ``interpretation_spectrum`` -- interpreted (zeroed) spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (used by the 'cosine' regularization
+            method).
+        regularization : float, optional
+            Regularization parameter (default: 1e-4).
+        norm : int, optional
+            Penalty norm, 1 or 2 (default: 2).
+        smoothness_order : int, optional
+            Smoothness derivative order, 0, 1 or 2 (default: 0).
+        smoothness_weight : float, optional
+            Weight of the smoothness term (default: 1.0).
+        enforce_norm : bool, optional
+            Add ``sum(x) == norm_value`` (default: False).
+        norm_value : float, optional
+            Target total fluence (default: 1.0).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter.
+        noise_var : float, optional
+            Noise variance for the discrepancy principle ('dp' method).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        tolerance : float, optional
+            Solver feasibility/optimality tolerance (default: 1e-8). Relax it
+            (e.g. 1e-5) if pyoptexplain's backend reports ``iteration_limit``.
+        interpret_options : dict, optional
+            Extra keyword arguments forwarded to :func:`interpret_qp`.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result plus ``report`` and
+            ``interpretation_metrics`` keys.
+        """
+        return unfold_interpret_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            enforce_norm=enforce_norm,
+            norm_value=norm_value,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            tolerance=tolerance,
+            interpret_options=interpret_options,
+        )
+
+    def interpret_result(
+        self,
+        readings: Dict[str, float],
+        alpha: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        enforce_norm: bool = False,
+        norm_value: float = 1.0,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Interpret a set of detector readings without unfolding.
+
+        Builds the response matrix from ``readings`` and runs
+        :func:`interpret_qp` directly, returning the report, metrics, tables and
+        interpreted spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        alpha : float, optional
+            Regularization parameter (default: 1e-4).
+        norm : int, optional
+            Penalty norm, 1 or 2 (default: 2).
+        smoothness_order : int, optional
+            Smoothness derivative order, 0, 1 or 2 (default: 0).
+        smoothness_weight : float, optional
+            Weight of the smoothness term (default: 1.0).
+        enforce_norm : bool, optional
+            Add ``sum(x) == norm_value`` (default: False).
+        norm_value : float, optional
+            Target total fluence (default: 1.0).
+        **kwargs
+            Extra keyword arguments forwarded to :func:`interpret_qp`.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary with ``report``, ``metrics``, ``tables`` and
+            ``spectrum`` keys.
+        """
+        A, b, selected = _build_system(
+            readings, self.detector_names, self.sensitivities
+        )
+        result = interpret_qp_impl(
+            A,
+            b,
+            alpha,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            enforce_norm=enforce_norm,
+            norm_value=norm_value,
+            E_MeV=self.E_MeV,
+            detector_names=selected,
+            **kwargs,
+        )
+        return {
+            "report": result.report,
+            "metrics": result.metrics,
+            "tables": result.tables,
+            "spectrum": np.asarray(result.spectrum, dtype=float),
+        }
 
     # Utility methods
     def discretize_spectra(
@@ -2290,6 +2572,78 @@ class Detector:
             method=method,
             k=k,
             threshold=threshold,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_lanczos(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization_method: str = "gcv",
+        max_iterations: Optional[int] = None,
+        regularization: float = 1e-8,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the Lanczos-hybrid (Krylov) method.
+
+        Performs Golub-Kahan (Lanczos-type) bidiagonalization of the
+        response matrix, building a sequence of Krylov subspaces. At each
+        iteration a new approximation is obtained by solving the projected
+        Tikhonov problem, with the regularization parameter selected
+        automatically on the projected problem by Generalized Cross
+        Validation (GCV). No a-priori spectrum is required.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter. Only
+            ``'gcv'`` is supported (default: 'gcv').
+        max_iterations : int, optional
+            Maximum Krylov dimension. Defaults to
+            ``min(n_detectors, n_energy_bins)``.
+        regularization : float, optional
+            Fallback regularization parameter (default: 1e-8).
+        noise_level : float, optional
+            Relative noise level used for discrepancy-principle early
+            stopping.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_lanczos_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization_method=regularization_method,
+            max_iterations=max_iterations,
+            regularization=regularization,
             noise_level=noise_level,
             calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,

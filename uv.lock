@@ -296,7 +296,7 @@ wheels = [
 
 [[package]]
 name = "bssunfold"
-version = "0.14.0"
+version = "0.15.0"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy", extra = ["ecos"] },
@@ -316,6 +316,7 @@ all = [
     { name = "mystic" },
     { name = "numba" },
     { name = "odl" },
+    { name = "pyoptexplain" },
     { name = "pyscipopt" },
     { name = "pytest" },
     { name = "pytikhonov" },
@@ -332,6 +333,9 @@ all-solvers = [
 docplex = [
     { name = "cplex" },
     { name = "docplex" },
+]
+interpret = [
+    { name = "pyoptexplain" },
 ]
 lmfit = [
     { name = "lmfit" },
@@ -409,6 +413,7 @@ dev = [
     { name = "pip-audit" },
     { name = "plotly" },
     { name = "pydata-sphinx-theme" },
+    { name = "pyoptexplain" },
     { name = "pyscipopt" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -428,6 +433,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bssunfold", extras = ["docplex"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["interpret"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mealpy"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mlem"], marker = "extra == 'all'" },
@@ -458,6 +464,7 @@ requires-dist = [
     { name = "odl", marker = "extra == 'mlem'", specifier = ">=1.0.0" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "proxsuite", marker = "extra == 'solvers-proxqp'", specifier = ">=0.7.2" },
+    { name = "pyoptexplain", marker = "extra == 'interpret'", specifier = ">=0.1.1" },
     { name = "pyscipopt", marker = "extra == 'scip'", specifier = ">=6.0.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.3" },
     { name = "pytikhonov", marker = "extra == 'tikhonov'", specifier = ">=0.0.1" },
@@ -467,7 +474,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.16.3" },
     { name = "z3-solver", marker = "extra == 'smt'", specifier = ">=4.13.0" },
 ]
-provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "mystic", "mealpy", "smt", "scip", "docplex", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "mystic", "mealpy", "smt", "scip", "docplex", "interpret", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -497,6 +504,7 @@ dev = [
     { name = "pip-audit", specifier = ">=2.10.1" },
     { name = "plotly", specifier = ">=6.5.0" },
     { name = "pydata-sphinx-theme", specifier = ">=0.16.1" },
+    { name = "pyoptexplain", specifier = ">=0.1.1" },
     { name = "pyscipopt", specifier = ">=6.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-cov", specifier = ">=6.1.0" },
@@ -3841,6 +3849,23 @@ wheels = [
 ]
 
 [[package]]
+name = "pyoptexplain"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "highspy" },
+    { name = "numpy" },
+    { name = "osqp" },
+    { name = "pandas" },
+    { name = "scipy" },
+    { name = "xarray" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f8/0c/a6e13811dcc315797b92c593f130fddf64e2d4c21721ad919341046daa54/pyoptexplain-0.1.1.tar.gz", hash = "sha256:019b1e7a1422a4b60eb4ee84d933313142c8b25994d6aae585cd6bedd69aee78", size = 166638, upload-time = "2026-07-16T19:40:32.167Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/d7/7c3637787380a74d86d9693773302be5581dd58bbc2df515334326b72c74/pyoptexplain-0.1.1-py3-none-any.whl", hash = "sha256:43d1709d6972a535c5f06e8d19bc9c3cec3598634cd3151953a127bd6a1eb231", size = 198689, upload-time = "2026-07-16T19:40:30.807Z" },
+]
+
+[[package]]
 name = "pyparsing"
 version = "3.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -5593,6 +5618,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bd/f4/c67440c7fb409a71b7404b7aefcd7569a9c0d6bd071299bf4198ae7a5d95/widgetsnbextension-4.0.15.tar.gz", hash = "sha256:de8610639996f1567952d763a5a41af8af37f2575a41f9852a38f947eb82a3b9", size = 1097402, upload-time = "2025-11-01T21:15:55.178Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/0e/fa3b193432cfc60c93b42f3be03365f5f909d2b3ea410295cf36df739e31/widgetsnbextension-4.0.15-py3-none-any.whl", hash = "sha256:8156704e4346a571d9ce73b84bee86a29906c9abfd7223b7228a28899ccf3366", size = 2196503, upload-time = "2025-11-01T21:15:53.565Z" },
+]
+
+[[package]]
+name = "xarray"
+version = "2026.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ea/96/3f7bdd00e505ec3698903415b30135024703e017b28c6b61f98da3193b0d/xarray-2026.7.0.tar.gz", hash = "sha256:361b495928fdbf5b58d0969bb6775339019da5e93ca74d61ddf4eb5edd6ce604", size = 3145348, upload-time = "2026-07-09T17:38:26.515Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/57/5b/28365212062939d213802e5e5fe855cdb231e1c2a93254ba1690066504e3/xarray-2026.7.0-py3-none-any.whl", hash = "sha256:bf9dd130b93806dc78e90c1b7ac24851b31557b888674c53622235691cf21824", size = 1426778, upload-time = "2026-07-09T17:38:24.224Z" },
 ]
 
 [[package]]

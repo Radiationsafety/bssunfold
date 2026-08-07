@@ -4,7 +4,7 @@
 
 ```bash
 uv sync --group dev          # install all deps including dev
-uv run pytest tests/         # run all 1160 tests
+uv run pytest tests/         # run all 1404 tests
 uv run pytest -v --tb=short  # verbose, short traceback
 uv run pytest tests/test_coverage.py  # primary coverage test file
 uv run pytest --cov=src/bssunfold --cov-report=term-missing --cov-fail-under=95
@@ -25,6 +25,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/regularization.py` — L-curve, GCV, discrepancy principle, cosine similarity (pytikhonov wrappers + fallbacks)
 - `core/unfolding_methods.py` — all `solve_*` functions, ~222 stmts
 - `core/unfold_qpsolvers.py`, `unfold_cvxpy.py`, `unfold_landweber.py`, `unfold_mlem.py`, `unfold_mlem_odl.py`, `unfold_doroshenko.py`, `unfold_kaczmarz.py`, `unfold_lmfit.py`, `unfold_smt.py`, `unfold_combined.py` — one file per unfolding algorithm (unfold_smt.py is a port of the Haskell/SBV `linearEqSolver`, backed by optional z3-solver)
+- `core/unfold_interpret.py` — pyoptexplain-based interpretation of the unfolding QP (solve + robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Optional dep: `bssunfold[interpret]`
 - `core/_matrix_utils.py` — SVD, derivative matrix, tikhonov system building
 - `core/_base_unfolder.py`, `core/_montecarlo.py` — internal base class and Monte Carlo uncertainty
 - `utils/converters.py`, `interpolation.py`, `plotting.py`, `validators.py` — utility functions
@@ -34,7 +35,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 
 ## Testing
 
-### Test files (27 files, 1160 tests)
+### Test files (28 files, 1465 tests)
 
 | File | Focus |
 |------|-------|
@@ -47,6 +48,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 | `tests/test_refactored_fixed.py` | Post-refactoring tests |
 | `tests/test_new_methods_fixed.py` | New unfold_* method tests |
 | `tests/test_smt.py` | SMT-based unfolding: exact solvers + solve_smt/unfold_smt (skipped if z3-solver not installed) |
+| `tests/test_interpret.py` | pyoptexplain interpretation: build_interpretation_qp/solve_interpret/interpret_qp + Detector.unfold_interpret/interpret_result (skipped if pyoptexplain not installed) |
 | `tests/test_security.py` | bandit static security scan (no HIGH findings) |
 
 ### Analysis tools
@@ -84,6 +86,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - **Monte Carlo tests** use `n_montecarlo=10` for speed.
 - **Plot tests** use matplotlib `'Agg'` backend.
 - **ODL-dependent tests** (MLEM) are skipped if ODL not installed.
+- **pyoptexplain IS installed** in dev. To test the ImportError fallback in `unfold_interpret.py`, patch `builtins.__import__` to raise for `'pyoptexplain'` AND reset the lazy namespace cache (`bssunfold.core.unfold_interpret._pyopt._loaded = None`) before/after — the cache survives otherwise. NOTE: `bssunfold.core.unfold_interpret` attribute shadows the submodule with the `unfold_interpret` function; use `sys.modules["bssunfold.core.unfold_interpret"]` to reach the module object. `QuadraticMatrixScenarioRepresentation` (returned by `handle.quadratic_representation()` for scenario runs) has NO `.quadratic_representation()` method — `_make_analyzer` must accept an already-built representation.
 
 ### Mocks for `platform_check` tests
 
@@ -102,6 +105,7 @@ Patch module-level attributes on the installed package path (e.g., `bssunfold.pl
 - All `unfold_*` methods return a dict with `'spectrum'`, `'doserates'`, `'readings'`, optional `'spectrum_uncert_mean'`.
 - Regularization parameter selection delegates to `pytikhonov` when available, with pure-numpy fallbacks.
 - Response functions follow a standard CSV format: column `E_MeV` + one column per detector sphere.
+- Interpretation (`unfold_interpret`/`interpret_result`) is backed by optional `pyoptexplain`; `Detector.unfold_interpret` returns the standard result dict plus `report` and `interpretation_metrics` keys.
 
 ## graphify
 

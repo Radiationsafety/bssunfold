@@ -1,6 +1,6 @@
 [project]
 name = "bssunfold"
-version = "0.14.0"
+version = "0.15.0"
 description = "Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)"
 readme = "README.md"
 authors = [
@@ -74,6 +74,9 @@ docplex = [
     "docplex>=2.28.0",
     "cplex>=22.1.0",
 ]
+interpret = [
+    "pyoptexplain>=0.1.1",
+]
 
 test = [
     "pytest>=9.0.3",
@@ -90,6 +93,7 @@ all = [
     "bssunfold[scip]",
     "bssunfold[docplex]",
     "bssunfold[mealpy]",
+    "bssunfold[interpret]",
     "bssunfold[test]",
 ]
 # Base set of QP solvers available on all platforms (including Windows)
@@ -189,6 +193,7 @@ dev = [
     "pip-audit>=2.10.1",
     "bandit>=1.9.4",
     "mealpy>=3.0.2",
+    "pyoptexplain>=0.1.1",
 ]
 
 [project.urls]

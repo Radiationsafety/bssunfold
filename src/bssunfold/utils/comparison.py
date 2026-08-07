@@ -44,6 +44,10 @@ __all__ = [
     "dose_difference_percent",
     "fluence_averaged_energy_diff",
     "dose_averaged_energy_diff",
+    "fluence_averaged_energy",
+    "energy_group_fluence",
+    "dose_averaged_energy",
+    "ambient_dose_equivalent_rate",
     "spectral_shape_similarity",
     "log_lethargy_correlation",
     "peak_location_error",
@@ -108,6 +112,35 @@ def _extract_cc_array(
                 return np.asarray(val, dtype=float)
         return np.ones_like(energy)
     return np.asarray(cc_icrp116, dtype=float)
+
+
+def _get_ade_cc(
+    energy: np.ndarray,
+    cc_ade: Optional[Union[Dict[str, np.ndarray], np.ndarray]] = None,
+) -> np.ndarray:
+    """Get ICRP-74 ADE (ambient dose equivalent H*(10)) coefficients.
+
+    Interpolates the ICRP-74 operational ADE conversion coefficients onto
+    the given energy grid. When ``cc_ade`` is provided it is used directly
+    (a dict is reduced via ``_extract_cc_array`` with preferred key ``"ADE"``).
+    """
+    if cc_ade is None:
+        from ..core.dose_calculation import get_coefficients
+        cc = get_coefficients("ICRP74_operational")
+        e_src = np.asarray(cc["E_MeV"], dtype=float)
+        v_src = np.asarray(cc["ADE"], dtype=float)
+        e = np.asarray(energy, dtype=float)
+        below = e < e_src[0]
+        above = e > e_src[-1]
+        interp = np.interp(e, e_src, v_src)
+        interp[below] = 0.0
+        interp[above] = 0.0
+        return interp
+    if isinstance(cc_ade, dict):
+        return _extract_cc_array(
+            cc_ade, np.asarray(energy, dtype=float), preferred_geom="ADE"
+        )
+    return np.asarray(cc_ade, dtype=float)
 
 logger = logging.getLogger(__name__)
 
@@ -616,6 +649,120 @@ def dose_averaged_energy_diff(
     return float(100.0 * (h2 - h1) / h1)
 
 
+# ─── Integral quantity metrics (EURADOS, Gomez-Ros et al. 2022) ────
+
+
+def fluence_averaged_energy(
+    spectrum: np.ndarray,
+    energy: np.ndarray,
+) -> float:
+    """Fluence-averaged energy <E> of a single spectrum (MeV).
+
+    <E> = sum(E_i * Phi_i) / sum(Phi_i)
+
+    Returns 0.0 for a zero-total-flux spectrum.
+    """
+    if len(energy) != len(spectrum):
+        raise ValueError("Energy array must match spectrum length")
+    s = np.asarray(spectrum, dtype=float)
+    e = np.asarray(energy, dtype=float)
+    total = np.sum(s)
+    if total <= 0:
+        return 0.0
+    return float(np.sum(e * s) / total)
+
+
+def energy_group_fluence(
+    spectrum: np.ndarray,
+    energy: np.ndarray,
+    thermal_max: float = 0.4e-6,
+    epithermal_max: float = 0.1,
+) -> Dict[str, float]:
+    """Fluence rate per energy group for a single spectrum.
+
+    Groups (EURADOS): thermal (E < 0.4 eV), epithermal
+    (0.4 eV <= E < 0.1 MeV), fast (E >= 0.1 MeV). Returns absolute
+    fluence sums (simple bin sums, matching ``energy_group_fluence_diff``).
+
+    Parameters
+    ----------
+    spectrum : np.ndarray
+        Fluence per energy bin.
+    energy : np.ndarray
+        Energy grid in MeV.
+    thermal_max : float
+        Upper bound of thermal group in MeV (default: 0.4e-6 = 0.4 eV).
+    epithermal_max : float
+        Upper bound of epithermal group in MeV (default: 0.1).
+    """
+    if len(energy) != len(spectrum):
+        raise ValueError("Energy array must match spectrum length")
+    s = np.asarray(spectrum, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    thermal_mask = e < thermal_max
+    epithermal_mask = (e >= thermal_max) & (e < epithermal_max)
+    fast_mask = e >= epithermal_max
+
+    result: Dict[str, float] = {}
+    for name, mask in [("thermal", thermal_mask), ("epithermal", epithermal_mask), ("fast", fast_mask)]:
+        if not np.any(mask):
+            result[name] = 0.0
+            continue
+        result[name] = float(np.sum(s[mask]))
+    return result
+
+
+def dose_averaged_energy(
+    spectrum: np.ndarray,
+    energy: np.ndarray,
+    cc_ade: Optional[Union[Dict[str, np.ndarray], np.ndarray]] = None,
+) -> float:
+    """Ambient dose equivalent-averaged energy <E>_H (MeV).
+
+    <E>_H = sum(E_i * H*(10)_i * Phi_i) / sum(H*(10)_i * Phi_i)
+
+    Uses ICRP-74 ADE conversion coefficients (ISO 2001) interpolated onto
+    the energy grid, unless ``cc_ade`` is provided. Returns 0.0 for a
+    zero-dose-weight spectrum.
+    """
+    if len(energy) != len(spectrum):
+        raise ValueError("Energy array must match spectrum length")
+    s = np.asarray(spectrum, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    cc = _get_ade_cc(e, cc_ade)
+    ln_steps = _compute_log_steps(e)
+
+    weight = np.sum(s * cc * ln_steps)
+    if weight <= 0:
+        return 0.0
+    return float(np.sum(e * s * cc * ln_steps) / weight)
+
+
+def ambient_dose_equivalent_rate(
+    spectrum: np.ndarray,
+    energy: np.ndarray,
+    cc_ade: Optional[Union[Dict[str, np.ndarray], np.ndarray]] = None,
+) -> float:
+    """Ambient dose equivalent rate H*(10) of a single spectrum.
+
+    H*(10) = sum(h*(10)_i * Phi_i * dlnE_i)
+
+    Uses ICRP-74 ADE conversion coefficients (ISO 2001) interpolated onto
+    the energy grid, unless ``cc_ade`` is provided. Returns 0.0 for a
+    zero-total-flux spectrum.
+    """
+    if len(energy) != len(spectrum):
+        raise ValueError("Energy array must match spectrum length")
+    s = np.asarray(spectrum, dtype=float)
+    e = np.asarray(energy, dtype=float)
+
+    cc = _get_ade_cc(e, cc_ade)
+    ln_steps = _compute_log_steps(e)
+    return float(np.sum(s * cc * ln_steps))
+
+
 # ─── Spectral shape metrics ──────────────────────────────────────
 
 
@@ -822,6 +969,10 @@ _ALL_METRICS: Dict[str, str] = {
     "dose_difference_percent": "Dose difference (%)",
     "fluence_averaged_energy_diff": "Fluence-averaged energy diff (%)",
     "dose_averaged_energy_diff": "Dose-averaged energy diff (%)",
+    "fluence_averaged_energy": "Fluence-averaged energy (MeV)",
+    "energy_group_fluence": "Fluence rate per energy group",
+    "dose_averaged_energy": "H*(10)-averaged energy (MeV)",
+    "ambient_dose_equivalent_rate": "Ambient dose equivalent rate H*(10)",
     "spectral_shape_similarity": "Spectral shape similarity",
     "log_lethargy_correlation": "Log lethargy correlation",
     "peak_location_error": "Peak location error (%)",
@@ -874,6 +1025,16 @@ _METRIC_FUNCTIONS_WITH_PARAMS: Dict[str, callable] = {
     "response_matrix_consistency": response_matrix_consistency,
 }
 
+# Single-spectrum integral quantities (EURADOS, Gomez-Ros et al. 2022).
+# Computed for each spectrum in a comparison and reported with _ref/_test
+# suffixes. These require the energy grid.
+_SINGLE_SPECTRUM_METRICS: Dict[str, callable] = {
+    "fluence_averaged_energy": fluence_averaged_energy,
+    "energy_group_fluence": energy_group_fluence,
+    "dose_averaged_energy": dose_averaged_energy,
+    "ambient_dose_equivalent_rate": ambient_dose_equivalent_rate,
+}
+
 
 def compare_spectra(
     spectrum1: np.ndarray,
@@ -916,28 +1077,37 @@ def compare_spectra(
 
     all_simple = list(_METRIC_FUNCTIONS.keys())
     all_eurados = list(_METRIC_FUNCTIONS_WITH_PARAMS.keys())
+    all_single = list(_SINGLE_SPECTRUM_METRICS.keys())
 
     if metrics is None:
         simple_keys = list(all_simple)
         eurados_keys = list(all_eurados) if energy is not None else []
+        single_keys = list(all_single) if energy is not None else []
     elif isinstance(metrics, str):
         if metrics in _METRIC_FUNCTIONS:
             simple_keys = [metrics]
             eurados_keys = []
+            single_keys = []
         elif metrics in _METRIC_FUNCTIONS_WITH_PARAMS:
             simple_keys = []
             eurados_keys = [metrics]
+            single_keys = []
+        elif metrics in _SINGLE_SPECTRUM_METRICS:
+            simple_keys = []
+            eurados_keys = []
+            single_keys = [metrics]
         else:
-            avail = all_simple + all_eurados
+            avail = all_simple + all_eurados + all_single
             raise ValueError(
                 f"Unknown metric '{metrics}'. Available: {avail}"
             )
     else:
         simple_keys = [k for k in metrics if k in _METRIC_FUNCTIONS]
         eurados_keys = [k for k in metrics if k in _METRIC_FUNCTIONS_WITH_PARAMS]
-        unknown = [k for k in metrics if k not in _METRIC_FUNCTIONS and k not in _METRIC_FUNCTIONS_WITH_PARAMS]
+        single_keys = [k for k in metrics if k in _SINGLE_SPECTRUM_METRICS]
+        unknown = [k for k in metrics if k not in _METRIC_FUNCTIONS and k not in _METRIC_FUNCTIONS_WITH_PARAMS and k not in _SINGLE_SPECTRUM_METRICS]
         if unknown:
-            avail = all_simple + all_eurados
+            avail = all_simple + all_eurados + all_single
             raise ValueError(
                 f"Unknown metric(s) {unknown}. Available: {avail}"
             )
@@ -975,6 +1145,33 @@ def compare_spectra(
         except Exception as exc:
             logger.debug("EURADOS metric %s failed: %s", key, exc)
             results[key] = float("nan")
+
+    for key in single_keys:
+        if energy is None:
+            if key == "energy_group_fluence":
+                for group_name in ("thermal", "epithermal", "fast"):
+                    results[f"energy_group_fluence_{group_name}_ref"] = float("nan")
+                    results[f"energy_group_fluence_{group_name}_test"] = float("nan")
+            else:
+                results[f"{key}_ref"] = float("nan")
+                results[f"{key}_test"] = float("nan")
+            continue
+        try:
+            func = _SINGLE_SPECTRUM_METRICS[key]
+            if key == "energy_group_fluence":
+                groups_ref = func(spectrum1, energy)
+                groups_test = func(spectrum2, energy)
+                for group_name, group_val in groups_ref.items():
+                    results[f"energy_group_fluence_{group_name}_ref"] = group_val
+                for group_name, group_val in groups_test.items():
+                    results[f"energy_group_fluence_{group_name}_test"] = group_val
+            else:
+                results[f"{key}_ref"] = func(spectrum1, energy)
+                results[f"{key}_test"] = func(spectrum2, energy)
+        except Exception as exc:
+            logger.debug("Integral quantity metric %s failed: %s", key, exc)
+            results[f"{key}_ref"] = float("nan")
+            results[f"{key}_test"] = float("nan")
 
     return results
 

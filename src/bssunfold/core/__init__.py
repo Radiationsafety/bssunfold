@@ -23,6 +23,7 @@ from .unfold_statreg import solve_statreg
 from .unfold_reconst import solve_reconst
 from .unfold_scipy_direct_method import solve_scipy_direct
 from .unfold_tsvd import solve_tsvd
+from .unfold_lanczos import solve_lanczos
 from .unfold_parametric2 import solve_parametric2
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_hybrid_parametric import solve_hybrid_parametric
@@ -68,11 +69,20 @@ from .unfold_statreg import unfold_statreg
 from .unfold_reconst import unfold_reconst
 from .unfold_scipy_direct_method import unfold_scipy_direct_method
 from .unfold_tsvd import unfold_tsvd
+from .unfold_lanczos import unfold_lanczos
 from .unfold_parametric2 import unfold_parametric2
 from .unfold_smt import unfold_smt
 from .unfold_scip import unfold_scip
 from .unfold_docplex import unfold_docplex
 from .unfold_cs import solve_cs, solve_omp, solve_ksvd, solve_sl0, unfold_cs
+from .unfold_epic import solve_epic, unfold_epic
+from .unfold_interpret import (
+    InterpretationResult,
+    build_interpretation_qp,
+    solve_interpret,
+    interpret_qp,
+    unfold_interpret,
+)
 
 __all__ = [
     # detector
@@ -96,6 +106,7 @@ __all__ = [
     "solve_reconst",
     "solve_scipy_direct",
     "solve_tsvd",
+    "solve_lanczos",
     "solve_parametric2",
     "solve_fruit_like",
     "solve_hybrid_parametric",
@@ -134,6 +145,7 @@ __all__ = [
     "unfold_reconst",
     "unfold_scipy_direct_method",
     "unfold_tsvd",
+    "unfold_lanczos",
     "unfold_parametric2",
     "unfold_fruit_like",
     "unfold_hybrid_parametric",
@@ -142,6 +154,14 @@ __all__ = [
     "unfold_scip",
     "unfold_docplex",
     "unfold_cs",
+    "solve_epic",
+    "unfold_epic",
+    # interpretation
+    "InterpretationResult",
+    "build_interpretation_qp",
+    "solve_interpret",
+    "interpret_qp",
+    "unfold_interpret",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

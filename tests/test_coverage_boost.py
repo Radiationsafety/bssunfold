@@ -411,6 +411,69 @@ class TestComparisonUncovered:
         result = dose_averaged_energy_diff(s1, s2, e)
         assert result == 0.0
 
+    def test_energy_group_fluence_length_mismatch(self):
+        from bssunfold.utils.comparison import energy_group_fluence
+        with pytest.raises(ValueError):
+            energy_group_fluence(np.ones(5), np.ones(3))
+
+    def test_energy_group_fluence_no_thermal(self):
+        from bssunfold.utils.comparison import energy_group_fluence
+        e = np.array([0.5, 1.0, 5.0])
+        s = np.array([1.0, 2.0, 3.0])
+        result = energy_group_fluence(s, e)
+        assert result["thermal"] == 0.0
+        assert result["fast"] == 6.0
+
+    def test_compare_spectra_single_metric_unknown(self):
+        from bssunfold.utils.comparison import compare_spectra
+        s1 = np.ones(5)
+        s2 = np.ones(5) * 2
+        with pytest.raises(ValueError, match="Unknown metric"):
+            compare_spectra(s1, s2, metrics="fluence_averaged_energy_bad")
+
+    def test_compare_spectra_single_metric_in_list(self):
+        from bssunfold.utils.comparison import compare_spectra
+        e = np.logspace(-6, 1, 5)
+        s1 = np.ones(5)
+        s2 = np.ones(5) * 2
+        result = compare_spectra(
+            s1, s2, metrics=["fluence_averaged_energy", "dose_averaged_energy"], energy=e
+        )
+        assert "fluence_averaged_energy_ref" in result
+        assert "dose_averaged_energy_test" in result
+
+    def test_compare_spectra_single_metric_exception(self):
+        from bssunfold.utils.comparison import compare_spectra
+        s1 = np.ones(5)
+        s2 = np.ones(5) * 2
+        e = np.logspace(-6, 1, 5)
+        with patch(
+            "bssunfold.utils.comparison._SINGLE_SPECTRUM_METRICS",
+            {"fluence_averaged_energy": lambda s, e: 1 / 0},
+        ):
+            result = compare_spectra(s1, s2, metrics="fluence_averaged_energy", energy=e)
+        assert np.isnan(result["fluence_averaged_energy_ref"])
+        assert np.isnan(result["fluence_averaged_energy_test"])
+
+    def test_compare_spectra_energy_group_fluence_without_energy(self):
+        from bssunfold.utils.comparison import compare_spectra
+        s1 = np.ones(5)
+        s2 = np.ones(5) * 2
+        result = compare_spectra(s1, s2, metrics="energy_group_fluence")
+        assert np.isnan(result["energy_group_fluence_thermal_ref"])
+        assert np.isnan(result["energy_group_fluence_fast_test"])
+
+    def test_dose_metrics_with_dict_cc_ade(self):
+        from bssunfold.utils.comparison import (
+            dose_averaged_energy,
+            ambient_dose_equivalent_rate,
+        )
+        e = np.logspace(-6, 1, 5)
+        s = np.ones(5)
+        cc_ade = {"E_MeV": e, "ADE": np.ones(5) * 5.0}
+        assert dose_averaged_energy(s, e, cc_ade=cc_ade) > 0.0
+        assert ambient_dose_equivalent_rate(s, e, cc_ade=cc_ade) > 0.0
+
     def test_spectral_shape_similarity_zero_sum(self):
         from bssunfold.utils.comparison import spectral_shape_similarity
         s1 = np.zeros(5)
