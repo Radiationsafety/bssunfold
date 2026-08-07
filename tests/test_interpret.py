@@ -326,6 +326,34 @@ def test_unfold_interpret_failed_selection(detector, small_readings):
             )
 
 
+def test_unfold_interpret_tolerance_full_lanl():
+    """tolerance is forwarded to the solver on the full LANL detector set.
+
+    The strict default (1e-8) makes pyoptexplain's backend report
+    ``iteration_limit`` on the 11-sphere RF_LANL problem; relaxing the
+    tolerance must yield an optimal solution instead of a RuntimeError.
+    """
+    from bssunfold import RF_LANL
+
+    import pandas as pd
+
+    det = Detector(RF_LANL)
+    ref = pd.read_csv(
+        "tests/MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
+    )
+    readings = det.get_effective_readings_for_spectra(
+        ref[["E_MeV", "ISO_ref_Cf252"]]
+    )
+    result = det.unfold_interpret(
+        readings,
+        tolerance=1e-5,
+        save_result=False,
+        interpret_options=_fast_interpret_options(),
+    )
+    assert result["interpretation_metrics"]["status"] == "optimal"
+    assert result["interpretation_metrics"]["success"] is True
+
+
 def test_unfold_interpret_import_error(detector, small_readings):
     """Missing pyoptexplain raises a helpful ImportError in the wrapper."""
     _reset_pyopt_cache()

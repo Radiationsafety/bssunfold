@@ -1330,6 +1330,7 @@ def unfold_interpret(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: Optional[int] = None,
+    tolerance: float = 1e-8,
     interpret_options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Unfold and interpret a neutron spectrum with pyoptexplain.
@@ -1385,6 +1386,10 @@ def unfold_interpret(
         Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
+    tolerance : float, optional
+        Solver feasibility/optimality tolerance (default: 1e-8). Pyoptexplain's
+        backend may fail with ``iteration_limit`` on large problems at the
+        strictest tolerance; relax it (e.g. 1e-5) in that case.
     interpret_options : dict, optional
         Extra keyword arguments forwarded to :func:`interpret_qp`.
 
@@ -1440,6 +1445,7 @@ def unfold_interpret(
             smoothness_weight=smoothness_weight,
             enforce_norm=enforce_norm,
             norm_value=norm_value,
+            tolerance=tolerance,
         )
 
     output = run_unfolding(
@@ -1471,6 +1477,8 @@ def unfold_interpret(
         save_result=save_result,
     )
 
+    options = dict(interpret_options or {})
+    options.setdefault("tolerance", tolerance)
     interpretation = interpret_qp(
         A,
         b,
@@ -1482,7 +1490,7 @@ def unfold_interpret(
         norm_value=norm_value,
         E_MeV=E_MeV,
         detector_names=selected,
-        **(interpret_options or {}),
+        **options,
     )
     output["report"] = interpretation.report
     output["interpretation_metrics"] = interpretation.metrics

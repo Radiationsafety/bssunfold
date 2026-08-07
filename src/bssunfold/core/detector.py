@@ -1710,6 +1710,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        tolerance: float = 1e-8,
         interpret_options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Unfold a neutron spectrum and interpret the solution with pyoptexplain.
@@ -1755,6 +1756,9 @@ class Detector:
             Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
+        tolerance : float, optional
+            Solver feasibility/optimality tolerance (default: 1e-8). Relax it
+            (e.g. 1e-5) if pyoptexplain's backend reports ``iteration_limit``.
         interpret_options : dict, optional
             Extra keyword arguments forwarded to :func:`interpret_qp`.
 
@@ -1786,6 +1790,7 @@ class Detector:
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,
+            tolerance=tolerance,
             interpret_options=interpret_options,
         )
 
