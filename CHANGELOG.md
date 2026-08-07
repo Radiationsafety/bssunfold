@@ -7,6 +7,29 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.16.0] - 2026-08-07
+
+### Added
+- **Quadratic-program interpretation with pyoptexplain** — new
+  `unfold_interpret()` / `solve_interpret()` and the standalone
+  `interpret_qp()` entry point that solve the same unfolding QP used by
+  `unfold_qpsolvers`/`unfold_cvxpy` and then *interpret* the solution:
+  - Solve report: solver status, objective value, per-group spectrum, residual
+    per detector, active (zeroed) energy groups.
+  - Shadow prices (duals) for the non-negativity bounds and, with
+    `enforce_norm=True`, the norm-equality dual.
+  - Robustness analysis (empirical `+/-1%..5%` perturbation sweep), detector
+    informativeness (one-detector-at-a-time perturbation), regularization
+    sweep, non-negativity trust, pyoptexplain what-if scenarios and a norm
+    relaxation curve.
+  - Output is an `InterpretationResult` with a Markdown `report`,
+    JSON-friendly `metrics` and raw `tables` (pandas DataFrames).
+  - Exposed on `Detector` as `unfold_interpret()` (standard result dict plus
+    `report`/`interpretation_metrics`) and `interpret_result()` (interpretation
+    only).
+  - Optional dependency: `pip install bssunfold[interpret]` (pyoptexplain>=0.1.1).
+  - Tests: `tests/test_interpret.py`.
+
 ## [0.15.0] - 2026-08-06
 
 ### Added

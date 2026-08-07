@@ -74,6 +74,13 @@ from .unfold_scip import unfold_scip
 from .unfold_docplex import unfold_docplex
 from .unfold_cs import solve_cs, solve_omp, solve_ksvd, solve_sl0, unfold_cs
 from .unfold_epic import solve_epic, unfold_epic
+from .unfold_interpret import (
+    InterpretationResult,
+    build_interpretation_qp,
+    solve_interpret,
+    interpret_qp,
+    unfold_interpret,
+)
 
 __all__ = [
     # detector
@@ -145,6 +152,12 @@ __all__ = [
     "unfold_cs",
     "solve_epic",
     "unfold_epic",
+    # interpretation
+    "InterpretationResult",
+    "build_interpretation_qp",
+    "solve_interpret",
+    "interpret_qp",
+    "unfold_interpret",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

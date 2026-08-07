@@ -256,12 +256,18 @@ Method Reference
      - ``regularization``, ``norm`` (1/2), ``solver`` (fmin/fmin_powell/diffev/diffev2), ``maxiter``, ``maxfun``, ``smoothness_order``, ``smoothness_weight``, ``regularization_method``
      - mystic
      - Direct-search minimization of the penalized least-squares objective
-   * - 29
+    * - 29
      - ``unfold_cs``
      - Optimization
      - ``n_atoms``, ``sparsity``, ``dictionary``, ``n_dictionary_iterations``, ``sigma_min``, ``sigma_decrease_factor``, ``mu_0``, ``L``, ``max_iterations``, ``tolerance``
      - —
      - Compressive sensing: K-SVD dictionary + OMP sparse coding + SL0 reconstruction
+   * - 30
+     - ``unfold_interpret``
+     - Interpretation
+     - ``regularization``, ``norm`` (1/2), ``smoothness_order``, ``smoothness_weight``, ``enforce_norm``, ``norm_value``, ``regularization_method``, ``interpret_options``
+     - pyoptexplain (optional)
+     - Unfolding QP solved via pyoptexplain plus an interpretation report (robustness, shadow prices, detector sensitivity, regularization sweep, scenarios)
 
 .. note::
 

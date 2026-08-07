@@ -105,6 +105,9 @@ pip install "bssunfold[all-solvers]"
 
 # Windows (all except proxsuite)
 pip install "bssunfold[windows]"
+
+# With QP interpretation via pyoptexplain
+pip install "bssunfold[interpret]"
 ```
 
 Install with all solvers (Unix/Linux/Mac):
@@ -337,6 +340,7 @@ graph TD
 | 31 | `unfold_scip` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | pyscipopt | Tikhonov QP solved by the SCIP Optimization Suite (global NLP/QP optimizer) |
 | 32 | `unfold_docplex` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | docplex, cplex | Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition) |
 | 33 | `unfold_epic` | Regularization | `target_sigmas`, `sigma_frac`, `regularization_order` (0/1/2), `non_neg`, `noise_var`, `homogeneous_step`, `regularize`, `beta_shift_k`, `beta_distance`, `EPIC_bool`, `V`, `LSQpar` | — | EPIC Tikhonov regularization (Ortega-Culaciati et al. 2021): prior variances chosen so a posteriori variances match target sigmas |
+| 34 | `unfold_interpret` | Interpretation | `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `enforce_norm`, `norm_value`, `regularization_method`, `interpret_options` | pyoptexplain (optional) | Unfolding QP solved via pyoptexplain plus an interpretation report (robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Also `Detector.interpret_result` for interpretation-only runs |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 

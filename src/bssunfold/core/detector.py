@@ -54,6 +54,11 @@ from .unfold_scip import unfold_scip as unfold_scip_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
 from .unfold_epic import unfold_epic as unfold_epic_impl
+from ._base_unfolder import _build_system
+from .unfold_interpret import (
+    interpret_qp as interpret_qp_impl,
+    unfold_interpret as unfold_interpret_impl,
+)
 
 __all__ = ["Detector"]
 
@@ -1687,6 +1692,167 @@ class Detector:
             calculate_errors=calculate_errors,
             verbose=verbose,
         )
+
+    def unfold_interpret(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        enforce_norm: bool = False,
+        norm_value: float = 1.0,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        interpret_options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum and interpret the solution with pyoptexplain.
+
+        Solves the same unfolding QP as :meth:`unfold_qpsolvers` through
+        pyoptexplain and attaches an interpretation report. The returned dict is
+        the standard bssunfold result with two extra keys:
+
+        - ``report``                 -- Markdown interpretation report.
+        - ``interpretation_metrics`` -- JSON-friendly metrics dictionary.
+        - ``interpretation_spectrum`` -- interpreted (zeroed) spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (used by the 'cosine' regularization
+            method).
+        regularization : float, optional
+            Regularization parameter (default: 1e-4).
+        norm : int, optional
+            Penalty norm, 1 or 2 (default: 2).
+        smoothness_order : int, optional
+            Smoothness derivative order, 0, 1 or 2 (default: 0).
+        smoothness_weight : float, optional
+            Weight of the smoothness term (default: 1.0).
+        enforce_norm : bool, optional
+            Add ``sum(x) == norm_value`` (default: False).
+        norm_value : float, optional
+            Target total fluence (default: 1.0).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter.
+        noise_var : float, optional
+            Noise variance for the discrepancy principle ('dp' method).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        interpret_options : dict, optional
+            Extra keyword arguments forwarded to :func:`interpret_qp`.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result plus ``report`` and
+            ``interpretation_metrics`` keys.
+        """
+        return unfold_interpret_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            enforce_norm=enforce_norm,
+            norm_value=norm_value,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            interpret_options=interpret_options,
+        )
+
+    def interpret_result(
+        self,
+        readings: Dict[str, float],
+        alpha: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        enforce_norm: bool = False,
+        norm_value: float = 1.0,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Interpret a set of detector readings without unfolding.
+
+        Builds the response matrix from ``readings`` and runs
+        :func:`interpret_qp` directly, returning the report, metrics, tables and
+        interpreted spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        alpha : float, optional
+            Regularization parameter (default: 1e-4).
+        norm : int, optional
+            Penalty norm, 1 or 2 (default: 2).
+        smoothness_order : int, optional
+            Smoothness derivative order, 0, 1 or 2 (default: 0).
+        smoothness_weight : float, optional
+            Weight of the smoothness term (default: 1.0).
+        enforce_norm : bool, optional
+            Add ``sum(x) == norm_value`` (default: False).
+        norm_value : float, optional
+            Target total fluence (default: 1.0).
+        **kwargs
+            Extra keyword arguments forwarded to :func:`interpret_qp`.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary with ``report``, ``metrics``, ``tables`` and
+            ``spectrum`` keys.
+        """
+        A, b, selected = _build_system(
+            readings, self.detector_names, self.sensitivities
+        )
+        result = interpret_qp_impl(
+            A,
+            b,
+            alpha,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            enforce_norm=enforce_norm,
+            norm_value=norm_value,
+            E_MeV=self.E_MeV,
+            detector_names=selected,
+            **kwargs,
+        )
+        return {
+            "report": result.report,
+            "metrics": result.metrics,
+            "tables": result.tables,
+            "spectrum": np.asarray(result.spectrum, dtype=float),
+        }
 
     # Utility methods
     def discretize_spectra(

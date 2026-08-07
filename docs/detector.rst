@@ -46,6 +46,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_combined.unfold_combined
 
+.. autofunction:: bssunfold.core.unfold_interpret.unfold_interpret
+
 .. autofunction:: bssunfold.core.unfold_gravel.unfold_gravel
 
 .. autofunction:: bssunfold.core.unfold_maxed.unfold_maxed
@@ -118,6 +120,12 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_docplex.solve_docplex
 
 .. autofunction:: bssunfold.core.unfold_epic.solve_epic
+
+.. autofunction:: bssunfold.core.unfold_interpret.solve_interpret
+
+.. autofunction:: bssunfold.core.unfold_interpret.interpret_qp
+
+.. autofunction:: bssunfold.core.unfold_interpret.build_interpretation_qp
 
 .. autofunction:: bssunfold.core.unfold_cs.solve_cs
 
