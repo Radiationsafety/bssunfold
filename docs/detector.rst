@@ -66,6 +66,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_tsvd.unfold_tsvd
 
+.. autofunction:: bssunfold.core.unfold_lanczos.unfold_lanczos
+
 .. autofunction:: bssunfold.core.unfold_parametric.unfold_parametric
 
 .. autofunction:: bssunfold.core.unfold_parametric.solve_parametric_cvxpy
@@ -158,6 +160,8 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_scipy_direct_method.solve_scipy_direct
 
 .. autofunction:: bssunfold.core.unfold_tsvd.solve_tsvd
+
+.. autofunction:: bssunfold.core.unfold_lanczos.solve_lanczos
 
 Comparison Methods
 ==================

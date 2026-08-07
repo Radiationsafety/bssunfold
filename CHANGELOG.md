@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning].
     only).
   - Optional dependency: `pip install bssunfold[interpret]` (pyoptexplain>=0.1.1).
   - Tests: `tests/test_interpret.py`.
+- **Lanczos-hybrid (Krylov + GCV) unfolding** — new `unfold_lanczos()` method
+  and `solve_lanczos()` solver. Performs Golub-Kahan (Lanczos-type)
+  bidiagonalization, building a Krylov subspace in which a new approximation
+  is computed at each iteration; the regularization parameter is selected
+  automatically on the small projected problem by Generalized Cross Validation
+  (GCV). No a-priori spectrum is required (pure NumPy/SciPy, no new deps).
+  Supports discrepancy-principle early stopping via `noise_level` and is
+  registered in `unfold_combined`. Tests: `tests/test_lanczos.py`.
 
 ## [0.15.0] - 2026-08-06
 

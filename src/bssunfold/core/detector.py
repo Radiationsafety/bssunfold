@@ -44,6 +44,7 @@ from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularizati
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_scipy_direct_method import unfold_scipy_direct_method as unfold_scipy_direct_impl
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
+from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_parametric_impl
 from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
@@ -2571,6 +2572,78 @@ class Detector:
             method=method,
             k=k,
             threshold=threshold,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_lanczos(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization_method: str = "gcv",
+        max_iterations: Optional[int] = None,
+        regularization: float = 1e-8,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the Lanczos-hybrid (Krylov) method.
+
+        Performs Golub-Kahan (Lanczos-type) bidiagonalization of the
+        response matrix, building a sequence of Krylov subspaces. At each
+        iteration a new approximation is obtained by solving the projected
+        Tikhonov problem, with the regularization parameter selected
+        automatically on the projected problem by Generalized Cross
+        Validation (GCV). No a-priori spectrum is required.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter. Only
+            ``'gcv'`` is supported (default: 'gcv').
+        max_iterations : int, optional
+            Maximum Krylov dimension. Defaults to
+            ``min(n_detectors, n_energy_bins)``.
+        regularization : float, optional
+            Fallback regularization parameter (default: 1e-8).
+        noise_level : float, optional
+            Relative noise level used for discrepancy-principle early
+            stopping.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_lanczos_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization_method=regularization_method,
+            max_iterations=max_iterations,
+            regularization=regularization,
             noise_level=noise_level,
             calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,

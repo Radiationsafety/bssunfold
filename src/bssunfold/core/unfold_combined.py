@@ -73,6 +73,7 @@ def unfold_combined(
     from .unfold_scip import unfold_scip
     from .unfold_docplex import unfold_docplex
     from .unfold_epic import unfold_epic
+    from .unfold_lanczos import unfold_lanczos
 
     current_spectrum = None
     intermediate_results = {}
@@ -111,6 +112,7 @@ def unfold_combined(
             'scip': unfold_scip,
             'docplex': unfold_docplex,
             'epic': unfold_epic,
+            'lanczos': unfold_lanczos,
         }
 
         if method not in unfold_funcs:

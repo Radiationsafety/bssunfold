@@ -36,13 +36,14 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (31 methods):
-  - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD)
-  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), GRAVEL, Doroshenko, Kaczmarz
+- **Multiple Unfolding Algorithms** (36 methods):
+  - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
+  - **Krylov/hybrid**: Lanczos (Golub-Kahan bidiagonalization + projected GCV)
+  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
   - **Statistical Regularization**: Turchin's method (StatReg, Reconst — Fortran STREG1 port)
-  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY)
+  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex)
   - **Pipeline**: Combined approach for chaining multiple methods
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
@@ -244,6 +245,7 @@ cc_interp = interpolate_coefficients(cc, detector.E_MeV)
 ```mermaid
 graph TD
     A[Unfolding Methods] --> B[Tikhonov-type]
+    A --> J[Krylov/hybrid]
     A --> C[Iterative]
     A --> D[Bayesian]
     A --> E[Maximum Entropy]
@@ -256,6 +258,8 @@ graph TD
     B --> B2[unfold_qpsolvers]
     B --> B3[unfold_tsvd]
     B --> B4[unfold_tikhonov_legendre]
+
+    J --> J1[unfold_lanczos]
 
     C --> C1[unfold_landweber]
     C --> C2[unfold_mlem]
@@ -277,9 +281,10 @@ graph TD
     G --> G3[unfold_mystic]
     G --> G4[unfold_smt]
     G --> G5[unfold_genetic]
-    G --> G6[unfold_scip]
-    G --> G7[unfold_docplex]
-    G --> G8[unfold_epic]
+    G --> G6[unfold_cs]
+    G --> G7[unfold_scip]
+    G --> G8[unfold_docplex]
+    G --> G9[unfold_epic]
 
     H --> H1[unfold_combined]
 
@@ -301,6 +306,7 @@ graph TD
     style G fill:#e8f0fe
     style H fill:#e8f0fe
     style I fill:#e8f0fe
+    style J fill:#e8f0fe
 ```
 
 ### Method Reference Table
@@ -310,37 +316,39 @@ graph TD
 | 1 | `unfold_cvxpy` | Tikhonov | `regularization`, `norm` (1/2), `solver`, `regularization_method` | cvxpy | Convex optimization with Tikhonov regularization |
 | 2 | `unfold_qpsolvers` | Tikhonov | `regularization`, `norm` (1/2), `solver`, `smoothness_order`, `smoothness_weight`, `regularization_method` | qpsolvers | QP-based unfolding with L1/L2/smoothness norms |
 | 3 | `unfold_tsvd` | Tikhonov | `method` (l_curve/gcv/discrepancy/energy/median/donoho), `k`, `threshold`, `noise_level` | — | Truncated SVD with automatic k-selection |
-| 4 | `unfold_tikhonov_legendre` | Tikhonov | `delta`, `n_polynomials` | — | Tikhonov regularization in Legendre polynomial basis |
-| 5 | `unfold_landweber` | Iterative | `max_iterations`, `tolerance` | — | Landweber fixed-point iteration |
-| 6 | `unfold_mlem` | Iterative | `max_iterations`, `tolerance` | — | Pure-NumPy MLEM (expectation maximization) |
-| 7 | `unfold_mlem_stop` | Iterative | `max_iterations`, `cps_crossover`, `j_threshold` | — | MLEM with J-factor early stopping criterion (Montgomery et al. 2020) |
-| 8 | `unfold_mlem_odl` | Iterative | `max_iterations`, `tolerance` | odl | MLEM via ODL operator framework |
-| 9 | `unfold_gravel` | Iterative | `max_iterations`, `tolerance`, `regularization` | — | GRAVEL algorithm with relative entropy weighting |
-| 10 | `unfold_doroshenko` | Iterative | `max_iterations`, `tolerance`, `regularization` | — | Coordinate-update iterative method |
-| 11 | `unfold_kaczmarz` | Iterative | `max_iterations`, `omega`, `tolerance` | — | ART (Algebraic Reconstruction Technique) |
-| 12 | `unfold_bayes` | Bayesian | `max_iterations`, `tolerance` | — | D'Agostini Bayesian iterative unfolding |
-| 13 | `unfold_bayes_spline_regularization` | Bayesian | `max_iterations`, `tolerance`, `spline_degree`, `spline_smooth` | — | Bayes iteration with spline smoothing |
-| 14 | `unfold_maxed` | MaxEnt | `sigma_factor`, `max_iterations`, `tolerance` | — | Maximum entropy deconvolution (Reginatto & Goldhagen) |
-| 15 | `unfold_statreg` | Statistical Reg. | `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree` | — | Turchin's statistical regularization |
-| 16 | `unfold_reconst` | Statistical Reg. | `alpha`, `beta`, `max_iter_alpha`, `max_iter_beta`, `tol_alpha`, `tol_beta` | — | Fortran STREG1 port: auto α/β with discrepancy principle & ω-criterion |
-| 17 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight` | lmfit | L1/L2/Elastic Net via lmfit |
-| 18 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |
-| 19 | `unfold_combined` | Pipeline | `pipeline` (list of `{method, params}` dicts) | — | Sequential multi-method pipeline |
-| 20 | `unfold_parametric` | Parametric | `parametric_method`, `optimizer`, `solver_backend`, `initial_params` | lmfit, cvxpy, qpsolvers | FRUIT-style thermal/epithermal/fast model |
-| 21 | `unfold_parametric_cvxpy` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | cvxpy | SQP solver using cvxpy for parametric fitting |
-| 22 | `unfold_parametric_qpsolvers` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | qpsolvers | SQP solver using qpsolvers backends |
-| 23 | `unfold_parametric_combined` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | lmfit, cvxpy, qpsolvers | lmfit first-pass + QP refinement |
-| 24 | `unfold_parametric2` | Parametric | `b_range`, `Tf_range`, `c_range`, `noise_level`, `max_iter`, `tol_chi2`, `optimizer`, `solver_backend` | grid, cvxpy, qpsolvers, combined | BON95 4-component model + directed-divergence iterations |
-| 25 | `unfold_fruit_like` | Parametric | `initial_params`, `max_iterations`, `tolerance` | — | FRUIT-like model: Maxwellian thermal + 1/E epithermal + evaporation fast |
-| 26 | `unfold_hybrid_parametric` | Parametric | `refinement_method` (landweber/mlem), `max_iterations`, `tolerance` | — | Parametric initial guess refined by Landweber or MLEM |
-| 27 | `unfold_bayesian_parametric` | Parametric | `n_samples`, `burn_in`, `proposal_scale`, `prior_mean`, `prior_std` | — | Metropolis-Hastings MCMC for spectral parameter estimation |
-| 28 | `unfold_mystic` | Optimization | `regularization`, `norm` (1/2), `solver` (fmin/fmin_powell/diffev/diffev2), `maxiter`, `maxfun`, `smoothness_order`, `smoothness_weight`, `regularization_method` | mystic | Direct-search minimization of the penalized least-squares objective |
-| 29 | `unfold_smt` | Optimization | `nonneg`, `timeout_ms` | z3-solver | Exact SMT solving of `A·x = b` (integer/rational) with fluence minimization |
-| 30 | `unfold_genetic` | Optimization | `solver` (pso/ga/de/es/ep/abc/gwo/cmaes), `epoch`, `pop_size`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `n_runs`, `early_stop` | mealpy | Population-based meta-heuristic unfolding (PSO/GA/DE/ES/EP/ABC/GWO/CMA-ES) |
-| 31 | `unfold_scip` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | pyscipopt | Tikhonov QP solved by the SCIP Optimization Suite (global NLP/QP optimizer) |
-| 32 | `unfold_docplex` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | docplex, cplex | Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition) |
-| 33 | `unfold_epic` | Regularization | `target_sigmas`, `sigma_frac`, `regularization_order` (0/1/2), `non_neg`, `noise_var`, `homogeneous_step`, `regularize`, `beta_shift_k`, `beta_distance`, `EPIC_bool`, `V`, `LSQpar` | — | EPIC Tikhonov regularization (Ortega-Culaciati et al. 2021): prior variances chosen so a posteriori variances match target sigmas |
-| 34 | `unfold_interpret` | Interpretation | `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `enforce_norm`, `norm_value`, `regularization_method`, `interpret_options` | pyoptexplain (optional) | Unfolding QP solved via pyoptexplain plus an interpretation report (robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Also `Detector.interpret_result` for interpretation-only runs |
+| 4 | `unfold_lanczos` | Krylov/hybrid | `regularization_method` (gcv), `max_iterations`, `regularization`, `noise_level` | — | Lanczos-hybrid (Golub-Kahan bidiagonalization) with automatic per-iteration GCV regularization; no a-priori spectrum required |
+| 5 | `unfold_tikhonov_legendre` | Tikhonov | `delta`, `n_polynomials` | — | Tikhonov regularization in Legendre polynomial basis |
+| 6 | `unfold_landweber` | Iterative | `max_iterations`, `tolerance` | — | Landweber fixed-point iteration |
+| 7 | `unfold_mlem` | Iterative | `max_iterations`, `tolerance` | — | Pure-NumPy MLEM (expectation maximization) |
+| 8 | `unfold_mlem_stop` | Iterative | `max_iterations`, `cps_crossover`, `j_threshold` | — | MLEM with J-factor early stopping criterion (Montgomery et al. 2020) |
+| 9 | `unfold_mlem_odl` | Iterative | `max_iterations`, `tolerance` | odl | MLEM via ODL operator framework |
+| 10 | `unfold_gravel` | Iterative | `max_iterations`, `tolerance`, `regularization` | — | GRAVEL algorithm with relative entropy weighting |
+| 11 | `unfold_doroshenko` | Iterative | `max_iterations`, `tolerance`, `regularization` | — | Coordinate-update iterative method |
+| 12 | `unfold_kaczmarz` | Iterative | `max_iterations`, `omega`, `tolerance` | — | ART (Algebraic Reconstruction Technique) |
+| 13 | `unfold_bayes` | Bayesian | `max_iterations`, `tolerance` | — | D'Agostini Bayesian iterative unfolding |
+| 14 | `unfold_bayes_spline_regularization` | Bayesian | `max_iterations`, `tolerance`, `spline_degree`, `spline_smooth` | — | Bayes iteration with spline smoothing |
+| 15 | `unfold_maxed` | MaxEnt | `sigma_factor`, `max_iterations`, `tolerance` | — | Maximum entropy deconvolution (Reginatto & Goldhagen) |
+| 16 | `unfold_statreg` | Statistical Reg. | `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree` | — | Turchin's statistical regularization |
+| 17 | `unfold_reconst` | Statistical Reg. | `alpha`, `beta`, `max_iter_alpha`, `max_iter_beta`, `tol_alpha`, `tol_beta` | — | Fortran STREG1 port: auto α/β with discrepancy principle & ω-criterion |
+| 18 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight` | lmfit | L1/L2/Elastic Net via lmfit |
+| 19 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |
+| 20 | `unfold_combined` | Pipeline | `pipeline` (list of `{method, params}` dicts) | — | Sequential multi-method pipeline |
+| 21 | `unfold_parametric` | Parametric | `parametric_method`, `optimizer`, `solver_backend`, `initial_params` | lmfit, cvxpy, qpsolvers | FRUIT-style thermal/epithermal/fast model |
+| 22 | `unfold_parametric_cvxpy` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | cvxpy | SQP solver using cvxpy for parametric fitting |
+| 23 | `unfold_parametric_qpsolvers` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | qpsolvers | SQP solver using qpsolvers backends |
+| 24 | `unfold_parametric_combined` | Parametric | `parametric_method`, `initial_params`, `solver_backend` | lmfit, cvxpy, qpsolvers | lmfit first-pass + QP refinement |
+| 25 | `unfold_parametric2` | Parametric | `b_range`, `Tf_range`, `c_range`, `noise_level`, `max_iter`, `tol_chi2`, `optimizer`, `solver_backend` | grid, cvxpy, qpsolvers, combined | BON95 4-component model + directed-divergence iterations |
+| 26 | `unfold_fruit_like` | Parametric | `initial_params`, `max_iterations`, `tolerance` | — | FRUIT-like model: Maxwellian thermal + 1/E epithermal + evaporation fast |
+| 27 | `unfold_hybrid_parametric` | Parametric | `refinement_method` (landweber/mlem), `max_iterations`, `tolerance` | — | Parametric initial guess refined by Landweber or MLEM |
+| 28 | `unfold_bayesian_parametric` | Parametric | `n_samples`, `burn_in`, `proposal_scale`, `prior_mean`, `prior_std` | — | Metropolis-Hastings MCMC for spectral parameter estimation |
+| 29 | `unfold_mystic` | Optimization | `regularization`, `norm` (1/2), `solver` (fmin/fmin_powell/diffev/diffev2), `maxiter`, `maxfun`, `smoothness_order`, `smoothness_weight`, `regularization_method` | mystic | Direct-search minimization of the penalized least-squares objective |
+| 30 | `unfold_smt` | Optimization | `nonneg`, `timeout_ms` | z3-solver | Exact SMT solving of `A·x = b` (integer/rational) with fluence minimization |
+| 31 | `unfold_genetic` | Optimization | `solver` (pso/ga/de/es/ep/abc/gwo/cmaes), `epoch`, `pop_size`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `n_runs`, `early_stop` | mealpy | Population-based meta-heuristic unfolding (PSO/GA/DE/ES/EP/ABC/GWO/CMA-ES) |
+| 32 | `unfold_cs` | Optimization | `n_atoms`, `sparsity`, `dictionary`, `n_dictionary_iterations`, `sigma_min`, `sigma_decrease_factor`, `mu_0`, `L`, `max_iterations`, `tolerance` | — | Compressive sensing: K-SVD dictionary + OMP sparse coding + SL0 reconstruction |
+| 33 | `unfold_scip` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | pyscipopt | Tikhonov QP solved by the SCIP Optimization Suite (global NLP/QP optimizer) |
+| 34 | `unfold_docplex` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | docplex, cplex | Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition) |
+| 35 | `unfold_epic` | Regularization | `target_sigmas`, `sigma_frac`, `regularization_order` (0/1/2), `non_neg`, `noise_var`, `homogeneous_step`, `regularize`, `beta_shift_k`, `beta_distance`, `EPIC_bool`, `V`, `LSQpar` | — | EPIC Tikhonov regularization (Ortega-Culaciati et al. 2021): prior variances chosen so a posteriori variances match target sigmas |
+| 36 | `unfold_interpret` | Interpretation | `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `enforce_norm`, `norm_value`, `regularization_method`, `interpret_options` | pyoptexplain (optional) | Unfolding QP solved via pyoptexplain plus an interpretation report (robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Also `Detector.interpret_result` for interpretation-only runs |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
