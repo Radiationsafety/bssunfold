@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 32 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 51 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 46 methods are accessible as instance methods on the
+All 51 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -40,6 +40,8 @@ categories:
        J --> J1["unfold_lanczos"]
        J --> J2["unfold_gks"]
        J --> J3["unfold_cgls"]
+       J --> J4["unfold_hybrid_gmres"]
+       J --> J5["unfold_fista"]
 
        C --> C1["unfold_landweber"]
         C --> C2["unfold_mlem"]
@@ -407,6 +409,18 @@ Method Reference
      - `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance`
      - —
      - NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode
+   * - 50
+     - ``unfold_fista``
+     - Krylov/hybrid
+     - `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta`
+     - —
+     - FISTA (Fast Iterative Shrinkage-Thresholding Algorithm): accelerated proximal gradient method for L1/L2/TV regularized problems with box constraints; O(1/k²) convergence
+   * - 51
+     - ``unfold_hybrid_gmres``
+     - Krylov/hybrid
+     - `max_iterations`, `regularization_method`, `regularization`, `noise_level`, `eta`, `reorthogonalization`
+     - —
+     - Hybrid GMRES: combines GMRES iteration with Tikhonov regularization on projected problem; automatic regularization selection via GCV/discrepancy principle
 
 .. note::
 
