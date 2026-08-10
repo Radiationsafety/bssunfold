@@ -35,13 +35,14 @@ the initial guess; ``x0`` is accepted for interface compatibility with the
 other ``solve_*`` functions and used only as a fallback if the solve fails.
 """
 
+import warnings
+from typing import Any
+
 import numpy as np
 from scipy.optimize import nnls
-from typing import Dict, Optional, Any, List, Tuple, Union
-import warnings
 
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
-from ._base_unfolder import run_unfolding, make_solve_wrapper
 
 __all__ = ["solve_ferdor", "unfold_ferdor"]
 
@@ -50,7 +51,6 @@ __all__ = ["solve_ferdor", "unfold_ferdor"]
 # was removed in newer numpy versions
 class LinalgWarning(Warning):
     """Warning for linear algebra issues."""
-    pass
 
 
 def _solve_weighted_ls(
@@ -58,9 +58,9 @@ def _solve_weighted_ls(
     ATb: np.ndarray,
     LTL: np.ndarray,
     alpha: float,
-    Aw: Optional[np.ndarray] = None,
-    bw: Optional[np.ndarray] = None,
-) -> Optional[np.ndarray]:
+    Aw: np.ndarray | None = None,
+    bw: np.ndarray | None = None,
+) -> np.ndarray | None:
     """Solve the weighted least-squares system for a given smoothing weight.
 
     Returns the non-negative solution or None if the linear solve fails.
@@ -75,8 +75,8 @@ def _solve_weighted_ls(
             try:
                 x, _ = nnls(Aw, bw)
                 return x
-            except Exception:
-                pass
+            except np.linalg.LinAlgError as e:
+                warnings.warn(f"NNLS failed: {e}", LinalgWarning, stacklevel=2)
         # Fallback to lstsq
         try:
             x = np.linalg.lstsq(ATA, ATb, rcond=None)[0]
@@ -106,7 +106,6 @@ def _solve_weighted_ls(
         try:
             # Build augmented system for regularized NNLS
             # [Aw; sqrt(alpha)*L] x = [bw; 0]
-            n = Aw.shape[1]
             if alpha > 0 and LTL is not None and LTL.any():
                 # Cholesky decomposition of LTL for efficient augmentation
                 try:
@@ -121,8 +120,8 @@ def _solve_weighted_ls(
             # Simple nnls without regularization
             x, _ = nnls(Aw, bw)
             return x
-        except Exception:
-            pass
+        except np.linalg.LinAlgError as e:
+            warnings.warn(f"NNLS fallback failed: {e}", LinalgWarning, stacklevel=2)
     
     return None
 
@@ -136,10 +135,10 @@ def solve_ferdor(
     smoothing: float = 1e-3,
     chi_squared_target: float = 1.0,
     relative_uncertainty: float = 0.1,
-    sigma: Optional[np.ndarray] = None,
+    sigma: np.ndarray | None = None,
     min_alpha: float = 1e-12,
     max_alpha: float = 1e12,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the FERDOR algorithm.
 
     The smoothing weight ``alpha`` is adjusted iteratively (bisection) so
@@ -269,14 +268,14 @@ def solve_ferdor(
 
 
 def unfold_ferdor(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
     tolerance: float = 1e-3,
     smoothing: float = 1e-3,
@@ -286,27 +285,27 @@ def unfold_ferdor(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the FERDOR algorithm.
 
     Parameters
     ----------
-    detector_names : List[str]
+    detector_names : list[str]
         Names of available detectors.
     n_energy_bins : int
         Number of energy bins.
     E_MeV : np.ndarray
         Energy grid.
-    sensitivities : Dict[str, np.ndarray]
+    sensitivities : dict[str, np.ndarray]
         Detector sensitivity arrays.
-    cc_icrp116 : Dict[str, np.ndarray]
+    cc_icrp116 : dict[str, np.ndarray]
         ICRP-116 conversion coefficients.
     save_result_callback : callable
         Callback to save result to history.
-    readings : Dict[str, float]
+    readings : dict[str, float]
         Detector readings.
-    initial_spectrum : Optional[np.ndarray], optional
+    initial_spectrum : np.ndarray | None, optional
         Initial spectrum guess. If None, a flat spectrum is used.
     max_iterations : int, optional
         Maximum number of smoothing-weight iterations (default: 100).
@@ -332,7 +331,7 @@ def unfold_ferdor(
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         Unfolding results dictionary.
     """
     x0_default = np.ones(n_energy_bins)

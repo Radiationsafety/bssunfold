@@ -1,3 +1,4 @@
+```
 # Jupyter Notebook checkpoints
 .checkpoints/
 *.ipynb_checkpoints/
@@ -23,6 +24,17 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Compiled and build artifacts
+*.o
+*.obj
+*.out
+*.so
+*.dll
+*.exe
+
+# Dependencies
+.venv/
+venv/
 # Build outputs
 dist/
 build/
@@ -45,6 +57,20 @@ Thumbs.db
 .env.local
 .env.*
 
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+```
 # IDE specific
 .vscode/
 .idea/
