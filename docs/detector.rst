@@ -68,6 +68,12 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_lanczos.unfold_lanczos
 
+.. autofunction:: bssunfold.core.unfold_cgls.unfold_cgls
+
+.. autofunction:: bssunfold.core.unfold_gks.unfold_gks
+
+.. autofunction:: bssunfold.core.unfold_tikhonov_tv.unfold_tikhonov_tv
+
 .. autofunction:: bssunfold.core.unfold_parametric.unfold_parametric
 
 .. autofunction:: bssunfold.core.unfold_parametric.solve_parametric_cvxpy
@@ -162,6 +168,12 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_tsvd.solve_tsvd
 
 .. autofunction:: bssunfold.core.unfold_lanczos.solve_lanczos
+
+.. autofunction:: bssunfold.core.unfold_cgls.solve_cgls
+
+.. autofunction:: bssunfold.core.unfold_gks.solve_gks
+
+.. autofunction:: bssunfold.core.unfold_tikhonov_tv.solve_tikhonov_tv
 
 Comparison Methods
 ==================

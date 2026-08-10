@@ -37,6 +37,25 @@ and this project adheres to [Semantic Versioning].
   (GCV). No a-priori spectrum is required (pure NumPy/SciPy, no new deps).
   Supports discrepancy-principle early stopping via `noise_level` and is
   registered in `unfold_combined`. Tests: `tests/test_lanczos.py`.
+- **CGLS, GKS and Tikhonov-TV unfolding** — three new Krylov/regularized
+  methods:
+  - `unfold_cgls()` / `solve_cgls()` — Conjugate Gradient for Least Squares
+    with an optional `||L x||^2` Tikhonov term (`regularization`,
+    `smoothness_order`), discrepancy-principle stopping via `noise_level`
+    and non-negative spectrum via clamping.
+  - `unfold_gks()` / `solve_gks()` — Generalized Krylov Subspace
+    (Golub-Kahan bidiagonalization) with the regularization parameter
+    selected automatically on the projected problem by GCV, the Discrepancy
+    Principle or the L-curve (`regularization_method='gcv'|'dp'|'lcurve'|
+    'manual'`). No a-priori spectrum is required.
+  - `unfold_tikhonov_tv()` / `solve_tikhonov_tv()` — noise-constrained
+    Tikhonov + total variation solved by an ADMM scheme adapted to 1D
+    spectra (Gazzola & Gholami, 2022). The balancing parameter `beta` can
+    be fixed or estimated adaptively (`beta='adapt'`), with `type_` selecting
+    `'TT'` (TV + Tikhonov), `'TV'` (pure TV) or `'T'` (pure Tikhonov).
+  - All three are registered in `unfold_combined()` pipelines (`"cgls"`,
+    `"gks"`, `"tikhonov_tv"`) and documented in `docs/detector.rst`.
+    Tests: `tests/test_krylov_tv.py`.
 
 ## [0.15.0] - 2026-08-06
 

@@ -55,6 +55,9 @@ from .unfold_scip import unfold_scip as unfold_scip_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
 from .unfold_epic import unfold_epic as unfold_epic_impl
+from .unfold_cgls import unfold_cgls as unfold_cgls_impl
+from .unfold_gks import unfold_gks as unfold_gks_impl
+from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
 from ._base_unfolder import _build_system
 from .unfold_interpret import (
     interpret_qp as interpret_qp_impl,
@@ -2644,6 +2647,250 @@ class Detector:
             regularization_method=regularization_method,
             max_iterations=max_iterations,
             regularization=regularization,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_cgls(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        tolerance: float = 1e-12,
+        regularization: float = 0.0,
+        smoothness_order: int = 0,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the CGLS iterative method.
+
+        CGLS (Conjugate Gradient for Least Squares) solves the least
+        squares problem ``min ||A x - b||^2`` with a truncated-CG
+        iteration, optionally regularized by a ``||L x||^2`` Tikhonov term
+        and/or stopped early by the discrepancy principle.  Nonnegativity
+        is enforced by clamping at each iteration.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.  If None, a zero vector is used
+            (the CGLS iteration does not depend on the initial guess).
+        max_iterations : int, optional
+            Maximum number of CG iterations (default: 100).
+        tolerance : float, optional
+            Relative tolerance on the normal-equation residual
+            (default: 1e-12).
+        regularization : float, optional
+            Tikhonov regularization parameter for the ``||L x||^2`` term
+            (default: 0.0 = no extra regularization).
+        smoothness_order : int, optional
+            Order of the derivative matrix used as the regularization
+            operator ``L`` (0 = identity, 1 = first derivative,
+            2 = second derivative).  Ignored when ``regularization`` is 0.
+        noise_level : float, optional
+            Relative noise level used for discrepancy-principle stopping.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_cgls_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            regularization=regularization,
+            smoothness_order=smoothness_order,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_gks(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: Optional[int] = None,
+        smoothness_order: int = 2,
+        regularization_method: str = "gcv",
+        regularization: float = 1e-8,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the GKS Krylov-hybrid method.
+
+        GKS (Golub-Kahan hybrid) performs Lanczos-type bidiagonalization
+        of the response matrix, building a Krylov subspace of modest
+        dimension.  At each iteration the regularized problem is projected
+        onto the subspace and solved, with the regularization parameter
+        chosen automatically on the projected problem by GCV, the
+        discrepancy principle, or the L-curve.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        max_iterations : int, optional
+            Maximum Krylov dimension.  Defaults to
+            ``min(n_detectors, n_energy_bins)``.
+        smoothness_order : int, optional
+            Order of the derivative matrix used for regularization
+            (default: 2).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter:
+            ``'gcv'``, ``'dp'``, ``'lcurve'`` or ``'manual'``
+            (default: 'gcv').
+        regularization : float, optional
+            Fallback/manual regularization parameter (default: 1e-8).
+        noise_level : float, optional
+            Relative noise level used by the discrepancy principle when
+            ``regularization_method='dp'``.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_gks_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            smoothness_order=smoothness_order,
+            regularization_method=regularization_method,
+            regularization=regularization,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_tikhonov_tv(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        epsilon: Optional[float] = None,
+        mu: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+        max_iterations: int = 100,
+        type_: str = "TT",
+        beta: float = 1.0,
+        zthr: float = 2.5,
+        tolerance: float = 1e-4,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum with noise-constrained Tikhonov-TV.
+
+        Solves ``min f(x)`` subject to ``||A x - b||^2 = epsilon`` with the
+        ADMM scheme of Gazzola & Gholami adapted to 1D spectra.  The
+        regularizer ``f`` is a blend of total variation on the first
+        derivative and Tikhonov smoothing on the second derivative, with
+        the balancing parameter ``beta`` either fixed or estimated
+        adaptively.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        epsilon : float, optional
+            Estimate of the squared 2-norm of the noise.  If None, derived
+            from ``noise_level`` (``(noise_level * ||b||)^2``) or from the
+            residuals of an unregularized least-squares solve.
+        mu : Tuple[float, float, float], optional
+            Penalty parameters ``(mu1, mu2, mu3)`` (default: (1, 1, 1)).
+        max_iterations : int, optional
+            Maximum number of ADMM iterations (default: 100).
+        type_ : str, optional
+            Optimization problem: ``'TT'`` (TV + Tikhonov), ``'TV'`` (pure
+            total variation) or ``'T'`` (pure Tikhonov) (default: 'TT').
+        beta : float, optional
+            Balancing parameter between TV and Tikhonov terms, or
+            ``'adapt'`` for adaptive estimation (default: 1.0).
+        zthr : float, optional
+            Threshold for the adaptive beta estimation (default: 2.5).
+        tolerance : float, optional
+            Stabilization stopping criterion (default: 1e-4).
+        noise_level : float, optional
+            Relative noise level used to derive a default ``epsilon``.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_tikhonov_tv_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            epsilon=epsilon,
+            mu=mu,
+            max_iterations=max_iterations,
+            type_=type_,
+            beta=beta,
+            zthr=zthr,
+            tolerance=tolerance,
             noise_level=noise_level,
             calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,

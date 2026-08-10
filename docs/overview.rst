@@ -36,6 +36,8 @@ categories:
        B --> B4["unfold_tikhonov_legendre"]
 
        J --> J1["unfold_lanczos"]
+       J --> J2["unfold_gks"]
+       J --> J3["unfold_cgls"]
 
        C --> C1["unfold_landweber"]
         C --> C2["unfold_mlem"]
@@ -313,6 +315,24 @@ Method Reference
      - `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `enforce_norm`, `norm_value`, `regularization_method`, `interpret_options`
      - pyoptexplain (optional)
      - Unfolding QP solved via pyoptexplain plus an interpretation report (robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Also `Detector.interpret_result` for interpretation-only runs
+   * - 37
+     - ``unfold_cgls``
+     - Krylov/iterative
+     - `max_iterations`, `tolerance`, `regularization`, `smoothness_order`, `noise_level`
+     - —
+     - CGLS (conjugate gradient for least squares) with optional ``||L x||^2`` Tikhonov term and discrepancy-principle stopping; nonnegative spectrum via clamping
+   * - 38
+     - ``unfold_gks``
+     - Krylov/hybrid
+     - `regularization_method` (gcv/dp/lcurve/manual), `max_iterations`, `smoothness_order`, `regularization`, `noise_level`
+     - —
+     - Generalized Krylov Subspace (Golub-Kahan bidiagonalization + projected regularization selection); no a-priori spectrum required
+   * - 39
+     - ``unfold_tikhonov_tv``
+     - Regularization
+     - `epsilon`, `mu`, `max_iterations`, `type_` (TT/TV/T), `beta` (float or ``'adapt'``), `zthr`, `tolerance`, `noise_level`
+     - —
+     - Noise-constrained Tikhonov+TV via ADMM (Gazzola & Gholami); adaptive balancing of the TV and Tikhonov terms
 
 .. note::
 

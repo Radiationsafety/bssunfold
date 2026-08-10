@@ -74,6 +74,9 @@ def unfold_combined(
     from .unfold_docplex import unfold_docplex
     from .unfold_epic import unfold_epic
     from .unfold_lanczos import unfold_lanczos
+    from .unfold_cgls import unfold_cgls
+    from .unfold_gks import unfold_gks
+    from .unfold_tikhonov_tv import unfold_tikhonov_tv
 
     current_spectrum = None
     intermediate_results = {}
@@ -113,6 +116,9 @@ def unfold_combined(
             'docplex': unfold_docplex,
             'epic': unfold_epic,
             'lanczos': unfold_lanczos,
+            'cgls': unfold_cgls,
+            'gks': unfold_gks,
+            'tikhonov_tv': unfold_tikhonov_tv,
         }
 
         if method not in unfold_funcs:

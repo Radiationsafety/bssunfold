@@ -35,7 +35,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 
 ## Testing
 
-### Test files (28 files, 1465 tests)
+### Test files (29 files, ~1595 tests)
 
 | File | Focus |
 |------|-------|
@@ -50,6 +50,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 | `tests/test_smt.py` | SMT-based unfolding: exact solvers + solve_smt/unfold_smt (skipped if z3-solver not installed) |
 | `tests/test_interpret.py` | pyoptexplain interpretation: build_interpretation_qp/solve_interpret/interpret_qp + Detector.unfold_interpret/interpret_result (skipped if pyoptexplain not installed) |
 | `tests/test_security.py` | bandit static security scan (no HIGH findings) |
+| `tests/test_krylov_tv.py` | CGLS (`unfold_cgls`), GKS (`unfold_gks`) and Tikhonov-TV (`unfold_tikhonov_tv`): solver edge cases + Detector wrappers + combined pipeline |
 
 ### Analysis tools
 

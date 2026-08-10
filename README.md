@@ -38,7 +38,7 @@
 
 - **Multiple Unfolding Algorithms** (36 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
-  - **Krylov/hybrid**: Lanczos (Golub-Kahan bidiagonalization + projected GCV)
+  - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
@@ -349,6 +349,9 @@ graph TD
 | 34 | `unfold_docplex` | Optimization | `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method` | docplex, cplex | Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition) |
 | 35 | `unfold_epic` | Regularization | `target_sigmas`, `sigma_frac`, `regularization_order` (0/1/2), `non_neg`, `noise_var`, `homogeneous_step`, `regularize`, `beta_shift_k`, `beta_distance`, `EPIC_bool`, `V`, `LSQpar` | — | EPIC Tikhonov regularization (Ortega-Culaciati et al. 2021): prior variances chosen so a posteriori variances match target sigmas |
 | 36 | `unfold_interpret` | Interpretation | `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `enforce_norm`, `norm_value`, `regularization_method`, `interpret_options` | pyoptexplain (optional) | Unfolding QP solved via pyoptexplain plus an interpretation report (robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Also `Detector.interpret_result` for interpretation-only runs |
+| 37 | `unfold_cgls` | Krylov/iterative | `max_iterations`, `tolerance`, `regularization`, `smoothness_order`, `noise_level` | — | CGLS (conjugate gradient for least squares) with optional `\|\|L x\|\|^2` Tikhonov term and discrepancy-principle stopping; nonnegative spectrum via clamping |
+| 38 | `unfold_gks` | Krylov/hybrid | `regularization_method` (gcv/dp/lcurve/manual), `max_iterations`, `smoothness_order`, `regularization`, `noise_level` | — | Generalized Krylov Subspace (Golub-Kahan bidiagonalization + projected regularization selection); no a-priori spectrum required |
+| 39 | `unfold_tikhonov_tv` | Regularization | `epsilon`, `mu`, `max_iterations`, `type_` (TT/TV/T), `beta` (float or `'adapt'`), `zthr`, `tolerance`, `noise_level` | — | Noise-constrained Tikhonov+TV via ADMM (Gazzola & Gholami); adaptive balancing of the TV and Tikhonov terms |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 

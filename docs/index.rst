@@ -30,7 +30,7 @@ Features
 
 - **Multiple Unfolding Algorithms** (36 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD, EPIC (Equal Posterior Information Condition)
-  - **Krylov/hybrid**: Lanczos (Golub-Kahan bidiagonalization + projected GCV)
+  - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
