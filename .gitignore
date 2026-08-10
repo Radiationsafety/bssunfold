@@ -1,1 +1,12 @@
-Nothing needs to be added to .gitignore since only a Jupyter notebook file (.ipynb) was added, which is a source/config file that should be tracked in version control.
+```
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Compiled Python files in specific directories
+src/bssunfold/__pycache__/
+src/bssunfold/core/__pycache__/
+src/bssunfold/utils/__pycache__/
+```

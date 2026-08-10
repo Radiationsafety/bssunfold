@@ -15,22 +15,23 @@ logger = get_logger("unfold_hybrid_gmres")
 
 def _gcv_function(lambda_val: float, B_k: np.ndarray, beta: np.ndarray) -> float:
     """Compute Generalized Cross Validation function value."""
-    k = len(beta)
+    # Use number of columns in B_k as the dimension of the solution space
+    k = B_k.shape[1]
     if lambda_val < 1e-14:
         # Handle near-zero lambda
         try:
             x_lambda = np.linalg.lstsq(B_k, beta[:k], rcond=None)[0]
             residual = beta[:k] - B_k @ x_lambda
-        except:
+        except (np.linalg.LinAlgError, ValueError):
             return 1e10
     else:
         # Add regularization to bidiagonal matrix
         B_reg = np.vstack([B_k, lambda_val * np.eye(k)])
-        rhs = np.concatenate([beta[:k], np.zeros(k)])
+        rhs = np.concatenate([beta, np.zeros(k)])
         try:
             x_lambda = np.linalg.lstsq(B_reg, rhs, rcond=None)[0]
-            residual = beta[:k] - B_k @ x_lambda
-        except:
+            residual = beta - B_k @ x_lambda
+        except (np.linalg.LinAlgError, ValueError):
             return 1e10
     
     # GCV function: ||A x - b||^2 / (trace(I - A A^+))^2
@@ -41,12 +42,12 @@ def _gcv_function(lambda_val: float, B_k: np.ndarray, beta: np.ndarray) -> float
     if k < 50:
         try:
             H = B_k @ np.linalg.pinv(B_k)
-            denominator = (k - np.trace(H)) ** 2
-        except:
+            denominator = (len(beta) - np.trace(H)) ** 2
+        except (np.linalg.LinAlgError, ValueError):
             denominator = 1.0
     else:
         # Hutchinson trace estimator approximation
-        denominator = max(k * 0.1, 1.0)
+        denominator = max(len(beta) * 0.1, 1.0)
     
     if denominator < 1e-10:
         return 1e10
@@ -332,8 +333,8 @@ def unfold_hybrid_gmres(
             lambda_k = regularization
             # Simple binary search for lambda satisfying discrepancy
             for _ in range(20):
-                L_reg = np.vstack([B_k, lambda_k * np.eye(current_k)])
-                rhs_reg = np.concatenate([rhs_proj, np.zeros(current_k)])
+                L_reg = np.vstack([B_k, lambda_k * np.eye(B_k.shape[1])])
+                rhs_reg = np.concatenate([rhs_proj, np.zeros(B_k.shape[1])])
                 try:
                     y_lambda = np.linalg.lstsq(L_reg, rhs_reg, rcond=None)[0]
                     x_lambda = x0 + U[:, :current_k] @ y_lambda
@@ -343,7 +344,7 @@ def unfold_hybrid_gmres(
                         lambda_k *= 2
                     else:
                         lambda_k /= 2
-                except:
+                except (np.linalg.LinAlgError, ValueError):
                     break
         else:
             lambda_k = regularization
@@ -351,8 +352,8 @@ def unfold_hybrid_gmres(
         reg_params.append(lambda_k)
         
         # Solve regularized projected problem
-        L_reg = np.vstack([B_k, lambda_k * np.eye(current_k)])
-        rhs_reg = np.concatenate([rhs_proj, np.zeros(current_k)])
+        L_reg = np.vstack([B_k, lambda_k * np.eye(B_k.shape[1])])
+        rhs_reg = np.concatenate([rhs_proj, np.zeros(B_k.shape[1])])
         
         try:
             y_lambda = np.linalg.lstsq(L_reg, rhs_reg, rcond=None)[0]
@@ -438,7 +439,7 @@ def unfold_hybrid_gmres(
                 try:
                     y_mc = np.linalg.lstsq(H_mc, beta_mc * np.ones(min(5, max_krylov)), rcond=None)[0]
                     x_mc = V_mc[:, :min(5, max_krylov)] @ y_mc
-                except:
+                except (np.linalg.LinAlgError, ValueError):
                     pass
             spectra_mc.append(np.maximum(x_mc, 0))
         
