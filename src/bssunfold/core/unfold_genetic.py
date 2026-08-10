@@ -18,7 +18,22 @@ published genetic / evolutionary unfolding works:
 
 The ``unfold_genetic`` / ``solve_genetic`` pair exposes a ``solver``
 selector that maps to different meta-heuristic algorithms implemented in
-MEALPY (PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES).
+MEALPY (PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES) plus two self-contained
+numpy engines that extend the published approaches:
+
+- ``nsga2``: a real-coded NSGA-II multi-objective engine (Deb et al., 2002)
+  that derives the Pareto front of two objectives -- the relative response
+  error ``||b - A x||^2 / ||b||^2`` and the negative Shannon entropy
+  ``-H(x)`` -- as in Woo et al., Prog. Nucl. Sci. Technol. 6 (2019).  A
+  single solution is returned from the front (knee by default).
+- ``two_step`` mode: a two-step genetic scheme inspired by the TGASU code
+  (Shahabinejad et al., NIMA 811 (2016)) in which the unfolding problem is
+  first solved on a coarse energy grid (roughly 60% of the variables) and
+  the result is interpolated back to seed the full-resolution population.
+- TGASU-style genetic operators: arithmetic crossover (beta-weighted
+  averaging) and iterative mutation with a generation-decreasing step, plus
+  a two-stage smoother (Gaussian + multiplicative bias correction) for
+  oscillation reduction.
 
 Numerical strategy
 ------------------
@@ -42,7 +57,7 @@ deterministic methods (landweber, cvxpy, MLEM) the optimizer:
 import warnings
 
 import numpy as np
-from typing import Dict, Optional, Any, List, Callable
+from typing import Dict, Optional, Any, List, Callable, Tuple
 
 from ._matrix_utils import create_derivative_matrix
 from ._base_unfolder import run_unfolding, make_solve_wrapper
@@ -55,7 +70,7 @@ _IMPORT_ERROR_MSG = (
 )
 
 # Supported meta-heuristic solvers (registry keys).
-_SUPPORTED_SOLVERS = ("pso", "ga", "de", "es", "ep", "abc", "gwo", "cmaes")
+_SUPPORTED_SOLVERS = ("pso", "ga", "de", "es", "ep", "abc", "gwo", "cmaes", "nsga2")
 
 # Long-form aliases for the solver names.
 _SOLVER_ALIASES = {
@@ -69,6 +84,10 @@ _SOLVER_ALIASES = {
     "grey_wolf": "gwo",
     "gray_wolf": "gwo",
     "cma_es": "cmaes",
+    "non_dominated_sorting_genetic_algorithm_ii": "nsga2",
+    "nondominated_sorting_genetic_algorithm_ii": "nsga2",
+    "pareto": "nsga2",
+    "multi_objective": "nsga2",
 }
 
 
@@ -193,18 +212,28 @@ def _build_fitness(
 
 
 def _make_starting_solutions(
-    seed: np.ndarray, lb: np.ndarray, ub: np.ndarray, pop_size: int
+    seed: np.ndarray,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    pop_size: int,
+    extra: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Build a starting-solutions matrix with the seed as the first individual.
 
     The population is sampled uniformly in log space within the bounds, with
     the seed (``log(seed)``) placed as the first individual so the optimizer
-    always starts from a good warm-start solution.
+    always starts from a good warm-start solution.  When ``extra`` is given,
+    it is placed as the second individual (clipped to the bounds), allowing a
+    two-step scheme to inject a coarse solution without shifting the search
+    box that is defined by the seed.
     """
     n = len(seed)
     rng = np.random.default_rng(0)
     starting = rng.uniform(lb, ub, size=(pop_size, n))
     starting[0] = np.log(np.maximum(np.asarray(seed, dtype=float), 1e-300))
+    if extra is not None:
+        y_extra = np.log(np.maximum(np.asarray(extra, dtype=float), 1e-300))
+        starting[1] = np.clip(y_extra, lb, ub)
     return starting
 
 
@@ -235,6 +264,517 @@ def _build_model(mealpy, solver: str, epoch: int, pop_size: int):
     raise ValueError(f"Unsupported solver: {solver}")
 
 
+def _normalize_smoother(smoother: Optional[str]) -> str:
+    """Normalise the post-processing smoother name, warning on unknown."""
+    name = (smoother or "none").strip().lower().replace("-", "_")
+    aliases = {
+        "": "none",
+        "no": "none",
+        "off": "none",
+        "gauss": "gaussian",
+        "gaussian_multiplicative_bias_correction": "gaussian_mbc",
+        "gauss_mbc": "gaussian_mbc",
+        "mbc": "gaussian_mbc",
+        "2nd_difference": "second_difference",
+        "seconddifference": "second_difference",
+        "d2": "second_difference",
+    }
+    name = aliases.get(name, name)
+    valid = ("none", "gaussian", "mbc", "gaussian_mbc", "second_difference")
+    if name not in valid:
+        warnings.warn(
+            f"Smoother '{smoother}' not supported. "
+            f"Available smoothers: {valid}. Using 'none'."
+        )
+        name = "none"
+    return name
+
+
+def _apply_smoother(
+    x: np.ndarray,
+    smoother: str,
+    sigma: float = 2.0,
+    smoothing_weight: float = 1.0,
+) -> np.ndarray:
+    """Post-process the spectrum with a two-stage oscillation-reduction smoother.
+
+    Implements the smoothing strategies discussed in Suman & Sarkar (2012)
+    and the two-stage Gaussian + multiplicative bias correction (MBC) scheme
+    of the TGASU code (Shahabinejad et al., 2016).  The smoothed spectrum is
+    clipped to non-negative values and rescaled to preserve the total
+    fluence of the input.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Spectrum to smooth.
+    smoother : str
+        One of 'none', 'gaussian', 'mbc', 'gaussian_mbc' or
+        'second_difference'.
+    sigma : float, optional
+        Standard deviation of the Gaussian filter (default: 2.0).
+    smoothing_weight : float, optional
+        Weight of the second-difference penalty used by the
+        'second_difference' smoother (default: 1.0).
+
+    Returns
+    -------
+    np.ndarray
+        Smoothed spectrum with the same shape and total fluence.
+    """
+    if smoother == "none":
+        return x
+
+    from scipy.ndimage import gaussian_filter1d
+
+    x_arr = np.asarray(x, dtype=float)
+    n = x_arr.shape[0]
+
+    if smoother == "gaussian":
+        s = gaussian_filter1d(x_arr, sigma=sigma, mode="nearest")
+    elif smoother == "mbc":
+        s = gaussian_filter1d(x_arr, sigma=sigma, mode="nearest")
+        bias = x_arr / np.maximum(s, 1e-300)
+        correction = gaussian_filter1d(bias, sigma=sigma, mode="nearest")
+        s = x_arr * correction
+    elif smoother == "gaussian_mbc":
+        s = gaussian_filter1d(x_arr, sigma=sigma, mode="nearest")
+        bias = x_arr / np.maximum(s, 1e-300)
+        correction = gaussian_filter1d(bias, sigma=sigma, mode="nearest")
+        s = s * correction
+    elif smoother == "second_difference":
+        L = create_derivative_matrix(n, 2)
+        M = np.eye(n) + smoothing_weight * (L.T @ L).toarray()
+        try:
+            s = np.linalg.solve(M, x_arr)
+        except np.linalg.LinAlgError:
+            s = x_arr.copy()
+    else:
+        return x_arr
+
+    s = np.maximum(s, 0.0)
+    total_in = float(np.sum(x_arr))
+    total_out = float(np.sum(s))
+    if total_out > 0 and total_in > 0:
+        s = s * (total_in / total_out)
+    return s
+
+
+def _coarsen_columns(A: np.ndarray, n_coarse: int) -> np.ndarray:
+    """Merge adjacent response-matrix columns into ``n_coarse`` bins.
+
+    Columns are summed so that a coarse spectrum of bin totals reproduces
+    the same detector readings as the fine one::
+
+        A_coarse[i, k] = sum_{j in bin k} A[i, j]
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    n_coarse : int
+        Number of coarse bins (must be <= n).
+
+    Returns
+    -------
+    np.ndarray
+        Coarse response matrix (m x n_coarse).
+    """
+    m, n = A.shape
+    if n_coarse <= 0 or n_coarse > n:
+        raise ValueError(f"n_coarse must satisfy 0 < n_coarse <= {n}")
+    edges = np.linspace(0, n, n_coarse + 1, dtype=int)
+    A_coarse = np.zeros((m, n_coarse), dtype=float)
+    for k in range(n_coarse):
+        A_coarse[:, k] = np.sum(A[:, edges[k]:edges[k + 1]], axis=1)
+    return A_coarse
+
+
+def _split_coarse(x_coarse: np.ndarray, n: int) -> np.ndarray:
+    """Distribute a coarse-bin-total spectrum back onto the fine grid.
+
+    Each coarse-bin total is spread uniformly across the fine bins it
+    contains, preserving the total fluence.
+
+    Parameters
+    ----------
+    x_coarse : np.ndarray
+        Coarse spectrum of bin totals (n_coarse,).
+    n : int
+        Number of fine bins.
+
+    Returns
+    -------
+    np.ndarray
+        Fine-grid spectrum (n,).
+    """
+    n_coarse = x_coarse.shape[0]
+    edges = np.linspace(0, n, n_coarse + 1, dtype=int)
+    x = np.zeros(n, dtype=float)
+    for k in range(n_coarse):
+        lo, hi = edges[k], edges[k + 1]
+        width = hi - lo
+        if width > 0:
+            x[lo:hi] = x_coarse[k] / width
+    return x
+
+
+def _run_numpy_ga(
+    A: np.ndarray,
+    b: np.ndarray,
+    fitness,
+    seed: np.ndarray,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    epoch: int,
+    pop_size: int,
+    crossover: str,
+    mutation: str,
+    pc: float,
+    pm: float,
+    random_state: Optional[int],
+    verbose: bool,
+) -> np.ndarray:
+    """Self-contained numpy genetic algorithm with TGASU-style operators.
+
+    Searches in log space (``y`` with ``x = exp(y)``).  Supports single-point
+    or arithmetic (beta-weighted) crossover and random or iterative
+    (generation-decreasing step) mutation, with elitist preservation.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    fitness : callable
+        Objective ``f(y)`` to minimise (built by :func:`_build_fitness`).
+    seed : np.ndarray
+        Seed spectrum used as the first individual.
+    lb, ub : np.ndarray
+        Log-space lower/upper bounds.
+    epoch : int
+        Number of generations.
+    pop_size : int
+        Population size.
+    crossover : str
+        'single' or 'arithmetic'.
+    mutation : str
+        'random' or 'iterative'.
+    pc : float
+        Crossover probability.
+    pm : float
+        Mutation probability.
+    random_state : int, optional
+        Random seed.
+    verbose : bool
+        Unused; kept for interface symmetry.
+
+    Returns
+    -------
+    np.ndarray
+        Best spectrum (n,) in linear space.
+    """
+    rng = np.random.default_rng(random_state)
+    n = seed.shape[0]
+    y0 = np.log(np.maximum(seed, 1e-300))
+    pop = rng.uniform(lb, ub, size=(pop_size, n))
+    pop[0] = y0
+    elite = max(1, pop_size // 10)
+    scale0 = 0.3
+
+    def _tournament_select() -> Tuple[int, int]:
+        idx = rng.integers(0, pop_size, size=4)
+        a, b1 = idx[0], idx[1]
+        c, d = idx[2], idx[3]
+        w1 = a if fitness(pop[a]) <= fitness(pop[b1]) else b1
+        w2 = c if fitness(pop[c]) <= fitness(pop[d]) else d
+        return w1, w2
+
+    for gen in range(int(epoch)):
+        vals = np.array([fitness(y) for y in pop])
+        order = np.argsort(vals)
+        elites_ = pop[order[:elite]].copy()
+        scale = scale0 * (1.0 - gen / max(int(epoch), 1))
+        offspring = []
+        while len(offspring) < pop_size - elite:
+            p1, p2 = _tournament_select()
+            y1, y2 = pop[p1], pop[p2]
+            if rng.random() < pc:
+                if crossover == "arithmetic":
+                    beta = rng.random()
+                    c1 = beta * y1 + (1.0 - beta) * y2
+                    c2 = (1.0 - beta) * y1 + beta * y2
+                else:
+                    point = int(rng.integers(1, n))
+                    c1 = np.concatenate([y1[:point], y2[point:]])
+                    c2 = np.concatenate([y2[:point], y1[point:]])
+            else:
+                c1, c2 = y1.copy(), y2.copy()
+            for child in (c1, c2):
+                mask = rng.random(n) < pm
+                if np.any(mask):
+                    if mutation == "iterative":
+                        # phi_new = phi_old * (1 + scale * beta), beta in [-1, 1]
+                        beta = rng.uniform(-1.0, 1.0, size=n)
+                        child = child + np.log(np.maximum(
+                            1.0 + scale * beta, 1e-12
+                        ))
+                    else:
+                        child = child + rng.normal(0.0, scale, size=n)
+                    child = np.clip(child, lb, ub)
+                offspring.append(child)
+                if len(offspring) >= pop_size - elite:
+                    break
+        pop = np.vstack([elites_, np.asarray(offspring)[: pop_size - elite]])
+
+    vals = np.array([fitness(y) for y in pop])
+    best = pop[int(np.argmin(vals))]
+    return np.maximum(np.exp(best), 0.0)
+
+
+def _fast_non_dominated_sort(fvals: np.ndarray) -> List[np.ndarray]:
+    """Return the Pareto fronts of a population (minimisation).
+
+    Parameters
+    ----------
+    fvals : np.ndarray
+        Objective values (N x n_obj).
+
+    Returns
+    -------
+    List[np.ndarray]
+        Fronts, each an array of individual indices; fronts[0] is the
+        non-dominated (Pareto) front.
+    """
+    N = fvals.shape[0]
+    dominates = np.zeros((N, N), dtype=bool)
+    for i in range(N):
+        for j in range(N):
+            if i == j:
+                continue
+            if np.all(fvals[i] <= fvals[j]) and np.any(fvals[i] < fvals[j]):
+                dominates[i, j] = True
+    fronts: List[np.ndarray] = []
+    remaining = np.arange(N)
+    while remaining.size:
+        current = []
+        for i in remaining:
+            others = remaining[remaining != i]
+            if others.size == 0 or not np.any(dominates[others, i]):
+                current.append(int(i))
+        front = np.array(current)
+        fronts.append(front)
+        remaining = remaining[~np.isin(remaining, front)]
+    return fronts
+
+
+def _crowding_distance(fvals: np.ndarray, front: np.ndarray) -> np.ndarray:
+    """Assign crowding distances to the individuals of a front."""
+    m = front.shape[0]
+    dist = np.zeros(m)
+    if m <= 2:
+        return np.full(m, np.inf)
+    n_obj = fvals.shape[1]
+    for obj in range(n_obj):
+        order = np.argsort(fvals[front, obj])
+        dist[order[0]] = np.inf
+        dist[order[-1]] = np.inf
+        fmin = fvals[front, obj].min()
+        fmax = fvals[front, obj].max()
+        if fmax - fmin <= 0:
+            continue
+        for k in range(1, m - 1):
+            dist[order[k]] += (
+                fvals[front[order[k + 1]], obj] - fvals[front[order[k - 1]], obj]
+            ) / (fmax - fmin)
+    return dist
+
+
+def _sbx_crossover(p1, p2, lb, ub, rng, eta_c: float = 15.0):
+    """Simulated binary crossover with clipping to the bounds."""
+    n = p1.shape[0]
+    mask = rng.random(n) < 0.5
+    u = rng.random(n)
+    with np.errstate(divide="ignore"):
+        beta = np.where(
+            u <= 0.5,
+            (2.0 * u) ** (1.0 / (eta_c + 1.0)),
+            (1.0 / (2.0 * (1.0 - u))) ** (1.0 / (eta_c + 1.0)),
+        )
+    sum_p = p1 + p2
+    diff = p1 - p2
+    c1 = 0.5 * (sum_p - beta * diff)
+    c2 = 0.5 * (sum_p + beta * diff)
+    c1 = np.where(mask, c1, p1)
+    c2 = np.where(mask, c2, p2)
+    return np.clip(c1, lb, ub), np.clip(c2, lb, ub)
+
+
+def _polynomial_mutation(p, lb, ub, rng, eta_m: float = 20.0):
+    """Polynomial mutation with clipping to the bounds."""
+    n = p.shape[0]
+    pm = 1.0 / n
+    mask = rng.random(n) < pm
+    if not np.any(mask):
+        return p.copy()
+    u = rng.random(n)
+    with np.errstate(divide="ignore"):
+        delta = np.where(
+            u <= 0.5,
+            (2.0 * u) ** (1.0 / (eta_m + 1.0)) - 1.0,
+            1.0 - (2.0 * (1.0 - u)) ** (1.0 / (eta_m + 1.0)),
+        )
+    p = p + delta * (ub - lb)
+    return np.clip(p, lb, ub)
+
+
+def _select_knee(fvals: np.ndarray) -> int:
+    """Return the knee index (closest to the ideal point) of a Pareto front."""
+    ideal = fvals.min(axis=0)
+    spread = fvals.max(axis=0) - ideal
+    spread = np.where(spread == 0, 1.0, spread)
+    norm = (fvals - ideal) / spread
+    return int(np.argmin(np.linalg.norm(norm, axis=1)))
+
+
+def _run_nsga2(
+    A: np.ndarray,
+    b: np.ndarray,
+    seed: np.ndarray,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    epoch: int,
+    pop_size: int,
+    random_state: Optional[int],
+    pareto_select: str,
+    entropy_weight: float = 1.0,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """Run a real-coded NSGA-II over two objectives (relative error, entropy).
+
+    The two objectives (both minimised) are:
+
+    * ``f1 = ||b - A exp(y)||^2 / ||b||^2`` (relative response error);
+    * ``f2 = -entropy_weight * H(exp(y))`` (negative Shannon entropy).
+
+    After evolution, the Pareto front is extracted and a single solution is
+    selected from it according to ``pareto_select``.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    seed : np.ndarray
+        Seed spectrum (first individual).
+    lb, ub : np.ndarray
+        Log-space bounds.
+    epoch : int
+        Number of generations.
+    pop_size : int
+        Population size.
+    random_state : int, optional
+        Random seed.
+    pareto_select : str
+        'knee', 'min_residual' or 'max_entropy'.
+    entropy_weight : float, optional
+        Weight of the entropy objective (default: 1.0).
+
+    Returns
+    -------
+    Tuple[np.ndarray, Dict[str, Any]]
+        (selected spectrum, diagnostics with front residual/entropy).
+    """
+    rng = np.random.default_rng(random_state)
+    n = seed.shape[0]
+    denom = float(np.dot(b, b))
+    if denom <= 0.0:
+        denom = 1.0
+
+    def _objectives(pop: np.ndarray) -> np.ndarray:
+        x = np.exp(pop)
+        resid = (A @ x.T).T - b
+        f1 = np.sum(resid * resid, axis=1) / denom
+        total = np.maximum(np.sum(x, axis=1), 1e-300)
+        p = x / total[:, None]
+        logp = np.log(np.maximum(p, 1e-300))
+        ent = -np.sum(p * logp, axis=1)
+        f2 = -entropy_weight * ent
+        return np.column_stack([f1, f2])
+
+    pop = rng.uniform(lb, ub, size=(pop_size, n))
+    pop[0] = np.log(np.maximum(seed, 1e-300))
+
+    for _ in range(int(epoch)):
+        fvals = _objectives(pop)
+        fronts = _fast_non_dominated_sort(fvals)
+        rank = np.empty(pop_size, dtype=int)
+        for r, front in enumerate(fronts):
+            rank[front] = r
+        crowding = np.empty(pop_size)
+        for front in fronts:
+            crowding[front] = _crowding_distance(fvals, front)
+
+        # Binary tournament selection by (rank, -crowding).
+        selected = np.empty_like(pop)
+        for i in range(pop_size):
+            a, b1 = rng.integers(0, pop_size, size=2)
+            c, d = rng.integers(0, pop_size, size=2)
+            w1 = a if (rank[a], -crowding[a]) < (rank[b1], -crowding[b1]) else b1
+            w2 = c if (rank[c], -crowding[c]) < (rank[d], -crowding[d]) else d
+            selected[i] = pop[w1] if (rank[w1], -crowding[w1]) <= (
+                rank[w2],
+                -crowding[w2],
+            ) else pop[w2]
+
+        # SBX + polynomial mutation.
+        offspring = []
+        for i in range(0, pop_size, 2):
+            c1, c2 = _sbx_crossover(selected[i], selected[i + 1], lb, ub, rng)
+            c1 = _polynomial_mutation(c1, lb, ub, rng)
+            c2 = _polynomial_mutation(c2, lb, ub, rng)
+            offspring.extend([c1, c2])
+        offspring = np.asarray(offspring)[:pop_size]
+
+        combined = np.vstack([pop, offspring])
+        cf = _objectives(combined)
+        cfronts = _fast_non_dominated_sort(cf)
+        cfronts = [f for f in cfronts if f.size]
+        next_pop = []
+        remaining = 2 * pop_size
+        for front in cfronts:
+            if len(next_pop) + front.size <= pop_size:
+                next_pop.extend(front.tolist())
+                remaining -= front.size
+            else:
+                cd = _crowding_distance(cf, front)
+                order = np.argsort(-cd)
+                needed = pop_size - len(next_pop)
+                next_pop.extend(front[order[:needed]].tolist())
+                break
+        pop = combined[next_pop]
+
+    fvals = _objectives(pop)
+    fronts = _fast_non_dominated_sort(fvals)
+    front0 = fronts[0]
+    f0 = fvals[front0]
+    if pareto_select == "min_residual":
+        idx = int(front0[int(np.argmin(f0[:, 0]))])
+    elif pareto_select == "max_entropy":
+        idx = int(front0[int(np.argmin(f0[:, 1]))])
+    else:  # 'knee'
+        idx = int(front0[_select_knee(f0)])
+    spectrum = np.maximum(np.exp(pop[idx]), 0.0)
+    diagnostics = {
+        "pareto_front_size": int(front0.size),
+        "pareto_min_residual": float(np.min(f0[:, 0])),
+        "pareto_max_entropy": float(np.max(-f0[:, 1])),
+        "pareto_select": pareto_select,
+    }
+    return spectrum, diagnostics
+
+
 def solve_genetic(
     A: np.ndarray,
     b: np.ndarray,
@@ -250,8 +790,16 @@ def solve_genetic(
     n_runs: int = 1,
     early_stop: Optional[int] = None,
     half_range: float = 2.0,
+    two_step: bool = False,
+    n_coarse: Optional[int] = None,
+    smoother: str = "none",
+    sigma_smooth: float = 2.0,
+    crossover: str = "single",
+    mutation: str = "random",
+    pareto_select: str = "knee",
     random_state: Optional[int] = None,
     verbose: bool = False,
+    extra_starting: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Solve the unfolding problem using a meta-heuristic optimizer.
 
@@ -273,7 +821,7 @@ def solve_genetic(
         warm-start solution is used to seed the population.
     solver : str, optional
         Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
-        'gwo' or 'cmaes' (default: 'pso').
+        'gwo', 'cmaes' or 'nsga2' (default: 'pso').
     epoch : int, optional
         Maximum number of generations/iterations (default: 500).
     pop_size : int, optional
@@ -290,17 +838,44 @@ def solve_genetic(
         Weight of the negative Shannon-entropy objective (0 disables it).
     n_runs : int, optional
         Number of independent optimisation runs; results are averaged
-        (default: 1).
+        (default: 1). Not used by the 'nsga2' solver.
     early_stop : int, optional
         Stop if the global best does not improve for this many consecutive
-        epochs (MEALPY early stopping).
+        epochs (MEALPY early stopping). Not used by the numpy engines.
     half_range : float, optional
         Half-width of the log-space search bounds in decades around the seed
         (default: 2.0).
+    two_step : bool, optional
+        If True, run the two-step genetic scheme (TGASU-style): the problem
+        is first solved on a coarse energy grid and the result is
+        interpolated back to seed the full-resolution population
+        (default: False).
+    n_coarse : int, optional
+        Number of coarse bins for the ``two_step`` mode. When None, it is
+        chosen as ``max(8, n // 4)``.
+    smoother : str, optional
+        Post-processing smoother: 'none', 'gaussian', 'mbc',
+        'gaussian_mbc' or 'second_difference' (default: 'none').
+    sigma_smooth : float, optional
+        Gaussian filter sigma for the smoothers (default: 2.0).
+    crossover : str, optional
+        GA crossover operator: 'single' (single-point) or 'arithmetic'
+        (beta-weighted, TGASU). Only used by the numpy GA engine
+        (default: 'single').
+    mutation : str, optional
+        GA mutation operator: 'random' or 'iterative' (generation-decreasing
+        step, TGASU). Only used by the numpy GA engine (default: 'random').
+    pareto_select : str, optional
+        Selection from the Pareto front for the 'nsga2' solver: 'knee',
+        'min_residual' or 'max_entropy' (default: 'knee').
     random_state : int, optional
         Random seed for reproducibility.
     verbose : bool, optional
         If True, MEALPY logs the optimisation progress to the console.
+    extra_starting : np.ndarray, optional
+        Additional starting individual (in linear spectrum units) injected
+        into the initial population without shifting the search box. Used
+        internally by the two-step scheme.
 
     Returns
     -------
@@ -315,7 +890,11 @@ def solve_genetic(
             smoothness_weight=smoothness_weight,
             entropy_weight=entropy_weight, n_runs=n_runs,
             early_stop=early_stop, half_range=half_range,
+            two_step=two_step, n_coarse=n_coarse, smoother=smoother,
+            sigma_smooth=sigma_smooth, crossover=crossover,
+            mutation=mutation, pareto_select=pareto_select,
             random_state=random_state, verbose=verbose,
+            extra_starting=extra_starting,
         )
     except ImportError:
         raise
@@ -342,8 +921,16 @@ def _solve_genetic_impl(
     n_runs: int,
     early_stop: Optional[int],
     half_range: float,
+    two_step: bool,
+    n_coarse: Optional[int],
+    smoother: str,
+    sigma_smooth: float,
+    crossover: str,
+    mutation: str,
+    pareto_select: str,
     random_state: Optional[int],
     verbose: bool,
+    extra_starting: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     mealpy = _import_mealpy()
     FloatVar, PSO, GA, DE, ES, EP, ABC, GWO = mealpy
@@ -359,10 +946,104 @@ def _solve_genetic_impl(
         raise ValueError(
             f"Unsupported smoothness order: {smoothness_order}"
         )
+    if crossover not in ("single", "arithmetic"):
+        raise ValueError(
+            f"Unsupported crossover operator: {crossover}. "
+            f"Use 'single' or 'arithmetic'."
+        )
+    if mutation not in ("random", "iterative"):
+        raise ValueError(
+            f"Unsupported mutation operator: {mutation}. "
+            f"Use 'random' or 'iterative'."
+        )
+    if pareto_select not in ("knee", "min_residual", "max_entropy"):
+        raise ValueError(
+            f"Unsupported pareto_select: {pareto_select}. "
+            f"Use 'knee', 'min_residual' or 'max_entropy'."
+        )
+
+    if two_step:
+        n_coarse_ = n_coarse or max(8, n // 4)
+        if n_coarse_ >= n:
+            n_coarse_ = max(1, n // 2)
+        A_coarse = _coarsen_columns(A, n_coarse_)
+        if x0 is not None and np.any(np.asarray(x0, dtype=float) > 0):
+            coarse_x0 = _coarsen_columns(
+                np.asarray(x0, dtype=float)[None, :], n_coarse_
+            )[0]
+        else:
+            coarse_x0 = np.ones(n_coarse_)
+        coarse = _solve_genetic_impl(
+            A=A_coarse, b=b, x0=coarse_x0, solver=solver,
+            epoch=max(20, epoch // 2), pop_size=pop_size,
+            regularization=regularization, norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            entropy_weight=entropy_weight, n_runs=n_runs,
+            early_stop=early_stop, half_range=half_range,
+            two_step=False, n_coarse=None, smoother="none",
+            sigma_smooth=sigma_smooth, crossover=crossover,
+            mutation=mutation, pareto_select=pareto_select,
+            random_state=random_state, verbose=verbose,
+        )
+        x0_seed = _split_coarse(np.maximum(coarse, 0.0), n)
+        # The full-resolution run keeps the Landweber-defined search box and
+        # injects the coarse solution as an additional starting individual.
+        return _solve_genetic_impl(
+            A=A, b=b, x0=x0, solver=solver,
+            epoch=epoch, pop_size=pop_size,
+            regularization=regularization, norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            entropy_weight=entropy_weight, n_runs=n_runs,
+            early_stop=early_stop, half_range=half_range,
+            two_step=False, n_coarse=None, smoother="none",
+            sigma_smooth=sigma_smooth, crossover=crossover,
+            mutation=mutation, pareto_select=pareto_select,
+            random_state=random_state, verbose=verbose,
+            extra_starting=x0_seed,
+        )
 
     L = None
     if smoothness_order in (1, 2):
         L = create_derivative_matrix(n, smoothness_order)
+
+    if solver == "nsga2":
+        seed = _build_seed(A, b, x0)
+        lb, ub = _build_log_bounds(seed, half_range)
+        spectrum, _diag = _run_nsga2(
+            A=A, b=b, seed=seed, lb=lb, ub=ub,
+            epoch=epoch, pop_size=pop_size,
+            random_state=random_state, pareto_select=pareto_select,
+            entropy_weight=entropy_weight if entropy_weight > 0 else 1.0,
+        )
+        smoother = _normalize_smoother(smoother)
+        if smoother != "none":
+            spectrum = _apply_smoother(
+                spectrum, smoother, sigma=sigma_smooth,
+                smoothing_weight=smoothness_weight,
+            )
+        return np.maximum(spectrum, 0.0)
+
+    if solver == "ga" and (crossover != "single" or mutation != "random"):
+        seed = _build_seed(A, b, x0)
+        lb, ub = _build_log_bounds(seed, half_range)
+        fitness = _build_fitness(
+            A, b, regularization, norm, L, smoothness_weight, entropy_weight
+        )
+        spectrum = _run_numpy_ga(
+            A=A, b=b, fitness=fitness, seed=seed, lb=lb, ub=ub,
+            epoch=epoch, pop_size=pop_size, crossover=crossover,
+            mutation=mutation, pc=0.9, pm=0.05,
+            random_state=random_state, verbose=verbose,
+        )
+        smoother = _normalize_smoother(smoother)
+        if smoother != "none":
+            spectrum = _apply_smoother(
+                spectrum, smoother, sigma=sigma_smooth,
+                smoothing_weight=smoothness_weight,
+            )
+        return np.maximum(spectrum, 0.0)
 
     fitness = _build_fitness(
         A, b, regularization, norm, L, smoothness_weight, entropy_weight
@@ -381,7 +1062,7 @@ def _solve_genetic_impl(
     if early_stop is not None:
         termination = {"max_early_stop": int(early_stop)}
 
-    starting = _make_starting_solutions(seed, lb, ub, pop_size)
+    starting = _make_starting_solutions(seed, lb, ub, pop_size, extra=extra_starting)
     runs = max(1, int(n_runs))
     spectra = []
     for run in range(runs):
@@ -402,6 +1083,12 @@ def _solve_genetic_impl(
         spectra.append(np.exp(np.asarray(g_best.solution, dtype=float)))
 
     spectrum = np.mean(spectra, axis=0) if runs > 1 else spectra[0]
+    smoother = _normalize_smoother(smoother)
+    if smoother != "none":
+        spectrum = _apply_smoother(
+            spectrum, smoother, sigma=sigma_smooth,
+            smoothing_weight=smoothness_weight,
+        )
     return np.maximum(spectrum, 0)
 
 
@@ -425,6 +1112,13 @@ def unfold_genetic(
     n_runs: int = 1,
     early_stop: Optional[int] = None,
     half_range: float = 2.0,
+    two_step: bool = False,
+    n_coarse: Optional[int] = None,
+    smoother: str = "none",
+    sigma_smooth: float = 2.0,
+    crossover: str = "single",
+    mutation: str = "random",
+    pareto_select: str = "knee",
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -459,7 +1153,7 @@ def unfold_genetic(
         used to seed the population.
     solver : str, optional
         Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
-        'gwo' or 'cmaes' (default: 'pso').
+        'gwo', 'cmaes' or 'nsga2' (default: 'pso').
     epoch : int, optional
         Maximum number of generations (default: 500).
     pop_size : int, optional
@@ -475,12 +1169,33 @@ def unfold_genetic(
     entropy_weight : float, optional
         Weight of the negative Shannon-entropy objective (default: 0).
     n_runs : int, optional
-        Number of independent runs to average (default: 1).
+        Number of independent runs to average (default: 1). Not used by the
+        'nsga2' solver.
     early_stop : int, optional
         Early-stopping patience (epochs without improvement).
     half_range : float, optional
         Half-width of the log-space search bounds in decades around the seed
         (default: 2.0).
+    two_step : bool, optional
+        If True, run the two-step genetic scheme (TGASU-style) with a coarse
+        first step seeding the full-resolution population (default: False).
+    n_coarse : int, optional
+        Number of coarse bins for the ``two_step`` mode (default: None, i.e.
+        ``max(8, n // 4)``).
+    smoother : str, optional
+        Post-processing smoother: 'none', 'gaussian', 'mbc',
+        'gaussian_mbc' or 'second_difference' (default: 'none').
+    sigma_smooth : float, optional
+        Gaussian filter sigma for the smoothers (default: 2.0).
+    crossover : str, optional
+        GA crossover operator: 'single' or 'arithmetic' (TGASU); only used by
+        the numpy GA engine (default: 'single').
+    mutation : str, optional
+        GA mutation operator: 'random' or 'iterative' (TGASU, decreasing
+        step); only used by the numpy GA engine (default: 'random').
+    pareto_select : str, optional
+        Selection from the Pareto front for the 'nsga2' solver: 'knee',
+        'min_residual' or 'max_entropy' (default: 'knee').
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty, default: False.
     noise_level : float, optional
@@ -501,6 +1216,22 @@ def unfold_genetic(
     """
     x0_default = np.zeros(n_energy_bins)
     solver = _normalize_solver(solver)
+    smoother = _normalize_smoother(smoother)
+    if crossover not in ("single", "arithmetic"):
+        raise ValueError(
+            f"Unsupported crossover operator: {crossover}. "
+            f"Use 'single' or 'arithmetic'."
+        )
+    if mutation not in ("random", "iterative"):
+        raise ValueError(
+            f"Unsupported mutation operator: {mutation}. "
+            f"Use 'random' or 'iterative'."
+        )
+    if pareto_select not in ("knee", "min_residual", "max_entropy"):
+        raise ValueError(
+            f"Unsupported pareto_select: {pareto_select}. "
+            f"Use 'knee', 'min_residual' or 'max_entropy'."
+        )
 
     return run_unfolding(
         detector_names=detector_names,
@@ -525,6 +1256,13 @@ def unfold_genetic(
             n_runs=n_runs,
             early_stop=early_stop,
             half_range=half_range,
+            two_step=two_step,
+            n_coarse=n_coarse,
+            smoother=smoother,
+            sigma_smooth=sigma_smooth,
+            crossover=crossover,
+            mutation=mutation,
+            pareto_select=pareto_select,
             random_state=random_state,
             verbose=verbose,
         ),
@@ -542,6 +1280,11 @@ def unfold_genetic(
             "n_runs": n_runs,
             "early_stop": early_stop,
             "half_range": half_range,
+            "two_step": two_step,
+            "smoother": smoother,
+            "crossover": crossover,
+            "mutation": mutation,
+            "pareto_select": pareto_select,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level,

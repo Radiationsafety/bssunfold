@@ -30,6 +30,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_docplex.unfold_docplex
 
+.. autofunction:: bssunfold.core.unfold_epic.unfold_epic
+
 .. autofunction:: bssunfold.core.unfold_cs.unfold_cs
 
 .. autofunction:: bssunfold.core.unfold_doroshenko.unfold_doroshenko
@@ -43,6 +45,8 @@ The following unfolding methods are available through the Detector class:
 .. autofunction:: bssunfold.core.unfold_mlem_stop.unfold_mlem_stop
 
 .. autofunction:: bssunfold.core.unfold_combined.unfold_combined
+
+.. autofunction:: bssunfold.core.unfold_interpret.unfold_interpret
 
 .. autofunction:: bssunfold.core.unfold_gravel.unfold_gravel
 
@@ -61,6 +65,34 @@ The following unfolding methods are available through the Detector class:
 .. autofunction:: bssunfold.core.unfold_scipy_direct_method.unfold_scipy_direct_method
 
 .. autofunction:: bssunfold.core.unfold_tsvd.unfold_tsvd
+
+.. autofunction:: bssunfold.core.unfold_lanczos.unfold_lanczos
+
+.. autofunction:: bssunfold.core.unfold_cgls.unfold_cgls
+
+.. autofunction:: bssunfold.core.unfold_gks.unfold_gks
+
+.. autofunction:: bssunfold.core.unfold_tikhonov_tv.unfold_tikhonov_tv
+
+.. autofunction:: bssunfold.core.unfold_sandii.unfold_sandii
+
+.. autofunction:: bssunfold.core.unfold_bunki.unfold_bunki
+
+.. autofunction:: bssunfold.core.unfold_bunkiut.unfold_bunkiut
+
+.. autofunction:: bssunfold.core.unfold_osem.unfold_osem
+
+.. autofunction:: bssunfold.core.unfold_mapem.unfold_mapem
+
+.. autofunction:: bssunfold.core.unfold_bsrem.unfold_bsrem
+
+.. autofunction:: bssunfold.core.unfold_sart.unfold_sart
+
+.. autofunction:: bssunfold.core.unfold_ferdor.unfold_ferdor
+
+.. autofunction:: bssunfold.core.unfold_rebunki.unfold_rebunki
+
+.. autofunction:: bssunfold.core.unfold_nsduaz.unfold_nsduaz
 
 .. autofunction:: bssunfold.core.unfold_parametric.unfold_parametric
 
@@ -115,6 +147,14 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_docplex.solve_docplex
 
+.. autofunction:: bssunfold.core.unfold_epic.solve_epic
+
+.. autofunction:: bssunfold.core.unfold_interpret.solve_interpret
+
+.. autofunction:: bssunfold.core.unfold_interpret.interpret_qp
+
+.. autofunction:: bssunfold.core.unfold_interpret.build_interpretation_qp
+
 .. autofunction:: bssunfold.core.unfold_cs.solve_cs
 
 .. autofunction:: bssunfold.core.unfold_cs.solve_omp
@@ -146,6 +186,34 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_scipy_direct_method.solve_scipy_direct
 
 .. autofunction:: bssunfold.core.unfold_tsvd.solve_tsvd
+
+.. autofunction:: bssunfold.core.unfold_lanczos.solve_lanczos
+
+.. autofunction:: bssunfold.core.unfold_cgls.solve_cgls
+
+.. autofunction:: bssunfold.core.unfold_gks.solve_gks
+
+.. autofunction:: bssunfold.core.unfold_tikhonov_tv.solve_tikhonov_tv
+
+.. autofunction:: bssunfold.core.unfold_sandii.solve_sandii
+
+.. autofunction:: bssunfold.core.unfold_bunki.solve_bunki
+
+.. autofunction:: bssunfold.core.unfold_bunkiut.solve_bunkiut
+
+.. autofunction:: bssunfold.core.unfold_osem.solve_osem
+
+.. autofunction:: bssunfold.core.unfold_mapem.solve_mapem
+
+.. autofunction:: bssunfold.core.unfold_bsrem.solve_bsrem
+
+.. autofunction:: bssunfold.core.unfold_sart.solve_sart
+
+.. autofunction:: bssunfold.core.unfold_ferdor.solve_ferdor
+
+.. autofunction:: bssunfold.core.unfold_rebunki.solve_rebunki
+
+.. autofunction:: bssunfold.core.unfold_nsduaz.solve_nsduaz
 
 Comparison Methods
 ==================
@@ -229,6 +297,17 @@ Statistical tests
 .. autofunction:: bssunfold.utils.comparison.mannwhitneyu_test
 
 .. autofunction:: bssunfold.utils.comparison.standardized_mean_difference
+
+Integral quantity metrics
+-----------------------------------
+
+.. autofunction:: bssunfold.utils.comparison.fluence_averaged_energy
+
+.. autofunction:: bssunfold.utils.comparison.energy_group_fluence
+
+.. autofunction:: bssunfold.utils.comparison.dose_averaged_energy
+
+.. autofunction:: bssunfold.utils.comparison.ambient_dose_equivalent_rate
 
 Regularization Selection
 ========================

@@ -58,6 +58,10 @@ from .comparison import (
     standardized_mean_difference,
     wilcoxon_test,
     mannwhitneyu_test,
+    fluence_averaged_energy,
+    energy_group_fluence,
+    dose_averaged_energy,
+    ambient_dose_equivalent_rate,
 )
 
 __all__ = [
@@ -111,4 +115,8 @@ __all__ = [
     "standardized_mean_difference",
     "wilcoxon_test",
     "mannwhitneyu_test",
+    "fluence_averaged_energy",
+    "energy_group_fluence",
+    "dose_averaged_energy",
+    "ambient_dose_equivalent_rate",
 ]

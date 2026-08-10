@@ -7,7 +7,7 @@ neutron spectrum unfolding using various algorithms.
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from typing import Dict, Optional, List, Tuple, Any, Union
+from typing import Dict, Optional, List, Tuple, Any, Union, Callable
 
 from ..constants import RF_GSF
 from ..logging_config import get_logger
@@ -44,6 +44,7 @@ from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularizati
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_scipy_direct_method import unfold_scipy_direct_method as unfold_scipy_direct_impl
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
+from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_parametric_impl
 from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
@@ -53,6 +54,27 @@ from .unfold_smt import unfold_smt as unfold_smt_impl
 from .unfold_scip import unfold_scip as unfold_scip_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
+from .unfold_epic import unfold_epic as unfold_epic_impl
+from .unfold_cgls import unfold_cgls as unfold_cgls_impl
+from .unfold_gks import unfold_gks as unfold_gks_impl
+from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
+from .unfold_sandii import unfold_sandii as unfold_sandii_impl
+from .unfold_bunki import unfold_bunki as unfold_bunki_impl
+from .unfold_bunkiut import unfold_bunkiut as unfold_bunkiut_impl
+from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
+from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
+from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
+from .unfold_osem import unfold_osem as unfold_osem_impl
+from .unfold_mapem import unfold_mapem as unfold_mapem_impl
+from .unfold_bsrem import unfold_bsrem as unfold_bsrem_impl
+from .unfold_sart import unfold_sart as unfold_sart_impl
+from ._base_unfolder import _build_system
+from .unfold_interpret import (
+    interpret_qp as interpret_qp_impl,
+    unfold_interpret as unfold_interpret_impl,
+)
+from .unfold_fista import unfold_fista as unfold_fista_impl
+from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
 
 __all__ = ["Detector"]
 
@@ -848,6 +870,13 @@ class Detector:
         n_runs: int = 1,
         early_stop: Optional[int] = None,
         half_range: float = 2.0,
+        two_step: bool = False,
+        n_coarse: Optional[int] = None,
+        smoother: str = "none",
+        sigma_smooth: float = 2.0,
+        crossover: str = "single",
+        mutation: str = "random",
+        pareto_select: str = "knee",
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -873,7 +902,7 @@ class Detector:
             is used to seed the population.
         solver : str, optional
             Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
-            'gwo' or 'cmaes', default: 'pso'.
+            'gwo', 'cmaes' or 'nsga2', default: 'pso'.
         epoch : int, optional
             Maximum number of generations, default: 500.
         pop_size : int, optional
@@ -890,13 +919,33 @@ class Detector:
             Weight of the negative Shannon-entropy objective (0 disables it).
         n_runs : int, optional
             Number of independent runs whose results are averaged,
-            default: 1.
+            default: 1. Not used by the 'nsga2' solver.
         early_stop : int, optional
             Stop if the global best does not improve for this many
             consecutive epochs.
         half_range : float, optional
             Half-width of the log-space search bounds in decades around the
             seed, default: 2.0.
+        two_step : bool, optional
+            Run the two-step genetic scheme (TGASU-style): a coarse first
+            step seeds the full-resolution population, default: False.
+        n_coarse : int, optional
+            Number of coarse bins for ``two_step`` mode (default: None, i.e.
+            ``max(8, n // 4)``).
+        smoother : str, optional
+            Post-processing smoother: 'none', 'gaussian', 'mbc',
+            'gaussian_mbc' or 'second_difference', default: 'none'.
+        sigma_smooth : float, optional
+            Gaussian filter sigma for the smoothers, default: 2.0.
+        crossover : str, optional
+            GA crossover operator: 'single' or 'arithmetic' (TGASU); used by
+            the numpy GA engine, default: 'single'.
+        mutation : str, optional
+            GA mutation operator: 'random' or 'iterative' (TGASU, decreasing
+            step); used by the numpy GA engine, default: 'random'.
+        pareto_select : str, optional
+            Selection from the Pareto front for the 'nsga2' solver: 'knee',
+            'min_residual' or 'max_entropy', default: 'knee'.
         calculate_errors : bool, optional
             If True, calculate Monte-Carlo uncertainty, default: False.
         noise_level : float, optional
@@ -935,6 +984,13 @@ class Detector:
             n_runs=n_runs,
             early_stop=early_stop,
             half_range=half_range,
+            two_step=two_step,
+            n_coarse=n_coarse,
+            smoother=smoother,
+            sigma_smooth=sigma_smooth,
+            crossover=crossover,
+            mutation=mutation,
+            pareto_select=pareto_select,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
@@ -1540,6 +1596,115 @@ class Detector:
             random_state=random_state,
         )
 
+    def unfold_epic(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        target_sigmas: Optional[np.ndarray] = None,
+        sigma_frac: float = 0.1,
+        regularization_order: int = 1,
+        non_neg: bool = True,
+        noise_var: Optional[float] = None,
+        homogeneous_step: bool = True,
+        regularize: Optional[Dict[str, Any]] = None,
+        beta_shift_k: float = 0,
+        beta_distance: float = 2,
+        EPIC_bool: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        LSQpar: Optional[Dict[str, Any]] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum using EPIC Tikhonov regularization.
+
+        Selects the prior variances of the regularization operator such that the
+        a posteriori variances of the model parameters match the target sigmas
+        (Equal Posterior Information Condition), then solves the weighted least
+        squares problem. Port of the EPIC_LS method of Ortega-Culaciati et al.
+        (2021), https://github.com/frortega/EPIC_LS.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (unused by this method).
+        target_sigmas : np.ndarray, optional
+            Target a posteriori standard deviations of the model parameters. If
+            None, derived as ``sigma_frac`` times the magnitude of the naive
+            least-squares solution.
+        sigma_frac : float, optional
+            Fraction used to derive the default target sigmas, default: 0.1.
+        regularization_order : int, optional
+            Regularization operator order: 0 (identity), 1 (first derivative,
+            default) or 2 (second derivative).
+        non_neg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        noise_var : float, optional
+            Variance of the i.i.d. misfit errors used to build Cx, default:
+            None (identity Cx).
+        homogeneous_step : bool, optional
+            Run a preliminary homogeneous Ch search, default: True.
+        regularize : dict, optional
+            If given (can be empty), damp the EPIC weights towards a
+            minimum-norm solution.
+        beta_shift_k : float, optional
+            Center shift for the beta bounds, default: 0.
+        beta_distance : float, optional
+            Distance kept from the representability limit, default: 2.
+        EPIC_bool : np.ndarray, optional
+            Boolean mask of which parameters are subject to the EPIC.
+        V : np.ndarray, optional
+            Matrix mapping the searched betas to the regularization rows, beta = V @ y (shape (H.shape[0], len(y))).
+        LSQpar : dict, optional
+            Tuning parameters for the nonlinear least-squares solver.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_epic_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            target_sigmas=target_sigmas,
+            sigma_frac=sigma_frac,
+            regularization_order=regularization_order,
+            non_neg=non_neg,
+            noise_var=noise_var,
+            homogeneous_step=homogeneous_step,
+            regularize=regularize,
+            beta_shift_k=beta_shift_k,
+            beta_distance=beta_distance,
+            EPIC_bool=EPIC_bool,
+            V=V,
+            LSQpar=LSQpar,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
     def unfold_combined(
         self,
         readings: Dict[str, float],
@@ -1577,6 +1742,172 @@ class Detector:
             calculate_errors=calculate_errors,
             verbose=verbose,
         )
+
+    def unfold_interpret(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        enforce_norm: bool = False,
+        norm_value: float = 1.0,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        tolerance: float = 1e-8,
+        interpret_options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Unfold a neutron spectrum and interpret the solution with pyoptexplain.
+
+        Solves the same unfolding QP as :meth:`unfold_qpsolvers` through
+        pyoptexplain and attaches an interpretation report. The returned dict is
+        the standard bssunfold result with two extra keys:
+
+        - ``report``                 -- Markdown interpretation report.
+        - ``interpretation_metrics`` -- JSON-friendly metrics dictionary.
+        - ``interpretation_spectrum`` -- interpreted (zeroed) spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (used by the 'cosine' regularization
+            method).
+        regularization : float, optional
+            Regularization parameter (default: 1e-4).
+        norm : int, optional
+            Penalty norm, 1 or 2 (default: 2).
+        smoothness_order : int, optional
+            Smoothness derivative order, 0, 1 or 2 (default: 0).
+        smoothness_weight : float, optional
+            Weight of the smoothness term (default: 1.0).
+        enforce_norm : bool, optional
+            Add ``sum(x) == norm_value`` (default: False).
+        norm_value : float, optional
+            Target total fluence (default: 1.0).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter.
+        noise_var : float, optional
+            Noise variance for the discrepancy principle ('dp' method).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        tolerance : float, optional
+            Solver feasibility/optimality tolerance (default: 1e-8). Relax it
+            (e.g. 1e-5) if pyoptexplain's backend reports ``iteration_limit``.
+        interpret_options : dict, optional
+            Extra keyword arguments forwarded to :func:`interpret_qp`.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized unfolding result plus ``report`` and
+            ``interpretation_metrics`` keys.
+        """
+        return unfold_interpret_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            enforce_norm=enforce_norm,
+            norm_value=norm_value,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            tolerance=tolerance,
+            interpret_options=interpret_options,
+        )
+
+    def interpret_result(
+        self,
+        readings: Dict[str, float],
+        alpha: float = 1e-4,
+        norm: int = 2,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        enforce_norm: bool = False,
+        norm_value: float = 1.0,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Interpret a set of detector readings without unfolding.
+
+        Builds the response matrix from ``readings`` and runs
+        :func:`interpret_qp` directly, returning the report, metrics, tables and
+        interpreted spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        alpha : float, optional
+            Regularization parameter (default: 1e-4).
+        norm : int, optional
+            Penalty norm, 1 or 2 (default: 2).
+        smoothness_order : int, optional
+            Smoothness derivative order, 0, 1 or 2 (default: 0).
+        smoothness_weight : float, optional
+            Weight of the smoothness term (default: 1.0).
+        enforce_norm : bool, optional
+            Add ``sum(x) == norm_value`` (default: False).
+        norm_value : float, optional
+            Target total fluence (default: 1.0).
+        **kwargs
+            Extra keyword arguments forwarded to :func:`interpret_qp`.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary with ``report``, ``metrics``, ``tables`` and
+            ``spectrum`` keys.
+        """
+        A, b, selected = _build_system(
+            readings, self.detector_names, self.sensitivities
+        )
+        result = interpret_qp_impl(
+            A,
+            b,
+            alpha,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            enforce_norm=enforce_norm,
+            norm_value=norm_value,
+            E_MeV=self.E_MeV,
+            detector_names=selected,
+            **kwargs,
+        )
+        return {
+            "report": result.report,
+            "metrics": result.metrics,
+            "tables": result.tables,
+            "spectrum": np.asarray(result.spectrum, dtype=float),
+        }
 
     # Utility methods
     def discretize_spectra(
@@ -2291,6 +2622,1207 @@ class Detector:
             k=k,
             threshold=threshold,
             noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_lanczos(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization_method: str = "gcv",
+        max_iterations: Optional[int] = None,
+        regularization: float = 1e-8,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the Lanczos-hybrid (Krylov) method.
+
+        Performs Golub-Kahan (Lanczos-type) bidiagonalization of the
+        response matrix, building a sequence of Krylov subspaces. At each
+        iteration a new approximation is obtained by solving the projected
+        Tikhonov problem, with the regularization parameter selected
+        automatically on the projected problem by Generalized Cross
+        Validation (GCV). No a-priori spectrum is required.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter. Only
+            ``'gcv'`` is supported (default: 'gcv').
+        max_iterations : int, optional
+            Maximum Krylov dimension. Defaults to
+            ``min(n_detectors, n_energy_bins)``.
+        regularization : float, optional
+            Fallback regularization parameter (default: 1e-8).
+        noise_level : float, optional
+            Relative noise level used for discrepancy-principle early
+            stopping.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_lanczos_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization_method=regularization_method,
+            max_iterations=max_iterations,
+            regularization=regularization,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_cgls(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        tolerance: float = 1e-12,
+        regularization: float = 0.0,
+        smoothness_order: int = 0,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the CGLS iterative method.
+
+        CGLS (Conjugate Gradient for Least Squares) solves the least
+        squares problem ``min ||A x - b||^2`` with a truncated-CG
+        iteration, optionally regularized by a ``||L x||^2`` Tikhonov term
+        and/or stopped early by the discrepancy principle.  Nonnegativity
+        is enforced by clamping at each iteration.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.  If None, a zero vector is used
+            (the CGLS iteration does not depend on the initial guess).
+        max_iterations : int, optional
+            Maximum number of CG iterations (default: 100).
+        tolerance : float, optional
+            Relative tolerance on the normal-equation residual
+            (default: 1e-12).
+        regularization : float, optional
+            Tikhonov regularization parameter for the ``||L x||^2`` term
+            (default: 0.0 = no extra regularization).
+        smoothness_order : int, optional
+            Order of the derivative matrix used as the regularization
+            operator ``L`` (0 = identity, 1 = first derivative,
+            2 = second derivative).  Ignored when ``regularization`` is 0.
+        noise_level : float, optional
+            Relative noise level used for discrepancy-principle stopping.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_cgls_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            regularization=regularization,
+            smoothness_order=smoothness_order,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_gks(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: Optional[int] = None,
+        smoothness_order: int = 2,
+        regularization_method: str = "gcv",
+        regularization: float = 1e-8,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the GKS Krylov-hybrid method.
+
+        GKS (Golub-Kahan hybrid) performs Lanczos-type bidiagonalization
+        of the response matrix, building a Krylov subspace of modest
+        dimension.  At each iteration the regularized problem is projected
+        onto the subspace and solved, with the regularization parameter
+        chosen automatically on the projected problem by GCV, the
+        discrepancy principle, or the L-curve.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        max_iterations : int, optional
+            Maximum Krylov dimension.  Defaults to
+            ``min(n_detectors, n_energy_bins)``.
+        smoothness_order : int, optional
+            Order of the derivative matrix used for regularization
+            (default: 2).
+        regularization_method : str, optional
+            Method for selecting the regularization parameter:
+            ``'gcv'``, ``'dp'``, ``'lcurve'`` or ``'manual'``
+            (default: 'gcv').
+        regularization : float, optional
+            Fallback/manual regularization parameter (default: 1e-8).
+        noise_level : float, optional
+            Relative noise level used by the discrepancy principle when
+            ``regularization_method='dp'``.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_gks_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            smoothness_order=smoothness_order,
+            regularization_method=regularization_method,
+            regularization=regularization,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_tikhonov_tv(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        epsilon: Optional[float] = None,
+        mu: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+        max_iterations: int = 100,
+        type_: str = "TT",
+        beta: float = 1.0,
+        zthr: float = 2.5,
+        tolerance: float = 1e-4,
+        noise_level: Optional[float] = None,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum with noise-constrained Tikhonov-TV.
+
+        Solves ``min f(x)`` subject to ``||A x - b||^2 = epsilon`` with the
+        ADMM scheme of Gazzola & Gholami adapted to 1D spectra.  The
+        regularizer ``f`` is a blend of total variation on the first
+        derivative and Tikhonov smoothing on the second derivative, with
+        the balancing parameter ``beta`` either fixed or estimated
+        adaptively.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        epsilon : float, optional
+            Estimate of the squared 2-norm of the noise.  If None, derived
+            from ``noise_level`` (``(noise_level * ||b||)^2``) or from the
+            residuals of an unregularized least-squares solve.
+        mu : Tuple[float, float, float], optional
+            Penalty parameters ``(mu1, mu2, mu3)`` (default: (1, 1, 1)).
+        max_iterations : int, optional
+            Maximum number of ADMM iterations (default: 100).
+        type_ : str, optional
+            Optimization problem: ``'TT'`` (TV + Tikhonov), ``'TV'`` (pure
+            total variation) or ``'T'`` (pure Tikhonov) (default: 'TT').
+        beta : float, optional
+            Balancing parameter between TV and Tikhonov terms, or
+            ``'adapt'`` for adaptive estimation (default: 1.0).
+        zthr : float, optional
+            Threshold for the adaptive beta estimation (default: 2.5).
+        tolerance : float, optional
+            Stabilization stopping criterion (default: 1e-4).
+        noise_level : float, optional
+            Relative noise level used to derive a default ``epsilon``.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_tikhonov_tv_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            epsilon=epsilon,
+            mu=mu,
+            max_iterations=max_iterations,
+            type_=type_,
+            beta=beta,
+            zthr=zthr,
+            tolerance=tolerance,
+            noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_sandii(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 50,
+        tolerance: float = 1e-3,
+        chi_fac: int = 1,
+        relative_uncertainty: float = 0.1,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the SAND-II algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 50).
+        tolerance : float, optional
+            Maximum relative spectrum change used when ``chi_fac=0``
+            (default: 1e-3).
+        chi_fac : int, optional
+            Convergence criterion: ``1`` = chi-square based, ``0`` = maximum
+            relative deviation based (default: 1).
+        relative_uncertainty : float, optional
+            Relative measurement uncertainty for the chi-square criterion
+            (default: 0.1).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_sandii_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            chi_fac=chi_fac,
+            relative_uncertainty=relative_uncertainty,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_bunki(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        smoothing: float = 0.1,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the BUNKI (SPUNIT) algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        smoothing : float, optional
+            Three-point smoothing factor (default: 0.1).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 1000).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_bunki_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            smoothing=smoothing,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_bunkiut(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        smoothing: float = 0.05,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the BUNKI-UT (BON31G) algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        smoothing : float, optional
+            Three-point smoothing factor (default: 0.05).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 1000).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_bunkiut_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            smoothing=smoothing,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_ferdor(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        tolerance: float = 1e-3,
+        smoothing: float = 1e-3,
+        chi_squared_target: float = 1.0,
+        relative_uncertainty: float = 0.1,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the FERDOR algorithm.
+
+        FERDOR (ORNL; Burrus, ORNL-4154) is a constrained least-squares
+        unfolding code with second-difference smoothing. The smoothing weight
+        is adjusted iteratively so the reduced chi-square of the fit reaches
+        ``chi_squared_target`` (discrepancy principle), and the final
+        spectrum is non-negative.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of smoothing-weight iterations (default: 100).
+        tolerance : float, optional
+            Relative tolerance on the reduced chi-square (default: 1e-3).
+        smoothing : float, optional
+            Initial smoothing weight alpha (default: 1e-3).
+        chi_squared_target : float, optional
+            Target reduced chi-square per degree of freedom (default: 1.0).
+        relative_uncertainty : float, optional
+            Relative measurement uncertainty for the chi-square criterion
+            (default: 0.1).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_ferdor_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            smoothing=smoothing,
+            chi_squared_target=chi_squared_target,
+            relative_uncertainty=relative_uncertainty,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_rebunki(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        smoothing: float = 0.1,
+        max_iterations: int = 1000,
+        tolerance: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the ReBUNKI (SPUNIT) algorithm.
+
+        ReBUNKI (Lacerda et al., 2018) is a modern open reimplementation of
+        the BUNKI code; its Python version supports the SPUNIT iterative
+        algorithm. The default tolerance matches the ~1% relative-error
+        convergence recommended by ReBUNKI.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        smoothing : float, optional
+            Three-point smoothing factor (default: 0.1).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 1000).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 0.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_rebunki_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            smoothing=smoothing,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_nsduaz(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        catalogue: Optional[Dict[str, np.ndarray]] = None,
+        use_catalogue: bool = True,
+        reference_name: Optional[str] = None,
+        smoothing: float = 0.1,
+        max_iterations: int = 1000,
+        tolerance: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the NSDUAZ algorithm.
+
+        NSDUAZ (Universidad Autonoma de Zacatecas; Ortiz-Rodriguez &
+        Vega-Carrillo, 2012) uses the SPUNIT iterative algorithm with an
+        initial spectrum selected from a catalogue of standard spectra by a
+        statistical test on count-rate ratios relative to the reference
+        (20.32 cm) sphere.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Explicit initial spectrum guess. When given, it overrides the
+            catalogue selection.
+        catalogue : Optional[Dict[str, np.ndarray]], optional
+            User-supplied catalogue of candidate initial spectra (label ->
+            spectrum on the detector energy grid). When None, the built-in
+            mini-catalogue is used.
+        use_catalogue : bool, optional
+            If True (default), select the initial spectrum from the catalogue
+            when ``initial_spectrum`` is not provided; if False, a flat
+            spectrum is used.
+        reference_name : str, optional
+            Reference sphere name for the catalogue test (default:
+            auto-detect 20.32 cm sphere).
+        smoothing : float, optional
+            Three-point smoothing factor (default: 0.1).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 1000).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 0.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_nsduaz_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            catalogue=catalogue,
+            use_catalogue=use_catalogue,
+            reference_name=reference_name,
+            smoothing=smoothing,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_osem(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 50,
+        n_subsets: int = 1,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the OSEM algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 50).
+        n_subsets : int, optional
+            Number of ordered subsets over the detector readings
+            (default: 1, i.e. standard MLEM).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_osem_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            n_subsets=n_subsets,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_mapem(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        prior: str = "quadratic",
+        beta: float = 1e-3,
+        prior_delta: float = 1.0,
+        gamma: float = 1.0,
+        max_iterations: int = 50,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using penalised EM (MAP-EM).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        prior : str, optional
+            Prior type: ``'none'``, ``'quadratic'``, ``'logcosh'`` or
+            ``'relative_difference'`` (default: ``'quadratic'``).
+        beta : float, optional
+            Prior weight (default: 1e-3).
+        prior_delta : float, optional
+            Width parameter of the quadratic/logcosh priors and additive
+            floor of the relative-difference prior (default: 1.0).
+        gamma : float, optional
+            Edge-preservation parameter of the relative-difference prior
+            (default: 1.0).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 50).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_mapem_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            prior=prior,
+            beta=beta,
+            prior_delta=prior_delta,
+            gamma=gamma,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_bsrem(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        prior: str = "none",
+        beta: float = 1e-3,
+        prior_delta: float = 1.0,
+        gamma: float = 1.0,
+        max_iterations: int = 50,
+        n_subsets: int = 1,
+        tolerance: float = 1e-6,
+        relaxation: Optional[Union[float, Callable[[int], float]]] = None,
+        addition_after_iteration: float = 1e-4,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the BSREM algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        prior : str, optional
+            Prior type: ``'none'``, ``'quadratic'``, ``'logcosh'`` or
+            ``'relative_difference'`` (default: ``'none'``).
+        beta : float, optional
+            Prior weight (default: 1e-3).
+        prior_delta : float, optional
+            Width parameter of the quadratic/logcosh priors and additive
+            floor of the relative-difference prior (default: 1.0).
+        gamma : float, optional
+            Edge-preservation parameter of the relative-difference prior
+            (default: 1.0).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 50).
+        n_subsets : int, optional
+            Number of ordered subsets over the detector readings (default: 1).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 1e-6).
+        relaxation : float or callable, optional
+            Relaxation sequence (default: None -> constant 1).
+        addition_after_iteration : float, optional
+            Floor value for spectrum bins (default: 1e-4).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_bsrem_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            prior=prior,
+            beta=beta,
+            prior_delta=prior_delta,
+            gamma=gamma,
+            max_iterations=max_iterations,
+            n_subsets=n_subsets,
+            tolerance=tolerance,
+            relaxation=relaxation,
+            addition_after_iteration=addition_after_iteration,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_sart(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 50,
+        tolerance: float = 1e-6,
+        relaxation: Optional[Union[float, Callable[[int], float]]] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the SART algorithm.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 50).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 1e-6).
+        relaxation : float or callable, optional
+            Relaxation sequence (default: None -> constant 0.8).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_sart_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            relaxation=relaxation,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_fista(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 500,
+        tolerance: float = 1e-8,
+        regularization: float = 0.0,
+        l1_penalty: float = 0.0,
+        tv_penalty: float = 0.0,
+        nonnegativity: bool = True,
+        x_min: float = 0.0,
+        x_max: float = np.inf,
+        noise_level: Optional[float] = None,
+        eta: float = 1.01,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using FISTA algorithm.
+
+        The Fast Iterative Shrinkage-Thresholding Algorithm (FISTA) is an
+        accelerated proximal gradient method that achieves O(1/k^2) convergence
+        rate for convex optimization problems. It can handle L1 regularization
+        (sparsity), TV regularization, and box constraints.
+
+        Based on IRtools IRfista.m by Silvia Gazzola et al.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial guess for spectrum. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 500).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-8).
+        regularization : float, optional
+            Tikhonov regularization parameter (default: 0.0).
+        l1_penalty : float, optional
+            L1 regularization penalty parameter for sparsity (default: 0.0).
+        tv_penalty : float, optional
+            Total variation penalty parameter (default: 0.0).
+        nonnegativity : bool, optional
+            Apply nonnegativity constraints (default: True).
+        x_min : float, optional
+            Lower bound for solution (default: 0.0).
+        x_max : float, optional
+            Upper bound for solution (default: inf).
+        noise_level : float, optional
+            Relative noise level for discrepancy principle stopping.
+        eta : float, optional
+            Safety factor for discrepancy principle (default: 1.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_fista_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            regularization=regularization,
+            l1_penalty=l1_penalty,
+            tv_penalty=tv_penalty,
+            nonnegativity=nonnegativity,
+            x_min=x_min,
+            x_max=x_max,
+            noise_level=noise_level,
+            eta=eta,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_hybrid_gmres(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        regularization_method: str = "gcv",
+        regularization: float = 0.0,
+        noise_level: Optional[float] = None,
+        eta: float = 1.01,
+        reorthogonalization: bool = True,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Hybrid GMRES method.
+
+        The hybrid GMRES method combines the GMRES iterative solver with
+        Tikhonov regularization applied to the projected problem at each
+        iteration. The regularization parameter is selected automatically
+        using GCV or discrepancy principle.
+
+        Based on IRtools IRhybrid_gmres.m by Silvia Gazzola et al.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial guess for spectrum. If None, zero vector is used.
+        max_iterations : int, optional
+            Maximum Krylov dimension (default: 100).
+        regularization_method : str, optional
+            Method for selecting regularization parameter:
+            'gcv', 'modgcv', 'discrep' (default: 'gcv').
+        regularization : float, optional
+            Fixed regularization parameter (used if not auto-selected).
+        noise_level : float, optional
+            Relative noise level for discrepancy principle.
+        eta : float, optional
+            Safety factor for discrepancy principle (default: 1.01).
+        reorthogonalization : bool, optional
+            Apply full reorthogonalization (default: True).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_hybrid_gmres_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            regularization_method=regularization_method,
+            regularization=regularization,
+            noise_level=noise_level,
+            eta=eta,
+            reorthogonalization=reorthogonalization,
             calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,
             save_result=save_result,

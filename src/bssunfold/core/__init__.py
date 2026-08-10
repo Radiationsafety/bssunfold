@@ -23,6 +23,20 @@ from .unfold_statreg import solve_statreg
 from .unfold_reconst import solve_reconst
 from .unfold_scipy_direct_method import solve_scipy_direct
 from .unfold_tsvd import solve_tsvd
+from .unfold_lanczos import solve_lanczos
+from .unfold_cgls import solve_cgls
+from .unfold_gks import solve_gks
+from .unfold_tikhonov_tv import solve_tikhonov_tv
+from .unfold_sandii import solve_sandii
+from .unfold_bunki import solve_bunki
+from .unfold_bunkiut import solve_bunkiut
+from .unfold_ferdor import solve_ferdor
+from .unfold_rebunki import solve_rebunki
+from .unfold_nsduaz import solve_nsduaz, select_catalogue_initial, builtin_catalogue
+from .unfold_osem import solve_osem
+from .unfold_mapem import solve_mapem
+from .unfold_bsrem import solve_bsrem
+from .unfold_sart import solve_sart
 from .unfold_parametric2 import solve_parametric2
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_hybrid_parametric import solve_hybrid_parametric
@@ -68,11 +82,33 @@ from .unfold_statreg import unfold_statreg
 from .unfold_reconst import unfold_reconst
 from .unfold_scipy_direct_method import unfold_scipy_direct_method
 from .unfold_tsvd import unfold_tsvd
+from .unfold_lanczos import unfold_lanczos
+from .unfold_cgls import unfold_cgls
+from .unfold_gks import unfold_gks
+from .unfold_tikhonov_tv import unfold_tikhonov_tv
+from .unfold_sandii import unfold_sandii
+from .unfold_bunki import unfold_bunki
+from .unfold_bunkiut import unfold_bunkiut
+from .unfold_ferdor import unfold_ferdor
+from .unfold_rebunki import unfold_rebunki
+from .unfold_nsduaz import unfold_nsduaz
+from .unfold_osem import unfold_osem
+from .unfold_mapem import unfold_mapem
+from .unfold_bsrem import unfold_bsrem
+from .unfold_sart import unfold_sart
 from .unfold_parametric2 import unfold_parametric2
 from .unfold_smt import unfold_smt
 from .unfold_scip import unfold_scip
 from .unfold_docplex import unfold_docplex
 from .unfold_cs import solve_cs, solve_omp, solve_ksvd, solve_sl0, unfold_cs
+from .unfold_epic import solve_epic, unfold_epic
+from .unfold_interpret import (
+    InterpretationResult,
+    build_interpretation_qp,
+    solve_interpret,
+    interpret_qp,
+    unfold_interpret,
+)
 
 __all__ = [
     # detector
@@ -96,6 +132,22 @@ __all__ = [
     "solve_reconst",
     "solve_scipy_direct",
     "solve_tsvd",
+    "solve_lanczos",
+    "solve_cgls",
+    "solve_gks",
+    "solve_tikhonov_tv",
+    "solve_sandii",
+    "solve_bunki",
+    "solve_bunkiut",
+    "solve_ferdor",
+    "solve_rebunki",
+    "solve_nsduaz",
+    "select_catalogue_initial",
+    "builtin_catalogue",
+    "solve_osem",
+    "solve_mapem",
+    "solve_bsrem",
+    "solve_sart",
     "solve_parametric2",
     "solve_fruit_like",
     "solve_hybrid_parametric",
@@ -134,6 +186,20 @@ __all__ = [
     "unfold_reconst",
     "unfold_scipy_direct_method",
     "unfold_tsvd",
+    "unfold_lanczos",
+    "unfold_cgls",
+    "unfold_gks",
+    "unfold_tikhonov_tv",
+    "unfold_sandii",
+    "unfold_bunki",
+    "unfold_bunkiut",
+    "unfold_ferdor",
+    "unfold_rebunki",
+    "unfold_nsduaz",
+    "unfold_osem",
+    "unfold_mapem",
+    "unfold_bsrem",
+    "unfold_sart",
     "unfold_parametric2",
     "unfold_fruit_like",
     "unfold_hybrid_parametric",
@@ -142,6 +208,14 @@ __all__ = [
     "unfold_scip",
     "unfold_docplex",
     "unfold_cs",
+    "solve_epic",
+    "unfold_epic",
+    # interpretation
+    "InterpretationResult",
+    "build_interpretation_qp",
+    "solve_interpret",
+    "interpret_qp",
+    "unfold_interpret",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

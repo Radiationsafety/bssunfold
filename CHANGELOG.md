@@ -7,6 +7,137 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.16.0] - 2026-08-10
+
+### Added
+- **Quadratic-program interpretation with pyoptexplain** — new
+  `unfold_interpret()` / `solve_interpret()` and the standalone
+  `interpret_qp()` entry point that solve the same unfolding QP used by
+  `unfold_qpsolvers`/`unfold_cvxpy` and then *interpret* the solution:
+  - Solve report: solver status, objective value, per-group spectrum, residual
+    per detector, active (zeroed) energy groups.
+  - Shadow prices (duals) for the non-negativity bounds and, with
+    `enforce_norm=True`, the norm-equality dual.
+  - Robustness analysis (empirical `+/-1%..5%` perturbation sweep), detector
+    informativeness (one-detector-at-a-time perturbation), regularization
+    sweep, non-negativity trust, pyoptexplain what-if scenarios and a norm
+    relaxation curve.
+  - Output is an `InterpretationResult` with a Markdown `report`,
+    JSON-friendly `metrics` and raw `tables` (pandas DataFrames).
+  - Exposed on `Detector` as `unfold_interpret()` (standard result dict plus
+    `report`/`interpretation_metrics`) and `interpret_result()` (interpretation
+    only).
+  - Optional dependency: `pip install bssunfold[interpret]` (pyoptexplain>=0.1.1).
+  - Tests: `tests/test_interpret.py`.
+- **Lanczos-hybrid (Krylov + GCV) unfolding** — new `unfold_lanczos()` method
+  and `solve_lanczos()` solver. Performs Golub-Kahan (Lanczos-type)
+  bidiagonalization, building a Krylov subspace in which a new approximation
+  is computed at each iteration; the regularization parameter is selected
+  automatically on the small projected problem by Generalized Cross Validation
+  (GCV). No a-priori spectrum is required (pure NumPy/SciPy, no new deps).
+  Supports discrepancy-principle early stopping via `noise_level` and is
+  registered in `unfold_combined`. Tests: `tests/test_lanczos.py`.
+- **CGLS, GKS and Tikhonov-TV unfolding** — three new Krylov/regularized
+  methods:
+  - `unfold_cgls()` / `solve_cgls()` — Conjugate Gradient for Least Squares
+    with an optional `||L x||^2` Tikhonov term (`regularization`,
+    `smoothness_order`), discrepancy-principle stopping via `noise_level`
+    and non-negative spectrum via clamping.
+  - `unfold_gks()` / `solve_gks()` — Generalized Krylov Subspace
+    (Golub-Kahan bidiagonalization) with the regularization parameter
+    selected automatically on the projected problem by GCV, the Discrepancy
+    Principle or the L-curve (`regularization_method='gcv'|'dp'|'lcurve'|
+    'manual'`). No a-priori spectrum is required.
+  - `unfold_tikhonov_tv()` / `solve_tikhonov_tv()` — noise-constrained
+    Tikhonov + total variation solved by an ADMM scheme adapted to 1D
+    spectra (Gazzola & Gholami, 2022). The balancing parameter `beta` can
+    be fixed or estimated adaptively (`beta='adapt'`), with `type_` selecting
+    `'TT'` (TV + Tikhonov), `'TV'` (pure TV) or `'T'` (pure Tikhonov).
+  - All three are registered in `unfold_combined()` pipelines (`"cgls"`,
+    `"gks"`, `"tikhonov_tv"`) and documented in `docs/detector.rst`.
+    Tests: `tests/test_krylov_tv.py`.
+- **SAND-II, BUNKI, BUNKI-UT, OSEM, MAP-EM, BSREM and SART unfolding** —
+  seven new multi-sphere / iterative-EM methods:
+  - `unfold_sandii()` / `solve_sandii()` — the SAND-II geometric-mean ratio
+    method (McElroy et al., 1967) with chi-square (`chi_fac=1`) or
+    max-relative-deviation (`chi_fac=0`) stopping and optional per-detector
+    `sigma`.
+  - `unfold_bunki()` / `solve_bunki()` and `unfold_bunkiut()` /
+    `solve_bunkiut()` — the BUNKI (SPUNIT) and BUNKI-UT (BON31G) multi-sphere
+    unfolding algorithms with three-point spectral smoothing.
+  - `unfold_osem()` / `solve_osem()` — ordered-subset EM (Hudson & Larkin,
+    1994); `n_subsets=1` reduces to standard MLEM.
+  - `unfold_mapem()` / `solve_mapem()` — one-step-late penalised EM
+    (OSMAPOSL) with nearest-neighbour `quadratic`, `logcosh` or
+    `relative_difference` priors over the energy axis.
+  - `unfold_bsrem()` / `solve_bsrem()` — block-sequential regularised EM with
+    a relaxation sequence (constant or callable) and a bin floor to prevent
+    locking at zero; guaranteed convergence for non-convex priors.
+  - `unfold_sart()` / `solve_sart()` — simultaneous algebraic reconstruction
+    with relaxed, residual-normalised additive updates.
+  - All seven are registered in `unfold_combined()` pipelines and documented
+    in `docs/detector.rst` and `docs/overview.rst`. Tests:
+    `tests/test_em_methods.py`.
+- **FISTA, Hybrid-GMRES** new methods added: The Fast Iterative 
+    Shrinkage-Thresholding Algorithm (FISTA) and
+    The hybrid GMRES method combines the GMRES iterative solver with
+    Tikhonov regularization applied to the projected problem at each
+    iteration. The regularization parameter is selected automatically
+    using GCV or discrepancy principle.
+
+## [0.15.0] - 2026-08-06
+
+### Added
+- **EPIC Tikhonov regularization unfolding** — new `unfold_epic()` method and
+  `solve_epic()` solver (port of EPIC_LS, Ortega-Culaciati et al. 2021,
+  https://github.com/frortega/EPIC_LS). Prior variances of the regularization
+  operator are chosen so the a posteriori variances of the model parameters
+  match target sigmas (Equal Posterior Information Condition); the weighted
+  least-squares problem is then solved under optional non-negativity.
+  - Defaults: first-derivative operator (`regularization_order=1`), target
+    sigmas = `sigma_frac * max(|x_ls|)` with `sigma_frac=0.1`.
+  - `EPIC_bool`, `V` (change of variables), `noise_var` (data covariance),
+    `regularize` (minimum-norm damping) and `LSQpar` (solver tuning, incl.
+    `tr_solver`) exposed for advanced use.
+  - Registered in `unfold_combined()` pipelines (`"epic"`).
+  - Fix: `create_derivative_matrix(order=1)` produced a rank-deficient
+    operator (two `-1` per row with a stagger); rows now place `-1`/`+1` at
+    the correct indices.
+  - Tests: `tests/test_epic.py`.
+
+## [0.14.1] - 2026-08-06
+
+### Added
+- **EURADOS integral-quantity comparison metrics** (following Gómez-Ros et al.,
+  Radiat. Meas. 153 (2022) 106755) in `utils/comparison.py`:
+  - `fluence_averaged_energy` — fluence-averaged energy Ē
+  - `energy_group_fluence` — fluence rate in the thermal (E<0.4 eV),
+    epithermal (0.4 eV–0.1 MeV) and fast (E>0.1 MeV) energy regions
+  - `dose_averaged_energy` — ambient dose equivalent-averaged energy Ẽ
+    (ISO 2001, ICRP-74 ADE coefficients)
+  - `ambient_dose_equivalent_rate` — ambient dose equivalent rate H*(10)
+  - New `_get_ade_cc()` helper resolves ICRP-74 operational coefficients by
+    default (`get_coefficients("ICRP74_operational")`).
+  - `compare_spectra()` now accepts the new single-spectrum metrics by name
+    (`metrics="fluence_averaged_energy"`, etc.) and returns them under
+    `_ref`/`_test` keys (energy-group fluence flattened to
+    `energy_group_fluence_{thermal,epithermal,fast}_{ref,test}`); NaNs are
+    reported when `energy` is missing or a metric raises.
+  - Exported via `bssunfold.utils.__init__` and documented in
+    `docs/detector.rst`.
+- Tests: `tests/test_new_metrics.py`, edge cases in
+  `tests/test_coverage_boost.py`, extended metric-key set in
+  `tests/test_iaea_validation.py`.
+
+### Fixed
+- ICRP-74 operational dose-coefficient energy grid in `constants.py`
+  (`ICRP74_COEFF_OPERATIONAL_QUANTITIES`): added the missing bin boundary
+  node at 398.0 MeV (last bin now 398–630.957 MeV, 61 points total), with the
+  coefficient value duplicated onto the 630.957 node. Previously the last
+  coefficient applied to a narrower bin than the source table.
+  - `tests/test_dose_coefficients.py` updated to the 61-point grid plus a
+    duplicate-last-bin regression test.
+
 ## [0.14.0] - 2026-08-05
 
 ### Added

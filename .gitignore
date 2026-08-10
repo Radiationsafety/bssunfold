@@ -1,3 +1,109 @@
+```
+# Jupyter Notebook checkpoints
+.checkpoints/
+*.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.ENV/
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Compiled and build artifacts
+*.o
+*.obj
+*.out
+*.so
+*.dll
+*.exe
+
+# Dependencies
+.venv/
+venv/
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+```
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov/
+.coverage.*
+.nyc_output/
+istanbul/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+
+# Distribution / packaging
+*.tar.gz
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage
+coverage/
+*.gcov
+*.lcov
+
+# Jupyter
+.ipynb_checkpoints
+.nbdime/
+.dvc/
+
+
 # ---> Python
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -227,3 +333,71 @@ dynapyt.json
 bandit.json
 pip-audit.json
 *.py.orig
+src/bssunfold/__pycache__/
+src/bssunfold/core/__pycache__/
+src/bssunfold/__pycache__/__init__.cpython-312.pyc
+src/bssunfold/__pycache__/constants.cpython-312.pyc
+src/bssunfold/__pycache__/logging_config.cpython-312.pyc
+src/bssunfold/__pycache__/platform_check.cpython-312.pyc
+src/bssunfold/core/__pycache__/__init__.cpython-312.pyc
+src/bssunfold/core/__pycache__/_base_unfolder.cpython-312.pyc
+src/bssunfold/core/__pycache__/_em_priors.cpython-312.pyc
+src/bssunfold/core/__pycache__/_matrix_utils.cpython-312.pyc
+src/bssunfold/core/__pycache__/_montecarlo.cpython-312.pyc
+src/bssunfold/core/__pycache__/detector.cpython-312.pyc
+src/bssunfold/core/__pycache__/dose_calculation.cpython-312.pyc
+src/bssunfold/core/__pycache__/regularization.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_bayes_spline_regularization.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_bayes.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_bayesian_parametric.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_bsrem.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_bunki.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_bunkiut.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_cgls.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_combined.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_cs.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_cvxpy.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_docplex.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_doroshenko.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_epic.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_ferdor.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_fista.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_fruit_like.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_genetic.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_gks.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_gravel.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_hybrid_gmres.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_hybrid_parametric.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_interpret.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_kaczmarz.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_lanczos.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_landweber.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_lmfit.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_mapem.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_maxed.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_mlem_odl.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_mlem_stop.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_mlem.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_mystic.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_nsduaz.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_osem.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_parametric.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_parametric2.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_qpsolvers.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_rebunki.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_reconst.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_sandii.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_sart.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_scip.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_scipy_direct_method.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_smt.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_statreg.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_tikhonov_legendre.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_tikhonov_tv.cpython-312.pyc
+src/bssunfold/core/__pycache__/unfold_tsvd.cpython-312.pyc
+src/bssunfold/utils/__pycache__/__init__.cpython-312.pyc
+src/bssunfold/utils/__pycache__/comparison.cpython-312.pyc
+src/bssunfold/utils/__pycache__/converters.cpython-312.pyc
+src/bssunfold/utils/__pycache__/interpolation.cpython-312.pyc
+src/bssunfold/utils/__pycache__/plotting.cpython-312.pyc
+src/bssunfold/utils/__pycache__/validators.cpython-312.pyc

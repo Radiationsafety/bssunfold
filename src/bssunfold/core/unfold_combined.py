@@ -72,6 +72,18 @@ def unfold_combined(
     from .unfold_smt import unfold_smt
     from .unfold_scip import unfold_scip
     from .unfold_docplex import unfold_docplex
+    from .unfold_epic import unfold_epic
+    from .unfold_lanczos import unfold_lanczos
+    from .unfold_cgls import unfold_cgls
+    from .unfold_gks import unfold_gks
+    from .unfold_tikhonov_tv import unfold_tikhonov_tv
+    from .unfold_sandii import unfold_sandii
+    from .unfold_bunki import unfold_bunki
+    from .unfold_bunkiut import unfold_bunkiut
+    from .unfold_osem import unfold_osem
+    from .unfold_mapem import unfold_mapem
+    from .unfold_bsrem import unfold_bsrem
+    from .unfold_sart import unfold_sart
 
     current_spectrum = None
     intermediate_results = {}
@@ -109,6 +121,18 @@ def unfold_combined(
             'smt': unfold_smt,
             'scip': unfold_scip,
             'docplex': unfold_docplex,
+            'epic': unfold_epic,
+            'lanczos': unfold_lanczos,
+            'cgls': unfold_cgls,
+            'gks': unfold_gks,
+            'tikhonov_tv': unfold_tikhonov_tv,
+            'sandii': unfold_sandii,
+            'bunki': unfold_bunki,
+            'bunkiut': unfold_bunkiut,
+            'osem': unfold_osem,
+            'mapem': unfold_mapem,
+            'bsrem': unfold_bsrem,
+            'sart': unfold_sart,
         }
 
         if method not in unfold_funcs:
