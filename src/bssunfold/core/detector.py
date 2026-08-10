@@ -73,6 +73,8 @@ from .unfold_interpret import (
     interpret_qp as interpret_qp_impl,
     unfold_interpret as unfold_interpret_impl,
 )
+from .unfold_fista import unfold_fista as unfold_fista_impl
+from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
 
 __all__ = ["Detector"]
 
@@ -3651,6 +3653,177 @@ class Detector:
             relaxation=relaxation,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_fista(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 500,
+        tolerance: float = 1e-8,
+        regularization: float = 0.0,
+        l1_penalty: float = 0.0,
+        tv_penalty: float = 0.0,
+        nonnegativity: bool = True,
+        x_min: float = 0.0,
+        x_max: float = np.inf,
+        noise_level: Optional[float] = None,
+        eta: float = 1.01,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using FISTA algorithm.
+
+        The Fast Iterative Shrinkage-Thresholding Algorithm (FISTA) is an
+        accelerated proximal gradient method that achieves O(1/k^2) convergence
+        rate for convex optimization problems. It can handle L1 regularization
+        (sparsity), TV regularization, and box constraints.
+
+        Based on IRtools IRfista.m by Silvia Gazzola et al.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial guess for spectrum. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 500).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-8).
+        regularization : float, optional
+            Tikhonov regularization parameter (default: 0.0).
+        l1_penalty : float, optional
+            L1 regularization penalty parameter for sparsity (default: 0.0).
+        tv_penalty : float, optional
+            Total variation penalty parameter (default: 0.0).
+        nonnegativity : bool, optional
+            Apply nonnegativity constraints (default: True).
+        x_min : float, optional
+            Lower bound for solution (default: 0.0).
+        x_max : float, optional
+            Upper bound for solution (default: inf).
+        noise_level : float, optional
+            Relative noise level for discrepancy principle stopping.
+        eta : float, optional
+            Safety factor for discrepancy principle (default: 1.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_fista_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            regularization=regularization,
+            l1_penalty=l1_penalty,
+            tv_penalty=tv_penalty,
+            nonnegativity=nonnegativity,
+            x_min=x_min,
+            x_max=x_max,
+            noise_level=noise_level,
+            eta=eta,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_hybrid_gmres(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        regularization_method: str = "gcv",
+        regularization: float = 0.0,
+        noise_level: Optional[float] = None,
+        eta: float = 1.01,
+        reorthogonalization: bool = True,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Hybrid GMRES method.
+
+        The hybrid GMRES method combines the GMRES iterative solver with
+        Tikhonov regularization applied to the projected problem at each
+        iteration. The regularization parameter is selected automatically
+        using GCV or discrepancy principle.
+
+        Based on IRtools IRhybrid_gmres.m by Silvia Gazzola et al.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial guess for spectrum. If None, zero vector is used.
+        max_iterations : int, optional
+            Maximum Krylov dimension (default: 100).
+        regularization_method : str, optional
+            Method for selecting regularization parameter:
+            'gcv', 'modgcv', 'discrep' (default: 'gcv').
+        regularization : float, optional
+            Fixed regularization parameter (used if not auto-selected).
+        noise_level : float, optional
+            Relative noise level for discrepancy principle.
+        eta : float, optional
+            Safety factor for discrepancy principle (default: 1.01).
+        reorthogonalization : bool, optional
+            Apply full reorthogonalization (default: True).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_hybrid_gmres_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            regularization_method=regularization_method,
+            regularization=regularization,
+            noise_level=noise_level,
+            eta=eta,
+            reorthogonalization=reorthogonalization,
+            calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,
