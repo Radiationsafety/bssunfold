@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [0.16.0] - 2026-08-07
+## [0.16.0] - 2026-08-10
 
 ### Added
 - **Quadratic-program interpretation with pyoptexplain** — new
@@ -78,6 +78,12 @@ and this project adheres to [Semantic Versioning].
   - All seven are registered in `unfold_combined()` pipelines and documented
     in `docs/detector.rst` and `docs/overview.rst`. Tests:
     `tests/test_em_methods.py`.
+- **FISTA, Hybrid-GMRES** new methods added: The Fast Iterative 
+    Shrinkage-Thresholding Algorithm (FISTA) and
+    The hybrid GMRES method combines the GMRES iterative solver with
+    Tikhonov regularization applied to the projected problem at each
+    iteration. The regularization parameter is selected automatically
+    using GCV or discrepancy principle.
 
 ## [0.15.0] - 2026-08-06
 

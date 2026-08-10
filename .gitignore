@@ -307,6 +307,8 @@ dynapyt.json
 bandit.json
 pip-audit.json
 *.py.orig
+src/bssunfold/__pycache__/
+src/bssunfold/core/__pycache__/
 src/bssunfold/__pycache__/__init__.cpython-312.pyc
 src/bssunfold/__pycache__/constants.cpython-312.pyc
 src/bssunfold/__pycache__/logging_config.cpython-312.pyc
