@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 29 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 32 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -57,6 +57,9 @@ categories:
        L --> L1["unfold_sandii"]
        L --> L2["unfold_bunki"]
        L --> L3["unfold_bunkiut"]
+       L --> L4["unfold_rebunki"]
+       L --> L5["unfold_nsduaz"]
+       L --> L6["unfold_ferdor"]
 
        D --> D1["unfold_bayes"]
        D --> D2["unfold_bayes_spline_regularization"]
@@ -293,9 +296,9 @@ Method Reference
    * - 31
      - ``unfold_genetic``
      - Optimization
-     - `solver` (pso/ga/de/es/ep/abc/gwo/cmaes), `epoch`, `pop_size`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `n_runs`, `early_stop`
+     - `solver` (pso/ga/de/es/ep/abc/gwo/cmaes/nsga2), `epoch`, `pop_size`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `n_runs`, `early_stop`, `half_range`, `two_step`, `n_coarse`, `smoother`, `sigma_smooth`, `crossover` (single/arithmetic), `mutation` (random/iterative), `pareto_select` (knee/min_residual/max_entropy)
      - mealpy
-     - Population-based meta-heuristic unfolding (PSO/GA/DE/ES/EP/ABC/GWO/CMA-ES)
+     - Population-based meta-heuristic unfolding (PSO/GA/DE/ES/EP/ABC/GWO/CMA-ES/NSGA-II), with an optional TGASU-style two-step coarse-to-fine scheme, NSGA-II Pareto selection, arithmetic crossover/iterative mutation and post-processing smoothers
    * - 32
      - ``unfold_cs``
      - Optimization
@@ -386,6 +389,24 @@ Method Reference
      - `max_iterations`, `tolerance`, `relaxation`, `noise_level`
      - —
      - Simultaneous algebraic reconstruction technique: relaxed, residual-normalised additive correction
+   * - 47
+     - ``unfold_ferdor``
+     - Multi-sphere deconvolution
+     - `max_iterations`, `tolerance`, `smoothing`, `chi_squared_target`, `relative_uncertainty`
+     - —
+     - FERDOR few-channel unfolding: constrained least squares with an automatically adjusted smoothing weight chosen by the discrepancy principle
+   * - 48
+     - ``unfold_rebunki``
+     - Multi-sphere ratio
+     - `smoothing`, `max_iterations`, `tolerance`
+     - —
+     - ReBUNKI (SPUNIT) few-iteration spectral stripping with three-point smoothing and ~1% convergence tolerance
+   * - 49
+     - ``unfold_nsduaz``
+     - Multi-sphere ratio
+     - `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance`
+     - —
+     - NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode
 
 .. note::
 

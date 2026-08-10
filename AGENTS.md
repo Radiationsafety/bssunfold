@@ -24,7 +24,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/detector.py` — main `Detector` class (245 stmts). The public API entry point.
 - `core/regularization.py` — L-curve, GCV, discrepancy principle, cosine similarity (pytikhonov wrappers + fallbacks)
 - `core/unfolding_methods.py` — all `solve_*` functions, ~222 stmts
-- `core/unfold_qpsolvers.py`, `unfold_cvxpy.py`, `unfold_landweber.py`, `unfold_mlem.py`, `unfold_mlem_odl.py`, `unfold_doroshenko.py`, `unfold_kaczmarz.py`, `unfold_lmfit.py`, `unfold_smt.py`, `unfold_combined.py` — one file per unfolding algorithm (unfold_smt.py is a port of the Haskell/SBV `linearEqSolver`, backed by optional z3-solver)
+- `core/unfold_qpsolvers.py`, `unfold_cvxpy.py`, `unfold_landweber.py`, `unfold_mlem.py`, `unfold_mlem_odl.py`, `unfold_doroshenko.py`, `unfold_kaczmarz.py`, `unfold_lmfit.py`, `unfold_smt.py`, `unfold_combined.py`, `unfold_ferdor.py`, `unfold_rebunki.py`, `unfold_nsduaz.py` — one file per unfolding algorithm (unfold_smt.py is a port of the Haskell/SBV `linearEqSolver`, backed by optional z3-solver)
 - `core/unfold_interpret.py` — pyoptexplain-based interpretation of the unfolding QP (solve + robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Optional dep: `bssunfold[interpret]`
 - `core/_matrix_utils.py` — SVD, derivative matrix, tikhonov system building
 - `core/_base_unfolder.py`, `core/_montecarlo.py` — internal base class and Monte Carlo uncertainty
@@ -35,7 +35,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 
 ## Testing
 
-### Test files (29 files, ~1595 tests)
+### Test files (43 files, ~1686 tests)
 
 | File | Focus |
 |------|-------|
@@ -51,6 +51,10 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 | `tests/test_interpret.py` | pyoptexplain interpretation: build_interpretation_qp/solve_interpret/interpret_qp + Detector.unfold_interpret/interpret_result (skipped if pyoptexplain not installed) |
 | `tests/test_security.py` | bandit static security scan (no HIGH findings) |
 | `tests/test_krylov_tv.py` | CGLS (`unfold_cgls`), GKS (`unfold_gks`) and Tikhonov-TV (`unfold_tikhonov_tv`): solver edge cases + Detector wrappers + combined pipeline |
+| `tests/test_ferdor.py` | FERDOR (`unfold_ferdor`/`solve_ferdor`): wrapper + core solver, discrepancy-principle smoothing, error handling |
+| `tests/test_rebunki.py` | ReBUNKI/SPUNIT (`unfold_rebunki`/`solve_rebunki`): wrapper + core solver, positivity/validation |
+| `tests/test_nsduaz.py` | NSDUAZ (`unfold_nsduaz`/`solve_nsduaz`): wrapper + core solver, catalogue selection, validation |
+| `tests/test_genetic_improvements.py` | Genetic extensions: two-step coarse-to-fine, NSGA-II/Pareto selection, smoothers, TGASU crossover/mutation, `extra_starting` injection, `_coarsen_columns`/`_split_coarse` helpers |
 
 ### Analysis tools
 

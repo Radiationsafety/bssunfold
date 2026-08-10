@@ -88,6 +88,12 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_sart.unfold_sart
 
+.. autofunction:: bssunfold.core.unfold_ferdor.unfold_ferdor
+
+.. autofunction:: bssunfold.core.unfold_rebunki.unfold_rebunki
+
+.. autofunction:: bssunfold.core.unfold_nsduaz.unfold_nsduaz
+
 .. autofunction:: bssunfold.core.unfold_parametric.unfold_parametric
 
 .. autofunction:: bssunfold.core.unfold_parametric.solve_parametric_cvxpy
@@ -202,6 +208,12 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_bsrem.solve_bsrem
 
 .. autofunction:: bssunfold.core.unfold_sart.solve_sart
+
+.. autofunction:: bssunfold.core.unfold_ferdor.solve_ferdor
+
+.. autofunction:: bssunfold.core.unfold_rebunki.solve_rebunki
+
+.. autofunction:: bssunfold.core.unfold_nsduaz.solve_nsduaz
 
 Comparison Methods
 ==================

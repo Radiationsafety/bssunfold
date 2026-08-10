@@ -61,6 +61,9 @@ from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
 from .unfold_sandii import unfold_sandii as unfold_sandii_impl
 from .unfold_bunki import unfold_bunki as unfold_bunki_impl
 from .unfold_bunkiut import unfold_bunkiut as unfold_bunkiut_impl
+from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
+from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
+from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
 from .unfold_osem import unfold_osem as unfold_osem_impl
 from .unfold_mapem import unfold_mapem as unfold_mapem_impl
 from .unfold_bsrem import unfold_bsrem as unfold_bsrem_impl
@@ -865,6 +868,13 @@ class Detector:
         n_runs: int = 1,
         early_stop: Optional[int] = None,
         half_range: float = 2.0,
+        two_step: bool = False,
+        n_coarse: Optional[int] = None,
+        smoother: str = "none",
+        sigma_smooth: float = 2.0,
+        crossover: str = "single",
+        mutation: str = "random",
+        pareto_select: str = "knee",
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -890,7 +900,7 @@ class Detector:
             is used to seed the population.
         solver : str, optional
             Meta-heuristic algorithm: 'pso', 'ga', 'de', 'es', 'ep', 'abc',
-            'gwo' or 'cmaes', default: 'pso'.
+            'gwo', 'cmaes' or 'nsga2', default: 'pso'.
         epoch : int, optional
             Maximum number of generations, default: 500.
         pop_size : int, optional
@@ -907,13 +917,33 @@ class Detector:
             Weight of the negative Shannon-entropy objective (0 disables it).
         n_runs : int, optional
             Number of independent runs whose results are averaged,
-            default: 1.
+            default: 1. Not used by the 'nsga2' solver.
         early_stop : int, optional
             Stop if the global best does not improve for this many
             consecutive epochs.
         half_range : float, optional
             Half-width of the log-space search bounds in decades around the
             seed, default: 2.0.
+        two_step : bool, optional
+            Run the two-step genetic scheme (TGASU-style): a coarse first
+            step seeds the full-resolution population, default: False.
+        n_coarse : int, optional
+            Number of coarse bins for ``two_step`` mode (default: None, i.e.
+            ``max(8, n // 4)``).
+        smoother : str, optional
+            Post-processing smoother: 'none', 'gaussian', 'mbc',
+            'gaussian_mbc' or 'second_difference', default: 'none'.
+        sigma_smooth : float, optional
+            Gaussian filter sigma for the smoothers, default: 2.0.
+        crossover : str, optional
+            GA crossover operator: 'single' or 'arithmetic' (TGASU); used by
+            the numpy GA engine, default: 'single'.
+        mutation : str, optional
+            GA mutation operator: 'random' or 'iterative' (TGASU, decreasing
+            step); used by the numpy GA engine, default: 'random'.
+        pareto_select : str, optional
+            Selection from the Pareto front for the 'nsga2' solver: 'knee',
+            'min_residual' or 'max_entropy', default: 'knee'.
         calculate_errors : bool, optional
             If True, calculate Monte-Carlo uncertainty, default: False.
         noise_level : float, optional
@@ -952,6 +982,13 @@ class Detector:
             n_runs=n_runs,
             early_stop=early_stop,
             half_range=half_range,
+            two_step=two_step,
+            n_coarse=n_coarse,
+            smoother=smoother,
+            sigma_smooth=sigma_smooth,
+            crossover=crossover,
+            mutation=mutation,
+            pareto_select=pareto_select,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
@@ -3088,6 +3125,236 @@ class Detector:
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
+            smoothing=smoothing,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_ferdor(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        tolerance: float = 1e-3,
+        smoothing: float = 1e-3,
+        chi_squared_target: float = 1.0,
+        relative_uncertainty: float = 0.1,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the FERDOR algorithm.
+
+        FERDOR (ORNL; Burrus, ORNL-4154) is a constrained least-squares
+        unfolding code with second-difference smoothing. The smoothing weight
+        is adjusted iteratively so the reduced chi-square of the fit reaches
+        ``chi_squared_target`` (discrepancy principle), and the final
+        spectrum is non-negative.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of smoothing-weight iterations (default: 100).
+        tolerance : float, optional
+            Relative tolerance on the reduced chi-square (default: 1e-3).
+        smoothing : float, optional
+            Initial smoothing weight alpha (default: 1e-3).
+        chi_squared_target : float, optional
+            Target reduced chi-square per degree of freedom (default: 1.0).
+        relative_uncertainty : float, optional
+            Relative measurement uncertainty for the chi-square criterion
+            (default: 0.1).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_ferdor_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            smoothing=smoothing,
+            chi_squared_target=chi_squared_target,
+            relative_uncertainty=relative_uncertainty,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_rebunki(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        smoothing: float = 0.1,
+        max_iterations: int = 1000,
+        tolerance: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the ReBUNKI (SPUNIT) algorithm.
+
+        ReBUNKI (Lacerda et al., 2018) is a modern open reimplementation of
+        the BUNKI code; its Python version supports the SPUNIT iterative
+        algorithm. The default tolerance matches the ~1% relative-error
+        convergence recommended by ReBUNKI.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        smoothing : float, optional
+            Three-point smoothing factor (default: 0.1).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 1000).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 0.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_rebunki_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            smoothing=smoothing,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_nsduaz(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        catalogue: Optional[Dict[str, np.ndarray]] = None,
+        use_catalogue: bool = True,
+        reference_name: Optional[str] = None,
+        smoothing: float = 0.1,
+        max_iterations: int = 1000,
+        tolerance: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the NSDUAZ algorithm.
+
+        NSDUAZ (Universidad Autonoma de Zacatecas; Ortiz-Rodriguez &
+        Vega-Carrillo, 2012) uses the SPUNIT iterative algorithm with an
+        initial spectrum selected from a catalogue of standard spectra by a
+        statistical test on count-rate ratios relative to the reference
+        (20.32 cm) sphere.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Explicit initial spectrum guess. When given, it overrides the
+            catalogue selection.
+        catalogue : Optional[Dict[str, np.ndarray]], optional
+            User-supplied catalogue of candidate initial spectra (label ->
+            spectrum on the detector energy grid). When None, the built-in
+            mini-catalogue is used.
+        use_catalogue : bool, optional
+            If True (default), select the initial spectrum from the catalogue
+            when ``initial_spectrum`` is not provided; if False, a flat
+            spectrum is used.
+        reference_name : str, optional
+            Reference sphere name for the catalogue test (default:
+            auto-detect 20.32 cm sphere).
+        smoothing : float, optional
+            Three-point smoothing factor (default: 0.1).
+        max_iterations : int, optional
+            Maximum number of iterations (default: 1000).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 0.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_nsduaz_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            catalogue=catalogue,
+            use_catalogue=use_catalogue,
+            reference_name=reference_name,
             smoothing=smoothing,
             max_iterations=max_iterations,
             tolerance=tolerance,

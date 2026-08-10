@@ -30,6 +30,9 @@ from .unfold_tikhonov_tv import solve_tikhonov_tv
 from .unfold_sandii import solve_sandii
 from .unfold_bunki import solve_bunki
 from .unfold_bunkiut import solve_bunkiut
+from .unfold_ferdor import solve_ferdor
+from .unfold_rebunki import solve_rebunki
+from .unfold_nsduaz import solve_nsduaz, select_catalogue_initial, builtin_catalogue
 from .unfold_osem import solve_osem
 from .unfold_mapem import solve_mapem
 from .unfold_bsrem import solve_bsrem
@@ -86,6 +89,9 @@ from .unfold_tikhonov_tv import unfold_tikhonov_tv
 from .unfold_sandii import unfold_sandii
 from .unfold_bunki import unfold_bunki
 from .unfold_bunkiut import unfold_bunkiut
+from .unfold_ferdor import unfold_ferdor
+from .unfold_rebunki import unfold_rebunki
+from .unfold_nsduaz import unfold_nsduaz
 from .unfold_osem import unfold_osem
 from .unfold_mapem import unfold_mapem
 from .unfold_bsrem import unfold_bsrem
@@ -133,6 +139,11 @@ __all__ = [
     "solve_sandii",
     "solve_bunki",
     "solve_bunkiut",
+    "solve_ferdor",
+    "solve_rebunki",
+    "solve_nsduaz",
+    "select_catalogue_initial",
+    "builtin_catalogue",
     "solve_osem",
     "solve_mapem",
     "solve_bsrem",
@@ -182,6 +193,9 @@ __all__ = [
     "unfold_sandii",
     "unfold_bunki",
     "unfold_bunkiut",
+    "unfold_ferdor",
+    "unfold_rebunki",
+    "unfold_nsduaz",
     "unfold_osem",
     "unfold_mapem",
     "unfold_bsrem",
