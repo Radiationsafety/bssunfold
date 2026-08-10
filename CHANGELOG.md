@@ -56,6 +56,28 @@ and this project adheres to [Semantic Versioning].
   - All three are registered in `unfold_combined()` pipelines (`"cgls"`,
     `"gks"`, `"tikhonov_tv"`) and documented in `docs/detector.rst`.
     Tests: `tests/test_krylov_tv.py`.
+- **SAND-II, BUNKI, BUNKI-UT, OSEM, MAP-EM, BSREM and SART unfolding** —
+  seven new multi-sphere / iterative-EM methods:
+  - `unfold_sandii()` / `solve_sandii()` — the SAND-II geometric-mean ratio
+    method (McElroy et al., 1967) with chi-square (`chi_fac=1`) or
+    max-relative-deviation (`chi_fac=0`) stopping and optional per-detector
+    `sigma`.
+  - `unfold_bunki()` / `solve_bunki()` and `unfold_bunkiut()` /
+    `solve_bunkiut()` — the BUNKI (SPUNIT) and BUNKI-UT (BON31G) multi-sphere
+    unfolding algorithms with three-point spectral smoothing.
+  - `unfold_osem()` / `solve_osem()` — ordered-subset EM (Hudson & Larkin,
+    1994); `n_subsets=1` reduces to standard MLEM.
+  - `unfold_mapem()` / `solve_mapem()` — one-step-late penalised EM
+    (OSMAPOSL) with nearest-neighbour `quadratic`, `logcosh` or
+    `relative_difference` priors over the energy axis.
+  - `unfold_bsrem()` / `solve_bsrem()` — block-sequential regularised EM with
+    a relaxation sequence (constant or callable) and a bin floor to prevent
+    locking at zero; guaranteed convergence for non-convex priors.
+  - `unfold_sart()` / `solve_sart()` — simultaneous algebraic reconstruction
+    with relaxed, residual-normalised additive updates.
+  - All seven are registered in `unfold_combined()` pipelines and documented
+    in `docs/detector.rst` and `docs/overview.rst`. Tests:
+    `tests/test_em_methods.py`.
 
 ## [0.15.0] - 2026-08-06
 

@@ -27,6 +27,13 @@ from .unfold_lanczos import solve_lanczos
 from .unfold_cgls import solve_cgls
 from .unfold_gks import solve_gks
 from .unfold_tikhonov_tv import solve_tikhonov_tv
+from .unfold_sandii import solve_sandii
+from .unfold_bunki import solve_bunki
+from .unfold_bunkiut import solve_bunkiut
+from .unfold_osem import solve_osem
+from .unfold_mapem import solve_mapem
+from .unfold_bsrem import solve_bsrem
+from .unfold_sart import solve_sart
 from .unfold_parametric2 import solve_parametric2
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_hybrid_parametric import solve_hybrid_parametric
@@ -76,6 +83,13 @@ from .unfold_lanczos import unfold_lanczos
 from .unfold_cgls import unfold_cgls
 from .unfold_gks import unfold_gks
 from .unfold_tikhonov_tv import unfold_tikhonov_tv
+from .unfold_sandii import unfold_sandii
+from .unfold_bunki import unfold_bunki
+from .unfold_bunkiut import unfold_bunkiut
+from .unfold_osem import unfold_osem
+from .unfold_mapem import unfold_mapem
+from .unfold_bsrem import unfold_bsrem
+from .unfold_sart import unfold_sart
 from .unfold_parametric2 import unfold_parametric2
 from .unfold_smt import unfold_smt
 from .unfold_scip import unfold_scip
@@ -116,6 +130,13 @@ __all__ = [
     "solve_cgls",
     "solve_gks",
     "solve_tikhonov_tv",
+    "solve_sandii",
+    "solve_bunki",
+    "solve_bunkiut",
+    "solve_osem",
+    "solve_mapem",
+    "solve_bsrem",
+    "solve_sart",
     "solve_parametric2",
     "solve_fruit_like",
     "solve_hybrid_parametric",
@@ -158,6 +179,13 @@ __all__ = [
     "unfold_cgls",
     "unfold_gks",
     "unfold_tikhonov_tv",
+    "unfold_sandii",
+    "unfold_bunki",
+    "unfold_bunkiut",
+    "unfold_osem",
+    "unfold_mapem",
+    "unfold_bsrem",
+    "unfold_sart",
     "unfold_parametric2",
     "unfold_fruit_like",
     "unfold_hybrid_parametric",

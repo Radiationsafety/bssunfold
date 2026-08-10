@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 36 methods are accessible as instance methods on the
+All 46 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -29,6 +29,8 @@ categories:
        A --> H["Pipeline"]
        A --> I["Parametric"]
        A --> J["Krylov/hybrid"]
+       A --> K["EM family"]
+       A --> L["Multi-sphere ratio"]
 
        B --> B1["unfold_cvxpy"]
        B --> B2["unfold_qpsolvers"]
@@ -46,6 +48,15 @@ categories:
         C --> C5["unfold_gravel"]
         C --> C6["unfold_doroshenko"]
         C --> C7["unfold_kaczmarz"]
+        C --> C8["unfold_sart"]
+
+       K --> K1["unfold_osem"]
+       K --> K2["unfold_mapem"]
+       K --> K3["unfold_bsrem"]
+
+       L --> L1["unfold_sandii"]
+       L --> L2["unfold_bunki"]
+       L --> L3["unfold_bunkiut"]
 
        D --> D1["unfold_bayes"]
        D --> D2["unfold_bayes_spline_regularization"]
@@ -333,6 +344,48 @@ Method Reference
      - `epsilon`, `mu`, `max_iterations`, `type_` (TT/TV/T), `beta` (float or ``'adapt'``), `zthr`, `tolerance`, `noise_level`
      - —
      - Noise-constrained Tikhonov+TV via ADMM (Gazzola & Gholami); adaptive balancing of the TV and Tikhonov terms
+   * - 40
+     - ``unfold_sandii``
+     - Multi-sphere ratio
+     - `max_iterations`, `tolerance`, `chi_fac` (0/1), `relative_uncertainty`, `noise_level`
+     - —
+     - SAND-II geometric-mean ratio method (McElroy et al. 1967): chi-square or max-relative-deviation stopping
+   * - 41
+     - ``unfold_bunki``
+     - Multi-sphere ratio
+     - `smoothing`, `max_iterations`, `tolerance`, `noise_level`
+     - —
+     - BUNKI (SPUNIT) iterative unfolding with three-point smoothing (RSICC PSR-266)
+   * - 42
+     - ``unfold_bunkiut``
+     - Multi-sphere ratio
+     - `smoothing`, `max_iterations`, `tolerance`, `noise_level`
+     - —
+     - BUNKI-UT (BON31G) modernised unfolding (University of Texas)
+   * - 43
+     - ``unfold_osem``
+     - EM family
+     - `max_iterations`, `n_subsets`, `tolerance`, `noise_level`
+     - —
+     - Ordered-subset expectation maximisation (Hudson & Larkin 1994); ``n_subsets=1`` reduces to standard MLEM
+   * - 44
+     - ``unfold_mapem``
+     - EM family
+     - `prior` (none/quadratic/logcosh/relative_difference), `beta`, `prior_delta`, `gamma`, `max_iterations`, `tolerance`, `noise_level`
+     - —
+     - MAP-EM (OSMAPOSL one-step-late penalised EM) with nearest-neighbour priors over the energy axis
+   * - 45
+     - ``unfold_bsrem``
+     - EM family
+     - `prior` (none/quadratic/logcosh/relative_difference), `beta`, `prior_delta`, `gamma`, `max_iterations`, `n_subsets`, `tolerance`, `relaxation`, `addition_after_iteration`, `noise_level`
+     - —
+     - Block-sequential regularised EM with relaxation sequence and floor clamping (guaranteed convergence for non-convex priors)
+   * - 46
+     - ``unfold_sart``
+     - Iterative
+     - `max_iterations`, `tolerance`, `relaxation`, `noise_level`
+     - —
+     - Simultaneous algebraic reconstruction technique: relaxed, residual-normalised additive correction
 
 .. note::
 

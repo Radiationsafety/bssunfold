@@ -74,6 +74,20 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_tikhonov_tv.unfold_tikhonov_tv
 
+.. autofunction:: bssunfold.core.unfold_sandii.unfold_sandii
+
+.. autofunction:: bssunfold.core.unfold_bunki.unfold_bunki
+
+.. autofunction:: bssunfold.core.unfold_bunkiut.unfold_bunkiut
+
+.. autofunction:: bssunfold.core.unfold_osem.unfold_osem
+
+.. autofunction:: bssunfold.core.unfold_mapem.unfold_mapem
+
+.. autofunction:: bssunfold.core.unfold_bsrem.unfold_bsrem
+
+.. autofunction:: bssunfold.core.unfold_sart.unfold_sart
+
 .. autofunction:: bssunfold.core.unfold_parametric.unfold_parametric
 
 .. autofunction:: bssunfold.core.unfold_parametric.solve_parametric_cvxpy
@@ -174,6 +188,20 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_gks.solve_gks
 
 .. autofunction:: bssunfold.core.unfold_tikhonov_tv.solve_tikhonov_tv
+
+.. autofunction:: bssunfold.core.unfold_sandii.solve_sandii
+
+.. autofunction:: bssunfold.core.unfold_bunki.solve_bunki
+
+.. autofunction:: bssunfold.core.unfold_bunkiut.solve_bunkiut
+
+.. autofunction:: bssunfold.core.unfold_osem.solve_osem
+
+.. autofunction:: bssunfold.core.unfold_mapem.solve_mapem
+
+.. autofunction:: bssunfold.core.unfold_bsrem.solve_bsrem
+
+.. autofunction:: bssunfold.core.unfold_sart.solve_sart
 
 Comparison Methods
 ==================

@@ -36,10 +36,12 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (36 methods):
+- **Multiple Unfolding Algorithms** (46 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS
-  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
+  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
+  - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
+  - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
   - **Statistical Regularization**: Turchin's method (StatReg, Reconst — Fortran STREG1 port)
@@ -352,6 +354,13 @@ graph TD
 | 37 | `unfold_cgls` | Krylov/iterative | `max_iterations`, `tolerance`, `regularization`, `smoothness_order`, `noise_level` | — | CGLS (conjugate gradient for least squares) with optional `\|\|L x\|\|^2` Tikhonov term and discrepancy-principle stopping; nonnegative spectrum via clamping |
 | 38 | `unfold_gks` | Krylov/hybrid | `regularization_method` (gcv/dp/lcurve/manual), `max_iterations`, `smoothness_order`, `regularization`, `noise_level` | — | Generalized Krylov Subspace (Golub-Kahan bidiagonalization + projected regularization selection); no a-priori spectrum required |
 | 39 | `unfold_tikhonov_tv` | Regularization | `epsilon`, `mu`, `max_iterations`, `type_` (TT/TV/T), `beta` (float or `'adapt'`), `zthr`, `tolerance`, `noise_level` | — | Noise-constrained Tikhonov+TV via ADMM (Gazzola & Gholami); adaptive balancing of the TV and Tikhonov terms |
+| 40 | `unfold_sandii` | Multi-sphere ratio | `max_iterations`, `tolerance`, `chi_fac` (0/1), `relative_uncertainty`, `noise_level` | — | SAND-II geometric-mean ratio method (McElroy et al. 1967): chi-square or max-relative-deviation stopping |
+| 41 | `unfold_bunki` | Multi-sphere ratio | `smoothing`, `max_iterations`, `tolerance`, `noise_level` | — | BUNKI (SPUNIT) iterative unfolding with three-point smoothing (RSICC PSR-266) |
+| 42 | `unfold_bunkiut` | Multi-sphere ratio | `smoothing`, `max_iterations`, `tolerance`, `noise_level` | — | BUNKI-UT (BON31G) modernised unfolding (University of Texas) |
+| 43 | `unfold_osem` | EM family | `max_iterations`, `n_subsets`, `tolerance`, `noise_level` | — | Ordered-subset expectation maximisation (Hudson & Larkin 1994); `n_subsets=1` reduces to standard MLEM |
+| 44 | `unfold_mapem` | EM family | `prior` (none/quadratic/logcosh/relative_difference), `beta`, `prior_delta`, `gamma`, `max_iterations`, `tolerance`, `noise_level` | — | MAP-EM (OSMAPOSL one-step-late penalised EM) with nearest-neighbour priors over the energy axis |
+| 45 | `unfold_bsrem` | EM family | `prior` (none/quadratic/logcosh/relative_difference), `beta`, `prior_delta`, `gamma`, `max_iterations`, `n_subsets`, `tolerance`, `relaxation`, `addition_after_iteration`, `noise_level` | — | Block-sequential regularised EM with relaxation sequence and floor clamping (guaranteed convergence for non-convex priors) |
+| 46 | `unfold_sart` | Iterative | `max_iterations`, `tolerance`, `relaxation`, `noise_level` | — | Simultaneous algebraic reconstruction technique: relaxed, residual-normalised additive correction |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
