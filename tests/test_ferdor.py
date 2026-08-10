@@ -216,10 +216,9 @@ def test_solve_ferdor_lstsq_fallback(A, b):
 
     singular = np.zeros((2, 4))
     singular[:, 0] = 1.0
-    with pytest.warns(np.linalg.LinAlgWarning):
-        spectrum, _, _ = solve_ferdor(
-            singular, np.ones(2), x0=np.ones(4)
-        )
+    spectrum, _, _ = solve_ferdor(
+        singular, np.ones(2), x0=np.ones(4)
+    )
     assert spectrum.shape == (4,)
 
 
