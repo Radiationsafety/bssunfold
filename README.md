@@ -36,9 +36,9 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (46 methods):
+- **Multiple Unfolding Algorithms** (51 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
-  - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS
+  - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
   - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
   - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
@@ -262,6 +262,10 @@ graph TD
     B --> B4[unfold_tikhonov_legendre]
 
     J --> J1[unfold_lanczos]
+    J --> J2[unfold_gks]
+    J --> J3[unfold_cgls]
+    J --> J4[unfold_hybrid_gmres]
+    J --> J5[unfold_fista]
 
     C --> C1[unfold_landweber]
     C --> C2[unfold_mlem]
@@ -364,6 +368,8 @@ graph TD
 | 47 | `unfold_ferdor` | Multi-sphere deconvolution | `max_iterations`, `tolerance`, `smoothing`, `chi_squared_target`, `relative_uncertainty` | — | FERDOR few-channel unfolding: constrained least squares with an automatically adjusted smoothing weight chosen by the discrepancy principle |
 | 48 | `unfold_rebunki` | Multi-sphere ratio | `smoothing`, `max_iterations`, `tolerance` | — | ReBUNKI (SPUNIT) few-iteration spectral stripping with three-point smoothing and ~1% convergence tolerance |
 | 49 | `unfold_nsduaz` | Multi-sphere ratio | `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance` | — | NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode |
+| 50 | `unfold_fista` | Krylov/hybrid | `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta` | — | FISTA (Fast Iterative Shrinkage-Thresholding Algorithm): accelerated proximal gradient method for L1/L2/TV regularized problems with box constraints; O(1/k²) convergence |
+| 51 | `unfold_hybrid_gmres` | Krylov/hybrid | `max_iterations`, `regularization_method`, `regularization`, `noise_level`, `eta`, `reorthogonalization` | — | Hybrid GMRES: combines GMRES iteration with Tikhonov regularization on projected problem; automatic regularization selection via GCV/discrepancy principle |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -642,22 +648,41 @@ bssunfold/
 │   ├── conf.py
 │   └── requirements.txt
 ├── examples/                    # Jupyter notebooks
-├── tests/                       # 910 tests across 16 files
+├── tests/                       # Test suite
 │   ├── test_all.py
 │   ├── test_comparison.py
-│   ├── test_coverage.py         # ~205 edge-case & fallback tests
+│   ├── test_coverage.py         # Edge-case & fallback tests
+│   ├── test_coverage_boost.py   # Additional coverage tests
+│   ├── test_cs.py               # Compressive sensing tests
 │   ├── test_detector.py
+│   ├── test_docplex.py          # CPLEX/docplex tests
 │   ├── test_dose_coefficients.py
+│   ├── test_em_methods.py       # EM family (OSEM/MAP-EM/BSREM) tests
+│   ├── test_epic.py             # EPIC regularization tests
+│   ├── test_ferdor.py           # FERDOR deconvolution tests
+│   ├── test_genetic.py          # Meta-heuristic optimization tests
+│   ├── test_genetic_improvements.py
 │   ├── test_iaea_validation.py
-│   ├── test_improvements.py     # 110 new tests (validators, metrics, MC)
+│   ├── test_improvements.py     # Validators, metrics, MC tests
+│   ├── test_interpret.py        # Interpretation report tests
+│   ├── test_krylov_tv.py        # Krylov + TV regularization tests
+│   ├── test_lanczos.py          # Lanczos-hybrid tests
 │   ├── test_methods2.py
 │   ├── test_mlem.py
+│   ├── test_mlem_stop.py        # MLEM J-factor stopping tests
+│   ├── test_mystic.py           # Mystic optimization tests
 │   ├── test_new_methods.py
 │   ├── test_new_methods_fixed.py
 │   ├── test_new_metrics.py
+│   ├── test_nsduaz.py           # NSDUAZ catalogue tests
 │   ├── test_readings.py
+│   ├── test_rebunki.py          # ReBUNKI tests
+│   ├── test_reconst.py          # STREG1/Reconst tests
 │   ├── test_refactored_fixed.py
 │   ├── test_response_functions.py
+│   ├── test_scip.py             # SCIP optimization tests
+│   ├── test_security.py
+│   ├── test_smt.py              # SMT/Z3 exact solving tests
 │   ├── test_unfold_parametric.py
 │   └── test_unfold_parametric2.py
 └── src/
@@ -669,36 +694,61 @@ bssunfold/
         ├── core/
         │   ├── __init__.py
         │   ├── _base_unfolder.py
+        │   ├── _em_priors.py    # EM prior functions (quadratic, logcosh, etc.)
         │   ├── _matrix_utils.py # SVD, derivative matrix
         │   ├── _montecarlo.py   # MC uncertainty (optimized)
         │   ├── _numba_jit.py    # Numba JIT inner loops 
         │   ├── detector.py      # Main Detector class
         │   ├── dose_calculation.py
         │   ├── regularization.py   # L-curve, GCV, DP
-        │   ├── unfold_cvxpy.py
-        │   ├── unfold_qpsolvers.py
-        │   ├── unfold_tsvd.py
-        │   ├── unfold_tikhonov_legendre.py
-        │   ├── unfold_landweber.py
-        │   ├── unfold_mlem.py
-        │   ├── unfold_mlem_odl.py
-        │   ├── unfold_gravel.py
-        │   ├── unfold_doroshenko.py
-        │   ├── unfold_kaczmarz.py
         │   ├── unfold_bayes.py
         │   ├── unfold_bayes_spline_regularization.py
-        │   ├── unfold_maxed.py
-        │   ├── unfold_statreg.py
-        │   ├── unfold_reconst.py
-        │   ├── unfold_lmfit.py
-        │   ├── unfold_scipy_direct_method.py
-        │   ├── unfold_combined.py
-        │   ├── unfold_parametric.py
-        │   ├── unfold_parametric2.py
-        │   ├── unfold_fruit_like.py
-        │   ├── unfold_hybrid_parametric.py
-        │   ├── unfold_epic.py
-        │   └── unfold_bayesian_parametric.py
+        │   ├── unfold_bayesian_parametric.py
+        │   ├── unfold_bsrem.py  # Block-sequential regularized EM
+        │   ├── unfold_bunki.py  # BUNKI (SPUNIT) multi-sphere ratio
+        │   ├── unfold_bunkiut.py # BUNKI-UT (BON31G) modernized
+        │   ├── unfold_cgls.py   # Conjugate Gradient Least Squares
+        │   ├── unfold_combined.py # Sequential multi-method pipeline
+        │   ├── unfold_cs.py     # Compressive sensing (K-SVD + OMP + SL0)
+        │   ├── unfold_cvxpy.py  # Convex optimization (Tikhonov)
+        │   ├── unfold_docplex.py # IBM CPLEX QP solver
+        │   ├── unfold_doroshenko.py # Coordinate-update iterative
+        │   ├── unfold_epic.py   # EPIC Tikhonov regularization
+        │   ├── unfold_ferdor.py # FERDOR few-channel deconvolution
+        │   ├── unfold_fista.py  # Fast Iterative Shrinkage-Thresholding
+        │   ├── unfold_fruit_like.py # FRUIT-like parametric model
+        │   ├── unfold_genetic.py # Meta-heuristic (PSO/GA/DE/CMA-ES/NSGA-II)
+        │   ├── unfold_gks.py    # Generalized Krylov Subspace
+        │   ├── unfold_gravel.py # GRAVEL algorithm
+        │   ├── unfold_hybrid_gmres.py # Hybrid GMRES with Tikhonov
+        │   ├── unfold_hybrid_parametric.py # Parametric + iterative refinement
+        │   ├── unfold_interpret.py # Unfolding + interpretation report
+        │   ├── unfold_kaczmarz.py # ART (Algebraic Reconstruction)
+        │   ├── unfold_lanczos.py # Lanczos-hybrid (Golub-Kahan)
+        │   ├── unfold_landweber.py # Landweber fixed-point iteration
+        │   ├── unfold_lmfit.py  # L1/L2/Elastic Net via lmfit
+        │   ├── unfold_mapem.py  # MAP-EM (OSMAPOSL penalized EM)
+        │   ├── unfold_maxed.py  # Maximum entropy deconvolution
+        │   ├── unfold_mlem.py   # MLEM (expectation maximization)
+        │   ├── unfold_mlem_odl.py # MLEM via ODL operator framework
+        │   ├── unfold_mlem_stop.py # MLEM with J-factor stopping
+        │   ├── unfold_mystic.py # Direct-search optimization
+        │   ├── unfold_nsduaz.py # NSDUAZ catalogue-based unfolding
+        │   ├── unfold_osem.py   # Ordered-subset EM
+        │   ├── unfold_parametric.py # FRUIT-style parametric fitting
+        │   ├── unfold_parametric2.py # BON95 4-component model
+        │   ├── unfold_qpsolvers.py # QP-based unfolding
+        │   ├── unfold_rebunki.py # ReBUNKI spectral stripping
+        │   ├── unfold_reconst.py # STREG1 Fortran port
+        │   ├── unfold_sandii.py # SAND-II geometric-mean ratio
+        │   ├── unfold_sart.py   # Simultaneous Algebraic Reconstruction
+        │   ├── unfold_scip.py   # SCIP Optimization Suite interface
+        │   ├── unfold_scipy_direct_method.py # SciPy linear solvers
+        │   ├── unfold_smt.py    # SMT exact solving (Z3)
+        │   ├── unfold_statreg.py # Turchin's statistical regularization
+        │   ├── unfold_tikhonov_legendre.py # Legendre polynomial basis
+        │   ├── unfold_tikhonov_tv.py # Tikhonov+TV via ADMM
+        │   └── unfold_tsvd.py   # Truncated SVD
         └── utils/
             ├── __init__.py
             ├── comparison.py    # 25 spectrum metrics
