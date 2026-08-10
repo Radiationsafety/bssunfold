@@ -36,7 +36,9 @@ other ``solve_*`` functions and used only as a fallback if the solve fails.
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from scipy.optimize import nnls
+from typing import Dict, Optional, Any, List, Tuple, Union
+import warnings
 
 from ._matrix_utils import create_derivative_matrix
 from ._base_unfolder import run_unfolding, make_solve_wrapper
@@ -44,25 +46,85 @@ from ._base_unfolder import run_unfolding, make_solve_wrapper
 __all__ = ["solve_ferdor", "unfold_ferdor"]
 
 
+# Define a custom warning class for linalg issues since np.linalg.LinAlgWarning
+# was removed in newer numpy versions
+class LinalgWarning(Warning):
+    """Warning for linear algebra issues."""
+    pass
+
+
 def _solve_weighted_ls(
     ATA: np.ndarray,
     ATb: np.ndarray,
     LTL: np.ndarray,
     alpha: float,
+    Aw: Optional[np.ndarray] = None,
+    bw: Optional[np.ndarray] = None,
 ) -> Optional[np.ndarray]:
     """Solve the weighted least-squares system for a given smoothing weight.
 
     Returns the non-negative solution or None if the linear solve fails.
+    Uses nnls for robust non-negative least squares.
+    
+    When alpha is very small (near zero), uses pure NNLS without regularization
+    to achieve the best data fit.
     """
-    P = ATA + alpha * LTL
-    try:
-        x = np.linalg.solve(P, ATb)
-    except np.linalg.LinAlgError:
+    # For very small alpha, skip regularization and use pure NNLS
+    if alpha < 1e-20:
+        if Aw is not None and bw is not None:
+            try:
+                x, _ = nnls(Aw, bw)
+                return x
+            except Exception:
+                pass
+        # Fallback to lstsq
         try:
-            x = np.linalg.lstsq(P, ATb, rcond=None)[0]
+            x = np.linalg.lstsq(ATA, ATb, rcond=None)[0]
+            return np.maximum(x, 0.0)
         except np.linalg.LinAlgError:
             return None
-    return np.maximum(x, 0.0)
+    
+    P = ATA + alpha * LTL
+    
+    # Try solving via normal equations first
+    try:
+        x = np.linalg.solve(P, ATb)
+        x = np.maximum(x, 0.0)
+        return x
+    except np.linalg.LinAlgError:
+        pass
+    
+    # Fallback to lstsq on normal equations
+    try:
+        x = np.linalg.lstsq(P, ATb, rcond=None)[0]
+        return np.maximum(x, 0.0)
+    except np.linalg.LinAlgError:
+        pass
+    
+    # Final fallback: use nnls directly on the weighted system if available
+    if Aw is not None and bw is not None:
+        try:
+            # Build augmented system for regularized NNLS
+            # [Aw; sqrt(alpha)*L] x = [bw; 0]
+            n = Aw.shape[1]
+            if alpha > 0 and LTL is not None and LTL.any():
+                # Cholesky decomposition of LTL for efficient augmentation
+                try:
+                    L_aug = np.linalg.cholesky(LTL) * np.sqrt(alpha)
+                    Aw_aug = np.vstack([Aw, L_aug])
+                    bw_aug = np.concatenate([bw, np.zeros(L_aug.shape[0])])
+                    x, _ = nnls(Aw_aug, bw_aug)
+                    return x
+                except np.linalg.LinAlgError:
+                    # LTL not positive definite, fall through to simple nnls
+                    pass
+            # Simple nnls without regularization
+            x, _ = nnls(Aw, bw)
+            return x
+        except Exception:
+            pass
+    
+    return None
 
 
 def solve_ferdor(
@@ -160,9 +222,20 @@ def solve_ferdor(
     converged = False
     iterations = 0
 
+    # First check if unregularized NNLS already achieves the target chi-square
+    # This avoids unnecessary regularization when data is consistent
+    x_init = _solve_weighted_ls(ATA, ATb, LTL, 0.0, Aw, bw)
+    if x_init is not None:
+        residual_init = A @ x_init - b
+        chi2_init = float(np.dot(residual_init / sigma, residual_init / sigma))
+        ratio_init = chi2_init / dof
+        if ratio_init <= chi_squared_target:
+            # Already good enough without regularization
+            return x_init, 1, True
+
     for it in range(1, max_iterations + 1):
         iterations = it
-        x = _solve_weighted_ls(ATA, ATb, LTL, alpha)
+        x = _solve_weighted_ls(ATA, ATb, LTL, alpha, Aw, bw)
         if x is None:
             break
         spectrum = x
