@@ -20,7 +20,10 @@ def detector():
 @pytest.fixture
 def readings(detector):
     return {
-        "3in": 0.053, "5in": 0.184, "10in": 0.172, "18in": 0.034,
+        "3in": 0.053,
+        "5in": 0.184,
+        "10in": 0.172,
+        "18in": 0.034,
     }
 
 

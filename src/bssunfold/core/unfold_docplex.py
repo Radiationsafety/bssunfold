@@ -16,7 +16,7 @@ import numpy as np
 from typing import Dict, Optional, Any, List
 
 from ._matrix_utils import create_derivative_matrix
-from .regularization import select_regularization_parameter, cosine_similarity_selection
+from .regularization import resolve_regularization_parameter
 from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = ["solve_docplex", "unfold_docplex"]
@@ -36,7 +36,7 @@ def _import_docplex():
             "Install with: pip install docplex cplex"
         ) from e
     try:
-        import cplex  # noqa: F401
+        import cplex  # noqa: F401  # pylint: disable=unused-import
     except ImportError as e:
         raise ImportError(
             "The CPLEX engine (cplex) is required for unfold_docplex. "
@@ -113,7 +113,9 @@ def solve_docplex(
 
     residual = [b[i] - mdl.dot(x, A[i]) for i in range(m)]
     obj = 0.5 * mdl.sum_squares(residual)
-    obj += _build_penalty(mdl, x, A, alpha, norm, smoothness_order, smoothness_weight)
+    obj += _build_penalty(
+        mdl, x, A, alpha, norm, smoothness_order, smoothness_weight
+    )
     mdl.minimize(obj)
 
     sol = mdl.solve()
@@ -125,15 +127,19 @@ def solve_docplex(
     return np.array([sol.get_value(xj) for xj in x])
 
 
-def _build_penalty(mdl, x, A: np.ndarray, alpha, norm, smoothness_order, smoothness_weight):
+def _build_penalty(
+    mdl, x, A: np.ndarray, alpha, norm, smoothness_order, smoothness_weight
+):
     """Build the docplex regularization expression for the objective."""
     n = A.shape[1]
 
     if norm == 2:
         if smoothness_order in (1, 2):
             L = create_derivative_matrix(n, smoothness_order).toarray()
-            return alpha * smoothness_weight * mdl.sum_squares(
-                [mdl.dot(x, L[k]) for k in range(L.shape[0])]
+            return (
+                alpha
+                * smoothness_weight
+                * mdl.sum_squares([mdl.dot(x, L[k]) for k in range(L.shape[0])])
             )
         return alpha * mdl.sum_squares(x)
 
@@ -141,8 +147,10 @@ def _build_penalty(mdl, x, A: np.ndarray, alpha, norm, smoothness_order, smoothn
         penalty = alpha * mdl.sum(x)
         if smoothness_order in (1, 2):
             L = create_derivative_matrix(n, smoothness_order).toarray()
-            penalty += alpha * smoothness_weight * mdl.sum_squares(
-                [mdl.dot(x, L[k]) for k in range(L.shape[0])]
+            penalty += (
+                alpha
+                * smoothness_weight
+                * mdl.sum_squares([mdl.dot(x, L[k]) for k in range(L.shape[0])])
             )
         return penalty
 
@@ -225,65 +233,26 @@ def unfold_docplex(
     Dict[str, Any]
         Unfolding results including spectrum, residuals, and metadata.
     """
-    A, b, selected = _build_system(readings, detector_names, sensitivities)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
-    if regularization_method == "manual":
-        alpha = regularization
-        selected_lambda = alpha
-    elif regularization_method == "cosine":
-        if initial_spectrum is None:
-            raise ValueError(
-                "For 'cosine' regularization method, "
-                "initial_spectrum must be provided."
-            )
-        if norm != 2:
-            warnings.warn(
-                f"Cosine regularization selection method assumes L2 "
-                f"norm, but norm={norm} was requested. Using L2 for "
-                f"selection."
-            )
-        initial_spectrum_norm = np.maximum(initial_spectrum, 0)
-        if len(initial_spectrum_norm) != n_energy_bins:
-            raise ValueError(
-                f"Initial spectrum length ({len(initial_spectrum)}) "
-                f"must match number of energy bins ({n_energy_bins})"
-            )
-        selected_lambda = cosine_similarity_selection(
-            A, b, initial_spectrum_norm, norm=norm
-        )
-        alpha = selected_lambda
-        print(
-            f"Selected regularization (method=cosine): "
-            f"{selected_lambda:.3e}"
-        )
-    else:
-        if norm != 2:
-            warnings.warn(
-                f"Automatic regularization selection methods assume L2 "
-                f"norm, but norm={norm} was requested. Using L2 for "
-                f"selection."
-            )
-        try:
-            selected_lambda = select_regularization_parameter(
-                A, b, method=regularization_method, noise_var=noise_var
-            )
-        except Exception as e:
-            raise ValueError(
-                f"Regularization selection failed: {e}. "
-                "Consider using manual regularization."
-            )
-        alpha = selected_lambda
-        print(
-            f"Selected regularization (method={regularization_method}): "
-            f"{selected_lambda:.3e}"
-        )
-
+    alpha = resolve_regularization_parameter(
+        A,
+        b,
+        regularization_method,
+        regularization,
+        n_energy_bins,
+        initial_spectrum=initial_spectrum,
+        norm=norm,
+        noise_var=noise_var,
+    )
+    selected_lambda = alpha
     x0_default = np.zeros(n_energy_bins)
 
     def solve_wrapper(A, b, **kwargs):
-        kwargs.pop('x0', None)
+        kwargs.pop("x0", None)
         x = solve_docplex(
-            A, b,
+            A,
+            b,
             alpha=alpha,
             norm=norm,
             timeout=timeout,

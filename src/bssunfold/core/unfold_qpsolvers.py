@@ -11,7 +11,7 @@ from typing import Dict, Optional, Any, List
 from scipy.sparse import csc_matrix
 
 from ._matrix_utils import create_derivative_matrix
-from .regularization import select_regularization_parameter, cosine_similarity_selection
+from .regularization import resolve_regularization_parameter
 from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
@@ -210,66 +210,29 @@ def unfold_qpsolvers(
     Dict[str, Any]
         Unfolding results including spectrum, residuals, and metadata.
     """
-    A, b, selected = _build_system(readings, detector_names, sensitivities)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
-    if regularization_method == "manual":
-        alpha = regularization
-        selected_lambda = alpha
-    elif regularization_method == "cosine":
-        if initial_spectrum is None:
-            raise ValueError(
-                "For 'cosine' regularization method, "
-                "initial_spectrum must be provided."
-            )
-        if norm != 2:
-            warnings.warn(
-                f"Cosine regularization selection method assumes L2 "
-                f"norm, but norm={norm} was requested. Using L2 for "
-                f"selection."
-            )
-        initial_spectrum_norm = np.maximum(initial_spectrum, 0)
-        if len(initial_spectrum_norm) != n_energy_bins:
-            raise ValueError(
-                f"Initial spectrum length ({len(initial_spectrum)}) "
-                f"must match number of energy bins ({n_energy_bins})"
-            )
-
-        selected_lambda = cosine_similarity_selection(
-            A, b, initial_spectrum_norm, norm=norm
-        )
-        alpha = selected_lambda
-        print(
-            f"Selected regularization (method=cosine): "
-            f"{selected_lambda:.3e}"
-        )
-    else:
-        if norm != 2:
-            warnings.warn(
-                f"Automatic regularization selection methods assume L2 "
-                f"norm, but norm={norm} was requested. Using L2 for "
-                f"selection."
-            )
-        try:
-            selected_lambda = select_regularization_parameter(
-                A, b, method=regularization_method, noise_var=noise_var
-            )
-        except Exception as e:
-            raise ValueError(
-                f"Regularization selection failed: {e}. "
-                "Consider using manual regularization."
-            )
-        alpha = selected_lambda
-        print(
-            f"Selected regularization (method={regularization_method}): "
-            f"{selected_lambda:.3e}"
-        )
-
+    alpha = resolve_regularization_parameter(
+        A,
+        b,
+        regularization_method,
+        regularization,
+        n_energy_bins,
+        initial_spectrum=initial_spectrum,
+        norm=norm,
+        noise_var=noise_var,
+    )
+    selected_lambda = alpha
     x0_default = np.zeros(n_energy_bins)
 
     def solve_wrapper(A, b, **kwargs):
-        kwargs.pop('x0', None)
+        kwargs.pop("x0", None)
         x = solve_qpsolvers(
-            A, b, alpha, norm, solver,
+            A,
+            b,
+            alpha,
+            norm,
+            solver,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
         )

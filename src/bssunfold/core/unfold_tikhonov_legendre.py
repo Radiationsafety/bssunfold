@@ -61,7 +61,7 @@ def solve_tikhonov_legendre(
     n_total = A_proj.shape[0] + L.shape[0]
     M = np.vstack([A_proj, delta * L])
     rhs = np.zeros(n_total)
-    rhs[:len(b)] = b
+    rhs[: len(b)] = b
 
     try:
         c, _, _, _ = np.linalg.lstsq(M, rhs, rcond=None)

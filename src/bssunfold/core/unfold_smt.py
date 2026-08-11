@@ -158,7 +158,9 @@ def solve_integer_linear_eqs_all(
 
     solver = z3.Solver()
     solver.add(_build_constraints(xs, coeffs, res, z3, to_int_value))
-    return _all_solutions(solver, xs, z3, int(max_solutions), lambda v: v.as_long())
+    return _all_solutions(
+        solver, xs, z3, int(max_solutions), lambda v: v.as_long()
+    )
 
 
 def solve_rational_linear_eqs(
@@ -309,7 +311,10 @@ def solve_smt(
 
         model = opt.model()
         return np.array(
-            [float(model.eval(x, model_completion=True).as_fraction()) for x in xs]
+            [
+                float(model.eval(x, model_completion=True).as_fraction())
+                for x in xs
+            ]
         )
     except Exception as exc:
         warnings.warn(f"SMT solver failed: {exc}. Returning zero vector.")

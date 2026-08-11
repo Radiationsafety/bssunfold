@@ -19,12 +19,23 @@ def _run(cmd, timeout=600):
 
 def test_bandit_no_high_severity():
     proc = _run(
-        [sys.executable, "-m", "bandit", "-r", "src/bssunfold", "-f", "json", "-q"]
+        [
+            sys.executable,
+            "-m",
+            "bandit",
+            "-r",
+            "src/bssunfold",
+            "-f",
+            "json",
+            "-q",
+        ]
     )
     try:
         results = json.loads(proc.stdout or "{}").get("results", [])
     except json.JSONDecodeError:
-        pytest.fail(f"bandit produced no JSON output:\n{proc.stdout}{proc.stderr}")
+        pytest.fail(
+            f"bandit produced no JSON output:\n{proc.stdout}{proc.stderr}"
+        )
     high = [r for r in results if r.get("severity") == "HIGH"]
     assert not high, "\n".join(
         f"{r['filename']}:{r.get('line_number')} {r['test_id']} {r['issue_text']}"

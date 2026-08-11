@@ -17,7 +17,7 @@ import numpy as np
 from typing import Dict, Optional, Any, List
 
 from ._matrix_utils import create_derivative_matrix
-from .regularization import select_regularization_parameter, cosine_similarity_selection
+from .regularization import resolve_regularization_parameter
 from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = ["solve_scip", "unfold_scip"]
@@ -104,9 +104,12 @@ def solve_scip(
     x = [model.addVar(lb=lb, name=f"x{i}") for i in range(n)]
 
     residual = quicksum(
-        (b[i] - quicksum(A[i, j] * x[j] for j in range(n))) ** 2 for i in range(m)
+        (b[i] - quicksum(A[i, j] * x[j] for j in range(n))) ** 2
+        for i in range(m)
     )
-    penalty = _build_penalty(x, A, alpha, norm, smoothness_order, smoothness_weight)
+    penalty = _build_penalty(
+        x, A, alpha, norm, smoothness_order, smoothness_weight
+    )
 
     set_nonlinear_objective(model, 0.5 * residual + penalty, sense="minimize")
 
@@ -125,9 +128,7 @@ def solve_scip(
     status = model.getStatus()
     best = model.getBestSol() if model.getNSols() > 0 else None
     if best is None:
-        warnings.warn(
-            f"SCIP solver did not find a solution (status={status})."
-        )
+        warnings.warn(f"SCIP solver did not find a solution (status={status}).")
         return None
     return np.array([model.getSolVal(best, xj) for xj in x])
 
@@ -148,9 +149,13 @@ def _build_penalty(
     if norm == 2:
         if smoothness_order in (1, 2):
             L = create_derivative_matrix(n, smoothness_order).toarray()
-            smooth = alpha * smoothness_weight * quicksum(
-                (quicksum(L[k, j] * x[j] for j in range(n))) ** 2
-                for k in range(L.shape[0])
+            smooth = (
+                alpha
+                * smoothness_weight
+                * quicksum(
+                    (quicksum(L[k, j] * x[j] for j in range(n))) ** 2
+                    for k in range(L.shape[0])
+                )
             )
             return smooth
         return alpha * quicksum(x[j] ** 2 for j in range(n))
@@ -159,9 +164,13 @@ def _build_penalty(
         penalty = alpha * quicksum(x[j] for j in range(n))
         if smoothness_order in (1, 2):
             L = create_derivative_matrix(n, smoothness_order).toarray()
-            penalty += alpha * smoothness_weight * quicksum(
-                (quicksum(L[k, j] * x[j] for j in range(n))) ** 2
-                for k in range(L.shape[0])
+            penalty += (
+                alpha
+                * smoothness_weight
+                * quicksum(
+                    (quicksum(L[k, j] * x[j] for j in range(n))) ** 2
+                    for k in range(L.shape[0])
+                )
             )
         return penalty
 
@@ -244,65 +253,26 @@ def unfold_scip(
     Dict[str, Any]
         Unfolding results including spectrum, residuals, and metadata.
     """
-    A, b, selected = _build_system(readings, detector_names, sensitivities)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
-    if regularization_method == "manual":
-        alpha = regularization
-        selected_lambda = alpha
-    elif regularization_method == "cosine":
-        if initial_spectrum is None:
-            raise ValueError(
-                "For 'cosine' regularization method, "
-                "initial_spectrum must be provided."
-            )
-        if norm != 2:
-            warnings.warn(
-                f"Cosine regularization selection method assumes L2 "
-                f"norm, but norm={norm} was requested. Using L2 for "
-                f"selection."
-            )
-        initial_spectrum_norm = np.maximum(initial_spectrum, 0)
-        if len(initial_spectrum_norm) != n_energy_bins:
-            raise ValueError(
-                f"Initial spectrum length ({len(initial_spectrum)}) "
-                f"must match number of energy bins ({n_energy_bins})"
-            )
-        selected_lambda = cosine_similarity_selection(
-            A, b, initial_spectrum_norm, norm=norm
-        )
-        alpha = selected_lambda
-        print(
-            f"Selected regularization (method=cosine): "
-            f"{selected_lambda:.3e}"
-        )
-    else:
-        if norm != 2:
-            warnings.warn(
-                f"Automatic regularization selection methods assume L2 "
-                f"norm, but norm={norm} was requested. Using L2 for "
-                f"selection."
-            )
-        try:
-            selected_lambda = select_regularization_parameter(
-                A, b, method=regularization_method, noise_var=noise_var
-            )
-        except Exception as e:
-            raise ValueError(
-                f"Regularization selection failed: {e}. "
-                "Consider using manual regularization."
-            )
-        alpha = selected_lambda
-        print(
-            f"Selected regularization (method={regularization_method}): "
-            f"{selected_lambda:.3e}"
-        )
-
+    alpha = resolve_regularization_parameter(
+        A,
+        b,
+        regularization_method,
+        regularization,
+        n_energy_bins,
+        initial_spectrum=initial_spectrum,
+        norm=norm,
+        noise_var=noise_var,
+    )
+    selected_lambda = alpha
     x0_default = np.zeros(n_energy_bins)
 
     def solve_wrapper(A, b, **kwargs):
-        kwargs.pop('x0', None)
+        kwargs.pop("x0", None)
         x = solve_scip(
-            A, b,
+            A,
+            b,
             alpha=alpha,
             norm=norm,
             timeout=timeout,

@@ -11,12 +11,14 @@ import numpy as np
 
 try:
     from numba import njit
+
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
 
 
 if NUMBA_AVAILABLE:
+
     @njit(cache=True)
     def _mlem_inner(AT, A, x, b, max_iterations, tolerance):  # pragma: no cover
         # numba JIT bodies are compiled to LLVM and never run as CPython
@@ -71,8 +73,7 @@ if NUMBA_AVAILABLE:
             x_norm = 0.0
             for j in range(n):
                 x_new = x[j] * correction[j]
-                if x_new < 0.0:
-                    x_new = 0.0
+                x_new = max(x_new, 0.0)
                 diff_norm += (x_new - x[j]) ** 2
                 x_norm += x[j] ** 2
                 x[j] = x_new
@@ -85,7 +86,9 @@ if NUMBA_AVAILABLE:
         return x, iterations, converged
 
     @njit(cache=True)
-    def _kaczmarz_inner(A, x, b, row_norms_sq, omega, max_iterations, tolerance):  # pragma: no cover
+    def _kaczmarz_inner(
+        A, x, b, row_norms_sq, omega, max_iterations, tolerance
+    ):  # pragma: no cover
         """JIT-compiled Kaczmarz iteration inner loop.
 
         Parameters
@@ -147,7 +150,9 @@ if NUMBA_AVAILABLE:
         return x, iterations, converged
 
     @njit(cache=True)
-    def _doroshenko_inner(A, x, b, denominator_cache, max_iterations, tolerance):  # pragma: no cover
+    def _doroshenko_inner(
+        A, x, b, denominator_cache, max_iterations, tolerance
+    ):  # pragma: no cover
         """JIT-compiled Doroshenko coordinate update inner loop.
 
         Parameters
@@ -195,8 +200,7 @@ if NUMBA_AVAILABLE:
                     Aj_dot_res += A[k, j] * residual[k]
                 numerator = Aj_dot_res + denominator_cache[j] * x[j]
                 new_xj = numerator / denominator_cache[j]
-                if new_xj < 0.0:
-                    new_xj = 0.0
+                new_xj = max(new_xj, 0.0)
                 delta = new_xj - x[j]
                 if delta != 0.0:
                     for k in range(m):
@@ -218,7 +222,9 @@ if NUMBA_AVAILABLE:
         return x, iterations, converged
 
     @njit(cache=True)
-    def _gravel_inner(A_valid, x, b_valid, regularization, max_iterations, tolerance):  # pragma: no cover
+    def _gravel_inner(
+        A_valid, x, b_valid, regularization, max_iterations, tolerance
+    ):  # pragma: no cover
         """JIT-compiled GRAVEL algorithm inner loop.
 
         Parameters
@@ -262,7 +268,12 @@ if NUMBA_AVAILABLE:
                 numerator = 0.0
                 denominator = 0.0
                 for i in range(m_valid):
-                    if computed[i] > eps and x[j] > eps and b_valid[i] > eps and A_valid[i, j] > eps:
+                    if (
+                        computed[i] > eps
+                        and x[j] > eps
+                        and b_valid[i] > eps
+                        and A_valid[i, j] > eps
+                    ):
                         W_ij = b_valid[i] * A_valid[i, j] * x[j] / computed[i]
                         log_ratio = np.log(b_valid[i] / computed[i])
                         numerator += W_ij * log_ratio
@@ -285,7 +296,9 @@ if NUMBA_AVAILABLE:
             sum_computed = 0.0
             for i in range(m_valid):
                 sum_computed += computed_final[i]
-                chi_sq += (computed_final[i] - b_valid[i]) ** 2 / max(b_valid[i], eps)
+                chi_sq += (computed_final[i] - b_valid[i]) ** 2 / max(
+                    b_valid[i], eps
+                )
 
             J = chi_sq / max(sum_computed, eps)
             dJ = J_prev - J

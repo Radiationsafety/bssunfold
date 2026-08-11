@@ -56,6 +56,7 @@ def solve_sart(
     x0 = np.asarray(x0, dtype=float)
 
     if relaxation is None:
+
         def relaxation_seq(_n):
             return 0.8
     elif callable(relaxation):
@@ -68,8 +69,8 @@ def solve_sart(
 
     eps = 1e-11
     x = np.maximum(x0, 0).copy()
-    norm_back = A.sum(axis=0)          # A^T 1
-    norm_forward = A.sum(axis=1)       # A 1
+    norm_back = A.sum(axis=0)  # A^T 1
+    norm_forward = A.sum(axis=1)  # A 1
     converged = False
     iterations = 0
 

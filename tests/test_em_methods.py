@@ -102,32 +102,32 @@ class TestSolveSandii:
 class TestUnfoldSandii:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_sandii(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert 'effective_readings' in result
-        assert 'residual' in result
-        assert result['method'] == 'SAND-II'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert "effective_readings" in result
+        assert "residual" in result
+        assert result["method"] == "SAND-II"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_extra_output(self, detector, all_readings):
         result = detector.unfold_sandii(
             all_readings, chi_fac=0, tolerance=1e-2, save_result=False
         )
-        assert result['chi_fac'] == 0
-        assert result['relative_uncertainty'] == pytest.approx(0.1)
+        assert result["chi_fac"] == 0
+        assert result["relative_uncertainty"] == pytest.approx(0.1)
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_sandii(readings, save_result=False)
-        assert 'spectrum' in result
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_sandii(readings, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'SAND-II'
+        assert detector.current_result["method"] == "SAND-II"
         assert len(detector.results_history) == 1
 
     def test_montecarlo_errors(self, detector, all_readings):
@@ -138,8 +138,8 @@ class TestUnfoldSandii:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
-        assert result['montecarlo_samples'] == 10
+        assert "spectrum_uncert_mean" in result
+        assert result["montecarlo_samples"] == 10
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -147,7 +147,7 @@ class TestUnfoldSandii:
 
         assert callable(solve_sandii)
         assert callable(unfold_sandii)
-        assert hasattr(Detector, 'unfold_sandii')
+        assert hasattr(Detector, "unfold_sandii")
 
 
 # ============================================================================
@@ -217,30 +217,30 @@ class TestUnfoldBunki:
         result = detector.unfold_bunki(
             all_readings, max_iterations=200, save_result=False
         )
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert result['method'] == 'BUNKI'
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert result["method"] == "BUNKI"
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_extra_output(self, detector, all_readings):
         result = detector.unfold_bunki(
             all_readings, smoothing=0.2, max_iterations=200, save_result=False
         )
-        assert result['smoothing'] == pytest.approx(0.2)
+        assert result["smoothing"] == pytest.approx(0.2)
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_bunki(
             readings, max_iterations=200, save_result=False
         )
-        assert 'spectrum' in result
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_bunki(readings, max_iterations=200, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'BUNKI'
+        assert detector.current_result["method"] == "BUNKI"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_bunki(
@@ -251,7 +251,7 @@ class TestUnfoldBunki:
             max_iterations=200,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -259,7 +259,7 @@ class TestUnfoldBunki:
 
         assert callable(solve_bunki)
         assert callable(unfold_bunki)
-        assert hasattr(Detector, 'unfold_bunki')
+        assert hasattr(Detector, "unfold_bunki")
 
 
 # ============================================================================
@@ -309,29 +309,29 @@ class TestUnfoldBunkiut:
         result = detector.unfold_bunkiut(
             all_readings, max_iterations=200, save_result=False
         )
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert result['method'] == 'BUNKI-UT'
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert result["method"] == "BUNKI-UT"
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_extra_output(self, detector, all_readings):
         result = detector.unfold_bunkiut(
             all_readings, smoothing=0.2, max_iterations=200, save_result=False
         )
-        assert result['smoothing'] == pytest.approx(0.2)
+        assert result["smoothing"] == pytest.approx(0.2)
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_bunkiut(
             readings, max_iterations=200, save_result=False
         )
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_bunkiut(readings, max_iterations=200, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'BUNKI-UT'
+        assert detector.current_result["method"] == "BUNKI-UT"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_bunkiut(
@@ -342,7 +342,7 @@ class TestUnfoldBunkiut:
             max_iterations=200,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -350,7 +350,7 @@ class TestUnfoldBunkiut:
 
         assert callable(solve_bunkiut)
         assert callable(unfold_bunkiut)
-        assert hasattr(Detector, 'unfold_bunkiut')
+        assert hasattr(Detector, "unfold_bunkiut")
 
 
 # ============================================================================
@@ -417,29 +417,29 @@ class TestSolveOsem:
 class TestUnfoldOsem:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_osem(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert result['method'] == 'OSEM'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert result["method"] == "OSEM"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_n_subsets(self, detector, all_readings):
         result = detector.unfold_osem(
             all_readings, n_subsets=3, save_result=False
         )
-        assert 'spectrum' in result
-        assert result['n_subsets'] == 3
+        assert "spectrum" in result
+        assert result["n_subsets"] == 3
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_osem(readings, save_result=False)
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_osem(readings, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'OSEM'
+        assert detector.current_result["method"] == "OSEM"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_osem(
@@ -449,7 +449,7 @@ class TestUnfoldOsem:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -457,7 +457,7 @@ class TestUnfoldOsem:
 
         assert callable(solve_osem)
         assert callable(unfold_osem)
-        assert hasattr(Detector, 'unfold_osem')
+        assert hasattr(Detector, "unfold_osem")
 
 
 # ============================================================================
@@ -483,7 +483,7 @@ class TestSolveMapem:
 
         A = _response_matrix(6, 12, seed=2)
         b = A @ np.ones(12)
-        for prior in ('none', 'quadratic', 'logcosh', 'relative_difference'):
+        for prior in ("none", "quadratic", "logcosh", "relative_difference"):
             x, _, _ = solve_mapem(A, b, np.ones(12), prior=prior)
             assert len(x) == 12
             assert np.all(np.isfinite(x))
@@ -493,8 +493,10 @@ class TestSolveMapem:
 
         A = _response_matrix(6, 12, seed=2)
         b = A @ np.ones(12)
-        x_none, _, _ = solve_mapem(A, b, np.ones(12), prior='none')
-        x_reg, _, _ = solve_mapem(A, b, np.ones(12), prior='quadratic', beta=0.1)
+        x_none, _, _ = solve_mapem(A, b, np.ones(12), prior="none")
+        x_reg, _, _ = solve_mapem(
+            A, b, np.ones(12), prior="quadratic", beta=0.1
+        )
         assert not np.allclose(x_none, x_reg)
 
     def test_invalid_prior(self):
@@ -503,43 +505,45 @@ class TestSolveMapem:
         A = _response_matrix(4, 8, seed=3)
         b = A @ np.ones(8)
         with pytest.raises(ValueError, match="Unknown prior"):
-            solve_mapem(A, b, np.ones(8), prior='bogus')
+            solve_mapem(A, b, np.ones(8), prior="bogus")
 
 
 class TestUnfoldMapem:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_mapem(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert result['method'] == 'MAP-EM'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert result["method"] == "MAP-EM"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_priors(self, detector, all_readings):
-        for prior in ('none', 'quadratic', 'logcosh', 'relative_difference'):
+        for prior in ("none", "quadratic", "logcosh", "relative_difference"):
             result = detector.unfold_mapem(
                 all_readings, prior=prior, beta=1e-4, save_result=False
             )
-            assert 'spectrum' in result
-            assert result['prior'] == prior
+            assert "spectrum" in result
+            assert result["prior"] == prior
 
     def test_prior_value(self, detector, all_readings):
         result = detector.unfold_mapem(
-            all_readings, prior='quadratic', beta=1e-4, save_result=False
+            all_readings, prior="quadratic", beta=1e-4, save_result=False
         )
-        assert 'prior_value' in result
-        assert np.isfinite(result['prior_value'])
+        assert "prior_value" in result
+        assert np.isfinite(result["prior_value"])
 
     def test_single_detector(self, detector, readings):
-        result = detector.unfold_mapem(readings, prior='none', save_result=False)
-        assert 'spectrum' in result
+        result = detector.unfold_mapem(
+            readings, prior="none", save_result=False
+        )
+        assert "spectrum" in result
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
-        detector.unfold_mapem(readings, prior='none', save_result=True)
+        detector.unfold_mapem(readings, prior="none", save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'MAP-EM'
+        assert detector.current_result["method"] == "MAP-EM"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_mapem(
@@ -549,7 +553,7 @@ class TestUnfoldMapem:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -557,7 +561,7 @@ class TestUnfoldMapem:
 
         assert callable(solve_mapem)
         assert callable(unfold_mapem)
-        assert hasattr(Detector, 'unfold_mapem')
+        assert hasattr(Detector, "unfold_mapem")
 
 
 # ============================================================================
@@ -583,10 +587,8 @@ class TestSolveBsrem:
 
         A = _response_matrix(6, 12, seed=2)
         b = A @ np.ones(12)
-        for prior in ('none', 'quadratic', 'logcosh', 'relative_difference'):
-            x, _, _ = solve_bsrem(
-                A, b, np.ones(12), prior=prior, beta=1e-4
-            )
+        for prior in ("none", "quadratic", "logcosh", "relative_difference"):
+            x, _, _ = solve_bsrem(A, b, np.ones(12), prior=prior, beta=1e-4)
             assert np.all(np.isfinite(x))
 
     def test_subsets(self):
@@ -621,9 +623,7 @@ class TestSolveBsrem:
 
         A = _response_matrix(6, 12, seed=4)
         b = A @ np.ones(12)
-        x, _, _ = solve_bsrem(
-            A, b, np.ones(12), addition_after_iteration=1e-3
-        )
+        x, _, _ = solve_bsrem(A, b, np.ones(12), addition_after_iteration=1e-3)
         assert np.all(x >= 1e-3)
 
     def test_invalid_prior(self):
@@ -632,7 +632,7 @@ class TestSolveBsrem:
         A = _response_matrix(4, 8, seed=5)
         b = A @ np.ones(8)
         with pytest.raises(ValueError, match="Unknown prior"):
-            solve_bsrem(A, b, np.ones(8), prior='bogus')
+            solve_bsrem(A, b, np.ones(8), prior="bogus")
 
     def test_invalid_n_subsets(self):
         from bssunfold.core import solve_bsrem
@@ -648,36 +648,38 @@ class TestSolveBsrem:
 class TestUnfoldBsrem:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_bsrem(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert result['method'] == 'BSREM'
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert result["method"] == "BSREM"
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_priors(self, detector, all_readings):
-        for prior in ('none', 'quadratic', 'logcosh', 'relative_difference'):
+        for prior in ("none", "quadratic", "logcosh", "relative_difference"):
             result = detector.unfold_bsrem(
                 all_readings, prior=prior, beta=1e-4, save_result=False
             )
-            assert 'spectrum' in result
-            assert result['prior'] == prior
+            assert "spectrum" in result
+            assert result["prior"] == prior
 
     def test_relaxation(self, detector, all_readings):
         result = detector.unfold_bsrem(
-            all_readings, relaxation=lambda n: 1.0 / (1.0 + n), save_result=False
+            all_readings,
+            relaxation=lambda n: 1.0 / (1.0 + n),
+            save_result=False,
         )
-        assert 'spectrum' in result
-        assert result['n_subsets'] == 1
+        assert "spectrum" in result
+        assert result["n_subsets"] == 1
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_bsrem(readings, save_result=False)
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_bsrem(readings, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'BSREM'
+        assert detector.current_result["method"] == "BSREM"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_bsrem(
@@ -687,7 +689,7 @@ class TestUnfoldBsrem:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -695,7 +697,7 @@ class TestUnfoldBsrem:
 
         assert callable(solve_bsrem)
         assert callable(unfold_bsrem)
-        assert hasattr(Detector, 'unfold_bsrem')
+        assert hasattr(Detector, "unfold_bsrem")
 
 
 # ============================================================================
@@ -738,9 +740,7 @@ class TestSolveSart:
 
         A = _response_matrix(6, 12, seed=3)
         b = A @ np.ones(12)
-        x, _, _ = solve_sart(
-            A, b, np.ones(12), relaxation=lambda n: 0.8 ** n
-        )
+        x, _, _ = solve_sart(A, b, np.ones(12), relaxation=lambda n: 0.8**n)
         assert np.all(np.isfinite(x))
 
     def test_zero_measurements(self):
@@ -755,29 +755,29 @@ class TestSolveSart:
 class TestUnfoldSart:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_sart(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert result['method'] == 'SART'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert result["method"] == "SART"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_relaxation(self, detector, all_readings):
         result = detector.unfold_sart(
             all_readings, relaxation=0.5, save_result=False
         )
-        assert 'spectrum' in result
-        assert result['relaxation'] == pytest.approx(0.5)
+        assert "spectrum" in result
+        assert result["relaxation"] == pytest.approx(0.5)
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_sart(readings, save_result=False)
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_sart(readings, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'SART'
+        assert detector.current_result["method"] == "SART"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_sart(
@@ -787,7 +787,7 @@ class TestUnfoldSart:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -795,7 +795,7 @@ class TestUnfoldSart:
 
         assert callable(solve_sart)
         assert callable(unfold_sart)
-        assert hasattr(Detector, 'unfold_sart')
+        assert hasattr(Detector, "unfold_sart")
 
 
 # ============================================================================
@@ -807,58 +807,71 @@ class TestSmallDetector:
     def test_sandii_small_detector(self):
         from bssunfold import Detector
 
-        df = pd.DataFrame({
-            'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-            'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+                "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+                "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+            }
+        )
         d = Detector(df)
         result = d.unfold_sandii(
-            {'sphere_1': 1.0, 'sphere_2': 2.0}, save_result=False
+            {"sphere_1": 1.0, "sphere_2": 2.0}, save_result=False
         )
-        assert len(result['spectrum']) == 5
-        assert np.all(np.isfinite(result['spectrum']))
+        assert len(result["spectrum"]) == 5
+        assert np.all(np.isfinite(result["spectrum"]))
 
     def test_osem_small_detector(self):
         from bssunfold import Detector
 
-        df = pd.DataFrame({
-            'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-            'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+                "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+                "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+            }
+        )
         d = Detector(df)
         result = d.unfold_osem(
-            {'sphere_1': 1.0, 'sphere_2': 2.0}, save_result=False
+            {"sphere_1": 1.0, "sphere_2": 2.0}, save_result=False
         )
-        assert len(result['spectrum']) == 5
-        assert np.all(np.isfinite(result['spectrum']))
+        assert len(result["spectrum"]) == 5
+        assert np.all(np.isfinite(result["spectrum"]))
 
     def test_sart_small_detector(self):
         from bssunfold import Detector
 
-        df = pd.DataFrame({
-            'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-            'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+                "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+                "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+            }
+        )
         d = Detector(df)
         result = d.unfold_sart(
-            {'sphere_1': 1.0, 'sphere_2': 2.0}, save_result=False
+            {"sphere_1": 1.0, "sphere_2": 2.0}, save_result=False
         )
-        assert len(result['spectrum']) == 5
-        assert np.all(np.isfinite(result['spectrum']))
+        assert len(result["spectrum"]) == 5
+        assert np.all(np.isfinite(result["spectrum"]))
 
     def test_combined_pipeline(self, detector, all_readings):
-        for method in ('sandii', 'bunki', 'bunkiut', 'osem', 'mapem',
-                       'bsrem', 'sart'):
-            params = {'save_result': False}
-            if method in ('bunki', 'bunkiut'):
-                params['max_iterations'] = 200
+        for method in (
+            "sandii",
+            "bunki",
+            "bunkiut",
+            "osem",
+            "mapem",
+            "bsrem",
+            "sart",
+        ):
+            params = {"save_result": False}
+            if method in ("bunki", "bunkiut"):
+                params["max_iterations"] = 200
             result = detector.unfold_combined(
                 all_readings,
-                pipeline=[{'method': method, 'params': params}],
+                pipeline=[{"method": method, "params": params}],
                 verbose=False,
             )
-            assert 'spectrum' in result
-            assert result['pipeline_info']['stages'] == [method]
+            assert "spectrum" in result
+            assert result["pipeline_info"]["stages"] == [method]

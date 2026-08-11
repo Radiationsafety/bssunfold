@@ -18,6 +18,7 @@ Usage:
     uv run python tools/run_dynapyt.py --analysis dynapyt.analyses.TraceAll.TraceAll
     uv run python tools/run_dynapyt.py --keep
 """
+
 import argparse
 import io
 import os
@@ -63,15 +64,20 @@ if __name__ == "__main__":
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--tests", nargs="+", default=DEFAULT_TESTS,
+        "--tests",
+        nargs="+",
+        default=DEFAULT_TESTS,
         help="test paths relative to the repository root",
     )
     parser.add_argument(
-        "--analysis", nargs="+", default=DEFAULT_ANALYSES,
+        "--analysis",
+        nargs="+",
+        default=DEFAULT_ANALYSES,
         help="full dotted paths of DynaPyt analysis classes",
     )
     parser.add_argument(
-        "--keep", action="store_true",
+        "--keep",
+        action="store_true",
         help="keep the .dynapyt copy for debugging",
     )
     return parser.parse_args(argv)
@@ -84,7 +90,12 @@ def make_repo_copy():
     try:
         # nosec B603 B607 -- list-form subprocess call, no shell=True; the
         # command is a fixed literal from this repository.
-        proc = subprocess.run(["git", "archive", "HEAD"], cwd=ROOT, capture_output=True, check=True)  # nosec B603 B607
+        proc = subprocess.run(
+            ["git", "archive", "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
+            check=True,
+        )  # nosec B603 B607
     except (subprocess.CalledProcessError, FileNotFoundError):
         shutil.copytree(
             ROOT, WORKDIR, ignore=shutil.ignore_patterns(*IGNORE_COPY)
@@ -98,8 +109,13 @@ def make_repo_copy():
 
 def instrument(analyses):
     cmd = [
-        sys.executable, "-m", "dynapyt.run_instrumentation",
-        "--directory", str(WORKDIR / "src"), "--analysis", *analyses,
+        sys.executable,
+        "-m",
+        "dynapyt.run_instrumentation",
+        "--directory",
+        str(WORKDIR / "src"),
+        "--analysis",
+        *analyses,
     ]
     # nosec -- list-form subprocess call, no shell=True; command is
     # assembled from trusted local values only.
@@ -116,12 +132,19 @@ def run_analysis(entry, analyses):
     env = dict(os.environ)
     env["PYTHONPATH"] = str(WORKDIR) + os.pathsep + env.get("PYTHONPATH", "")
     cmd = [
-        sys.executable, "-m", "dynapyt.run_analysis",
-        "--entry", str(entry), "--analysis", *analyses,
+        sys.executable,
+        "-m",
+        "dynapyt.run_analysis",
+        "--entry",
+        str(entry),
+        "--analysis",
+        *analyses,
     ]
     # nosec B603 -- list-form subprocess call, no shell=True; command is
     # assembled from trusted local values only.
-    return subprocess.run(cmd, cwd=WORKDIR, env=env, capture_output=True, text=True)  # nosec B603
+    return subprocess.run(
+        cmd, cwd=WORKDIR, env=env, capture_output=True, text=True
+    )  # nosec B603
 
 
 def write_report(proc, analyses):
@@ -138,11 +161,14 @@ def write_report(proc, analyses):
         "\n".join(branches) + "\n", encoding="utf-8"
     )
     (REPORT_DIR / "summary.txt").write_text(
-        "\n".join([
-            f"analyses: {', '.join(analyses)}",
-            f"branch events: {len(branches)}",
-            f"exit code: {proc.returncode}",
-        ]) + "\n",
+        "\n".join(
+            [
+                f"analyses: {', '.join(analyses)}",
+                f"branch events: {len(branches)}",
+                f"exit code: {proc.returncode}",
+            ]
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -161,12 +187,15 @@ def write_error_report(analyses, error):
     )
     (REPORT_DIR / "branch_coverage.txt").write_text("", encoding="utf-8")
     (REPORT_DIR / "summary.txt").write_text(
-        "\n".join([
-            f"analyses: {', '.join(analyses)}",
-            "branch events: 0",
-            "exit code: 1",
-            f"error: {error}",
-        ]) + "\n",
+        "\n".join(
+            [
+                f"analyses: {', '.join(analyses)}",
+                "branch events: 0",
+                "exit code: 1",
+                f"error: {error}",
+            ]
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -181,8 +210,10 @@ def main(argv=None):
         print("Running: " + " ".join(args.tests))
         proc = run_analysis(entry, args.analysis)
         write_report(proc, args.analysis)
-        print(f"DynaPyt analysis finished (exit code {proc.returncode}); "
-              f"report in {REPORT_DIR}/")
+        print(
+            f"DynaPyt analysis finished (exit code {proc.returncode}); "
+            f"report in {REPORT_DIR}/"
+        )
         return proc.returncode
     except Exception as exc:  # noqa: BLE001 -- report failures, don't crash CI
         print(f"DynaPyt analysis failed: {exc}", file=sys.stderr)

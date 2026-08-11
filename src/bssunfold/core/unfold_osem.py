@@ -53,7 +53,7 @@ def solve_osem(
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float)
     x0 = np.asarray(x0, dtype=float)
-    m, n = A.shape
+    m, _ = A.shape
 
     if n_subsets < 1:
         raise ValueError("n_subsets must be >= 1")

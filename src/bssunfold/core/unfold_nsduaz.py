@@ -29,7 +29,7 @@ overrides the built-in mini-catalogue of analytic standard spectra
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple, Callable
+from typing import Dict, Optional, Any, List, Tuple
 
 from .unfold_bunki import solve_bunki
 from ._base_unfolder import run_unfolding, make_solve_wrapper
@@ -42,7 +42,9 @@ __all__ = [
 ]
 
 
-def _watt_spectrum(E_MeV: np.ndarray, a: float = 1.025, b: float = 2.926) -> np.ndarray:
+def _watt_spectrum(
+    E_MeV: np.ndarray, a: float = 1.025, b: float = 2.926
+) -> np.ndarray:
     """Analytic Watt fission spectrum (e.g. 252Cf): exp(-E/a) sinh(sqrt(b E))."""
     E = np.asarray(E_MeV, dtype=float)
     E = np.maximum(E, 1e-9)
@@ -96,9 +98,7 @@ def builtin_catalogue(E_MeV: np.ndarray) -> Dict[str, np.ndarray]:
     }
 
 
-def _find_reference_index(
-    detector_names: List[str], A: np.ndarray
-) -> int:
+def _find_reference_index(detector_names: List[str], A: np.ndarray) -> int:
     """Locate the reference sphere (20.32 cm diameter) index.
 
     Searches the detector names for the usual UTA/IAEA conventions
@@ -107,7 +107,12 @@ def _find_reference_index(
     """
     for i, name in enumerate(detector_names):
         lowered = name.lower()
-        if "20.32" in lowered or "20in" in lowered or "8in" in lowered or "8 in" in lowered:
+        if (
+            "20.32" in lowered
+            or "20in" in lowered
+            or "8in" in lowered
+            or "8 in" in lowered
+        ):
             return i
     # Fallback: detector with the largest integrated response.
     return int(np.argmax(np.sum(np.abs(A), axis=1)))
@@ -155,7 +160,9 @@ def select_catalogue_initial(
     """
     selected = [name for name in detector_names if name in readings]
     if not selected:
-        raise ValueError("No detector readings available for catalogue selection")
+        raise ValueError(
+            "No detector readings available for catalogue selection"
+        )
     b = np.array([readings[name] for name in selected], dtype=float)
     A = np.array([sensitivities[name] for name in selected], dtype=float)
 

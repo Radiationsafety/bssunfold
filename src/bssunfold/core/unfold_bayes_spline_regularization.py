@@ -57,7 +57,7 @@ def solve_bayes_spline(
     """
     from scipy.interpolate import UnivariateSpline
 
-    n_detectors, n_energy = A.shape
+    _, n_energy = A.shape
 
     # Column-normalise response so each column sums to 1.
     column_sums = np.sum(A, axis=0)
@@ -78,7 +78,7 @@ def solve_bayes_spline(
 
     x_indices = np.arange(n_energy, dtype=float)
 
-    for iteration in range(max_iterations):
+    for _ in range(max_iterations):
         y_old = y.copy()
 
         # Fold the current estimate through the response
@@ -108,7 +108,7 @@ def solve_bayes_spline(
                 x_indices, log_x, k=spline_degree, s=spline_smooth
             )
             log_x_smooth = spline(x_indices)
-            x_smooth = 10.0 ** log_x_smooth
+            x_smooth = 10.0**log_x_smooth
         else:
             x_smooth = x
 

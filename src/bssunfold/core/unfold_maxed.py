@@ -53,12 +53,12 @@ def solve_maxed(
     """
     from scipy.optimize import minimize
 
-    n_det, n_ene = A.shape
+    _ = A.shape
 
     # Measurement uncertainties (relative with floor).
     b_safe = np.maximum(b, 1e-300)
     sigma = sigma_factor * b_safe
-    sigma2_inv = 1.0 / (sigma ** 2)
+    sigma2_inv = 1.0 / (sigma**2)
 
     # Reference spectrum (must be strictly positive).
     phi_0 = np.maximum(x0, 1e-300)
@@ -77,7 +77,7 @@ def solve_maxed(
         f_ent = np.sum(x * (y - log_phi_0) - x + phi_0)
 
         # Chi-squared part of f
-        f_chi = 0.5 * np.sum(residual ** 2 * sigma2_inv)
+        f_chi = 0.5 * np.sum(residual**2 * sigma2_inv)
 
         # Gradient: df/dy_i = x_i * [ln(x_i/x0_i) - Aᵀ(r/σ²)_i]
         AT_resid_over_sigma2 = A.T @ (residual * sigma2_inv)
@@ -88,14 +88,15 @@ def solve_maxed(
     y0 = np.log(phi_0)
 
     result = minimize(
-        _f_and_g, y0,
+        _f_and_g,
+        y0,
         jac=True,
-        method='L-BFGS-B',
-        options={'maxiter': max_iterations, 'gtol': tolerance, 'ftol': 0},
+        method="L-BFGS-B",
+        options={"maxiter": max_iterations, "gtol": tolerance, "ftol": 0},
     )
 
     x_opt = np.exp(result.x)
-    iterations = result.nit if hasattr(result, 'nit') else 0
+    iterations = result.nit if hasattr(result, "nit") else 0
     converged = result.success or result.status == 0
 
     return x_opt, iterations, converged

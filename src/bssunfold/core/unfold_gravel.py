@@ -43,7 +43,7 @@ def solve_gravel(
     Tuple[np.ndarray, int, bool]
         Tuple of (solution, iterations, converged).
     """
-    M, N = A.shape
+    _, N = A.shape
     x = x0.copy().astype(np.float64)
     b = b.astype(np.float64)
 
@@ -56,8 +56,11 @@ def solve_gravel(
 
     try:
         from ._numba_jit import _gravel_inner, NUMBA_AVAILABLE
+
         if NUMBA_AVAILABLE:
-            return _gravel_inner(A_valid, x, b_valid, regularization, max_iterations, tolerance)
+            return _gravel_inner(
+                A_valid, x, b_valid, regularization, max_iterations, tolerance
+            )
     except ImportError:
         pass
 
@@ -70,13 +73,13 @@ def solve_gravel(
 
         W = np.zeros((len(b_valid), N))
         for j in range(N):
-            for i in range(len(b_valid)):
+            for i, _ in enumerate(b_valid):
                 if computed[i] > 0 and x[j] > 0:
                     W[i, j] = b_valid[i] * A_valid[i, j] * x[j] / computed[i]
 
             numerator = 0.0
             denominator = 0.0
-            for i in range(len(b_valid)):
+            for i, _ in enumerate(b_valid):
                 if (
                     computed[i] > 0
                     and b_valid[i] > 0
@@ -169,7 +172,7 @@ def unfold_gravel(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    x0_default = np.ones(n_energy_bins)/2
+    x0_default = np.ones(n_energy_bins) / 2
 
     return run_unfolding(
         detector_names=detector_names,

@@ -31,8 +31,9 @@ def _neighbours(x: np.ndarray) -> tuple:
     return left, right
 
 
-def _phi1(fr: np.ndarray, fs: np.ndarray, prior: str, delta: float,
-          gamma: float) -> np.ndarray:
+def _phi1(
+    fr: np.ndarray, fs: np.ndarray, prior: str, delta: float, gamma: float
+) -> np.ndarray:
     """First derivative phi1(f_r, f_s) = d/d f_r phi0(f_r, f_s)."""
     if prior == "quadratic":
         return (fr - fs) / delta
@@ -41,15 +42,18 @@ def _phi1(fr: np.ndarray, fs: np.ndarray, prior: str, delta: float,
     if prior == "relative_difference":
         absd = np.abs(fr - fs)
         denom = gamma * absd + fr + fs + delta
-        return (fr - fs) * (gamma * absd + 3.0 * fs + fr + 2.0 * delta) / denom ** 2
+        return (
+            (fr - fs) * (gamma * absd + 3.0 * fs + fr + 2.0 * delta) / denom**2
+        )
     raise ValueError(
         f"Unknown prior {prior!r}. Choose from 'quadratic', 'logcosh', "
         f"'relative_difference'."
     )
 
 
-def _phi0(fr: np.ndarray, fs: np.ndarray, prior: str, delta: float,
-          gamma: float) -> np.ndarray:
+def _phi0(
+    fr: np.ndarray, fs: np.ndarray, prior: str, delta: float, gamma: float
+) -> np.ndarray:
     """Prior pair potential phi0(f_r, f_s)."""
     if prior == "quadratic":
         return 0.25 * ((fr - fs) / delta) ** 2
@@ -66,8 +70,13 @@ def _phi0(fr: np.ndarray, fs: np.ndarray, prior: str, delta: float,
     )
 
 
-def prior_gradient(x: np.ndarray, prior: str = "quadratic", beta: float = 1e-3,
-                   delta: float = 1.0, gamma: float = 1.0) -> np.ndarray:
+def prior_gradient(
+    x: np.ndarray,
+    prior: str = "quadratic",
+    beta: float = 1e-3,
+    delta: float = 1.0,
+    gamma: float = 1.0,
+) -> np.ndarray:
     """Compute the beta-scaled prior gradient along the energy axis.
 
     Parameters
@@ -94,12 +103,19 @@ def prior_gradient(x: np.ndarray, prior: str = "quadratic", beta: float = 1e-3,
     prior = str(prior).lower()
     x = np.asarray(x, dtype=float)
     left, right = _neighbours(x)
-    grad = _phi1(x, left, prior, delta, gamma) + _phi1(x, right, prior, delta, gamma)
+    grad = _phi1(x, left, prior, delta, gamma) + _phi1(
+        x, right, prior, delta, gamma
+    )
     return beta * grad
 
 
-def prior_value(x: np.ndarray, prior: str = "quadratic", beta: float = 1e-3,
-                delta: float = 1.0, gamma: float = 1.0) -> float:
+def prior_value(
+    x: np.ndarray,
+    prior: str = "quadratic",
+    beta: float = 1e-3,
+    delta: float = 1.0,
+    gamma: float = 1.0,
+) -> float:
     """Compute the (beta-scaled) nearest-neighbour prior value V(f).
 
     Parameters
@@ -124,5 +140,7 @@ def prior_value(x: np.ndarray, prior: str = "quadratic", beta: float = 1e-3,
     prior = str(prior).lower()
     x = np.asarray(x, dtype=float)
     left, right = _neighbours(x)
-    value = _phi0(x, left, prior, delta, gamma) + _phi0(x, right, prior, delta, gamma)
+    value = _phi0(x, left, prior, delta, gamma) + _phi0(
+        x, right, prior, delta, gamma
+    )
     return float(beta * np.sum(value))

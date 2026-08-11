@@ -81,17 +81,18 @@ def select_regularization_parameter(
     """
     if method == "lcurve":
         return lcurve_selection(A, b, **kwargs)
-    elif method == "gcv":
+    if method == "gcv":
         return gcv_selection(A, b, **kwargs)
-    elif method == "dp":
-        return discrepancy_principle_selection(A, b, noise_var=noise_var, **kwargs)
-    elif method == "cosine":
-        return cosine_similarity_selection(A, b, initial_spectrum, **kwargs)
-    else:
-        raise ValueError(
-            f"Unknown regularization selection method: {method}. "
-            "Choose from 'lcurve', 'gcv', 'dp', 'cosine'."
+    if method == "dp":
+        return discrepancy_principle_selection(
+            A, b, noise_var=noise_var, **kwargs
         )
+    if method == "cosine":
+        return cosine_similarity_selection(A, b, initial_spectrum, **kwargs)
+    raise ValueError(
+        f"Unknown regularization selection method: {method}. "
+        "Choose from 'lcurve', 'gcv', 'dp', 'cosine'."
+    )
 
 
 def lcurve_selection(
@@ -148,7 +149,9 @@ def _lcurve_fallback(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback L-curve implementation without pytikhonov."""
-    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
     residuals = []
     norms = []
 
@@ -252,11 +255,13 @@ def _gcv_fallback(
     Uses precomputed SVD for efficiency: SVD is computed once and reused
     across all alpha values instead of solving a linear system per alpha.
     """
-    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
-    m, n = A.shape
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
+    m, _ = A.shape
 
     # Precompute SVD once
-    U, s, Vt, s_sq = compute_svd_components(A)
+    U, _, _, s_sq = compute_svd_components(A)
     UTb = U.T @ b  # Precompute projection of b onto left singular vectors
 
     gcv_values = []
@@ -349,7 +354,9 @@ def _dp_fallback(
     alpha_range: Tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback Discrepancy Principle implementation."""
-    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
     delta = np.sqrt(noise_var)
     m = len(b)
     target_residual = delta * np.sqrt(m)
@@ -433,12 +440,107 @@ def cosine_similarity_selection(
         norm_x = np.linalg.norm(x)
         if norm_x == 0:
             similarities.append(0.0)
-        else:
-            sim = np.dot(x, initial_normalized) / norm_x
-            similarities.append(sim)
+        sim = np.dot(x, initial_normalized) / norm_x
+        similarities.append(sim)
 
     idx_max = np.argmax(similarities)
     return float(alphas[idx_max])
+
+
+def resolve_regularization_parameter(
+    A: np.ndarray,
+    b: np.ndarray,
+    regularization_method: str,
+    regularization: float,
+    n_energy_bins: int,
+    initial_spectrum: Optional[np.ndarray] = None,
+    norm: int = 2,
+    noise_var: Optional[float] = None,
+    verbose: bool = True,
+) -> float:
+    """Resolve the regularization parameter alpha from the requested method.
+
+    Shared by the solver wrappers (qpsolvers, docplex, SCIP). Handles
+    ``'manual'``, ``'cosine'`` and automatic methods (``'lcurve'``, ``'gcv'``,
+    ``'dp'``). Returns the selected lambda, equal to ``regularization`` for
+    the manual method.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix.
+    b : np.ndarray
+        Measurement vector.
+    regularization_method : str
+        One of ``'manual'``, ``'cosine'``, ``'lcurve'``, ``'gcv'``, ``'dp'``.
+    regularization : float
+        Manual regularization parameter (used when method is ``'manual'``).
+    n_energy_bins : int
+        Number of energy bins (validates the initial spectrum length).
+    initial_spectrum : np.ndarray, optional
+        Reference spectrum required by the cosine method.
+    norm : int, optional
+        Norm type (default: 2).
+    noise_var : float, optional
+        Noise variance for the discrepancy principle (default: None).
+    verbose : bool, optional
+        Print the selected value (default: True).
+
+    Returns
+    -------
+    float
+        Selected regularization parameter.
+    """
+    if regularization_method == "manual":
+        selected_lambda = float(regularization)
+    elif regularization_method == "cosine":
+        if initial_spectrum is None:
+            raise ValueError(
+                "For 'cosine' regularization method, "
+                "initial_spectrum must be provided."
+            )
+        if norm != 2:
+            warnings.warn(
+                f"Cosine regularization selection method assumes L2 "
+                f"norm, but norm={norm} was requested. Using L2 for "
+                f"selection."
+            )
+        initial_spectrum_norm = np.maximum(initial_spectrum, 0)
+        if len(initial_spectrum_norm) != n_energy_bins:
+            raise ValueError(
+                f"Initial spectrum length ({len(initial_spectrum)}) "
+                f"must match number of energy bins ({n_energy_bins})"
+            )
+        selected_lambda = cosine_similarity_selection(
+            A, b, initial_spectrum_norm, norm=norm
+        )
+        if verbose:
+            print(
+                f"Selected regularization (method=cosine): "
+                f"{selected_lambda:.3e}"
+            )
+    else:
+        if norm != 2:
+            warnings.warn(
+                f"Automatic regularization selection methods assume L2 "
+                f"norm, but norm={norm} was requested. Using L2 for "
+                f"selection."
+            )
+        try:
+            selected_lambda = select_regularization_parameter(
+                A, b, method=regularization_method, noise_var=noise_var
+            )
+        except Exception as e:
+            raise ValueError(
+                f"Regularization selection failed: {e}. "
+                "Consider using manual regularization."
+            ) from e
+        if verbose:
+            print(
+                f"Selected regularization (method={regularization_method}): "
+                f"{selected_lambda:.3e}"
+            )
+    return float(selected_lambda)
 
 
 def compare_regularization_methods(

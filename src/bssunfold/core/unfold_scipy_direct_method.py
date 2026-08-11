@@ -44,8 +44,17 @@ def solve_scipy_direct(
         Unfolded spectrum (n,).
     """
     from scipy.sparse.linalg import (
-        cg, cgs, bicgstab, gmres, lgmres, minres,
-        gcrotmk, qmr, tfqmr, lsqr, lsmr,
+        cg,
+        cgs,
+        bicgstab,
+        gmres,
+        lgmres,
+        minres,
+        gcrotmk,
+        qmr,
+        tfqmr,
+        lsqr,
+        lsmr,
     )
 
     AT_A = A.T @ A
@@ -54,13 +63,25 @@ def solve_scipy_direct(
     solvers = {
         "cg": lambda: cg(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
         "cgs": lambda: cgs(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
-        "bicgstab": lambda: bicgstab(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
-        "gmres": lambda: gmres(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
-        "lgmres": lambda: lgmres(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
-        "minres": lambda: minres(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+        "bicgstab": lambda: bicgstab(
+            AT_A, AT_b, rtol=tolerance, maxiter=max_iterations
+        ),
+        "gmres": lambda: gmres(
+            AT_A, AT_b, rtol=tolerance, maxiter=max_iterations
+        ),
+        "lgmres": lambda: lgmres(
+            AT_A, AT_b, rtol=tolerance, maxiter=max_iterations
+        ),
+        "minres": lambda: minres(
+            AT_A, AT_b, rtol=tolerance, maxiter=max_iterations
+        ),
         "qmr": lambda: qmr(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
-        "gcrotmk": lambda: gcrotmk(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
-        "tfqmr": lambda: tfqmr(AT_A, AT_b, rtol=tolerance, maxiter=max_iterations),
+        "gcrotmk": lambda: gcrotmk(
+            AT_A, AT_b, rtol=tolerance, maxiter=max_iterations
+        ),
+        "tfqmr": lambda: tfqmr(
+            AT_A, AT_b, rtol=tolerance, maxiter=max_iterations
+        ),
         "lsqr": lambda: lsqr(A, b, atol=tolerance),
         "lsmr": lambda: lsmr(A, b, atol=tolerance, maxiter=max_iterations),
     }

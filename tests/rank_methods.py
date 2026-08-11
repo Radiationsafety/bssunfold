@@ -174,15 +174,23 @@ def rank_methods(df: pd.DataFrame) -> pd.DataFrame:
         for col in available:
             metric_avgs[col] = mdf[col].mean()
 
-        results.append({
-            "method": method,
-            "overall_score": overall,
-            "ok_rate": ok_rate,
-            **{f"score_{d}": det_scores[d] for d in DETECTORS if d in det_scores},
-        })
+        results.append(
+            {
+                "method": method,
+                "overall_score": overall,
+                "ok_rate": ok_rate,
+                **{
+                    f"score_{d}": det_scores[d]
+                    for d in DETECTORS
+                    if d in det_scores
+                },
+            }
+        )
 
     ranking = pd.DataFrame(results)
-    ranking = ranking.sort_values("overall_score", ascending=False).reset_index(drop=True)
+    ranking = ranking.sort_values("overall_score", ascending=False).reset_index(
+        drop=True
+    )
     ranking.index = ranking.index + 1  # 1-based rank
     ranking.index.name = "rank"
     return ranking, normed, available
@@ -222,14 +230,18 @@ def print_ranking(ranking: pd.DataFrame, metric_avgs_df: pd.DataFrame = None):
     top5 = ranking.head(5)
     print("TOP-5 METHODS:")
     for rank, (_, row) in enumerate(top5.iterrows(), 1):
-        print(f"  {rank}. {row['method']:<30s}  score={row['overall_score']:.3f}  ok_rate={row['ok_rate']:.1f}%")
+        print(
+            f"  {rank}. {row['method']:<30s}  score={row['overall_score']:.3f}  ok_rate={row['ok_rate']:.1f}%"
+        )
     print()
 
     # Bottom-5 summary
     bot5 = ranking.tail(5)
     print("BOTTOM-5 METHODS:")
     for rank, (_, row) in enumerate(bot5.iterrows(), n - 4):
-        print(f"  {rank}. {row['method']:<30s}  score={row['overall_score']:.3f}  ok_rate={row['ok_rate']:.1f}%")
+        print(
+            f"  {rank}. {row['method']:<30s}  score={row['overall_score']:.3f}  ok_rate={row['ok_rate']:.1f}%"
+        )
     print()
 
     # Per-metric breakdown for top method
@@ -237,7 +249,7 @@ def print_ranking(ranking: pd.DataFrame, metric_avgs_df: pd.DataFrame = None):
         best_method = ranking.iloc[0]["method"]
         print(f"METRIC BREAKDOWN for best method ({best_method}):")
         print(f"  {'Metric':<45s}  {'Score':>6s}")
-        print(f"  {'-'*55}")
+        print(f"  {'-' * 55}")
         row = metric_avgs_df[metric_avgs_df["method"] == best_method]
         if len(row) > 0:
             for col in metric_avgs_df.columns:
@@ -249,20 +261,30 @@ def print_ranking(ranking: pd.DataFrame, metric_avgs_df: pd.DataFrame = None):
     print("=" * 100)
     print("Scoring: min-max normalization per metric (0=worst, 1=best)")
     print("  'high' = higher is better,  'low' = lower is better")
-    print("  'one' = closer to 1.0 is better,  'zero' = closer to 0.0 is better")
+    print(
+        "  'one' = closer to 1.0 is better,  'zero' = closer to 0.0 is better"
+    )
     print("=" * 100)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Rank unfolding methods by IAEA validation results")
-    parser.add_argument("--csv-dir", type=Path, default=Path(__file__).parent,
-                        help="Directory containing iaea_validation_*.csv files")
+    parser = argparse.ArgumentParser(
+        description="Rank unfolding methods by IAEA validation results"
+    )
+    parser.add_argument(
+        "--csv-dir",
+        type=Path,
+        default=Path(__file__).parent,
+        help="Directory containing iaea_validation_*.csv files",
+    )
     args = parser.parse_args()
 
     print(f"Loading data from: {args.csv_dir}")
     df = load_data(args.csv_dir)
-    print(f"  Loaded {len(df)} rows: {df['method'].nunique()} methods × "
-          f"{df['spectrum'].nunique()} spectra × {df['detector'].nunique()} detectors")
+    print(
+        f"  Loaded {len(df)} rows: {df['method'].nunique()} methods × "
+        f"{df['spectrum'].nunique()} spectra × {df['detector'].nunique()} detectors"
+    )
     print()
 
     ranking, normed, available = rank_methods(df)

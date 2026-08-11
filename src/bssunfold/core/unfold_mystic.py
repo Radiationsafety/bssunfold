@@ -40,7 +40,9 @@ def _nonneg_condition(x: np.ndarray) -> float:
     return float(np.sum(np.maximum(-x, 0.0)))
 
 
-def _build_bounds(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> list:
+def _build_bounds(
+    A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]
+) -> list:
     """Build non-negativity bounds for population-based solvers."""
     n = A.shape[1]
     x0_arr = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float)
@@ -238,7 +240,7 @@ def unfold_mystic(
     Dict[str, Any]
         Unfolding results including spectrum, residuals, and metadata.
     """
-    A, b, selected = _build_system(readings, detector_names, sensitivities)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
     if regularization_method == "manual":
         alpha = regularization
@@ -265,10 +267,7 @@ def unfold_mystic(
             A, b, method="cosine", initial_spectrum=initial_spectrum_norm
         )
         alpha = selected_lambda
-        print(
-            f"Selected regularization (method=cosine): "
-            f"{selected_lambda:.3e}"
-        )
+        print(f"Selected regularization (method=cosine): {selected_lambda:.3e}")
     else:
         if norm != 2:
             warnings.warn(
@@ -284,7 +283,7 @@ def unfold_mystic(
             raise ValueError(
                 f"Regularization selection failed: {e}. "
                 "Consider using manual regularization."
-            )
+            ) from e
         alpha = selected_lambda
         print(
             f"Selected regularization (method={regularization_method}): "

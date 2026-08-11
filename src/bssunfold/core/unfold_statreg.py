@@ -30,7 +30,9 @@ def _lcurve_statreg(
 
     Works in the whitened space: A_tilde = Σ⁻¹⸍² A,  b_tilde = Σ⁻¹⸍² b.
     """
-    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
     ATA = A_tilde.T @ A_tilde
     ATb = A_tilde.T @ b_tilde
     LTL = L.T @ L

@@ -24,7 +24,7 @@ def setup_logging(
     use_handler: bool = False,
 ) -> logging.Logger:
     """Set up logging for the bssunfold package.
-    
+
     Parameters
     ----------
     level : int, optional
@@ -33,20 +33,20 @@ def setup_logging(
         Custom format string. If None, uses default format.
     use_handler : bool, optional
         If True, adds a StreamHandler to the logger.
-    
+
     Returns
     -------
     logging.Logger
         Configured logger instance.
     """
     global _logger
-    
+
     if format_string is None:
         format_string = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    
+
     _logger = logging.getLogger(PACKAGE_LOGGER_NAME)
     _logger.setLevel(level)
-    
+
     # Avoid adding multiple handlers
     if use_handler and not _logger.handlers:
         handler = logging.StreamHandler()
@@ -54,31 +54,31 @@ def setup_logging(
         formatter = logging.Formatter(format_string)
         handler.setFormatter(formatter)
         _logger.addHandler(handler)
-    
+
     return _logger
 
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:
     """Get a logger instance.
-    
+
     Parameters
     ----------
     name : str, optional
         Logger name. If None, returns package logger.
-    
+
     Returns
     -------
     logging.Logger
         Logger instance.
     """
     global _logger
-    
+
     if _logger is None:
         _logger = setup_logging()
-    
+
     if name is None:
         return _logger
-    
+
     return logging.getLogger(f"{PACKAGE_LOGGER_NAME}.{name}")
 
 

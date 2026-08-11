@@ -181,7 +181,7 @@ def _calc_epic_ch(
         X0 = np.ones(n_unknowns) * (bounds[0] + bounds[1]) / 2.0
     X0 = np.asarray(X0, dtype=float).reshape(-1)
     target_sigmas = np.asarray(target_sigmas, dtype=float).reshape(-1)
-    target_var = target_sigmas ** 2
+    target_var = target_sigmas**2
 
     sigma_weight_default = np.exp(np.finfo(float).precision / 4)
 
@@ -198,9 +198,7 @@ def _calc_epic_ch(
             F = F[EPIC_bool]
         F = (F - target_var) / target_var
         if regularize is not None:
-            sigma_weight = regularize.get(
-                "sigma_weight", sigma_weight_default
-            )
+            sigma_weight = regularize.get("sigma_weight", sigma_weight_default)
             F = np.hstack((F, np.exp(beta / 2) / sigma_weight))
         return F
 
@@ -220,22 +218,28 @@ def _calc_epic_ch(
             JF = JF[EPIC_bool, :]
         JF = np.diag(1.0 / target_var) @ JF
         if regularize is not None:
-            sigma_weight = regularize.get(
-                "sigma_weight", sigma_weight_default
-            )
+            sigma_weight = regularize.get("sigma_weight", sigma_weight_default)
             JF2 = 0.5 * np.diag(np.exp(beta / 2)) / sigma_weight
             JF = np.vstack((JF, JF2))
         return JF
 
     if homogeneous_step:
+
         def calc_F_constant_beta1(x, x0):
             return calc_F(x + x0)
 
         sol0 = least_squares(
-            calc_F_constant_beta1, np.array([0.0]), jac="2-point",
-            method=method, args=(X0,), verbose=verbose,
-            ftol=LSQpar["TolFun1"], xtol=LSQpar["TolX1"],
-            loss=loss, gtol=LSQpar["TolG1"], bounds=bounds,
+            calc_F_constant_beta1,
+            np.array([0.0]),
+            jac="2-point",
+            method=method,
+            args=(X0,),
+            verbose=verbose,
+            ftol=LSQpar["TolFun1"],
+            xtol=LSQpar["TolX1"],
+            loss=loss,
+            gtol=LSQpar["TolG1"],
+            bounds=bounds,
         )
         Xnext = sol0.x + X0
     else:
@@ -247,16 +251,25 @@ def _calc_epic_ch(
             tr_options = {"regularize": True, "damp": 1e-3}
         else:
             tr_options = {
-                "regularize": False, "damp": LSQpar.get("damp_trf", 1e-9),
+                "regularize": False,
+                "damp": LSQpar.get("damp_trf", 1e-9),
             }
     else:
         tr_options = None
 
     sol = least_squares(
-        calc_F, Xnext, jac=calc_JF,
-        method=method, verbose=verbose, ftol=LSQpar["TolFun2"],
-        xtol=LSQpar["TolX2"], loss=loss, gtol=LSQpar["TolG2"],
-        bounds=bounds, x_scale="jac", tr_solver=tr_solver,
+        calc_F,
+        Xnext,
+        jac=calc_JF,
+        method=method,
+        verbose=verbose,
+        ftol=LSQpar["TolFun2"],
+        xtol=LSQpar["TolX2"],
+        loss=loss,
+        gtol=LSQpar["TolG2"],
+        bounds=bounds,
+        x_scale="jac",
+        tr_solver=tr_solver,
         tr_options=tr_options,
     )
 
@@ -355,9 +368,16 @@ def _epic_weights(
         raise ValueError("target_sigmas must be finite and strictly positive")
 
     sol = _calc_epic_ch(
-        P, H, target_epic, X0=None, V=V, LSQpar=LSQpar,
-        homogeneous_step=homogeneous_step, beta_shift_k=beta_shift_k,
-        beta_distance=beta_distance, EPIC_bool=EPIC_bool,
+        P,
+        H,
+        target_epic,
+        X0=None,
+        V=V,
+        LSQpar=LSQpar,
+        homogeneous_step=homogeneous_step,
+        beta_shift_k=beta_shift_k,
+        beta_distance=beta_distance,
+        EPIC_bool=EPIC_bool,
         regularize=regularize,
     )
 
@@ -447,7 +467,7 @@ def solve_epic(
     """
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).reshape(-1)
-    m, n = A.shape
+    m, _ = A.shape
     if b.size != m:
         raise ValueError(
             f"b length ({b.size}) must match the number of A rows ({m})"
@@ -459,11 +479,19 @@ def solve_epic(
         )
 
     Wx, H, Wh, _ = _epic_weights(
-        A=A, b=b, target_sigmas=target_sigmas,
-        regularization_order=regularization_order, noise_var=noise_var,
-        homogeneous_step=homogeneous_step, regularize=regularize,
-        beta_shift_k=beta_shift_k, beta_distance=beta_distance,
-        EPIC_bool=EPIC_bool, V=V, LSQpar=LSQpar, sigma_frac=sigma_frac,
+        A=A,
+        b=b,
+        target_sigmas=target_sigmas,
+        regularization_order=regularization_order,
+        noise_var=noise_var,
+        homogeneous_step=homogeneous_step,
+        regularize=regularize,
+        beta_shift_k=beta_shift_k,
+        beta_distance=beta_distance,
+        EPIC_bool=EPIC_bool,
+        V=V,
+        LSQpar=LSQpar,
+        sigma_frac=sigma_frac,
     )
 
     ho = np.zeros(H.shape[0])
@@ -573,11 +601,19 @@ def unfold_epic(
         )
 
     Wx, H, Wh, epic_meta = _epic_weights(
-        A=A, b=b, target_sigmas=target_sigmas,
-        regularization_order=regularization_order, noise_var=noise_var,
-        homogeneous_step=homogeneous_step, regularize=regularize,
-        beta_shift_k=beta_shift_k, beta_distance=beta_distance,
-        EPIC_bool=EPIC_bool, V=V, LSQpar=LSQpar, sigma_frac=sigma_frac,
+        A=A,
+        b=b,
+        target_sigmas=target_sigmas,
+        regularization_order=regularization_order,
+        noise_var=noise_var,
+        homogeneous_step=homogeneous_step,
+        regularize=regularize,
+        beta_shift_k=beta_shift_k,
+        beta_distance=beta_distance,
+        EPIC_bool=EPIC_bool,
+        V=V,
+        LSQpar=LSQpar,
+        sigma_frac=sigma_frac,
     )
     ho = np.zeros(H.shape[0])
 

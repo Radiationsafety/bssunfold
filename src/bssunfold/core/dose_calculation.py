@@ -38,12 +38,14 @@ def _build_registry() -> None:
         ICRP74_COEFF_OPERATIONAL_QUANTITIES,
     )
 
-    DOSE_COEFFICIENTS_REGISTRY.update({
-        "ICRP116": ICRP116_COEFF_EFFECTIVE_DOSE,
-        "ICRP74_effective": ICRP74_COEFF_EFFECTIVE_DOSE,
-        "NRB99_2009_effective": NRB99_2009_COEFF_EFFECTIVE_DOSE,
-        "ICRP74_operational": ICRP74_COEFF_OPERATIONAL_QUANTITIES,
-    })
+    DOSE_COEFFICIENTS_REGISTRY.update(
+        {
+            "ICRP116": ICRP116_COEFF_EFFECTIVE_DOSE,
+            "ICRP74_effective": ICRP74_COEFF_EFFECTIVE_DOSE,
+            "NRB99_2009_effective": NRB99_2009_COEFF_EFFECTIVE_DOSE,
+            "ICRP74_operational": ICRP74_COEFF_OPERATIONAL_QUANTITIES,
+        }
+    )
 
 
 def get_icrp116_coefficients() -> Dict[str, np.ndarray]:
@@ -59,6 +61,7 @@ def get_icrp116_coefficients() -> Dict[str, np.ndarray]:
     if ICRP116_COEFFICIENTS is None:
         try:
             from ..constants import ICRP116_COEFF_EFFECTIVE_DOSE
+
             ICRP116_COEFFICIENTS = ICRP116_COEFF_EFFECTIVE_DOSE
         except ImportError:
             ICRP116_COEFFICIENTS = {}

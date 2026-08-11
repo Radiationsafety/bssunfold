@@ -30,7 +30,7 @@ def _residual_lasso(params, A, b, regularization, method, m):
     if method == "leastsq":
         reg_residual = np.sqrt(regularization) * np.sqrt(np.abs(x))
         return np.concatenate([residual, reg_residual])
-    return np.sum(residual ** 2) + regularization * np.sum(np.abs(x))
+    return np.sum(residual**2) + regularization * np.sum(np.abs(x))
 
 
 def _residual_ridge(params, A, b, regularization, method, m):
@@ -40,10 +40,12 @@ def _residual_ridge(params, A, b, regularization, method, m):
     if method == "leastsq":
         reg_residual = np.sqrt(regularization) * x
         return np.concatenate([residual, reg_residual])
-    return np.sum(residual ** 2) + regularization * np.sum(x ** 2)
+    return np.sum(residual**2) + regularization * np.sum(x**2)
 
 
-def _residual_elastic(params, A, b, regularization, regularization2, l1_weight, method, m):
+def _residual_elastic(
+    params, A, b, regularization, regularization2, l1_weight, method, m
+):
     """Elastic net (L1 + L2) residual function for lmfit."""
     x = np.array([params[f"x{i}"].value for i in range(m)])
     residual = A @ x - b
@@ -53,14 +55,17 @@ def _residual_elastic(params, A, b, regularization, regularization2, l1_weight, 
         reg_residual = np.concatenate([l1_residual, l2_residual])
         return np.concatenate([residual, reg_residual])
     l1_penalty = regularization * l1_weight * np.sum(np.abs(x))
-    l2_penalty = regularization2 * (1 - l1_weight) * np.sum(x ** 2)
-    return np.sum(residual ** 2) + l1_penalty + l2_penalty
+    l2_penalty = regularization2 * (1 - l1_weight) * np.sum(x**2)
+    return np.sum(residual**2) + l1_penalty + l2_penalty
 
 
 _RESIDUAL_MAP = {
     "lasso": (_residual_lasso, ["regularization"]),
     "ridge": (_residual_ridge, ["regularization"]),
-    "elastic": (_residual_elastic, ["regularization", "regularization2", "l1_weight"]),
+    "elastic": (
+        _residual_elastic,
+        ["regularization", "regularization2", "l1_weight"],
+    ),
 }
 
 
@@ -132,7 +137,8 @@ def solve_lmfit(
     result = lmfit.minimize(
         residual_func,
         params,
-        args=(A, b, regularization, method, m) if model_name in ("lasso", "ridge")
+        args=(A, b, regularization, method, m)
+        if model_name in ("lasso", "ridge")
         else (A, b, regularization, regularization2, l1_weight, method, m),
         method=method,
     )
@@ -207,19 +213,25 @@ def unfold_lmfit(
     Dict[str, Any]
         Dictionary containing unfolding results.
     """
-    A, b, selected = _build_system(readings, detector_names, sensitivities)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
     initial_spec_for_output = None
 
     def solve_wrapper(A, b, **kwargs):
         nonlocal initial_spec_for_output
-        x0 = kwargs.pop('x0', None)
+        x0 = kwargs.pop("x0", None)
         if x0 is None:
             x0 = np.ones(A.shape[1]) * np.mean(b) / np.mean(A.sum(axis=1))
         initial_spec_for_output = x0.copy()
-        x_opt, success, message, nfev = solve_lmfit(
-            A, b, x0, method, model_name,
-            regularization, regularization2, l1_weight
+        x_opt, success, _message, nfev = solve_lmfit(
+            A,
+            b,
+            x0,
+            method,
+            model_name,
+            regularization,
+            regularization2,
+            l1_weight,
         )
         return x_opt, nfev, success
 
@@ -241,7 +253,9 @@ def unfold_lmfit(
         extra_output={
             "model_name": model_name,
             "regularization": regularization,
-            "regularization2": regularization2 if model_name == "elastic" else None,
+            "regularization2": regularization2
+            if model_name == "elastic"
+            else None,
             "l1_weight": l1_weight if model_name == "elastic" else None,
         },
         calculate_errors=calculate_errors,

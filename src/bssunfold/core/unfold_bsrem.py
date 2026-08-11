@@ -101,6 +101,7 @@ def solve_bsrem(
         )
 
     if relaxation is None:
+
         def relaxation_seq(_n):
             return 1.0
     elif callable(relaxation):
@@ -134,7 +135,9 @@ def solve_bsrem(
             if prior == "none":
                 grad = np.zeros(n)
             else:
-                grad = omega * prior_gradient(x, prior, beta, prior_delta, gamma)
+                grad = omega * prior_gradient(
+                    x, prior, beta, prior_delta, gamma
+                )
 
             update = correction - norm_sub - grad
             step = np.where(

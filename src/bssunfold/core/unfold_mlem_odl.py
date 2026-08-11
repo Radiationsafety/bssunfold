@@ -81,10 +81,10 @@ def unfold_mlem_odl(
     # selected = [name for name in detector_names if name in readings]
 
     def solve_wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0', None)
+        x0 = kwargs.pop("x0", None)
         if x0 is None:
             x0 = np.ones(A.shape[1]) * 0.5
-        
+
         # Create ODL spaces
         meas_end = max(len(b), 1)
         measurement_space = odl.uniform_discr(0, meas_end, len(b))
@@ -108,7 +108,7 @@ def unfold_mlem_odl(
         # ODL 1.0 requires .data instead of np.asarray()
         x_opt = np.asarray(x.data)
         x_opt = np.maximum(x_opt, 0)
-        
+
         # Return tuple with iterations and converged flag
         return x_opt, max_iterations, True
 

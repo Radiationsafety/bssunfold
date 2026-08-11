@@ -89,9 +89,7 @@ class TestSolveLanczos:
     def test_zero_matrix_alpha_collapse(self):
         from bssunfold.core import solve_lanczos
 
-        x, iterations, converged = solve_lanczos(
-            np.zeros((3, 5)), np.ones(3)
-        )
+        x, iterations, converged = solve_lanczos(np.zeros((3, 5)), np.ones(3))
         assert np.all(x == 0)
         assert converged is True
 
@@ -143,25 +141,25 @@ class TestSolveLanczos:
 class TestUnfoldLanczos:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_lanczos(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert 'effective_readings' in result
-        assert 'residual' in result
-        assert result['method'] == 'Lanczos'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert "effective_readings" in result
+        assert "residual" in result
+        assert result["method"] == "Lanczos"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_lanczos(readings)
-        assert 'spectrum' in result
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_lanczos(readings, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'Lanczos'
+        assert detector.current_result["method"] == "Lanczos"
         assert len(detector.results_history) == 1
 
     def test_no_save(self, detector, readings):
@@ -174,13 +172,11 @@ class TestUnfoldLanczos:
         result = detector.unfold_lanczos(
             all_readings, initial_spectrum=x0, save_result=False
         )
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_invalid_regularization_method(self, detector, readings):
         with pytest.raises(ValueError, match="Unsupported regularization"):
-            detector.unfold_lanczos(
-                readings, regularization_method="manual"
-            )
+            detector.unfold_lanczos(readings, regularization_method="manual")
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_lanczos(
@@ -190,15 +186,15 @@ class TestUnfoldLanczos:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
-        assert result['montecarlo_samples'] == 10
+        assert "spectrum_uncert_mean" in result
+        assert result["montecarlo_samples"] == 10
 
     def test_max_iterations(self, detector, all_readings):
         result = detector.unfold_lanczos(
             all_readings, max_iterations=2, save_result=False
         )
-        assert 'spectrum' in result
-        assert 'iterations' in result
+        assert "spectrum" in result
+        assert "iterations" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -206,16 +202,16 @@ class TestUnfoldLanczos:
 
         assert callable(solve_lanczos)
         assert callable(unfold_lanczos)
-        assert hasattr(Detector, 'unfold_lanczos')
+        assert hasattr(Detector, "unfold_lanczos")
 
     def test_combined_pipeline(self, detector, all_readings):
         result = detector.unfold_combined(
             all_readings,
-            pipeline=[{'method': 'lanczos', 'params': {'save_result': False}}],
+            pipeline=[{"method": "lanczos", "params": {"save_result": False}}],
             verbose=False,
         )
-        assert 'spectrum' in result
-        assert result['pipeline_info']['stages'] == ['lanczos']
+        assert "spectrum" in result
+        assert result["pipeline_info"]["stages"] == ["lanczos"]
 
 
 # ============================================================================
@@ -227,14 +223,16 @@ class TestLanczosSmallDetector:
     def test_small_detector(self):
         from bssunfold import Detector
 
-        df = pd.DataFrame({
-            'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-            'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+                "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+                "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+            }
+        )
         d = Detector(df)
         result = d.unfold_lanczos(
-            {'sphere_1': 1.0, 'sphere_2': 2.0}, save_result=False
+            {"sphere_1": 1.0, "sphere_2": 2.0}, save_result=False
         )
-        assert len(result['spectrum']) == 5
-        assert np.all(np.isfinite(result['spectrum']))
+        assert len(result["spectrum"]) == 5
+        assert np.all(np.isfinite(result["spectrum"]))

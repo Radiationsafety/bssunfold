@@ -76,7 +76,10 @@ def test_unfold_genetic_all_solvers(detector, readings, solver):
 def test_unfold_genetic_alias(detector, readings):
     """Long-form solver aliases resolve to canonical names."""
     result = detector.unfold_genetic(
-        readings, solver="genetic_algorithm", epoch=30, pop_size=20,
+        readings,
+        solver="genetic_algorithm",
+        epoch=30,
+        pop_size=20,
         save_result=False,
     )
     assert result["method"] == "genetic_ga"
@@ -98,7 +101,11 @@ def test_unfold_genetic_unknown_solver(detector, readings):
 def test_unfold_genetic_norm1(detector, readings):
     """L1 regularization norm is supported."""
     result = detector.unfold_genetic(
-        readings, norm=1, regularization=1e-3, epoch=40, pop_size=20,
+        readings,
+        norm=1,
+        regularization=1e-3,
+        epoch=40,
+        pop_size=20,
         save_result=False,
     )
     assert result["norm"] == 1

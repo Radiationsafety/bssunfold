@@ -23,7 +23,9 @@ from ._matrix_utils import create_derivative_matrix
 __all__ = ["solve_cgls", "unfold_cgls"]
 
 
-def _make_regoperator(n: int, smoothness_order: int = 0) -> Optional[np.ndarray]:
+def _make_regoperator(
+    n: int, smoothness_order: int = 0
+) -> Optional[np.ndarray]:
     """Build the regularization operator L for the given derivative order.
 
     Parameters
@@ -45,8 +47,7 @@ def _make_regoperator(n: int, smoothness_order: int = 0) -> Optional[np.ndarray]
         return None
     if smoothness_order not in (1, 2):
         raise ValueError(
-            f"Unsupported smoothness_order: {smoothness_order}. "
-            "Use 0, 1 or 2."
+            f"Unsupported smoothness_order: {smoothness_order}. Use 0, 1 or 2."
         )
     return create_derivative_matrix(n, smoothness_order).toarray()
 
@@ -105,7 +106,7 @@ def solve_cgls(
     """
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
-    m, n = A.shape
+    _, n = A.shape
 
     x = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float).copy()
     if x.shape != (n,):

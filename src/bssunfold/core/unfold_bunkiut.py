@@ -67,7 +67,7 @@ def solve_bunkiut(
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float)
     x0 = np.asarray(x0, dtype=float)
-    m, n = A.shape
+    _, n = A.shape
 
     if lethargy_weights is not None:
         wdleth = np.asarray(lethargy_weights, dtype=float)

@@ -45,8 +45,7 @@ def _make_regoperator(n: int, smoothness_order: int = 0) -> np.ndarray:
         return np.eye(n)
     if smoothness_order not in (1, 2):
         raise ValueError(
-            f"Unsupported smoothness_order: {smoothness_order}. "
-            "Use 0, 1 or 2."
+            f"Unsupported smoothness_order: {smoothness_order}. Use 0, 1 or 2."
         )
     return create_derivative_matrix(n, smoothness_order).toarray()
 
@@ -80,7 +79,7 @@ def _projected_gcv(
     """
     U, s, _ = np.linalg.svd(RA, full_matrices=False)
     c = U.T @ bhat
-    s2 = s ** 2
+    s2 = s**2
 
     lambdas = np.logspace(
         np.log10(lambda_range[0]), np.log10(lambda_range[1]), n_lambdas
@@ -108,7 +107,7 @@ def _projected_dp(
     """Select the regularization parameter by the Discrepancy Principle."""
     U, s, Vt = np.linalg.svd(RA, full_matrices=False)
     c = U.T @ bhat
-    s2 = s ** 2
+    s2 = s**2
     m_proj = RA.shape[0]
     target = noise_level * np.sqrt(m_proj)
 
@@ -134,7 +133,7 @@ def _projected_lcurve(
     """Select the regularization parameter by the L-curve corner."""
     U, s, Vt = np.linalg.svd(RA, full_matrices=False)
     c = U.T @ bhat
-    s2 = s ** 2
+    s2 = s**2
 
     lambdas = np.logspace(
         np.log10(lambda_range[0]), np.log10(lambda_range[1]), n_lambdas

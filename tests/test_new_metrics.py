@@ -68,7 +68,10 @@ def detector():
 @pytest.fixture
 def sample_readings():
     """Sample detector readings."""
-    return {name: float(1.0 + i * 0.1) for i, name in enumerate(Detector().detector_names)}
+    return {
+        name: float(1.0 + i * 0.1)
+        for i, name in enumerate(Detector().detector_names)
+    }
 
 
 # ─── Test EURADOS metrics ─────────────────────────────────────────
@@ -87,7 +90,9 @@ class TestFluenceDifference:
         s1 = np.ones_like(energy_grid)
         s2 = 2.0 * s1
         bins = np.diff(np.concatenate([energy_grid, [energy_grid[-1] * 10]]))
-        assert_almost_equal(fluence_difference_percent(s1, s2, bins[:len(s1)]), 100.0)
+        assert_almost_equal(
+            fluence_difference_percent(s1, s2, bins[: len(s1)]), 100.0
+        )
 
 
 class TestEnergyGroupFluenceDiff:
@@ -116,7 +121,9 @@ class TestDoseDifference:
 class TestFluenceAveragedEnergy:
     def test_identical(self, identical_spectra, energy_grid):
         s1, s2 = identical_spectra
-        assert_almost_equal(fluence_averaged_energy_diff(s1, s2, energy_grid), 0.0)
+        assert_almost_equal(
+            fluence_averaged_energy_diff(s1, s2, energy_grid), 0.0
+        )
 
 
 class TestDoseAveragedEnergy:
@@ -130,7 +137,9 @@ class TestFluenceAveragedEnergyValue:
         idx = 50
         s = np.zeros_like(energy_grid)
         s[idx] = 1.0
-        assert_almost_equal(fluence_averaged_energy(s, energy_grid), energy_grid[idx])
+        assert_almost_equal(
+            fluence_averaged_energy(s, energy_grid), energy_grid[idx]
+        )
 
     def test_uniform(self, energy_grid):
         s = np.ones_like(energy_grid)
@@ -189,7 +198,9 @@ class TestDoseAveragedEnergyValue:
         # constant cc drops out of the H*(10)-averaged energy ratio
         assert_almost_equal(
             dose_averaged_energy(s, energy_grid, cc_ade=cc_ade),
-            dose_averaged_energy(s, energy_grid, cc_ade=np.ones_like(energy_grid)),
+            dose_averaged_energy(
+                s, energy_grid, cc_ade=np.ones_like(energy_grid)
+            ),
         )
 
     def test_zero_spectrum(self, energy_grid):
@@ -210,6 +221,7 @@ class TestAmbientDoseEquivalentRate:
         cc_ade = np.ones_like(energy_grid) * 5.0
         s = np.ones_like(energy_grid)
         from bssunfold.utils.comparison import _compute_log_steps
+
         expected = 5.0 * np.sum(s * _compute_log_steps(energy_grid))
         assert_almost_equal(
             ambient_dose_equivalent_rate(s, energy_grid, cc_ade=cc_ade),
@@ -261,7 +273,9 @@ class TestDoseWeightedError:
 
 class TestResponseMatrixConsistency:
     def test_perfect(self, detector, sample_readings):
-        A = np.array([detector.sensitivities[name] for name in detector.detector_names])
+        A = np.array(
+            [detector.sensitivities[name] for name in detector.detector_names]
+        )
         spectrum = np.ones(detector.n_energy_bins) / detector.n_energy_bins
         readings = A @ spectrum
         chi2 = response_matrix_consistency(spectrum, readings, A)
@@ -271,6 +285,7 @@ class TestResponseMatrixConsistency:
 class TestCompareEurados:
     def test_identical(self, identical_spectra, energy_grid):
         from bssunfold.utils.comparison import compare_spectra
+
         s1, s2 = identical_spectra
         result = compare_spectra(s1, s2, energy=energy_grid)
         assert "fluence_difference_percent" in result
@@ -290,6 +305,7 @@ class TestCompareEurados:
 
     def test_integral_quantity_keys(self, identical_spectra, energy_grid):
         from bssunfold.utils.comparison import compare_spectra
+
         s1, s2 = identical_spectra
         result = compare_spectra(s1, s2, energy=energy_grid)
         assert "fluence_averaged_energy_ref" in result
@@ -310,6 +326,7 @@ class TestCompareEurados:
 
     def test_single_metric_by_name(self, identical_spectra, energy_grid):
         from bssunfold.utils.comparison import compare_spectra
+
         s1, s2 = identical_spectra
         result = compare_spectra(
             s1, s2, metrics="ambient_dose_equivalent_rate", energy=energy_grid
@@ -320,6 +337,7 @@ class TestCompareEurados:
 
     def test_single_metric_without_energy(self, identical_spectra):
         from bssunfold.utils.comparison import compare_spectra
+
         s1, s2 = identical_spectra
         result = compare_spectra(s1, s2, metrics="fluence_averaged_energy")
         assert np.isnan(result["fluence_averaged_energy_ref"])
@@ -331,12 +349,17 @@ class TestCompareEurados:
 
 class TestFruitLike:
     def test_import(self):
-        from bssunfold.core.unfold_fruit_like import solve_fruit_like, unfold_fruit_like
+        from bssunfold.core.unfold_fruit_like import (
+            solve_fruit_like,
+            unfold_fruit_like,
+        )
+
         assert callable(solve_fruit_like)
         assert callable(unfold_fruit_like)
 
     def test_parametric_model(self):
         from bssunfold.core.unfold_fruit_like import parametric_model
+
         E = np.logspace(-9, 1, 50)
         spectrum = parametric_model(E, 1e-6, 0.025e-6, 1e-6, 1e-6, 2.0)
         assert len(spectrum) == len(E)
@@ -351,7 +374,11 @@ class TestFruitLike:
 
 class TestHybridParametric:
     def test_import(self):
-        from bssunfold.core.unfold_hybrid_parametric import solve_hybrid_parametric, unfold_hybrid_parametric
+        from bssunfold.core.unfold_hybrid_parametric import (
+            solve_hybrid_parametric,
+            unfold_hybrid_parametric,
+        )
+
         assert callable(solve_hybrid_parametric)
         assert callable(unfold_hybrid_parametric)
 
@@ -372,7 +399,11 @@ class TestHybridParametric:
 
 class TestBayesianParametric:
     def test_import(self):
-        from bssunfold.core.unfold_bayesian_parametric import solve_bayesian_parametric, unfold_bayesian_parametric
+        from bssunfold.core.unfold_bayesian_parametric import (
+            solve_bayesian_parametric,
+            unfold_bayesian_parametric,
+        )
+
         assert callable(solve_bayesian_parametric)
         assert callable(unfold_bayesian_parametric)
 

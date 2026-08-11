@@ -79,7 +79,10 @@ def detector():
 @pytest.fixture
 def sample_readings():
     """Sample detector readings for unfolding."""
-    return {name: float(1.0 + i * 0.1) for i, name in enumerate(Detector().detector_names)}
+    return {
+        name: float(1.0 + i * 0.1)
+        for i, name in enumerate(Detector().detector_names)
+    }
 
 
 # ─── Internal helpers ─────────────────────────────────────────────
@@ -430,9 +433,19 @@ class TestCompareSpectra:
     def test_multiple_metrics(self, const_spectra):
         s1, s2 = const_spectra
         result = compare_spectra(
-            s1, s2, metrics=["mean_squared_error", "mean_absolute_error", "cosine_similarity"]
+            s1,
+            s2,
+            metrics=[
+                "mean_squared_error",
+                "mean_absolute_error",
+                "cosine_similarity",
+            ],
         )
-        assert set(result.keys()) == {"mean_squared_error", "mean_absolute_error", "cosine_similarity"}
+        assert set(result.keys()) == {
+            "mean_squared_error",
+            "mean_absolute_error",
+            "cosine_similarity",
+        }
         assert_almost_equal(result["mean_squared_error"], 0.0)
         assert_almost_equal(result["cosine_similarity"], 1.0)
 
@@ -509,7 +522,9 @@ class TestDetectorCompare:
     def test_with_labels(self, detector):
         s1 = np.ones(detector.n_energy_bins)
         s2 = np.ones(detector.n_energy_bins) * 2
-        result = detector.compare(s1, s2, metrics="mean_squared_error", labels=["A", "B"])
+        result = detector.compare(
+            s1, s2, metrics="mean_squared_error", labels=["A", "B"]
+        )
         assert isinstance(result, dict)
 
     def test_length_mismatch_raises(self, detector):
@@ -530,6 +545,7 @@ class TestDetectorCompare:
 
     def test_plot_two_spectra(self, detector):
         import matplotlib
+
         matplotlib.use("Agg")
         s1 = np.ones(detector.n_energy_bins)
         s2 = np.ones(detector.n_energy_bins) * 2
@@ -539,24 +555,31 @@ class TestDetectorCompare:
         assert result is not None
         assert fig is not None
         import matplotlib.pyplot as plt
+
         plt.close(fig)
 
     def test_plot_save_to_file(self, detector, tmp_path):
         import matplotlib
+
         matplotlib.use("Agg")
         s1 = np.ones(detector.n_energy_bins)
         s2 = np.ones(detector.n_energy_bins) * 2
         save_path = str(tmp_path / "compare_test.png")
-        detector.compare(s1, s2, metrics="mean_squared_error", plot=True, save_to=save_path)
+        detector.compare(
+            s1, s2, metrics="mean_squared_error", plot=True, save_to=save_path
+        )
         assert tmp_path.joinpath("compare_test.png").exists()
 
     def test_plot_save_to_eps(self, detector, tmp_path):
         import matplotlib
+
         matplotlib.use("Agg")
         s1 = np.ones(detector.n_energy_bins)
         s2 = np.ones(detector.n_energy_bins) * 2
         save_path = str(tmp_path / "compare_test.eps")
-        detector.compare(s1, s2, metrics="mean_squared_error", plot=True, save_to=save_path)
+        detector.compare(
+            s1, s2, metrics="mean_squared_error", plot=True, save_to=save_path
+        )
         assert tmp_path.joinpath("compare_test.eps").exists()
 
     def test_all_metrics_via_detector(self, detector):
@@ -600,7 +623,9 @@ class TestEdgeCases:
             if np.isnan(v1):
                 assert np.isnan(v2), f"Metric {key}: nan mismatch"
             else:
-                assert_almost_equal(v1, v2, err_msg=f"Metric {key} inconsistent")
+                assert_almost_equal(
+                    v1, v2, err_msg=f"Metric {key} inconsistent"
+                )
 
 
 # ─── Import from top-level ────────────────────────────────────────
@@ -609,6 +634,7 @@ class TestEdgeCases:
 class TestImports:
     def test_import_from_top_level(self):
         from bssunfold import compare_spectra as cs
+
         assert cs is not None
 
     def test_import_from_utils(self):
