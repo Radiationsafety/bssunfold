@@ -5,6 +5,9 @@ unfolding methods.
 import numpy as np
 import pandas as pd
 import pytest
+from pathlib import Path
+
+from bssunfold.utils.interpolation import interpolate_spectrum
 
 
 @pytest.fixture
@@ -875,3 +878,71 @@ class TestSmallDetector:
             )
             assert "spectrum" in result
             assert result["pipeline_info"]["stages"] == [method]
+
+
+class TestFirstBinZero:
+    """The default initial spectrum must not pin the first (lowest-energy)
+    bin to the flat-guess value of 1.
+
+    Reference IAEA spectra have ``Phi[0] = 0``, but the detector response at
+    the lowest energy bin is (near-)zero, so the all-ones initial guess was
+    never corrected and the first bin stayed at 1.0. Zeroing the first bin of
+    the default initial spectrum fixes it.
+    """
+
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "bsrem",
+            "mapem",
+            "osem",
+            "sart",
+            "bunki",
+            "bunkiut",
+            "sandii",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "detector_cfg",
+        [
+            pytest.param("GSF", id="GSF"),
+            pytest.param("PTB", id="PTB"),
+            pytest.param("LANL", id="LANL"),
+        ],
+    )
+    def test_first_bin_zero(self, detector_cfg, method):
+        from bssunfold import Detector, RF_PTB, RF_LANL
+
+        if detector_cfg == "GSF":
+            det = Detector()
+        elif detector_cfg == "PTB":
+            det = Detector(pd.DataFrame(RF_PTB))
+        else:
+            det = Detector(pd.DataFrame(RF_LANL))
+
+        csv_path = Path(__file__).parent / (
+            "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
+        )
+        df_ref = pd.read_csv(csv_path)
+        ref_phi = interpolate_spectrum(
+            df_ref["ISO_ref_Cf252"].to_numpy(),
+            df_ref["E_MeV"].to_numpy(),
+            det.E_MeV,
+        )
+        A = np.array([det.sensitivities[n] for n in det.detector_names])
+        b = A @ ref_phi
+        readings = {
+            name: float(val) for name, val in zip(det.detector_names, b)
+        }
+
+        result = getattr(det, f"unfold_{method}")(
+            readings, save_result=False
+        )
+        first_bin = result["spectrum"][0]
+
+        if method == "bsrem":
+            # BSREM floor clamp (addition_after_iteration=1e-4) keeps the
+            # first bin at a small nonzero floor value.
+            assert first_bin <= 1e-3
+        else:
+            assert first_bin == 0.0

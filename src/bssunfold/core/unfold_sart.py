@@ -37,7 +37,9 @@ def solve_sart(
     b : np.ndarray
         Measurement vector (m,).
     x0 : np.ndarray
-        Initial spectrum guess (n,).
+        Initial spectrum guess (n,). The value of the first (lowest-energy)
+        bin is held fixed during iteration because the detector response is
+        (near-)zero there and cannot constrain it.
     max_iterations : int, optional
         Maximum number of iterations (default: 50).
     tolerance : float, optional
@@ -69,6 +71,10 @@ def solve_sart(
 
     eps = 1e-11
     x = np.maximum(x0, 0).copy()
+    # The lowest-energy bin has (near-)zero detector response, so the
+    # additive update cannot constrain it; hold it at the initial-guess
+    # value (0 by default) to avoid a spurious tail at the spectrum edge.
+    x0_first = float(x[0])
     norm_back = A.sum(axis=0)  # A^T 1
     norm_forward = A.sum(axis=1)  # A 1
     converged = False
@@ -82,6 +88,7 @@ def solve_sart(
         residual = (b - A @ x) / (norm_forward + eps)
         update = A.T @ residual
         x = np.maximum(x + alpha * update / (norm_back + eps), 0.0)
+        x[0] = x0_first
 
         rel = np.linalg.norm(x - x_old) / (np.linalg.norm(x_old) + eps)
         if rel < tolerance:
@@ -152,6 +159,7 @@ def unfold_sart(
         Unfolding results dictionary.
     """
     x0_default = np.ones(n_energy_bins)
+    x0_default[0] = 0.0
 
     return run_unfolding(
         detector_names=detector_names,
