@@ -21,7 +21,10 @@ def detector():
 @pytest.fixture
 def readings(detector):
     return {
-        "3in": 0.053, "5in": 0.184, "10in": 0.172, "18in": 0.034,
+        "3in": 0.053,
+        "5in": 0.184,
+        "10in": 0.172,
+        "18in": 0.034,
     }
 
 
@@ -86,9 +89,7 @@ def test_solve_ferdor_core(A, b):
     """The core solver returns a spectrum close to the measurements."""
     from bssunfold.core.unfold_ferdor import solve_ferdor
 
-    spectrum, iterations, converged = solve_ferdor(
-        A, b, x0=np.ones(A.shape[1])
-    )
+    spectrum, iterations, converged = solve_ferdor(A, b, x0=np.ones(A.shape[1]))
     assert spectrum.shape == (A.shape[1],)
     assert np.all(spectrum >= 0)
     assert isinstance(iterations, int)
@@ -119,9 +120,7 @@ def test_solve_ferdor_regularization(A, b):
     """The smoothing weight is accepted by the core solver."""
     from bssunfold.core.unfold_ferdor import solve_ferdor
 
-    spectrum, _, _ = solve_ferdor(
-        A, b, x0=np.ones(A.shape[1]), smoothing=0.1
-    )
+    spectrum, _, _ = solve_ferdor(A, b, x0=np.ones(A.shape[1]), smoothing=0.1)
     assert spectrum.shape == (A.shape[1],)
 
 
@@ -181,8 +180,12 @@ def test_solve_ferdor_chi_target(A, b):
     from bssunfold.core.unfold_ferdor import solve_ferdor
 
     spectrum, iterations, converged = solve_ferdor(
-        A, b, x0=np.ones(A.shape[1]), chi_squared_target=10.0,
-        smoothing=1e-3, max_iterations=50,
+        A,
+        b,
+        x0=np.ones(A.shape[1]),
+        chi_squared_target=10.0,
+        smoothing=1e-3,
+        max_iterations=50,
     )
     assert spectrum.shape == (A.shape[1],)
     assert iterations > 0
@@ -216,9 +219,7 @@ def test_solve_ferdor_lstsq_fallback(A, b):
 
     singular = np.zeros((2, 4))
     singular[:, 0] = 1.0
-    spectrum, _, _ = solve_ferdor(
-        singular, np.ones(2), x0=np.ones(4)
-    )
+    spectrum, _, _ = solve_ferdor(singular, np.ones(2), x0=np.ones(4))
     assert spectrum.shape == (4,)
 
 
@@ -226,7 +227,7 @@ def test_solve_ferdor_singular_no_solution(A, b):
     """A fully singular system returns a zero-scale fallback."""
     from unittest.mock import patch
 
-    from bssunfold.core.unfold_ferdor import solve_ferdor, _solve_weighted_ls
+    from bssunfold.core.unfold_ferdor import solve_ferdor
 
     zero_sys = np.zeros((2, 4))
     with patch(
@@ -246,8 +247,12 @@ def test_solve_ferdor_low_target(A, b):
     from bssunfold.core.unfold_ferdor import solve_ferdor
 
     spectrum, iterations, converged = solve_ferdor(
-        A, b, x0=np.ones(A.shape[1]), chi_squared_target=0.01,
-        smoothing=1.0, max_iterations=50,
+        A,
+        b,
+        x0=np.ones(A.shape[1]),
+        chi_squared_target=0.01,
+        smoothing=1.0,
+        max_iterations=50,
     )
     assert spectrum.shape == (A.shape[1],)
     assert iterations > 0

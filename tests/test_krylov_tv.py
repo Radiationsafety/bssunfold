@@ -127,14 +127,14 @@ class TestSolveCgls:
 class TestUnfoldCgls:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_cgls(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert 'effective_readings' in result
-        assert 'residual' in result
-        assert result['method'] == 'CGLS'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert "effective_readings" in result
+        assert "residual" in result
+        assert result["method"] == "CGLS"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_regularization(self, detector, all_readings):
         result = detector.unfold_cgls(
@@ -143,20 +143,20 @@ class TestUnfoldCgls:
             smoothness_order=2,
             save_result=False,
         )
-        assert 'spectrum' in result
-        assert result['regularization'] == pytest.approx(1e-4)
-        assert result['smoothness_order'] == 2
+        assert "spectrum" in result
+        assert result["regularization"] == pytest.approx(1e-4)
+        assert result["smoothness_order"] == 2
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_cgls(readings, save_result=False)
-        assert 'spectrum' in result
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_cgls(readings, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'CGLS'
+        assert detector.current_result["method"] == "CGLS"
         assert len(detector.results_history) == 1
 
     def test_montecarlo_errors(self, detector, all_readings):
@@ -167,8 +167,8 @@ class TestUnfoldCgls:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
-        assert result['montecarlo_samples'] == 10
+        assert "spectrum_uncert_mean" in result
+        assert result["montecarlo_samples"] == 10
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -176,7 +176,7 @@ class TestUnfoldCgls:
 
         assert callable(solve_cgls)
         assert callable(unfold_cgls)
-        assert hasattr(Detector, 'unfold_cgls')
+        assert hasattr(Detector, "unfold_cgls")
 
 
 # ============================================================================
@@ -225,7 +225,7 @@ class TestSolveGks:
         A = rng.random((6, 12))
         b = A @ np.ones(12)
         x, iterations, converged = solve_gks(
-            A, b, regularization_method='dp', noise_level=0.5
+            A, b, regularization_method="dp", noise_level=0.5
         )
         assert len(x) == 12
         assert iterations > 0
@@ -238,7 +238,7 @@ class TestSolveGks:
         A = rng.random((6, 12))
         b = A @ np.ones(12)
         x, iterations, converged = solve_gks(
-            A, b, regularization_method='lcurve'
+            A, b, regularization_method="lcurve"
         )
         assert len(x) == 12
         assert iterations > 0
@@ -250,7 +250,7 @@ class TestSolveGks:
         A = rng.random((6, 12))
         b = A @ np.ones(12)
         x, iterations, converged = solve_gks(
-            A, b, regularization_method='manual', regularization=1e-4
+            A, b, regularization_method="manual", regularization=1e-4
         )
         assert len(x) == 12
         assert iterations > 0
@@ -261,7 +261,7 @@ class TestSolveGks:
         A = np.random.default_rng(14).random((4, 8))
         b = A @ np.ones(8)
         with pytest.raises(ValueError, match="regularization method"):
-            solve_gks(A, b, regularization_method='bogus')
+            solve_gks(A, b, regularization_method="bogus")
 
     def test_invalid_smoothness_order(self):
         from bssunfold.core import solve_gks
@@ -277,7 +277,7 @@ class TestSolveGks:
         rng = np.random.default_rng(23)
         A = rng.random((6, 12))
         b = A @ np.ones(12)
-        x, iterations, _ = solve_gks(A, b, regularization_method='dp')
+        x, iterations, _ = solve_gks(A, b, regularization_method="dp")
         assert len(x) == 12
         assert iterations > 0
 
@@ -327,36 +327,36 @@ class TestSolveGks:
 class TestUnfoldGks:
     def test_basic(self, detector, all_readings):
         result = detector.unfold_gks(all_readings, save_result=False)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert 'effective_readings' in result
-        assert 'residual' in result
-        assert result['method'] == 'GKS'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert "effective_readings" in result
+        assert "residual" in result
+        assert result["method"] == "GKS"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_regularization_methods(self, detector, all_readings):
-        for method in ('gcv', 'dp', 'lcurve', 'manual'):
+        for method in ("gcv", "dp", "lcurve", "manual"):
             result = detector.unfold_gks(
                 all_readings,
                 regularization_method=method,
                 noise_level=0.01,
                 save_result=False,
             )
-            assert 'spectrum' in result
-            assert result['regularization_method'] == method
+            assert "spectrum" in result
+            assert result["regularization_method"] == method
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_gks(readings, save_result=False)
-        assert 'spectrum' in result
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
         detector.unfold_gks(readings, save_result=True)
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'GKS'
+        assert detector.current_result["method"] == "GKS"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_gks(
@@ -366,7 +366,7 @@ class TestUnfoldGks:
             random_state=7,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -374,7 +374,7 @@ class TestUnfoldGks:
 
         assert callable(solve_gks)
         assert callable(unfold_gks)
-        assert hasattr(Detector, 'unfold_gks')
+        assert hasattr(Detector, "unfold_gks")
 
 
 # ============================================================================
@@ -423,7 +423,7 @@ class TestSolveTikhonovTv:
         rng = np.random.default_rng(16)
         A = rng.random((6, 12))
         b = A @ np.ones(12)
-        for type_ in ('TT', 'TV', 'T'):
+        for type_ in ("TT", "TV", "T"):
             x, _, _ = solve_tikhonov_tv(A, b, type_=type_, max_iterations=30)
             assert len(x) == 12
             assert np.all(np.isfinite(x))
@@ -434,7 +434,7 @@ class TestSolveTikhonovTv:
         A = np.random.default_rng(17).random((4, 8))
         b = A @ np.ones(8)
         with pytest.raises(ValueError, match="type_"):
-            solve_tikhonov_tv(A, b, type_='BOGUS', max_iterations=10)
+            solve_tikhonov_tv(A, b, type_="BOGUS", max_iterations=10)
 
     def test_adaptive_beta(self):
         from bssunfold.core import solve_tikhonov_tv
@@ -442,7 +442,7 @@ class TestSolveTikhonovTv:
         rng = np.random.default_rng(18)
         A = rng.random((6, 12))
         b = A @ np.ones(12)
-        x, _, _ = solve_tikhonov_tv(A, b, beta='adapt', max_iterations=30)
+        x, _, _ = solve_tikhonov_tv(A, b, beta="adapt", max_iterations=30)
         assert len(x) == 12
         assert np.all(np.isfinite(x))
 
@@ -453,9 +453,7 @@ class TestSolveTikhonovTv:
         A = rng.random((6, 12))
         b = A @ np.ones(12)
         noise = 0.01 * np.linalg.norm(b)
-        x, _, _ = solve_tikhonov_tv(
-            A, b, epsilon=noise**2, max_iterations=30
-        )
+        x, _, _ = solve_tikhonov_tv(A, b, epsilon=noise**2, max_iterations=30)
         assert len(x) == 12
         assert np.all(np.isfinite(x))
 
@@ -465,7 +463,9 @@ class TestSolveTikhonovTv:
         rng = np.random.default_rng(20)
         A = rng.random((6, 12))
         b = A @ np.ones(12)
-        x, _, _ = solve_tikhonov_tv(A, b, mu=(10.0, 1.0, 1.0), max_iterations=30)
+        x, _, _ = solve_tikhonov_tv(
+            A, b, mu=(10.0, 1.0, 1.0), max_iterations=30
+        )
         assert len(x) == 12
 
     def test_beta_zero_g2(self):
@@ -474,8 +474,9 @@ class TestSolveTikhonovTv:
         rng = np.random.default_rng(25)
         A = rng.random((6, 12))
         b = A @ np.ones(12)
-        x, _, _ = solve_tikhonov_tv(A, b, type_='TV', beta=0.0,
-                                    max_iterations=30)
+        x, _, _ = solve_tikhonov_tv(
+            A, b, type_="TV", beta=0.0, max_iterations=30
+        )
         assert len(x) == 12
         assert np.all(np.isfinite(x))
 
@@ -508,8 +509,9 @@ class TestSolveTikhonovTv:
         rng = np.random.default_rng(26)
         A = rng.random((6, 12))
         b = A @ np.ones(12)
-        x, _, _ = solve_tikhonov_tv(A, b, type_='TT', beta=0.0,
-                                    max_iterations=30)
+        x, _, _ = solve_tikhonov_tv(
+            A, b, type_="TT", beta=0.0, max_iterations=30
+        )
         assert len(x) == 12
         assert np.all(np.isfinite(x))
 
@@ -519,9 +521,10 @@ class TestSolveTikhonovTv:
         rng = np.random.default_rng(27)
         A = rng.random((6, 12))
         b = A @ np.ones(12)
-        for type_ in ('TV', 'T'):
-            x, _, _ = solve_tikhonov_tv(A, b, type_=type_, beta='adapt',
-                                        max_iterations=30)
+        for type_ in ("TV", "T"):
+            x, _, _ = solve_tikhonov_tv(
+                A, b, type_=type_, beta="adapt", max_iterations=30
+            )
             assert len(x) == 12
             assert np.all(np.isfinite(x))
 
@@ -531,28 +534,28 @@ class TestUnfoldTikhonovTv:
         result = detector.unfold_tikhonov_tv(
             all_readings, max_iterations=30, save_result=False
         )
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert 'effective_readings' in result
-        assert 'residual' in result
-        assert result['method'] == 'TikhonovTV'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert "effective_readings" in result
+        assert "residual" in result
+        assert result["method"] == "TikhonovTV"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_types(self, detector, all_readings):
-        for type_ in ('TT', 'TV', 'T'):
+        for type_ in ("TT", "TV", "T"):
             result = detector.unfold_tikhonov_tv(
                 all_readings, type_=type_, max_iterations=30, save_result=False
             )
-            assert 'spectrum' in result
-            assert result['type_'] == type_
+            assert "spectrum" in result
+            assert result["type_"] == type_
 
     def test_adaptive_beta(self, detector, all_readings):
         result = detector.unfold_tikhonov_tv(
-            all_readings, beta='adapt', max_iterations=30, save_result=False
+            all_readings, beta="adapt", max_iterations=30, save_result=False
         )
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_noise_level_epsilon(self, detector, all_readings):
         result = detector.unfold_tikhonov_tv(
@@ -561,21 +564,23 @@ class TestUnfoldTikhonovTv:
             max_iterations=30,
             save_result=False,
         )
-        assert 'spectrum' in result
-        assert result['epsilon'] is not None
+        assert "spectrum" in result
+        assert result["epsilon"] is not None
 
     def test_single_detector(self, detector, readings):
         result = detector.unfold_tikhonov_tv(
             readings, max_iterations=30, save_result=False
         )
-        assert 'spectrum' in result
-        assert len(result['spectrum']) == detector.n_energy_bins
+        assert "spectrum" in result
+        assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_save_result(self, detector, readings):
         detector.clear_results()
-        detector.unfold_tikhonov_tv(readings, max_iterations=30, save_result=True)
+        detector.unfold_tikhonov_tv(
+            readings, max_iterations=30, save_result=True
+        )
         assert detector.current_result is not None
-        assert detector.current_result['method'] == 'TikhonovTV'
+        assert detector.current_result["method"] == "TikhonovTV"
 
     def test_montecarlo_errors(self, detector, all_readings):
         result = detector.unfold_tikhonov_tv(
@@ -586,7 +591,7 @@ class TestUnfoldTikhonovTv:
             max_iterations=30,
             save_result=False,
         )
-        assert 'spectrum_uncert_mean' in result
+        assert "spectrum_uncert_mean" in result
 
     def test_exported_symbols(self):
         from bssunfold import Detector
@@ -594,7 +599,7 @@ class TestUnfoldTikhonovTv:
 
         assert callable(solve_tikhonov_tv)
         assert callable(unfold_tikhonov_tv)
-        assert hasattr(Detector, 'unfold_tikhonov_tv')
+        assert hasattr(Detector, "unfold_tikhonov_tv")
 
 
 # ============================================================================
@@ -606,55 +611,62 @@ class TestSmallDetector:
     def test_cgls_small_detector(self):
         from bssunfold import Detector
 
-        df = pd.DataFrame({
-            'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-            'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+                "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+                "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+            }
+        )
         d = Detector(df)
         result = d.unfold_cgls(
-            {'sphere_1': 1.0, 'sphere_2': 2.0}, save_result=False
+            {"sphere_1": 1.0, "sphere_2": 2.0}, save_result=False
         )
-        assert len(result['spectrum']) == 5
-        assert np.all(np.isfinite(result['spectrum']))
+        assert len(result["spectrum"]) == 5
+        assert np.all(np.isfinite(result["spectrum"]))
 
     def test_gks_small_detector(self):
         from bssunfold import Detector
 
-        df = pd.DataFrame({
-            'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-            'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+                "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+                "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+            }
+        )
         d = Detector(df)
         result = d.unfold_gks(
-            {'sphere_1': 1.0, 'sphere_2': 2.0}, save_result=False
+            {"sphere_1": 1.0, "sphere_2": 2.0}, save_result=False
         )
-        assert len(result['spectrum']) == 5
-        assert np.all(np.isfinite(result['spectrum']))
+        assert len(result["spectrum"]) == 5
+        assert np.all(np.isfinite(result["spectrum"]))
 
     def test_tikhonov_tv_small_detector(self):
         from bssunfold import Detector
 
-        df = pd.DataFrame({
-            'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-            'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+                "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+                "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+            }
+        )
         d = Detector(df)
         result = d.unfold_tikhonov_tv(
-            {'sphere_1': 1.0, 'sphere_2': 2.0}, max_iterations=30,
+            {"sphere_1": 1.0, "sphere_2": 2.0},
+            max_iterations=30,
             save_result=False,
         )
-        assert len(result['spectrum']) == 5
-        assert np.all(np.isfinite(result['spectrum']))
+        assert len(result["spectrum"]) == 5
+        assert np.all(np.isfinite(result["spectrum"]))
 
     def test_combined_pipeline(self, detector, all_readings):
-        for method in ('cgls', 'gks', 'tikhonov_tv'):
+        for method in ("cgls", "gks", "tikhonov_tv"):
             result = detector.unfold_combined(
                 all_readings,
-                pipeline=[{'method': method, 'params': {'save_result': False}}],
+                pipeline=[{"method": method, "params": {"save_result": False}}],
                 verbose=False,
             )
-            assert 'spectrum' in result
-            assert result['pipeline_info']['stages'] == [method]
+            assert "spectrum" in result
+            assert result["pipeline_info"]["stages"] == [method]

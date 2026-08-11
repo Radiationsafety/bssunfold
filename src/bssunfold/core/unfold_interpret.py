@@ -77,7 +77,7 @@ class _PyOptExplainNamespace:
         if self._loaded is not None:
             return self._loaded
         try:
-            import pyoptexplain  # noqa: F401
+            import pyoptexplain  # noqa: F401  # pylint: disable=unused-import
         except ImportError as exc:
             raise ImportError(
                 "The interpretation module requires pyoptexplain. "
@@ -204,7 +204,9 @@ def build_interpretation_qp(
             f"Unsupported smoothness_order: {smoothness_order}. Use 0, 1 or 2."
         )
     if not np.isfinite(smoothness_weight) or smoothness_weight < 0.0:
-        raise ValueError("smoothness_weight must be a finite non-negative number.")
+        raise ValueError(
+            "smoothness_weight must be a finite non-negative number."
+        )
     if not np.isfinite(lower_bound):
         raise ValueError("lower_bound must be finite.")
     if enforce_norm and (not np.isfinite(norm_value)):
@@ -350,25 +352,6 @@ def solve_interpret(
     return np.asarray(result.primal_solution, dtype=float)
 
 
-def _spectrum_columns(
-    scenario_df: Any,
-    n: int,
-    prefix: str = "variable:",
-) -> Dict[str, List[float]]:
-    """Extract per-scenario spectra from a pyoptexplain scenario frame."""
-    spectra: Dict[str, List[float]] = {}
-    cols = [f"{prefix}E{i}" for i in range(n)]
-    present = [c for c in cols if c in scenario_df.columns]
-    for _, row in scenario_df.iterrows():
-        name = str(row["scenario"])
-        values = [row[c] for c in present]
-        spectra[name] = (
-            [float(v) for v in values] if all(v is not None for v in values)
-            else []
-        )
-    return spectra
-
-
 def _detector_sensitivity(
     A: np.ndarray,
     b: np.ndarray,
@@ -384,9 +367,7 @@ def _detector_sensitivity(
     base_l1 = max(1.0, float(np.sum(np.abs(base_x))))
     rows: List[Dict[str, Any]] = []
     for i in range(b.shape[0]):
-        name = (
-            str(detector_names[i]) if detector_names is not None else str(i)
-        )
+        name = str(detector_names[i]) if detector_names is not None else str(i)
         for delta in deltas:
             b2 = b.copy()
             b2[i] = b2[i] * (1.0 + delta)
@@ -662,13 +643,13 @@ def interpret_qp(
     b = np.asarray(b, dtype=float)
     n = A.shape[1]
 
-    build_kwargs: Dict[str, Any] = dict(
-        norm=norm,
-        smoothness_order=smoothness_order,
-        smoothness_weight=smoothness_weight,
-        enforce_norm=enforce_norm,
-        norm_value=norm_value,
-    )
+    build_kwargs: Dict[str, Any] = {
+        "norm": norm,
+        "smoothness_order": smoothness_order,
+        "smoothness_weight": smoothness_weight,
+        "enforce_norm": enforce_norm,
+        "norm_value": norm_value,
+    }
 
     handle = build_interpretation_qp(A, b, alpha, **build_kwargs)
     analyzer = _make_analyzer(handle, py, tolerance)
@@ -707,7 +688,7 @@ def interpret_qp(
                 "effective": computed,
                 "residual": res_i,
                 "relative_residual": res_i / max(1e-12, abs(reading)),
-                "squared_share": float(res_i ** 2) / max(1e-12, residual_norm ** 2),
+                "squared_share": float(res_i**2) / max(1e-12, residual_norm**2),
             }
         )
 
@@ -739,10 +720,18 @@ def interpret_qp(
         )
         for i, row in variables_df.iterrows():
             name = str(row["name"])
-            idx = int(name[1:]) if name.startswith("E") and name[1:].isdigit() else None
+            idx = (
+                int(name[1:])
+                if name.startswith("E") and name[1:].isdigit()
+                else None
+            )
             if idx is None:
                 continue
-            value = float(row.get("value", np.nan)) if row.get("value") is not None else np.nan
+            value = (
+                float(row.get("value", np.nan))
+                if row.get("value") is not None
+                else np.nan
+            )
             if at_lower is not None and bool(at_lower.iloc[i]):
                 active_groups.append(idx)
             if value <= tolerance or np.isclose(value, 0.0, atol=tolerance):
@@ -870,16 +859,16 @@ def interpret_qp(
         E_MeV=E_MeV,
         residual_norm=residual_norm,
         Q=np.asarray(handle.quadratic_representation().Q, dtype=float),
-        model=dict(
-            norm=norm,
-            alpha=float(alpha),
-            smoothness_order=smoothness_order,
-            smoothness_weight=float(smoothness_weight),
-            enforce_norm=bool(enforce_norm),
-            norm_value=float(norm_value) if enforce_norm else None,
-            n_energy_bins=n,
-            n_detectors=int(b.shape[0]),
-        ),
+        model={
+            "norm": norm,
+            "alpha": float(alpha),
+            "smoothness_order": smoothness_order,
+            "smoothness_weight": float(smoothness_weight),
+            "enforce_norm": bool(enforce_norm),
+            "norm_value": float(norm_value) if enforce_norm else None,
+            "n_energy_bins": n,
+            "n_detectors": int(b.shape[0]),
+        },
         active_groups=active_groups,
         zero_groups=zero_groups,
         bound_duals=bound_duals,
@@ -1013,7 +1002,9 @@ def _detector_importance(
     by_name: Dict[str, float] = {}
     for row in sensitivity_rows:
         name = row["detector"]
-        by_name[name] = max(by_name.get(name, 0.0), float(row["spectrum_change"]))
+        by_name[name] = max(
+            by_name.get(name, 0.0), float(row["spectrum_change"])
+        )
     ranked = sorted(by_name.items(), key=lambda item: item[1], reverse=True)
     return [
         {"detector": name, "max_spectrum_change": value}
@@ -1050,7 +1041,8 @@ def _robustness_metrics(robustness_summary: Any) -> Dict[str, Any]:
     deltas = [
         r["max_variable_change_relative"]
         for r in rows
-        if r["target"] == "objective" and r["max_variable_change_relative"] is not None
+        if r["target"] == "objective"
+        and r["max_variable_change_relative"] is not None
     ]
     return {
         "case_count": len(rows),
@@ -1130,7 +1122,9 @@ def _build_report(
 
         spec_df = pd.DataFrame(spectrum_table)
     else:
-        spec_df = pd.DataFrame({"group": [f"E{i}" for i in range(x.size)], "spectrum": x.tolist()})
+        spec_df = pd.DataFrame(
+            {"group": [f"E{i}" for i in range(x.size)], "spectrum": x.tolist()}
+        )
     sections.append("## Spectrum")
     sections.append(_df_to_markdown(spec_df))
     sections.append("")
@@ -1146,7 +1140,9 @@ def _build_report(
             f"non-negativity bound: {preview}."
         )
     else:
-        sections.append("- No energy group is pinned at the non-negativity bound.")
+        sections.append(
+            "- No energy group is pinned at the non-negativity bound."
+        )
     sections.append("")
 
     if constraints_df is not None and len(constraints_df):
@@ -1219,9 +1215,7 @@ def _build_report(
     return "\n".join(sections)
 
 
-def _conclusions(
-    metrics: Dict[str, Any], enforce_norm: bool
-) -> List[str]:
+def _conclusions(metrics: Dict[str, Any], enforce_norm: bool) -> List[str]:
     """Generate natural-language interpretation bullets."""
     lines: List[str] = []
 
@@ -1296,9 +1290,7 @@ def _conclusions(
     if sweep:
         feasible = [r for r in sweep if r["status"] == "optimal"]
         if feasible:
-            best = min(
-                feasible, key=lambda r: (r["residual_norm"], r["alpha"])
-            )
+            best = min(feasible, key=lambda r: (r["residual_norm"], r["alpha"]))
             lines.append(
                 f"In the regularization sweep, alpha={best['alpha']:.6g} "
                 f"gives the smallest residual norm "

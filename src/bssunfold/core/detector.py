@@ -38,16 +38,26 @@ from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
 from .unfold_gravel import unfold_gravel as unfold_gravel_impl
 from .unfold_maxed import unfold_maxed as unfold_maxed_impl
-from .unfold_tikhonov_legendre import unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl
+from .unfold_tikhonov_legendre import (
+    unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
+)
 from .unfold_bayes import unfold_bayes as unfold_bayes_impl
-from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularization as unfold_bayes_spline_impl
+from .unfold_bayes_spline_regularization import (
+    unfold_bayes_spline_regularization as unfold_bayes_spline_impl,
+)
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
-from .unfold_scipy_direct_method import unfold_scipy_direct_method as unfold_scipy_direct_impl
+from .unfold_scipy_direct_method import (
+    unfold_scipy_direct_method as unfold_scipy_direct_impl,
+)
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
 from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
-from .unfold_hybrid_parametric import unfold_hybrid_parametric as unfold_hybrid_parametric_impl
-from .unfold_bayesian_parametric import unfold_bayesian_parametric as unfold_bayesian_parametric_impl
+from .unfold_hybrid_parametric import (
+    unfold_hybrid_parametric as unfold_hybrid_parametric_impl,
+)
+from .unfold_bayesian_parametric import (
+    unfold_bayesian_parametric as unfold_bayesian_parametric_impl,
+)
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_smt import unfold_smt as unfold_smt_impl
@@ -220,7 +230,7 @@ class Detector:
                         )
                     data[det_name] = sens_arr
                 return pd.DataFrame(data)
-            elif isinstance(sensitivities, np.ndarray):
+            if isinstance(sensitivities, np.ndarray):
                 if sensitivities.ndim != 2:
                     raise ValueError(
                         "sensitivities must be 2D array (n_energy, n_detectors)"
@@ -237,11 +247,14 @@ class Detector:
                 for i, name in enumerate(detector_names):
                     data[name] = sensitivities[:, i]
                 return pd.DataFrame(data)
-            else:
-                raise TypeError("sensitivities must be dict or np.ndarray")
+            raise TypeError("sensitivities must be dict or np.ndarray")
 
         # Case 4: No arguments, use default
-        if response_functions is None and E_MeV is None and sensitivities is None:
+        if (
+            response_functions is None
+            and E_MeV is None
+            and sensitivities is None
+        ):
             return pd.DataFrame(RF_GSF)
 
         raise ValueError(
@@ -323,9 +336,7 @@ class Detector:
         self, readings: Dict[str, float]
     ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """Build response matrix A and measurement vector b."""
-        selected = [
-            name for name in self.detector_names if name in readings
-        ]
+        selected = [name for name in self.detector_names if name in readings]
         b = np.array([readings[name] for name in selected], dtype=float)
         A = np.array(
             [self.sensitivities[name] for name in selected], dtype=float
@@ -357,7 +368,9 @@ class Detector:
             "residual": residual.copy(),
             "residual_norm": float(np.linalg.norm(residual)),
             "method": method,
-            "doserates": calculate_dose_rates(spectrum_nonneg, self._get_interpolated_cc()),
+            "doserates": calculate_dose_rates(
+                spectrum_nonneg, self._get_interpolated_cc()
+            ),
         }
         output.update(kwargs)
         return output
@@ -405,9 +418,7 @@ class Detector:
         logger.info(f"Result saved with key: {key}")
         return key
 
-    def get_result(
-        self, key: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+    def get_result(self, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get unfolding result from history."""
         if key is None:
             return self.current_result
@@ -1989,9 +2000,7 @@ class Detector:
         if save_to is None:
             return
         allowed_extensions = (".png", ".jpg", ".jpeg", ".eps", ".pdf")
-        if not any(
-            save_to.lower().endswith(ext) for ext in allowed_extensions
-        ):
+        if not any(save_to.lower().endswith(ext) for ext in allowed_extensions):
             raise ValueError(
                 f"Unsupported file extension. Allowed: {allowed_extensions}"
             )
@@ -4366,7 +4375,8 @@ class Detector:
         readings = self._validate_readings(readings)
         A, b, _ = self._build_system(readings)
         return rand_exp_util(
-            A, b,
+            A,
+            b,
             noise_var=noise_var,
             n_samples=n_samples,
             rseed=rseed,
@@ -4447,10 +4457,16 @@ class Detector:
         extra_readings = [None, None]
         extra_rm = [None, None]
         _meta_keys = {
-            "E_MeV", "energy", "readings", "response_matrix",
-            "effective_readings", "doserates",
-            "spectrum_uncert_min", "spectrum_uncert_max",
-            "spectrum_uncert_std", "spectrum_uncert_mean",
+            "E_MeV",
+            "energy",
+            "readings",
+            "response_matrix",
+            "effective_readings",
+            "doserates",
+            "spectrum_uncert_min",
+            "spectrum_uncert_max",
+            "spectrum_uncert_std",
+            "spectrum_uncert_mean",
         }
         for i, s in enumerate(spectra):
             if isinstance(s, dict):
@@ -4476,14 +4492,22 @@ class Detector:
                         )
                 if i < 2:
                     if readings1 is None and "readings" in s and i == 0:
-                        extra_readings[0] = np.asarray(s["readings"], dtype=float)
+                        extra_readings[0] = np.asarray(
+                            s["readings"], dtype=float
+                        )
                     if readings2 is None and "readings" in s and i == 1:
-                        extra_readings[1] = np.asarray(s["readings"], dtype=float)
+                        extra_readings[1] = np.asarray(
+                            s["readings"], dtype=float
+                        )
                     if response_matrix is None and "response_matrix" in s:
-                        extra_rm[i] = np.asarray(s["response_matrix"], dtype=float)
+                        extra_rm[i] = np.asarray(
+                            s["response_matrix"], dtype=float
+                        )
             elif isinstance(s, np.ndarray):
                 if s.ndim != 1:
-                    raise ValueError(f"Spectrum {i} must be 1-D, got shape {s.shape}")
+                    raise ValueError(
+                        f"Spectrum {i} must be 1-D, got shape {s.shape}"
+                    )
                 parsed.append(s)
             else:
                 raise TypeError(
@@ -4515,16 +4539,25 @@ class Detector:
         # Resolve readings / response_matrix for EURADOS metrics
         r1 = readings1 if readings1 is not None else extra_readings[0]
         r2 = readings2 if readings2 is not None else extra_readings[1]
-        rm = response_matrix if response_matrix is not None else (extra_rm[0] if extra_rm[0] is not None else extra_rm[1])
+        rm = (
+            response_matrix
+            if response_matrix is not None
+            else (extra_rm[0] if extra_rm[0] is not None else extra_rm[1])
+        )
         use_energy = self.E_MeV
         use_cc = self._get_interpolated_cc()
 
         # Single-pair comparison
         if len(parsed) == 2:
             result = compare_spectra(
-                parsed[0], parsed[1], metrics=metrics,
-                energy=use_energy, cc_icrp116=use_cc,
-                readings1=r1, readings2=r2, response_matrix=rm,
+                parsed[0],
+                parsed[1],
+                metrics=metrics,
+                energy=use_energy,
+                cc_icrp116=use_cc,
+                readings1=r1,
+                readings2=r2,
+                response_matrix=rm,
             )
         else:
             pairs = {}
@@ -4532,9 +4565,14 @@ class Detector:
             for i in range(1, len(parsed)):
                 key = f"{labels[0]} vs {labels[i]}"
                 pairs[key] = compare_spectra(
-                    ref, parsed[i], metrics=metrics,
-                    energy=use_energy, cc_icrp116=use_cc,
-                    readings1=r1, readings2=r2, response_matrix=rm,
+                    ref,
+                    parsed[i],
+                    metrics=metrics,
+                    energy=use_energy,
+                    cc_icrp116=use_cc,
+                    readings1=r1,
+                    readings2=r2,
+                    response_matrix=rm,
                 )
             result_df = pd.DataFrame(pairs)
             result = result_df
@@ -4577,18 +4615,20 @@ class Detector:
                 values = list(plot_data.values())
                 colors_bars = sns.color_palette("viridis", n_colors=len(names))
                 bars = ax_right.barh(names, values, color=colors_bars)
-                ax_right.axvline(x=0, color="gray", linestyle="--", linewidth=0.5)
+                ax_right.axvline(
+                    x=0, color="gray", linestyle="--", linewidth=0.5
+                )
                 ax_right.set_xlabel("Metric value")
                 ax_right.set_title(title)
                 ax_right.grid(True, axis="x", alpha=0.3)
 
                 # Annotate bars
-                for bar, val in zip(bars, values):
+                for patch, val in zip(bars, values):
                     if val != 0:
                         lbl = f"{val:.4f}"
                         ax_right.text(
                             val,
-                            bar.get_y() + bar.get_height() / 2,
+                            patch.get_y() + patch.get_height() / 2,
                             lbl,
                             va="center",
                             ha="left" if val > 0 else "right",

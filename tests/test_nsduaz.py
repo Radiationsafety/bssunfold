@@ -22,7 +22,10 @@ def detector():
 @pytest.fixture
 def readings(detector):
     return {
-        "3in": 0.053, "5in": 0.184, "10in": 0.172, "18in": 0.034,
+        "3in": 0.053,
+        "5in": 0.184,
+        "10in": 0.172,
+        "18in": 0.034,
     }
 
 
@@ -88,9 +91,7 @@ def test_solve_nsduaz_core(A, b):
     """The core solver returns a spectrum close to the measurements."""
     from bssunfold.core.unfold_nsduaz import solve_nsduaz
 
-    spectrum, iterations, converged = solve_nsduaz(
-        A, b, x0=np.ones(A.shape[1])
-    )
+    spectrum, iterations, converged = solve_nsduaz(A, b, x0=np.ones(A.shape[1]))
     assert spectrum.shape == (A.shape[1],)
     assert np.all(spectrum >= 0)
     assert isinstance(iterations, int)
@@ -111,9 +112,7 @@ def test_solve_nsduaz_catalogue(A, b):
     """The core solver runs with a custom smoothing parameter."""
     from bssunfold.core.unfold_nsduaz import solve_nsduaz
 
-    spectrum, _, _ = solve_nsduaz(
-        A, b, x0=np.ones(A.shape[1]), smoothing=0.5
-    )
+    spectrum, _, _ = solve_nsduaz(A, b, x0=np.ones(A.shape[1]), smoothing=0.5)
     assert spectrum.shape == (A.shape[1],)
     assert np.all(spectrum >= 0)
 
@@ -189,7 +188,9 @@ def test_select_catalogue_initial(detector, readings):
     from bssunfold.core.unfold_nsduaz import select_catalogue_initial
 
     spec, label = select_catalogue_initial(
-        readings, detector.detector_names, detector.sensitivities,
+        readings,
+        detector.detector_names,
+        detector.sensitivities,
         E_MeV=detector.E_MeV,
     )
     assert spec.shape == (detector.n_energy_bins,)
@@ -202,8 +203,9 @@ def test_select_catalogue_initial_no_readings(detector):
     from bssunfold.core.unfold_nsduaz import select_catalogue_initial
 
     with pytest.raises(ValueError, match="No detector readings"):
-        select_catalogue_initial({}, detector.detector_names,
-                                 detector.sensitivities)
+        select_catalogue_initial(
+            {}, detector.detector_names, detector.sensitivities
+        )
 
 
 def test_select_catalogue_initial_bad_reference(detector, readings):
@@ -212,7 +214,9 @@ def test_select_catalogue_initial_bad_reference(detector, readings):
 
     with pytest.raises(ValueError, match="reference_name"):
         select_catalogue_initial(
-            readings, detector.detector_names, detector.sensitivities,
+            readings,
+            detector.detector_names,
+            detector.sensitivities,
             reference_name="bogus",
         )
 
@@ -226,7 +230,9 @@ def test_select_catalogue_initial_custom_catalogue(detector, readings):
         "ramp": np.linspace(0.5, 1.5, detector.n_energy_bins),
     }
     spec, label = select_catalogue_initial(
-        readings, detector.detector_names, detector.sensitivities,
+        readings,
+        detector.detector_names,
+        detector.sensitivities,
         catalogue=custom,
     )
     assert spec.shape == (detector.n_energy_bins,)
@@ -239,7 +245,9 @@ def test_select_catalogue_initial_bad_shape(detector, readings):
 
     with pytest.raises(ValueError, match="has shape"):
         select_catalogue_initial(
-            readings, detector.detector_names, detector.sensitivities,
+            readings,
+            detector.detector_names,
+            detector.sensitivities,
             catalogue={"bad": np.ones(5)},
         )
 
@@ -250,7 +258,9 @@ def test_select_catalogue_initial_empty(detector, readings):
 
     with pytest.raises(ValueError, match="Catalogue is empty"):
         select_catalogue_initial(
-            readings, detector.detector_names, detector.sensitivities,
+            readings,
+            detector.detector_names,
+            detector.sensitivities,
             catalogue={"zero": np.zeros(detector.n_energy_bins)},
         )
 

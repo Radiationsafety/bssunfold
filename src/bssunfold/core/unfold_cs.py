@@ -64,7 +64,7 @@ def solve_omp(
     np.ndarray
         Sparse coefficient vector (k,).
     """
-    n, k = D.shape
+    _, k = D.shape
     alpha = np.zeros(k)
     residual = y.copy()
     support = []
@@ -131,7 +131,7 @@ def solve_ksvd(
         Learned dictionary (n x n_atoms).
     """
     rng = np.random.default_rng(random_state)
-    n, m = signals.shape
+    _, m = signals.shape
 
     # Initialize dictionary with random training samples
     n_atoms = min(n_atoms, m)
@@ -223,8 +223,6 @@ def solve_sl0(
     np.ndarray
         Reconstructed sparse signal (n,).
     """
-    m, n = A.shape
-
     # Initial solution: minimum-norm least-squares solution
     x = np.linalg.pinv(A) @ b
 
@@ -248,7 +246,7 @@ def solve_sl0(
             # Gradient: grad_i = (x_i / sigma^2) * exp(-x_i^2 / (2 sigma^2))
             # With step size mu = mu_0 * sigma^2, the update becomes
             # x = x - mu_0 * x * exp(-x^2 / (2 sigma^2)).
-            exp_term = np.exp(-(x ** 2) / (2.0 * sigma ** 2))
+            exp_term = np.exp(-(x**2) / (2.0 * sigma**2))
             x = x - mu_0 * x * exp_term
 
             # Project back onto the feasible set {x : A x = b}

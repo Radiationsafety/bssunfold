@@ -45,7 +45,7 @@ def solve_bayes(
     np.ndarray
         Unfolded spectrum (n,) in physical units.
     """
-    n_detectors, n_energy = A.shape
+    _, n_energy = A.shape
 
     # Column-normalise response so each column sums to 1.
     column_sums = np.sum(A, axis=0)
@@ -64,7 +64,7 @@ def solve_bayes(
     total_counts = np.sum(b)
     y = total_counts * prior  # initial effective counts
 
-    for iteration in range(max_iterations):
+    for _ in range(max_iterations):
         y_old = y.copy()
 
         # Forward fold

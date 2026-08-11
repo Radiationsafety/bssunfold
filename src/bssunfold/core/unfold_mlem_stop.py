@@ -29,7 +29,7 @@ def calculate_j_factor(
     numerator = np.sum((measurements - estimate) ** 2)
     denominator = np.sum(estimate)
     if denominator <= 0:
-        return float('inf')
+        return float("inf")
     return numerator / denominator
 
 

@@ -22,6 +22,7 @@ from bssunfold.core.dose_calculation import (
 # Constants structure tests
 # ---------------------------------------------------------------------------
 
+
 class TestCoefficientStructures:
     """Verify that all CC datasets have the expected structure."""
 
@@ -90,14 +91,13 @@ class TestCoefficientStructures:
             for key, vals in cc.items():
                 if key != "E_MeV":
                     arr = np.array(vals)
-                    assert np.all(arr >= 0), (
-                        f"{name}.{key} has negative values"
-                    )
+                    assert np.all(arr >= 0), f"{name}.{key} has negative values"
 
 
 # ---------------------------------------------------------------------------
 # get_coefficients() tests
 # ---------------------------------------------------------------------------
+
 
 class TestGetCoefficients:
     """Test the get_coefficients() function."""
@@ -134,6 +134,7 @@ class TestGetCoefficients:
 # ---------------------------------------------------------------------------
 # interpolate_coefficients() tests
 # ---------------------------------------------------------------------------
+
 
 class TestInterpolateCoefficients:
     """Test the interpolate_coefficients() function."""
@@ -192,6 +193,7 @@ class TestInterpolateCoefficients:
 # Detector cc_type tests
 # ---------------------------------------------------------------------------
 
+
 class TestDetectorCCType:
     """Test Detector cc_type parameter and set_dose_coefficients()."""
 
@@ -236,6 +238,7 @@ class TestDetectorCCType:
 # calculate_dose_rates with different CC
 # ---------------------------------------------------------------------------
 
+
 class TestCalculateDoseRates:
     """Test calculate_dose_rates with different coefficient datasets."""
 
@@ -279,6 +282,7 @@ class TestCalculateDoseRates:
 # ---------------------------------------------------------------------------
 # Detector unfold integration test
 # ---------------------------------------------------------------------------
+
 
 class TestDetectorUnfoldIntegration:
     """Integration test: unfold with different CC types."""

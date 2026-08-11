@@ -67,6 +67,12 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
   must shadow the editable install so `import src.bssunfold` hits instrumented code.
 - **bandit** — static security scan (`uv run bandit -r src/bssunfold`). `src/` is
   clean (no eval/exec/subprocess/pickle/assert). Config in `[tool.bandit]`.
+- **vulture** — dead-code scan (`uv run vulture src/bssunfold tests/ tools/`).
+  Run it with tests/ included: a src-only scan flags public methods and helpers
+  that are only exercised from tests. Known false positives to ignore: the
+  `*args`/`**kwargs` fallback signatures in `_numba_jit.py` (must accept any
+  args before raising ImportError) and the docplex `context.solver.log_output`
+  API attribute. Verify candidate findings with `grep -rn "<name>" src/ tests/`.
 - **pip-audit** — dependency vulnerability scan. Needs network (OSV). Runs in the
   `security-analysis.yml` CI job, not the unit suite. Current allowlist:
   `CVE-2026-61632` (pymdown-extensions path traversal, dev-only docs tool,

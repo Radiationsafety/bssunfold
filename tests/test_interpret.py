@@ -73,11 +73,18 @@ def test_build_interpretation_qp(system):
     from bssunfold.core.unfold_interpret import build_interpretation_qp
 
     A, b = system
-    handle = build_interpretation_qp(A, b, 1e-4, variable_names=[f"E{i}" for i in range(A.shape[1])])
+    handle = build_interpretation_qp(
+        A, b, 1e-4, variable_names=[f"E{i}" for i in range(A.shape[1])]
+    )
     rep = handle.quadratic_representation()
     assert rep.Q.shape == (A.shape[1], A.shape[1])
     assert rep.c.shape == (A.shape[1],)
-    assert np.allclose(rep.bounds[:, 0] if hasattr(rep.bounds, "ndim") else [lo for lo, _ in rep.bounds], 0.0)
+    assert np.allclose(
+        rep.bounds[:, 0]
+        if hasattr(rep.bounds, "ndim")
+        else [lo for lo, _ in rep.bounds],
+        0.0,
+    )
 
 
 def test_build_interpretation_qp_enforce_norm(system):
@@ -90,7 +97,9 @@ def test_build_interpretation_qp_enforce_norm(system):
     )
     rep = handle.quadratic_representation()
     assert hasattr(rep, "constraint_blocks")
-    assert any("norm" in getattr(block, "name", "") for block in rep.constraint_blocks)
+    assert any(
+        "norm" in getattr(block, "name", "") for block in rep.constraint_blocks
+    )
 
 
 def test_solve_interpret_returns_array(system, detector):
@@ -180,7 +189,12 @@ def test_interpret_qp_metric_blocks(system, detector):
     assert metrics["robustness"]["case_count"] > 0
     assert len(metrics["scenarios"]) > 0
     assert set(metrics["scenarios"][0]) >= {"scenario", "status"}
-    assert set(metrics["detectors"][0]) >= {"detector", "reading", "effective", "residual"}
+    assert set(metrics["detectors"][0]) >= {
+        "detector",
+        "reading",
+        "effective",
+        "residual",
+    }
     assert metrics["success"] is True
 
 
@@ -255,7 +269,9 @@ def test_interpret_qp_to_dict(system, detector):
 def test_unfold_interpret_basic(detector, small_readings):
     """Detector.unfold_interpret returns a standardized result plus report."""
     result = detector.unfold_interpret(
-        small_readings, save_result=False, interpret_options={"run_scenarios": False}
+        small_readings,
+        save_result=False,
+        interpret_options={"run_scenarios": False},
     )
     assert isinstance(result, dict)
     assert "energy" in result
@@ -367,9 +383,7 @@ def test_unfold_interpret_import_error(detector, small_readings):
     try:
         with patch("builtins.__import__", side_effect=mock_import):
             with pytest.raises(ImportError, match="pyoptexplain"):
-                detector.unfold_interpret(
-                    small_readings, save_result=False
-                )
+                detector.unfold_interpret(small_readings, save_result=False)
     finally:
         _reset_pyopt_cache()
 

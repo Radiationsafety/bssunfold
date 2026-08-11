@@ -32,7 +32,11 @@ from .unfold_bunki import solve_bunki
 from .unfold_bunkiut import solve_bunkiut
 from .unfold_ferdor import solve_ferdor
 from .unfold_rebunki import solve_rebunki
-from .unfold_nsduaz import solve_nsduaz, select_catalogue_initial, builtin_catalogue
+from .unfold_nsduaz import (
+    solve_nsduaz,
+    select_catalogue_initial,
+    builtin_catalogue,
+)
 from .unfold_osem import solve_osem
 from .unfold_mapem import solve_mapem
 from .unfold_bsrem import solve_bsrem
@@ -77,7 +81,9 @@ from .unfold_gravel import unfold_gravel
 from .unfold_maxed import unfold_maxed
 from .unfold_tikhonov_legendre import unfold_tikhonov_legendre
 from .unfold_bayes import unfold_bayes
-from .unfold_bayes_spline_regularization import unfold_bayes_spline_regularization
+from .unfold_bayes_spline_regularization import (
+    unfold_bayes_spline_regularization,
+)
 from .unfold_statreg import unfold_statreg
 from .unfold_reconst import unfold_reconst
 from .unfold_scipy_direct_method import unfold_scipy_direct_method

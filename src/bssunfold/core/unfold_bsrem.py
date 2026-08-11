@@ -101,6 +101,7 @@ def solve_bsrem(
         )
 
     if relaxation is None:
+
         def relaxation_seq(_n):
             return 1.0
     elif callable(relaxation):
@@ -134,7 +135,9 @@ def solve_bsrem(
             if prior == "none":
                 grad = np.zeros(n)
             else:
-                grad = omega * prior_gradient(x, prior, beta, prior_delta, gamma)
+                grad = omega * prior_gradient(
+                    x, prior, beta, prior_delta, gamma
+                )
 
             update = correction - norm_sub - grad
             step = np.where(
@@ -233,6 +236,7 @@ def unfold_bsrem(
         Unfolding results dictionary.
     """
     x0_default = np.ones(n_energy_bins)
+    x0_default[0] = 0.0
 
     return run_unfolding(
         detector_names=detector_names,

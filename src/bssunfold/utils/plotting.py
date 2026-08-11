@@ -29,7 +29,7 @@ def plot_spectrum(
     **plot_kwargs,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot a spectrum.
-    
+
     Parameters
     ----------
     E_MeV : np.ndarray
@@ -50,7 +50,7 @@ def plot_spectrum(
         Path to save figure. If None, not saved.
     **plot_kwargs : dict
         Additional keyword arguments for plt.plot().
-    
+
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
@@ -60,28 +60,28 @@ def plot_spectrum(
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     else:
         fig = ax.figure
-    
+
     ax.plot(E_MeV, spectrum, label=label, **plot_kwargs)
-    
+
     ax.set_xlabel("Energy, MeV")
     ax.set_ylabel("Fluence per unit lethargy, F(E)E")
-    
+
     if log_x:
         ax.set_xscale("log")
     if log_y:
         ax.set_yscale("log")
-    
+
     ax.grid(True, which="both", alpha=0.3)
-    
+
     if label:
         ax.legend()
-    
+
     if save_to:
         fig.savefig(save_to, dpi=300, bbox_inches="tight")
-    
+
     if show:
         plt.show()
-    
+
     return fig, ax
 
 
@@ -95,7 +95,7 @@ def plot_response_functions(
     **plot_kwargs,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot detector response functions.
-    
+
     Parameters
     ----------
     E_MeV : np.ndarray
@@ -112,7 +112,7 @@ def plot_response_functions(
         Path to save figure. If None, not saved.
     **plot_kwargs : dict
         Additional keyword arguments for plt.plot().
-    
+
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
@@ -122,26 +122,26 @@ def plot_response_functions(
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     else:
         fig = ax.figure
-    
+
     for name, sens in sensitivities.items():
         ax.plot(E_MeV, sens, label=name, **plot_kwargs)
-    
+
     ax.set_xlabel("Energy, MeV")
     ax.set_ylabel("Response, cm²")
-    
+
     if log_x:
         ax.set_xscale("log")
-    
+
     ax.legend()
     ax.grid(True, alpha=0.3)
     ax.set_title("Response functions of the detector")
-    
+
     if save_to:
         fig.savefig(save_to, dpi=300, bbox_inches="tight")
-    
+
     if show:
         plt.show()
-    
+
     return fig, ax
 
 
@@ -159,7 +159,7 @@ def plot_with_uncertainty(
     **plot_kwargs,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot spectrum with uncertainty range.
-    
+
     Parameters
     ----------
     E_MeV : np.ndarray
@@ -184,7 +184,7 @@ def plot_with_uncertainty(
         Path to save figure. If None, not saved.
     **plot_kwargs : dict
         Additional keyword arguments for plotting.
-    
+
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
@@ -194,7 +194,7 @@ def plot_with_uncertainty(
         fig, ax = plt.subplots(1, 1, figsize=(12, 8))
     else:
         fig = ax.figure
-    
+
     # Plot reference if provided
     if reference_spectrum is not None:
         ref_energy = reference_spectrum["E_MeV"]
@@ -214,9 +214,13 @@ def plot_with_uncertainty(
                 linestyle=":",
                 color="black",
             )
-    
+
     # Plot uncertainty
-    if plot_style == "fill_between" and uncert_min is not None and uncert_max is not None:
+    if (
+        plot_style == "fill_between"
+        and uncert_min is not None
+        and uncert_max is not None
+    ):
         ax.fill_between(
             E_MeV,
             uncert_min,
@@ -255,22 +259,22 @@ def plot_with_uncertainty(
                 alpha=0.5,
                 label="±1σ",
             )
-    
+
     # Plot spectrum
     ax.plot(E_MeV, spectrum, label="spectrum", **plot_kwargs)
-    
+
     ax.set_xlabel("Energy, MeV")
     ax.set_ylabel("Fluence per unit lethargy, F(E)E")
     ax.set_xscale("log")
     ax.grid(True, which="both", alpha=0.3)
     ax.legend()
-    
+
     if save_to:
         fig.savefig(save_to, dpi=300, bbox_inches="tight")
-    
+
     if show:
         plt.show()
-    
+
     return fig, ax
 
 
@@ -283,7 +287,7 @@ def plot_residuals(
     save_to: Optional[str] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot residuals between measured and calculated readings.
-    
+
     Parameters
     ----------
     measured : np.ndarray
@@ -298,7 +302,7 @@ def plot_residuals(
         Call plt.show() (default: True).
     save_to : str, optional
         Path to save figure. If None, not saved.
-    
+
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
@@ -308,18 +312,18 @@ def plot_residuals(
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     else:
         fig = ax.figure
-    
+
     residuals = measured - calculated
     n_detectors = len(residuals)
-    
+
     if detector_names is None:
         detector_names = [f"det_{i}" for i in range(n_detectors)]
-    
+
     x_positions = np.arange(n_detectors)
-    
+
     ax.bar(x_positions, residuals, alpha=0.7)
     ax.axhline(y=0, color="red", linestyle="--", alpha=0.5)
-    
+
     ax.set_xlabel("Detector")
     ax.set_ylabel("Residual (measured - calculated)")
     ax.set_xticks(x_positions)
@@ -426,7 +430,10 @@ def plot_comparison(
     ax[0].set_ylabel("Fluence per unit lethargy, F(E)E, neutron/(cm² ∙ s)")
     ax[0].set_xscale("log")
     ax[0].legend(
-        bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0, fontsize=8
+        bbox_to_anchor=(1.05, 1),
+        loc="upper left",
+        borderaxespad=0.0,
+        fontsize=8,
     )
     ax[0].grid(True, which="both", ls=":")
     ax[0].set_title("Unfolded spectra from noisy readings", fontsize=14)
@@ -437,7 +444,8 @@ def plot_comparison(
         data_sources["reference"] = list(readings.values())
     for method in method_names:
         data_sources[method] = [
-            results[method]["effective_readings"][det] for det in readings.keys()
+            results[method]["effective_readings"][det]
+            for det in readings.keys()
         ]
 
     labels = list(readings.keys())
@@ -447,15 +455,24 @@ def plot_comparison(
 
     for i, (label, values) in enumerate(data_sources.items()):
         offset = (i - n_groups / 2 + 0.5) * width
-        ax[1].bar(x + offset, values, width, label=label, alpha=1,
-                  color=colors[i % len(colors)])
+        ax[1].bar(
+            x + offset,
+            values,
+            width,
+            label=label,
+            alpha=1,
+            color=colors[i % len(colors)],
+        )
 
     ax[1].set_xticks(x, labels)
     ax[1].set_xlabel("Moderator sphere")
     ax[1].set_ylabel("Readings")
     ax[1].set_title("Effective readings", fontsize=14)
     ax[1].legend(
-        bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0, fontsize=8
+        bbox_to_anchor=(1.05, 1),
+        loc="upper left",
+        borderaxespad=0.0,
+        fontsize=8,
     )
     ax[1].grid(True, alpha=0.3)
 

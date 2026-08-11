@@ -65,12 +65,21 @@ from ._base_unfolder import run_unfolding, make_solve_wrapper
 __all__ = ["solve_genetic", "unfold_genetic"]
 
 _IMPORT_ERROR_MSG = (
-    "mealpy is required for unfold_genetic. "
-    "Install with: pip install mealpy"
+    "mealpy is required for unfold_genetic. Install with: pip install mealpy"
 )
 
 # Supported meta-heuristic solvers (registry keys).
-_SUPPORTED_SOLVERS = ("pso", "ga", "de", "es", "ep", "abc", "gwo", "cmaes", "nsga2")
+_SUPPORTED_SOLVERS = (
+    "pso",
+    "ga",
+    "de",
+    "es",
+    "ep",
+    "abc",
+    "gwo",
+    "cmaes",
+    "nsga2",
+)
 
 # Long-form aliases for the solver names.
 _SOLVER_ALIASES = {
@@ -104,7 +113,7 @@ def _normalize_solver(solver: str) -> str:
     """Resolve a solver name (or alias) to a registry key, warning on unknown."""
     name = (solver or "").strip().lower()
     if name in _SOLVER_ALIASES:
-        name = _SOLVER_ALIASES[name]
+        name = _SOLVER_ALIASES.get(name, name)
     if name not in _SUPPORTED_SOLVERS:
         warnings.warn(
             f"Solver '{solver}' not supported. "
@@ -114,7 +123,9 @@ def _normalize_solver(solver: str) -> str:
     return name
 
 
-def _build_seed(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> np.ndarray:
+def _build_seed(
+    A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]
+) -> np.ndarray:
     """Build the seed spectrum used to initialise the population.
 
     If a non-trivial initial guess ``x0`` is provided it is used directly.
@@ -129,6 +140,7 @@ def _build_seed(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> np.nd
         return np.maximum(np.asarray(x0, dtype=float), 1e-12)
     try:
         from .unfold_landweber import solve_landweber
+
         lw, _, _ = solve_landweber(A, b, np.zeros(n), max_iterations=500)
         seed = np.maximum(np.asarray(lw, dtype=float), 1e-12)
     except Exception:
@@ -239,12 +251,16 @@ def _make_starting_solutions(
 
 def _build_model(mealpy, solver: str, epoch: int, pop_size: int):
     """Instantiate the MEALPY optimizer for the given solver key."""
-    FloatVar, PSO, GA, DE, ES, EP, ABC, GWO = mealpy
+    _, PSO, GA, DE, ES, EP, ABC, GWO = mealpy
     if solver == "pso":
         # Chaotic PSO with SDPSO-style inertia weight range.
         return PSO.C_PSO(
-            epoch=epoch, pop_size=pop_size, c1=2.0, c2=2.0,
-            w_min=0.4, w_max=0.9,
+            epoch=epoch,
+            pop_size=pop_size,
+            c1=2.0,
+            c2=2.0,
+            w_min=0.4,
+            w_max=0.9,
         )
     if solver == "ga":
         # Suman & Sarkar-style GA (pc=0.7, pm=0.3).
@@ -386,7 +402,7 @@ def _coarsen_columns(A: np.ndarray, n_coarse: int) -> np.ndarray:
     edges = np.linspace(0, n, n_coarse + 1, dtype=int)
     A_coarse = np.zeros((m, n_coarse), dtype=float)
     for k in range(n_coarse):
-        A_coarse[:, k] = np.sum(A[:, edges[k]:edges[k + 1]], axis=1)
+        A_coarse[:, k] = np.sum(A[:, edges[k] : edges[k + 1]], axis=1)
     return A_coarse
 
 
@@ -517,9 +533,9 @@ def _run_numpy_ga(
                     if mutation == "iterative":
                         # phi_new = phi_old * (1 + scale * beta), beta in [-1, 1]
                         beta = rng.uniform(-1.0, 1.0, size=n)
-                        child = child + np.log(np.maximum(
-                            1.0 + scale * beta, 1e-12
-                        ))
+                        child = child + np.log(
+                            np.maximum(1.0 + scale * beta, 1e-12)
+                        )
                     else:
                         child = child + rng.normal(0.0, scale, size=n)
                     child = np.clip(child, lb, ub)
@@ -586,7 +602,8 @@ def _crowding_distance(fvals: np.ndarray, front: np.ndarray) -> np.ndarray:
             continue
         for k in range(1, m - 1):
             dist[order[k]] += (
-                fvals[front[order[k + 1]], obj] - fvals[front[order[k - 1]], obj]
+                fvals[front[order[k + 1]], obj]
+                - fvals[front[order[k - 1]], obj]
             ) / (fmax - fmin)
     return dist
 
@@ -721,12 +738,19 @@ def _run_nsga2(
         for i in range(pop_size):
             a, b1 = rng.integers(0, pop_size, size=2)
             c, d = rng.integers(0, pop_size, size=2)
-            w1 = a if (rank[a], -crowding[a]) < (rank[b1], -crowding[b1]) else b1
+            w1 = (
+                a if (rank[a], -crowding[a]) < (rank[b1], -crowding[b1]) else b1
+            )
             w2 = c if (rank[c], -crowding[c]) < (rank[d], -crowding[d]) else d
-            selected[i] = pop[w1] if (rank[w1], -crowding[w1]) <= (
-                rank[w2],
-                -crowding[w2],
-            ) else pop[w2]
+            selected[i] = (
+                pop[w1]
+                if (rank[w1], -crowding[w1])
+                <= (
+                    rank[w2],
+                    -crowding[w2],
+                )
+                else pop[w2]
+            )
 
         # SBX + polynomial mutation.
         offspring = []
@@ -884,16 +908,29 @@ def solve_genetic(
     """
     try:
         return _solve_genetic_impl(
-            A=A, b=b, x0=x0, solver=solver, epoch=epoch, pop_size=pop_size,
-            regularization=regularization, norm=norm,
+            A=A,
+            b=b,
+            x0=x0,
+            solver=solver,
+            epoch=epoch,
+            pop_size=pop_size,
+            regularization=regularization,
+            norm=norm,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
-            entropy_weight=entropy_weight, n_runs=n_runs,
-            early_stop=early_stop, half_range=half_range,
-            two_step=two_step, n_coarse=n_coarse, smoother=smoother,
-            sigma_smooth=sigma_smooth, crossover=crossover,
-            mutation=mutation, pareto_select=pareto_select,
-            random_state=random_state, verbose=verbose,
+            entropy_weight=entropy_weight,
+            n_runs=n_runs,
+            early_stop=early_stop,
+            half_range=half_range,
+            two_step=two_step,
+            n_coarse=n_coarse,
+            smoother=smoother,
+            sigma_smooth=sigma_smooth,
+            crossover=crossover,
+            mutation=mutation,
+            pareto_select=pareto_select,
+            random_state=random_state,
+            verbose=verbose,
             extra_starting=extra_starting,
         )
     except ImportError:
@@ -933,7 +970,7 @@ def _solve_genetic_impl(
     extra_starting: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     mealpy = _import_mealpy()
-    FloatVar, PSO, GA, DE, ES, EP, ABC, GWO = mealpy
+    FloatVar, _, _, _, _, _, _, _ = mealpy
     solver = _normalize_solver(solver)
 
     A = np.asarray(A, dtype=float)
@@ -943,9 +980,7 @@ def _solve_genetic_impl(
     if norm not in (1, 2):
         raise ValueError(f"Unsupported norm type: {norm}")
     if smoothness_order not in (0, 1, 2):
-        raise ValueError(
-            f"Unsupported smoothness order: {smoothness_order}"
-        )
+        raise ValueError(f"Unsupported smoothness order: {smoothness_order}")
     if crossover not in ("single", "arithmetic"):
         raise ValueError(
             f"Unsupported crossover operator: {crossover}. "
@@ -974,33 +1009,57 @@ def _solve_genetic_impl(
         else:
             coarse_x0 = np.ones(n_coarse_)
         coarse = _solve_genetic_impl(
-            A=A_coarse, b=b, x0=coarse_x0, solver=solver,
-            epoch=max(20, epoch // 2), pop_size=pop_size,
-            regularization=regularization, norm=norm,
+            A=A_coarse,
+            b=b,
+            x0=coarse_x0,
+            solver=solver,
+            epoch=max(20, epoch // 2),
+            pop_size=pop_size,
+            regularization=regularization,
+            norm=norm,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
-            entropy_weight=entropy_weight, n_runs=n_runs,
-            early_stop=early_stop, half_range=half_range,
-            two_step=False, n_coarse=None, smoother="none",
-            sigma_smooth=sigma_smooth, crossover=crossover,
-            mutation=mutation, pareto_select=pareto_select,
-            random_state=random_state, verbose=verbose,
+            entropy_weight=entropy_weight,
+            n_runs=n_runs,
+            early_stop=early_stop,
+            half_range=half_range,
+            two_step=False,
+            n_coarse=None,
+            smoother="none",
+            sigma_smooth=sigma_smooth,
+            crossover=crossover,
+            mutation=mutation,
+            pareto_select=pareto_select,
+            random_state=random_state,
+            verbose=verbose,
         )
         x0_seed = _split_coarse(np.maximum(coarse, 0.0), n)
         # The full-resolution run keeps the Landweber-defined search box and
         # injects the coarse solution as an additional starting individual.
         return _solve_genetic_impl(
-            A=A, b=b, x0=x0, solver=solver,
-            epoch=epoch, pop_size=pop_size,
-            regularization=regularization, norm=norm,
+            A=A,
+            b=b,
+            x0=x0,
+            solver=solver,
+            epoch=epoch,
+            pop_size=pop_size,
+            regularization=regularization,
+            norm=norm,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
-            entropy_weight=entropy_weight, n_runs=n_runs,
-            early_stop=early_stop, half_range=half_range,
-            two_step=False, n_coarse=None, smoother="none",
-            sigma_smooth=sigma_smooth, crossover=crossover,
-            mutation=mutation, pareto_select=pareto_select,
-            random_state=random_state, verbose=verbose,
+            entropy_weight=entropy_weight,
+            n_runs=n_runs,
+            early_stop=early_stop,
+            half_range=half_range,
+            two_step=False,
+            n_coarse=None,
+            smoother="none",
+            sigma_smooth=sigma_smooth,
+            crossover=crossover,
+            mutation=mutation,
+            pareto_select=pareto_select,
+            random_state=random_state,
+            verbose=verbose,
             extra_starting=x0_seed,
         )
 
@@ -1012,15 +1071,23 @@ def _solve_genetic_impl(
         seed = _build_seed(A, b, x0)
         lb, ub = _build_log_bounds(seed, half_range)
         spectrum, _diag = _run_nsga2(
-            A=A, b=b, seed=seed, lb=lb, ub=ub,
-            epoch=epoch, pop_size=pop_size,
-            random_state=random_state, pareto_select=pareto_select,
+            A=A,
+            b=b,
+            seed=seed,
+            lb=lb,
+            ub=ub,
+            epoch=epoch,
+            pop_size=pop_size,
+            random_state=random_state,
+            pareto_select=pareto_select,
             entropy_weight=entropy_weight if entropy_weight > 0 else 1.0,
         )
         smoother = _normalize_smoother(smoother)
         if smoother != "none":
             spectrum = _apply_smoother(
-                spectrum, smoother, sigma=sigma_smooth,
+                spectrum,
+                smoother,
+                sigma=sigma_smooth,
                 smoothing_weight=smoothness_weight,
             )
         return np.maximum(spectrum, 0.0)
@@ -1032,15 +1099,27 @@ def _solve_genetic_impl(
             A, b, regularization, norm, L, smoothness_weight, entropy_weight
         )
         spectrum = _run_numpy_ga(
-            A=A, b=b, fitness=fitness, seed=seed, lb=lb, ub=ub,
-            epoch=epoch, pop_size=pop_size, crossover=crossover,
-            mutation=mutation, pc=0.9, pm=0.05,
-            random_state=random_state, verbose=verbose,
+            A=A,
+            b=b,
+            fitness=fitness,
+            seed=seed,
+            lb=lb,
+            ub=ub,
+            epoch=epoch,
+            pop_size=pop_size,
+            crossover=crossover,
+            mutation=mutation,
+            pc=0.9,
+            pm=0.05,
+            random_state=random_state,
+            verbose=verbose,
         )
         smoother = _normalize_smoother(smoother)
         if smoother != "none":
             spectrum = _apply_smoother(
-                spectrum, smoother, sigma=sigma_smooth,
+                spectrum,
+                smoother,
+                sigma=sigma_smooth,
                 smoothing_weight=smoothness_weight,
             )
         return np.maximum(spectrum, 0.0)
@@ -1062,7 +1141,9 @@ def _solve_genetic_impl(
     if early_stop is not None:
         termination = {"max_early_stop": int(early_stop)}
 
-    starting = _make_starting_solutions(seed, lb, ub, pop_size, extra=extra_starting)
+    starting = _make_starting_solutions(
+        seed, lb, ub, pop_size, extra=extra_starting
+    )
     runs = max(1, int(n_runs))
     spectra = []
     for run in range(runs):
@@ -1086,7 +1167,9 @@ def _solve_genetic_impl(
     smoother = _normalize_smoother(smoother)
     if smoother != "none":
         spectrum = _apply_smoother(
-            spectrum, smoother, sigma=sigma_smooth,
+            spectrum,
+            smoother,
+            sigma=sigma_smooth,
             smoothing_weight=smoothness_weight,
         )
     return np.maximum(spectrum, 0)

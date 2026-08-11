@@ -15,10 +15,7 @@ from numpy.testing import assert_almost_equal, assert_array_almost_equal
 from bssunfold import Detector
 from bssunfold.utils.comparison import (
     total_flux_ratio,
-    total_flux,
     _compute_log_steps,
-    _normalize,
-    _check_same_length,
     cosine_similarity,
     kl_divergence,
     cross_entropy,
@@ -175,7 +172,9 @@ class TestInterpolationBugFix:
         interp_vals = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
         u_source = np.array([0.0, 1.0, 2.0])
         u_target = np.array([-1.0, 0.5, 1.5, 2.5, 3.0])
-        result = _handle_extrapolation(interp_vals, u_source, u_target, fill_value=0.0)
+        result = _handle_extrapolation(
+            interp_vals, u_source, u_target, fill_value=0.0
+        )
         assert result[0] == 0.0  # below range
         assert result[4] == 0.0  # above range
         assert result[1] == 2.0  # within range
@@ -186,7 +185,9 @@ class TestInterpolationBugFix:
         interp_vals = np.array([-1.0, 2.0, -3.0])
         u_source = np.array([0.0, 1.0, 2.0])
         u_target = np.array([0.5, 1.5])
-        result = _handle_extrapolation(interp_vals[:2], u_source, u_target, replace_negative=True)
+        result = _handle_extrapolation(
+            interp_vals[:2], u_source, u_target, replace_negative=True
+        )
         assert result[0] == 0.0
         assert result[1] == 2.0
 
@@ -195,7 +196,9 @@ class TestInterpolationBugFix:
         interp_vals = np.array([-1.0, 2.0])
         u_source = np.array([0.0, 1.0, 2.0])
         u_target = np.array([0.5, 1.5])
-        result = _handle_extrapolation(interp_vals, u_source, u_target, replace_negative=False)
+        result = _handle_extrapolation(
+            interp_vals, u_source, u_target, replace_negative=False
+        )
         assert result[0] == -1.0
         assert result[1] == 2.0
 
@@ -508,7 +511,7 @@ class TestMatrixUtils:
         assert U.shape == (5, 3)
         assert s.shape == (3,)
         assert Vt.shape == (3, 3)
-        assert_array_almost_equal(s_sq, s ** 2)
+        assert_array_almost_equal(s_sq, s**2)
 
 
 # ─── Monte Carlo Tests ─────────────────────────────────────────────
@@ -539,6 +542,7 @@ class TestMonteCarlo:
 
     def test_monte_carlo_uncertainty_basic(self):
         """Monte Carlo should return uncertainty statistics."""
+
         def dummy_solver(readings, **kwargs):
             return np.array([1.0, 2.0, 3.0])
 
@@ -639,7 +643,9 @@ class TestInterpolation:
 
     def test_discretize_spectra_from_dataframe(self):
         """DataFrame input should work."""
-        spectra = pd.DataFrame({"E_MeV": [1.0, 2.0, 3.0], "Phi": [10.0, 20.0, 30.0]})
+        spectra = pd.DataFrame(
+            {"E_MeV": [1.0, 2.0, 3.0], "Phi": [10.0, 20.0, 30.0]}
+        )
         target_E = np.array([1.5, 2.5])
         result = discretize_spectra(spectra, target_E)
         assert isinstance(result, pd.DataFrame)

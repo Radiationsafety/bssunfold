@@ -65,7 +65,7 @@ def _solve_weighted_ls(
 
     Returns the non-negative solution or None if the linear solve fails.
     Uses nnls for robust non-negative least squares.
-    
+
     When alpha is very small (near zero), uses pure NNLS without regularization
     to achieve the best data fit.
     """
@@ -83,9 +83,9 @@ def _solve_weighted_ls(
             return np.maximum(x, 0.0)
         except np.linalg.LinAlgError:
             return None
-    
+
     P = ATA + alpha * LTL
-    
+
     # Try solving via normal equations first
     try:
         x = np.linalg.solve(P, ATb)
@@ -93,14 +93,14 @@ def _solve_weighted_ls(
         return x
     except np.linalg.LinAlgError:
         pass
-    
+
     # Fallback to lstsq on normal equations
     try:
         x = np.linalg.lstsq(P, ATb, rcond=None)[0]
         return np.maximum(x, 0.0)
     except np.linalg.LinAlgError:
         pass
-    
+
     # Final fallback: use nnls directly on the weighted system if available
     if Aw is not None and bw is not None:
         try:
@@ -121,8 +121,10 @@ def _solve_weighted_ls(
             x, _ = nnls(Aw, bw)
             return x
         except np.linalg.LinAlgError as e:
-            warnings.warn(f"NNLS fallback failed: {e}", LinalgWarning, stacklevel=2)
-    
+            warnings.warn(
+                f"NNLS fallback failed: {e}", LinalgWarning, stacklevel=2
+            )
+
     return None
 
 
@@ -188,7 +190,9 @@ def solve_ferdor(
     if m == 0:
         raise ValueError("Measurement vector b is empty")
     if np.all(b <= 0):
-        raise ValueError("FERDOR requires at least one strictly positive measurement")
+        raise ValueError(
+            "FERDOR requires at least one strictly positive measurement"
+        )
 
     if sigma is not None:
         sigma = np.maximum(np.asarray(sigma, dtype=float), 1e-12)

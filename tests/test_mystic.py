@@ -30,7 +30,9 @@ def initial(detector):
 
 def test_unfold_mystic_basic(detector, readings):
     """Basic unfold_mystic call returns a standardized result."""
-    result = detector.unfold_mystic(readings, regularization=1e-3, save_result=False)
+    result = detector.unfold_mystic(
+        readings, regularization=1e-3, save_result=False
+    )
 
     assert isinstance(result, dict)
     assert "energy" in result
@@ -211,9 +213,7 @@ def test_unfold_mystic_save_result(detector, readings):
     """save_result=True stores the result in results_history."""
     detector.unfold_mystic(readings, save_result=True)
     assert len(detector.results_history) == 1
-    latest = detector.results_history[
-        max(detector.results_history.keys())
-    ]
+    latest = detector.results_history[max(detector.results_history.keys())]
     assert latest["method"] == "mystic_fmin_powell"
 
 

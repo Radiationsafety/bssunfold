@@ -13,11 +13,27 @@ REPORT_DIR = Path(__file__).parent
 DETECTORS = ["GSF", "PTB", "LANL"]
 
 METHOD_RANK = [
-    "cvxpy", "qpsolvers", "landweber", "mlem", "doroshenko", "kaczmarz",
-    "gravel", "maxed", "tikhonov_legendre", "bayes", "bayes_spline",
-    "statreg", "scipy_direct", "tsvd", "lmfit", "mlem_odl",
-    "fruit_like", "hybrid_parametric_landweber", "hybrid_parametric_mlem",
-    "bayesian_parametric", "parametric",
+    "cvxpy",
+    "qpsolvers",
+    "landweber",
+    "mlem",
+    "doroshenko",
+    "kaczmarz",
+    "gravel",
+    "maxed",
+    "tikhonov_legendre",
+    "bayes",
+    "bayes_spline",
+    "statreg",
+    "scipy_direct",
+    "tsvd",
+    "lmfit",
+    "mlem_odl",
+    "fruit_like",
+    "hybrid_parametric_landweber",
+    "hybrid_parametric_mlem",
+    "bayesian_parametric",
+    "parametric",
 ]
 
 KEY_METRICS = ["cosine_similarity", "r2_score", "mape"]
@@ -43,10 +59,16 @@ def main():
         n_skip = (df["status"] == "SKIP").sum()
 
         print(f"\n{'─' * 80}")
-        print(f"  Detector: {dt}  |  {df['method'].nunique()} methods × {df['spectrum'].nunique()} spectra = {n_total} tests")
-        print(f"  OK: {n_ok}  |  WARN: {n_warn}  |  ERR: {n_err}  |  SKIP: {n_skip}")
+        print(
+            f"  Detector: {dt}  |  {df['method'].nunique()} methods × {df['spectrum'].nunique()} spectra = {n_total} tests"
+        )
+        print(
+            f"  OK: {n_ok}  |  WARN: {n_warn}  |  ERR: {n_err}  |  SKIP: {n_skip}"
+        )
         print(f"{'─' * 80}")
-        print(f"  {'Method':20s} {'OK':>3s} {'cosine':>8s} {'R²':>8s} {'MAPE':>9s}")
+        print(
+            f"  {'Method':20s} {'OK':>3s} {'cosine':>8s} {'R²':>8s} {'MAPE':>9s}"
+        )
         print(f"  {'─' * 50}")
 
         for method in METHOD_RANK:
@@ -68,12 +90,20 @@ def main():
             elif ok_count >= 10:
                 warn_mark = " ✓"
 
-            print(f"  {method:20s} {ok_count:3d} {cos_s:>8s} {r2_s:>8s} {mape_s:>9s}{warn_mark}")
+            print(
+                f"  {method:20s} {ok_count:3d} {cos_s:>8s} {r2_s:>8s} {mape_s:>9s}{warn_mark}"
+            )
 
-            all_results.append({
-                "detector": dt, "method": method,
-                "ok": ok_count, "cosine": cos, "r2": r2, "mape": mape,
-            })
+            all_results.append(
+                {
+                    "detector": dt,
+                    "method": method,
+                    "ok": ok_count,
+                    "cosine": cos,
+                    "r2": r2,
+                    "mape": mape,
+                }
+            )
 
     print(f"\n{'=' * 80}")
     print("NOTES")
@@ -103,7 +133,9 @@ def main():
         print(f"  {'Method':20s} {'avg OK':>7s} {'cosine':>8s} {'R²':>8s}")
         print(f"  {'─' * 45}")
         for method, row in best_overall.iterrows():
-            print(f"  {method:20s} {row['ok']:7.1f} {row['cosine']:8.4f} {row['r2']:8.4f}")
+            print(
+                f"  {method:20s} {row['ok']:7.1f} {row['cosine']:8.4f} {row['r2']:8.4f}"
+            )
 
     print(f"\n{'=' * 80}")
     print("Detailed CSVs saved to:")

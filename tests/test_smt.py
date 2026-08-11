@@ -78,9 +78,9 @@ def test_solve_integer_linear_eqs_all_unique():
     """Uniquely determined systems return a single solution."""
     from bssunfold.core.unfold_smt import solve_integer_linear_eqs_all
 
-    assert solve_integer_linear_eqs_all([[1, 0], [0, 1]], [1, 2], max_solutions=5) == [
-        [1, 2]
-    ]
+    assert solve_integer_linear_eqs_all(
+        [[1, 0], [0, 1]], [1, 2], max_solutions=5
+    ) == [[1, 2]]
 
 
 def test_solve_integer_linear_eqs_all_zero_max():
@@ -94,9 +94,7 @@ def test_solve_rational_linear_eqs_repo_example():
     """The exact rational example from the linearEqSolver README."""
     from bssunfold.core.unfold_smt import solve_rational_linear_eqs
 
-    solution = solve_rational_linear_eqs(
-        [[2.4, 3.6], [7.2, -5]], [12, -8.5]
-    )
+    solution = solve_rational_linear_eqs([[2.4, 3.6], [7.2, -5]], [12, -8.5])
     assert solution is not None
     x, y = solution
     assert x == pytest.approx(245 / 316)
@@ -176,7 +174,9 @@ def test_solve_smt_random_state():
     """random_state is forwarded to the z3 optimizer."""
     from bssunfold.core.unfold_smt import solve_smt
 
-    spectrum = solve_smt(np.array([[1.0, 2.0]]), np.array([10.0]), random_state=42)
+    spectrum = solve_smt(
+        np.array([[1.0, 2.0]]), np.array([10.0]), random_state=42
+    )
     assert spectrum == pytest.approx([0.0, 5.0])
 
 
@@ -331,7 +331,9 @@ def test_unfold_smt_nonneg_false(detector, readings):
 def test_unfold_smt_initial_spectrum_wrong_length(detector, readings):
     """Mismatched initial spectrum length raises ValueError."""
     with pytest.raises(ValueError, match="must match number of energy bins"):
-        detector.unfold_smt(readings, initial_spectrum=np.ones(5), save_result=False)
+        detector.unfold_smt(
+            readings, initial_spectrum=np.ones(5), save_result=False
+        )
 
 
 def test_unfold_smt_with_errors(detector, readings):

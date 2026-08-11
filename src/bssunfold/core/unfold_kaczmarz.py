@@ -43,7 +43,8 @@ def solve_kaczmarz(
         Tuple of (solution, iterations, converged).
     """
     import warnings
-    m, n = A.shape
+
+    m, _ = A.shape
     x = x0.copy()
 
     if omega <= 0 or omega > 2:
@@ -53,8 +54,11 @@ def solve_kaczmarz(
 
     try:
         from ._numba_jit import _kaczmarz_inner, NUMBA_AVAILABLE
+
         if NUMBA_AVAILABLE:
-            return _kaczmarz_inner(A, x, b, row_norms_sq, omega, max_iterations, tolerance)
+            return _kaczmarz_inner(
+                A, x, b, row_norms_sq, omega, max_iterations, tolerance
+            )
     except ImportError:
         pass
 

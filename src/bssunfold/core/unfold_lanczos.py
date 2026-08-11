@@ -45,8 +45,8 @@ def _projected_gcv(
     """
     Ub, s, _ = np.linalg.svd(B, full_matrices=False)
     c = Ub.T @ bhat
-    orth_res = float(np.linalg.norm(bhat) ** 2 - np.sum(c ** 2))
-    s2 = s ** 2
+    orth_res = float(np.linalg.norm(bhat) ** 2 - np.sum(c**2))
+    s2 = s**2
 
     lambdas = np.logspace(
         np.log10(lambda_range[0]), np.log10(lambda_range[1]), n_lambdas
@@ -162,7 +162,7 @@ def solve_lanczos(
 
         Ub, s, Vb = np.linalg.svd(B, full_matrices=False)
         c = Ub.T @ bhat
-        s2 = s ** 2
+        s2 = s**2
         y = Vb @ (s * c / (s2 + lam))
         x = V @ y
         best_x = x

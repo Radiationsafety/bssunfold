@@ -74,6 +74,7 @@ def _compute_log_steps(energy: np.ndarray) -> np.ndarray:
     """
     try:
         from ..core._numba_jit import _compute_log_steps_jit, NUMBA_AVAILABLE
+
         if NUMBA_AVAILABLE:
             return _compute_log_steps_jit(np.asarray(energy, dtype=np.float64))
     except ImportError:
@@ -126,6 +127,7 @@ def _get_ade_cc(
     """
     if cc_ade is None:
         from ..core.dose_calculation import get_coefficients
+
         cc = get_coefficients("ICRP74_operational")
         e_src = np.asarray(cc["E_MeV"], dtype=float)
         v_src = np.asarray(cc["ADE"], dtype=float)
@@ -141,6 +143,7 @@ def _get_ade_cc(
             cc_ade, np.asarray(energy, dtype=float), preferred_geom="ADE"
         )
     return np.asarray(cc_ade, dtype=float)
+
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +175,7 @@ def total_flux(s: np.ndarray) -> float:
 
 
 # ─── Entropy-based ────────────────────────────────────────────────
+
 
 def kl_divergence(p: np.ndarray, q: np.ndarray) -> float:
     """Kullback–Leibler divergence D_KL(p || q).
@@ -219,6 +223,7 @@ def wasserstein_dist(p: np.ndarray, q: np.ndarray) -> float:
     Uses scipy.stats.wasserstein_distance.
     """
     from scipy.stats import wasserstein_distance as _wd
+
     return float(_wd(p, q))
 
 
@@ -228,12 +233,14 @@ def energy_dist(p: np.ndarray, q: np.ndarray) -> float:
     Uses scipy.stats.energy_distance.
     """
     from scipy.stats import energy_distance as _ed
+
     return float(_ed(p, q))
 
 
 def kolmogorov_smirnov_stat(p: np.ndarray, q: np.ndarray) -> float:
     """Kolmogorov-Smirnov test statistic (D statistic)."""
     from scipy.stats import ks_2samp
+
     return float(ks_2samp(p, q)[0])
 
 
@@ -246,6 +253,7 @@ def pearson_r(p: np.ndarray, q: np.ndarray) -> float:
     Returns 0.0 if either input is constant (variance = 0).
     """
     from scipy.stats import pearsonr
+
     p_arr = np.asarray(p, dtype=float)
     q_arr = np.asarray(q, dtype=float)
     if np.std(p_arr) == 0 or np.std(q_arr) == 0:
@@ -259,6 +267,7 @@ def spearman_r(p: np.ndarray, q: np.ndarray) -> float:
     Returns 0.0 if either input is constant (variance = 0).
     """
     from scipy.stats import spearmanr
+
     p_arr = np.asarray(p, dtype=float)
     q_arr = np.asarray(q, dtype=float)
     if np.std(p_arr) == 0 or np.std(q_arr) == 0:
@@ -297,7 +306,9 @@ def mape(p: np.ndarray, q: np.ndarray) -> float:
     mask = np.abs(p_arr) > EPS
     if not np.any(mask):
         return 0.0
-    return float(np.mean(np.abs((p_arr[mask] - q_arr[mask]) / p_arr[mask])) * 100.0)
+    return float(
+        np.mean(np.abs((p_arr[mask] - q_arr[mask]) / p_arr[mask])) * 100.0
+    )
 
 
 def r2_score(p: np.ndarray, q: np.ndarray) -> float:
@@ -361,7 +372,9 @@ def cosine_similarity(p: np.ndarray, q: np.ndarray) -> float:
     return float(np.dot(p_arr, q_arr) / (norm_p * norm_q))
 
 
-def mmd_rbf(p: np.ndarray, q: np.ndarray, gamma: Optional[float] = None) -> float:
+def mmd_rbf(
+    p: np.ndarray, q: np.ndarray, gamma: Optional[float] = None
+) -> float:
     """Maximum Mean Discrepancy with RBF kernel.
 
     Parameters
@@ -373,6 +386,7 @@ def mmd_rbf(p: np.ndarray, q: np.ndarray, gamma: Optional[float] = None) -> floa
     """
     _check_same_length(p, q)
     from scipy.spatial.distance import cdist
+
     X = np.asarray(p, dtype=float).reshape(-1, 1)
     Y = np.asarray(q, dtype=float).reshape(-1, 1)
     if gamma is None:
@@ -394,6 +408,7 @@ def chi_squared(p: np.ndarray, q: np.ndarray) -> float:
     Internally normalizes both inputs as probability distributions.
     """
     from scipy.stats import power_divergence
+
     pn = _normalize(p)
     qn = _normalize(q)
     return float(power_divergence(pn, qn, lambda_="pearson")[0])
@@ -402,6 +417,7 @@ def chi_squared(p: np.ndarray, q: np.ndarray) -> float:
 def g_test(p: np.ndarray, q: np.ndarray) -> float:
     """G-test (log-likelihood ratio) statistic."""
     from scipy.stats import power_divergence
+
     pn = _normalize(p)
     qn = _normalize(q)
     return float(power_divergence(pn, qn, lambda_="log-likelihood")[0])
@@ -410,6 +426,7 @@ def g_test(p: np.ndarray, q: np.ndarray) -> float:
 def freeman_tukey(p: np.ndarray, q: np.ndarray) -> float:
     """Freeman-Tukey statistic."""
     from scipy.stats import power_divergence
+
     pn = _normalize(p)
     qn = _normalize(q)
     return float(power_divergence(pn, qn, lambda_="freeman-tukey")[0])
@@ -418,6 +435,7 @@ def freeman_tukey(p: np.ndarray, q: np.ndarray) -> float:
 def cressie_read(p: np.ndarray, q: np.ndarray) -> float:
     """Cressie-Read statistic."""
     from scipy.stats import power_divergence
+
     pn = _normalize(p)
     qn = _normalize(q)
     return float(power_divergence(pn, qn, lambda_="cressie-read")[0])
@@ -432,15 +450,18 @@ def anderson_darling(p: np.ndarray, q: np.ndarray) -> float:
     Returns 0.0 if either input is constant (all identical values).
     """
     from scipy.stats import anderson_ksamp, PermutationMethod
+
     p_arr = np.asarray(p, dtype=float)
     q_arr = np.asarray(q, dtype=float)
     if len(np.unique(p_arr)) < 2 or len(np.unique(q_arr)) < 2:
         return 0.0
-    return float(anderson_ksamp(
-        [p_arr, q_arr],
-        method=PermutationMethod(n_resamples=999),
-        variant="right",
-    )[0])
+    return float(
+        anderson_ksamp(
+            [p_arr, q_arr],
+            method=PermutationMethod(n_resamples=999),
+            variant="right",
+        )[0]
+    )
 
 
 def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
@@ -449,6 +470,7 @@ def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
     Returns 0.0 if both inputs are identical (all differences zero).
     """
     from scipy.stats import wilcoxon
+
     _check_same_length(p, q)
     p_arr = np.asarray(p, dtype=float)
     q_arr = np.asarray(q, dtype=float)
@@ -460,6 +482,7 @@ def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
 def mannwhitneyu_test(p: np.ndarray, q: np.ndarray) -> float:
     """Mann-Whitney U test statistic."""
     from scipy.stats import mannwhitneyu
+
     return float(mannwhitneyu(p, q, alternative="two-sided")[0])
 
 
@@ -546,7 +569,11 @@ def energy_group_fluence_diff(
     fast_mask = e >= epithermal_max
 
     result: Dict[str, float] = {}
-    for name, mask in [("thermal", thermal_mask), ("epithermal", epithermal_mask), ("fast", fast_mask)]:
+    for name, mask in [
+        ("thermal", thermal_mask),
+        ("epithermal", epithermal_mask),
+        ("fast", fast_mask),
+    ]:
         if not np.any(mask):
             result[name] = 0.0
             continue
@@ -705,7 +732,11 @@ def energy_group_fluence(
     fast_mask = e >= epithermal_max
 
     result: Dict[str, float] = {}
-    for name, mask in [("thermal", thermal_mask), ("epithermal", epithermal_mask), ("fast", fast_mask)]:
+    for name, mask in [
+        ("thermal", thermal_mask),
+        ("epithermal", epithermal_mask),
+        ("fast", fast_mask),
+    ]:
         if not np.any(mask):
             result[name] = 0.0
             continue
@@ -813,6 +844,7 @@ def log_lethargy_correlation(
     if np.std(leth1) == 0 or np.std(leth2) == 0:
         return 0.0
     from scipy.stats import pearsonr
+
     return float(pearsonr(leth1, leth2)[0])
 
 
@@ -900,6 +932,7 @@ def dose_weighted_error(
 
     try:
         from ..core._numba_jit import _dose_weighted_mse_jit, NUMBA_AVAILABLE
+
         if NUMBA_AVAILABLE:
             return float(_dose_weighted_mse_jit(s1, s2, cc, ln_steps))
     except ImportError:
@@ -1098,19 +1131,23 @@ def compare_spectra(
             single_keys = [metrics]
         else:
             avail = all_simple + all_eurados + all_single
-            raise ValueError(
-                f"Unknown metric '{metrics}'. Available: {avail}"
-            )
+            raise ValueError(f"Unknown metric '{metrics}'. Available: {avail}")
     else:
         simple_keys = [k for k in metrics if k in _METRIC_FUNCTIONS]
-        eurados_keys = [k for k in metrics if k in _METRIC_FUNCTIONS_WITH_PARAMS]
+        eurados_keys = [
+            k for k in metrics if k in _METRIC_FUNCTIONS_WITH_PARAMS
+        ]
         single_keys = [k for k in metrics if k in _SINGLE_SPECTRUM_METRICS]
-        unknown = [k for k in metrics if k not in _METRIC_FUNCTIONS and k not in _METRIC_FUNCTIONS_WITH_PARAMS and k not in _SINGLE_SPECTRUM_METRICS]
+        unknown = [
+            k
+            for k in metrics
+            if k not in _METRIC_FUNCTIONS
+            and k not in _METRIC_FUNCTIONS_WITH_PARAMS
+            and k not in _SINGLE_SPECTRUM_METRICS
+        ]
         if unknown:
             avail = all_simple + all_eurados + all_single
-            raise ValueError(
-                f"Unknown metric(s) {unknown}. Available: {avail}"
-            )
+            raise ValueError(f"Unknown metric(s) {unknown}. Available: {avail}")
 
     results: Dict[str, float] = {}
     for key in simple_keys:
@@ -1131,15 +1168,27 @@ def compare_spectra(
             elif key == "energy_group_fluence_diff":
                 groups = func(spectrum1, spectrum2, energy)
                 for group_name, group_val in groups.items():
-                    results[f"energy_group_fluence_diff_{group_name}"] = group_val
+                    results[f"energy_group_fluence_diff_{group_name}"] = (
+                        group_val
+                    )
             elif key == "fluence_averaged_energy_diff":
                 results[key] = func(spectrum1, spectrum2, energy)
-            elif key in ("log_lethargy_correlation", "peak_location_error", "peak_width_error"):
+            elif key in (
+                "log_lethargy_correlation",
+                "peak_location_error",
+                "peak_width_error",
+            ):
                 results[key] = func(spectrum1, spectrum2, energy)
             elif key == "response_matrix_consistency":
                 if readings1 is not None and response_matrix is not None:
-                    results["response_matrix_consistency_ref"] = func(spectrum1, readings1, response_matrix)
-                    results["response_matrix_consistency_test"] = func(spectrum2, readings2 if readings2 is not None else readings1, response_matrix)
+                    results["response_matrix_consistency_ref"] = func(
+                        spectrum1, readings1, response_matrix
+                    )
+                    results["response_matrix_consistency_test"] = func(
+                        spectrum2,
+                        readings2 if readings2 is not None else readings1,
+                        response_matrix,
+                    )
             else:
                 results[key] = func(spectrum1, spectrum2, energy, cc_icrp116)
         except Exception as exc:
@@ -1150,8 +1199,12 @@ def compare_spectra(
         if energy is None:
             if key == "energy_group_fluence":
                 for group_name in ("thermal", "epithermal", "fast"):
-                    results[f"energy_group_fluence_{group_name}_ref"] = float("nan")
-                    results[f"energy_group_fluence_{group_name}_test"] = float("nan")
+                    results[f"energy_group_fluence_{group_name}_ref"] = float(
+                        "nan"
+                    )
+                    results[f"energy_group_fluence_{group_name}_test"] = float(
+                        "nan"
+                    )
             else:
                 results[f"{key}_ref"] = float("nan")
                 results[f"{key}_test"] = float("nan")
@@ -1162,9 +1215,13 @@ def compare_spectra(
                 groups_ref = func(spectrum1, energy)
                 groups_test = func(spectrum2, energy)
                 for group_name, group_val in groups_ref.items():
-                    results[f"energy_group_fluence_{group_name}_ref"] = group_val
+                    results[f"energy_group_fluence_{group_name}_ref"] = (
+                        group_val
+                    )
                 for group_name, group_val in groups_test.items():
-                    results[f"energy_group_fluence_{group_name}_test"] = group_val
+                    results[f"energy_group_fluence_{group_name}_test"] = (
+                        group_val
+                    )
             else:
                 results[f"{key}_ref"] = func(spectrum1, energy)
                 results[f"{key}_test"] = func(spectrum2, energy)
@@ -1211,6 +1268,3 @@ def compare_multiple(
         key = f"{labels[0]} vs {labels[i]}"
         results[key] = compare_spectra(ref, spectra[i], metrics=metrics)
     return results
-
-
-

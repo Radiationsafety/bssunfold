@@ -93,46 +93,46 @@ def unfold_combined(
         logger.info(f"Combined algorithm, methods = {len(pipeline)}")
 
     for i, stage in enumerate(pipeline):
-        method = stage['method']
-        params = stage.get('params', {}).copy()
-        use_as_initial = stage.get('use_as_initial', True)
-        store_intermediate = stage.get('store_intermediate', False)
+        method = stage["method"]
+        params = stage.get("params", {}).copy()
+        use_as_initial = stage.get("use_as_initial", True)
+        store_intermediate = stage.get("store_intermediate", False)
 
         if verbose:
-            logger.info(f"Stage {i+1}/{len(pipeline)}: {method}")
+            logger.info(f"Stage {i + 1}/{len(pipeline)}: {method}")
 
         if current_spectrum is not None and use_as_initial:
-            params['initial_spectrum'] = current_spectrum.copy()
+            params["initial_spectrum"] = current_spectrum.copy()
             if verbose:
                 logger.info("Previous result used as initial spectrum")
 
         # Select the appropriate unfold function
         unfold_funcs = {
-            'cvxpy': unfold_cvxpy,
-            'landweber': unfold_landweber,
-            'mlem': unfold_mlem,
-            'mlem_odl': unfold_mlem_odl,
-            'qpsolvers': unfold_qpsolvers,
-            'mystic': unfold_mystic,
-            'genetic': unfold_genetic,
-            'doroshenko': unfold_doroshenko,
-            'kaczmarz': unfold_kaczmarz,
-            'lmfit': unfold_lmfit,
-            'smt': unfold_smt,
-            'scip': unfold_scip,
-            'docplex': unfold_docplex,
-            'epic': unfold_epic,
-            'lanczos': unfold_lanczos,
-            'cgls': unfold_cgls,
-            'gks': unfold_gks,
-            'tikhonov_tv': unfold_tikhonov_tv,
-            'sandii': unfold_sandii,
-            'bunki': unfold_bunki,
-            'bunkiut': unfold_bunkiut,
-            'osem': unfold_osem,
-            'mapem': unfold_mapem,
-            'bsrem': unfold_bsrem,
-            'sart': unfold_sart,
+            "cvxpy": unfold_cvxpy,
+            "landweber": unfold_landweber,
+            "mlem": unfold_mlem,
+            "mlem_odl": unfold_mlem_odl,
+            "qpsolvers": unfold_qpsolvers,
+            "mystic": unfold_mystic,
+            "genetic": unfold_genetic,
+            "doroshenko": unfold_doroshenko,
+            "kaczmarz": unfold_kaczmarz,
+            "lmfit": unfold_lmfit,
+            "smt": unfold_smt,
+            "scip": unfold_scip,
+            "docplex": unfold_docplex,
+            "epic": unfold_epic,
+            "lanczos": unfold_lanczos,
+            "cgls": unfold_cgls,
+            "gks": unfold_gks,
+            "tikhonov_tv": unfold_tikhonov_tv,
+            "sandii": unfold_sandii,
+            "bunki": unfold_bunki,
+            "bunkiut": unfold_bunkiut,
+            "osem": unfold_osem,
+            "mapem": unfold_mapem,
+            "bsrem": unfold_bsrem,
+            "sart": unfold_sart,
         }
 
         if method not in unfold_funcs:
@@ -145,9 +145,9 @@ def unfold_combined(
 
         # Only calculate errors for the last stage if requested
         if i == len(pipeline) - 1 and calculate_errors:
-            params['calculate_errors'] = True
+            params["calculate_errors"] = True
         else:
-            params['calculate_errors'] = False
+            params["calculate_errors"] = False
 
         try:
             result = unfold_func(
@@ -164,15 +164,15 @@ def unfold_combined(
             logger.error(f"Error in method {method}: {e}")
             raise
 
-        if 'spectrum' in result:
-            current_spectrum = result['spectrum'].copy()
+        if "spectrum" in result:
+            current_spectrum = result["spectrum"].copy()
             if verbose:
                 logger.info(
                     f"  Spectrum norm: {np.linalg.norm(current_spectrum):.6f}"
                 )
 
         if store_intermediate:
-            intermediate_results[f'stage_{i+1}_{method}'] = result.copy()
+            intermediate_results[f"stage_{i + 1}_{method}"] = result.copy()
 
         final_result = result
 
@@ -183,12 +183,12 @@ def unfold_combined(
         return None
 
     output = final_result.copy()
-    output['pipeline_info'] = {
-        'stages': [stage['method'] for stage in pipeline],
-        'params': [stage.get('params', {}) for stage in pipeline]
+    output["pipeline_info"] = {
+        "stages": [stage["method"] for stage in pipeline],
+        "params": [stage.get("params", {}) for stage in pipeline],
     }
 
     if intermediate_results:
-        output['intermediate_results'] = intermediate_results
+        output["intermediate_results"] = intermediate_results
 
     return output

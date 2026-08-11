@@ -21,6 +21,7 @@ from bssunfold.core.unfold_cs import (
 def detector():
     """Create a Detector instance with default GSF response functions."""
     from bssunfold import Detector
+
     return Detector()
 
 
@@ -28,11 +29,14 @@ def detector():
 def small_detector():
     """Create a small Detector with synthetic data for fast tests."""
     from bssunfold import Detector
-    df = pd.DataFrame({
-        'E_MeV': [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
-        'sphere_1': [0.1, 0.2, 0.3, 0.4, 0.5],
-        'sphere_2': [0.5, 0.4, 0.3, 0.2, 0.1],
-    })
+
+    df = pd.DataFrame(
+        {
+            "E_MeV": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5],
+            "sphere_1": [0.1, 0.2, 0.3, 0.4, 0.5],
+            "sphere_2": [0.5, 0.4, 0.3, 0.2, 0.1],
+        }
+    )
     return Detector(df)
 
 
@@ -104,8 +108,9 @@ class TestKSVD:
         signals = np.zeros((10, 20))
         for j in range(20):
             idx = rng.choice(10, size=2, replace=False)
-            signals[:, j] = basis[:, idx[0]] * rng.uniform(0.5, 1.0) + \
-                basis[:, idx[1]] * rng.uniform(0.5, 1.0)
+            signals[:, j] = basis[:, idx[0]] * rng.uniform(0.5, 1.0) + basis[
+                :, idx[1]
+            ] * rng.uniform(0.5, 1.0)
         D = solve_ksvd(signals, n_atoms=10, n_iterations=10, sparsity=2)
         # Each signal should be reasonably well represented (K-SVD is a
         # heuristic; the reconstruction error should be bounded).
@@ -179,7 +184,11 @@ class TestSolveCS:
         x_true[[2, 10, 21]] = [1.0, 0.5, 0.8]
         b = A @ x_true
         x, iterations, converged = solve_cs(
-            A, b, n_atoms=40, sparsity=3, max_iterations=100,
+            A,
+            b,
+            n_atoms=40,
+            sparsity=3,
+            max_iterations=100,
             random_state=0,
         )
         assert x.shape == (n,)
@@ -197,7 +206,11 @@ class TestSolveCS:
         x_true[[1, 15, 30]] = [1.0, 0.6, 0.4]
         b = A @ x_true
         x, _, _ = solve_cs(
-            A, b, n_atoms=50, sparsity=3, max_iterations=150,
+            A,
+            b,
+            n_atoms=50,
+            sparsity=3,
+            max_iterations=150,
             random_state=1,
         )
         # Relative residual should be bounded (CS reconstruction is approximate)
@@ -212,8 +225,9 @@ class TestSolveCS:
         A = rng.normal(size=(m, n))
         b = A @ np.ones(n)
         x0 = np.ones(n)
-        x, _, _ = solve_cs(A, b, x0=x0, n_atoms=25, max_iterations=50,
-                           random_state=2)
+        x, _, _ = solve_cs(
+            A, b, x0=x0, n_atoms=25, max_iterations=50, random_state=2
+        )
         assert x.shape == (n,)
 
     def test_with_prelearned_dictionary(self):
@@ -224,8 +238,9 @@ class TestSolveCS:
         A = rng.normal(size=(m, n))
         b = A @ np.ones(n)
         D = np.eye(n)
-        x, _, _ = solve_cs(A, b, dictionary=D, max_iterations=50,
-                           random_state=3)
+        x, _, _ = solve_cs(
+            A, b, dictionary=D, max_iterations=50, random_state=3
+        )
         assert x.shape == (n,)
 
     def test_invalid_dictionary_shape(self):
@@ -247,16 +262,19 @@ class TestUnfoldCS:
             small_detector.detector_names[1]: 80.0,
         }
         result = small_detector.unfold_cs(
-            readings, n_atoms=10, sparsity=2, max_iterations=50,
+            readings,
+            n_atoms=10,
+            sparsity=2,
+            max_iterations=50,
             random_state=0,
         )
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert result['method'] == 'CompressiveSensing'
-        assert len(result['spectrum']) == small_detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
-        assert 'doserates' in result
-        assert 'effective_readings' in result
+        assert "spectrum" in result
+        assert "energy" in result
+        assert result["method"] == "CompressiveSensing"
+        assert len(result["spectrum"]) == small_detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
+        assert "doserates" in result
+        assert "effective_readings" in result
 
     def test_with_uncertainty(self, small_detector):
         """Test uncertainty calculation via Monte-Carlo."""
@@ -274,8 +292,8 @@ class TestUnfoldCS:
             noise_level=0.05,
             random_state=0,
         )
-        assert 'spectrum_uncert_mean' in result
-        assert 'spectrum_uncert_std' in result
+        assert "spectrum_uncert_mean" in result
+        assert "spectrum_uncert_std" in result
 
     def test_with_initial_spectrum(self, small_detector):
         """Test CS unfolding with an initial spectrum guess."""
@@ -285,10 +303,14 @@ class TestUnfoldCS:
         }
         x0 = np.ones(small_detector.n_energy_bins)
         result = small_detector.unfold_cs(
-            readings, initial_spectrum=x0, n_atoms=10, sparsity=2,
-            max_iterations=50, random_state=0,
+            readings,
+            initial_spectrum=x0,
+            n_atoms=10,
+            sparsity=2,
+            max_iterations=50,
+            random_state=0,
         )
-        assert len(result['spectrum']) == small_detector.n_energy_bins
+        assert len(result["spectrum"]) == small_detector.n_energy_bins
 
     def test_save_result(self, small_detector):
         """Test that save_result stores the result in history."""
@@ -297,8 +319,12 @@ class TestUnfoldCS:
             small_detector.detector_names[1]: 80.0,
         }
         small_detector.unfold_cs(
-            readings, n_atoms=10, sparsity=2, max_iterations=50,
-            save_result=True, random_state=0,
+            readings,
+            n_atoms=10,
+            sparsity=2,
+            max_iterations=50,
+            save_result=True,
+            random_state=0,
         )
         assert len(small_detector.results_history) >= 1
 
@@ -321,5 +347,5 @@ class TestUnfoldCS:
             max_iterations=50,
             random_state=0,
         )
-        assert 'spectrum' in result
-        assert result['method'] == 'CompressiveSensing'
+        assert "spectrum" in result
+        assert result["method"] == "CompressiveSensing"

@@ -46,8 +46,9 @@ def check_jax_availability() -> bool:
     """
     global JAX_AVAILABLE
     try:
-        import jax  # noqa: F401
-        import jaxlib  # noqa: F401
+        import jax  # noqa: F401  # pylint: disable=unused-import
+        import jaxlib  # noqa: F401  # pylint: disable=unused-import
+
         JAX_AVAILABLE = True
         return True
     except ImportError:
@@ -65,7 +66,8 @@ def check_proxsuite_availability() -> bool:
     """
     global PROXSUITE_AVAILABLE
     try:
-        import proxsuite  # noqa: F401
+        import proxsuite  # noqa: F401  # pylint: disable=unused-import
+
         PROXSUITE_AVAILABLE = True
         return True
     except ImportError:
@@ -87,6 +89,7 @@ def check_qpsolvers_extra_availability() -> bool:
     global QPSOLVERS_EXTRA_AVAILABLE
     try:
         from qpsolvers import available_solvers
+
         # Check that at least one extra solver beyond the base qpsolvers
         # is actually installed. Base qpsolvers always includes at least
         # one solver, but we want to confirm extras are present.
@@ -111,7 +114,8 @@ def check_scip_availability() -> bool:
     """
     global SCIP_AVAILABLE
     try:
-        import pyscipopt  # noqa: F401
+        import pyscipopt  # noqa: F401  # pylint: disable=unused-import
+
         SCIP_AVAILABLE = True
         return True
     except ImportError:
@@ -129,8 +133,9 @@ def check_docplex_availability() -> bool:
     """
     global DOCPLEX_AVAILABLE
     try:
-        import docplex  # noqa: F401
-        import cplex  # noqa: F401
+        import docplex  # noqa: F401  # pylint: disable=unused-import
+        import cplex  # noqa: F401  # pylint: disable=unused-import
+
         DOCPLEX_AVAILABLE = True
         return True
     except ImportError:
@@ -187,8 +192,7 @@ def get_recommended_solver() -> str:
 
     if PROXSUITE_AVAILABLE and not is_windows:
         return "proxqp"
-    else:
-        return "osqp"
+    return "osqp"
 
 
 # Initialize on module load

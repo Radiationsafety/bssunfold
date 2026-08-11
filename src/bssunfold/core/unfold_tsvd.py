@@ -14,8 +14,11 @@ __all__ = ["solve_tsvd", "unfold_tsvd"]
 
 
 def _automatic_k_selection(
-    s: np.ndarray, A: np.ndarray, b: np.ndarray,
-    method: str = "discrepancy", noise_level: float = None
+    s: np.ndarray,
+    A: np.ndarray,
+    b: np.ndarray,
+    method: str = "discrepancy",
+    noise_level: float = None,
 ) -> int:
     """Automatically select truncation parameter k for TSVD."""
     m, n = A.shape
@@ -35,12 +38,12 @@ def _automatic_k_selection(
                 return i
         return max_k
 
-    elif method == "energy":
+    if method == "energy":
         energy_threshold = 0.95
-        cumulative_energy = np.cumsum(s ** 2) / np.sum(s ** 2)
+        cumulative_energy = np.cumsum(s**2) / np.sum(s**2)
         return int(np.argmax(cumulative_energy >= energy_threshold)) + 1
 
-    elif method == "l_curve":
+    if method == "l_curve":
         U, s_full, Vh = svd(A, full_matrices=False)
         V = Vh.T
         residual_norms = []
@@ -61,14 +64,16 @@ def _automatic_k_selection(
             dy1 = log_sol[i] - log_sol[i - 1]
             dx2 = log_res[i + 1] - log_res[i]
             dy2 = log_sol[i + 1] - log_sol[i]
-            curv = abs(dx1 * dy2 - dx2 * dy1) / ((dx1 ** 2 + dy1 ** 2) ** 1.5 + 1e-10)
+            curv = abs(dx1 * dy2 - dx2 * dy1) / (
+                (dx1**2 + dy1**2) ** 1.5 + 1e-10
+            )
             curvature.append(curv)
         if len(curvature) > 0:
             k_idx = np.argmax(curvature) + 1
             return min(k_idx + 1, len(s))
         return len(s) // 2
 
-    elif method == "gcv":
+    if method == "gcv":
         U, s_full, Vh = svd(A, full_matrices=False)
         beta = U.T @ b
         gcv_values = []
@@ -76,28 +81,27 @@ def _automatic_k_selection(
         for i in k_values:
             residual = np.sum(beta[i:] ** 2)
             eff_params = m - i
-            gcv = residual / (eff_params ** 2) if eff_params > 0 else np.inf
+            gcv = residual / (eff_params**2) if eff_params > 0 else np.inf
             gcv_values.append(gcv)
         return k_values[np.argmin(gcv_values)]
 
-    elif method == "threshold_ratio":
+    if method == "threshold_ratio":
         threshold_ratio = 1e-2
         s_normalized = s / s[0]
         return int(np.sum(s_normalized > threshold_ratio))
 
-    elif method == "median_threshold":
+    if method == "median_threshold":
         median_s = np.median(s)
         return int(np.sum(s >= median_s))
 
-    elif method == "donoho":
+    if method == "donoho":
         sigma_donoho = 0.05
         n_val = n
         donoho_rcond = 4 / np.sqrt(3) * np.sqrt(n_val) * sigma_donoho
         return int(np.sum(s > donoho_rcond))
 
-    else:
-        mean_s = np.mean(s)
-        return int(np.sum(s >= mean_s))
+    mean_s = np.mean(s)
+    return int(np.sum(s >= mean_s))
 
 
 def solve_tsvd(
@@ -141,10 +145,9 @@ def solve_tsvd(
         k = min(k, len(s))
     elif threshold is not None:
         k = np.sum(s / s[0] > threshold)
-    else:
-        k = _automatic_k_selection(s, A, b, method=method, noise_level=noise_level)
+    k = _automatic_k_selection(s, A, b, method=method, noise_level=noise_level)
 
-    k = max(1, min(k, min(A.shape)))
+    k = max(1, min(k, A.shape[0], A.shape[1]))
     s_k = s[:k]
     U_k = U[:, :k]
     V_k = V[:, :k]

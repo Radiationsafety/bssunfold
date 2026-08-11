@@ -66,7 +66,7 @@ def _zscore_max(p: np.ndarray, a: float = 2.5) -> float:
     p = np.sort(np.abs(p))
     if len(p) == 0:
         return 0.0
-    p = p[len(p) // 2:]
+    p = p[len(p) // 2 :]
     mad = 1.4826 * (np.mean(np.abs(p - np.mean(p))) + np.finfo(float).eps)
     med = float(np.median(p))
     z = (p - med) / mad
@@ -191,10 +191,7 @@ def solve_tikhonov_tv(
 
     for k in range(1, max_iterations + 1):
         # --------------------------- m-subproblem ---------------------------
-        rhs = (
-            mu1 * D1.T @ (g1 + g2 + lambda_1)
-            + mu2 * A.T @ (b + e + lambda_2)
-        )
+        rhs = mu1 * D1.T @ (g1 + g2 + lambda_1) + mu2 * A.T @ (b + e + lambda_2)
         m = B_inv @ rhs
 
         if k == 1:
@@ -220,10 +217,7 @@ def solve_tikhonov_tv(
         if type_ in ("TT", "T"):
             y2 = D1 @ m - g1 - lambda_1
             if beta_k > 0 and mu1 > 0:
-                lhs = (
-                    np.eye(n - 1)
-                    + (beta_k / mu1) * (D1_bar.T @ D1_bar)
-                )
+                lhs = np.eye(n - 1) + (beta_k / mu1) * (D1_bar.T @ D1_bar)
                 g2 = np.linalg.solve(lhs, y2)
             else:
                 g2 = y2
@@ -252,8 +246,6 @@ def solve_tikhonov_tv(
             denom = value + target
             if denom > 0:
                 beta_k = 2.0 * value / denom * beta_k
-            else:
-                beta_k = beta_k
         elif type_ == "T" and not adapt_beta:
             beta_k = float(beta)
 
@@ -341,9 +333,7 @@ def unfold_tikhonov_tv(
     # Derive a default epsilon from the noise level if not provided.
     if epsilon is None and noise_level is not None:
         selected = [name for name in detector_names if name in readings]
-        b_norm = float(
-            np.linalg.norm([readings[name] for name in selected])
-        )
+        b_norm = float(np.linalg.norm([readings[name] for name in selected]))
         epsilon = (noise_level * b_norm) ** 2
 
     return run_unfolding(

@@ -89,11 +89,11 @@ def parametric_model(
 
 def _residuals(params, A_matrix, b_readings, E, log_steps):
     """Residual function for lmfit minimization."""
-    A_th = params['A_th'].value
-    T_th = params['T_th'].value
-    A_epi = params['A_epi'].value
-    A_f = params['A_f'].value
-    T_ev = params['T_ev'].value
+    A_th = params["A_th"].value
+    T_th = params["T_th"].value
+    A_epi = params["A_epi"].value
+    A_f = params["A_f"].value
+    T_ev = params["T_ev"].value
 
     spectrum = parametric_model(E, A_th, T_th, A_epi, A_f, T_ev)
     spectrum_with_steps = spectrum * log_steps
@@ -145,23 +145,23 @@ def solve_fruit_like(
     params = lmfit.Parameters()
 
     if initial_params is None:
-        params.add('A_th', value=1e-6, min=0.0)
-        params.add('T_th', value=0.025e-6, min=1e-9, max=1e-3)
-        params.add('A_epi', value=1e-6, min=0.0)
-        params.add('A_f', value=1e-6, min=0.0)
-        params.add('T_ev', value=2.0, min=0.1, max=20.0)
+        params.add("A_th", value=1e-6, min=0.0)
+        params.add("T_th", value=0.025e-6, min=1e-9, max=1e-3)
+        params.add("A_epi", value=1e-6, min=0.0)
+        params.add("A_f", value=1e-6, min=0.0)
+        params.add("T_ev", value=2.0, min=0.1, max=20.0)
     else:
         for name, value in initial_params.items():
-            if name == 'A_th':
-                params.add('A_th', value=value, min=0.0)
-            elif name == 'T_th':
-                params.add('T_th', value=value, min=1e-9, max=1e-3)
-            elif name == 'A_epi':
-                params.add('A_epi', value=value, min=0.0)
-            elif name == 'A_f':
-                params.add('A_f', value=value, min=0.0)
-            elif name == 'T_ev':
-                params.add('T_ev', value=value, min=0.1, max=20.0)
+            if name == "A_th":
+                params.add("A_th", value=value, min=0.0)
+            elif name == "T_th":
+                params.add("T_th", value=value, min=1e-9, max=1e-3)
+            elif name == "A_epi":
+                params.add("A_epi", value=value, min=0.0)
+            elif name == "A_f":
+                params.add("A_f", value=value, min=0.0)
+            elif name == "T_ev":
+                params.add("T_ev", value=value, min=0.1, max=20.0)
 
     result = lmfit.minimize(
         _residuals,
@@ -173,11 +173,11 @@ def solve_fruit_like(
     final_params = result.params
     spectrum = parametric_model(
         E,
-        final_params['A_th'].value,
-        final_params['T_th'].value,
-        final_params['A_epi'].value,
-        final_params['A_f'].value,
-        final_params['T_ev'].value,
+        final_params["A_th"].value,
+        final_params["T_th"].value,
+        final_params["A_epi"].value,
+        final_params["A_f"].value,
+        final_params["T_ev"].value,
     )
     spectrum = spectrum * log_steps
 
@@ -241,13 +241,13 @@ def unfold_fruit_like(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    A, b, selected = _build_system(readings, detector_names, sensitivities)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
     log_steps = compute_log_steps(E_MeV, n_energy_bins)
     ln_steps = log_steps * np.log(10)
 
     def solve_wrapper(A_mat, b_vec, **kwargs):
-        x_opt, success, message, nfev = solve_fruit_like(
+        x_opt, success, _message, nfev = solve_fruit_like(
             A_mat, b_vec, E_MeV, ln_steps, initial_params, method
         )
         return x_opt, nfev, success

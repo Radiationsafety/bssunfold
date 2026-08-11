@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Fixed
+- **First-bin artifact in EM-family unfolding methods** — `unfold_bsrem`,
+  `unfold_mapem`, `unfold_osem`, `unfold_sart`, `unfold_bunki`,
+  `unfold_bunkiut` and `unfold_sandii` started from a flat all-ones initial
+  guess. At the lowest energy bin the detector response is (near-)zero, so
+  the iterative update never corrected that bin and it stayed pinned at the
+  initial value (1.0 on the default GSF detector), while the reference
+  spectra have `Phi[0] = 0`. The default initial spectrum now zeroes the
+  first energy bin, giving exactly 0 there for all seven methods.
+- **SART first-bin tail** — `solve_sart` additionally holds the first
+  (lowest-energy) bin fixed at its initial-guess value during iteration,
+  because SART's additive update is unconstrained at that edge and otherwise
+  accumulates a spurious tail (up to ~0.3 on LANL/PTB response functions).
+  - Regression tests in `tests/test_em_methods.py` (`TestFirstBinZero`)
+    covering all seven methods across the GSF/PTB/LANL response functions.
+
 ## [0.16.0] - 2026-08-10
 
 ### Added
@@ -84,6 +102,7 @@ and this project adheres to [Semantic Versioning].
     Tikhonov regularization applied to the projected problem at each
     iteration. The regularization parameter is selected automatically
     using GCV or discrepancy principle.
+- **code refactoring** after vulture dead-code removal and pylint.
 
 ## [0.15.0] - 2026-08-06
 

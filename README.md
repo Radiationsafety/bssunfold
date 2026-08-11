@@ -319,8 +319,8 @@ graph TD
 
 | # | Method | Category | Unique Parameters | Dependencies | Description |
 |---|--------|----------|-------------------|--------------|-------------|
-| 1 | `unfold_cvxpy` | Tikhonov | `regularization`, `norm` (1/2), `solver`, `regularization_method` | cvxpy | Convex optimization with Tikhonov regularization |
-| 2 | `unfold_qpsolvers` | Tikhonov | `regularization`, `norm` (1/2), `solver`, `smoothness_order`, `smoothness_weight`, `regularization_method` | qpsolvers | QP-based unfolding with L1/L2/smoothness norms |
+| 1 | `unfold_cvxpy` | Tikhonov | `regularization`, `norm` (1/2), `solver` (CLARABEL, ECOS, ECOS_BB, HIGHS, OSQP, PIQP, PROXQP, QPALM, SCIPY, SCS), `regularization_method` | cvxpy | Convex optimization with Tikhonov regularization |
+| 2 | `unfold_qpsolvers` | Tikhonov | `regularization`, `norm` (1/2), `solver` (CLARABEL, ECOS, HIGHS, OSQP, PIQP, PROXQP, QPALM, SCS), `smoothness_order`, `smoothness_weight`, `regularization_method` | qpsolvers | QP-based unfolding with L1/L2/smoothness norms |
 | 3 | `unfold_tsvd` | Tikhonov | `method` (l_curve/gcv/discrepancy/energy/median/donoho), `k`, `threshold`, `noise_level` | — | Truncated SVD with automatic k-selection |
 | 4 | `unfold_lanczos` | Krylov/hybrid | `regularization_method` (gcv), `max_iterations`, `regularization`, `noise_level` | — | Lanczos-hybrid (Golub-Kahan bidiagonalization) with automatic per-iteration GCV regularization; no a-priori spectrum required |
 | 5 | `unfold_tikhonov_legendre` | Tikhonov | `delta`, `n_polynomials` | — | Tikhonov regularization in Legendre polynomial basis |

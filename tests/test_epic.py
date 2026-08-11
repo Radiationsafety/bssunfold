@@ -74,7 +74,9 @@ class TestSolveEpic:
         from bssunfold.core.unfold_epic import solve_epic
 
         A, b, _ = _synthetic_problem()
-        with pytest.raises(ValueError, match="Unsupported regularization_order"):
+        with pytest.raises(
+            ValueError, match="Unsupported regularization_order"
+        ):
             solve_epic(A, b, regularization_order=3)
 
     def test_b_length_mismatch(self):
@@ -315,7 +317,12 @@ class TestUnfoldEpicDetector:
         detector.results_history = {}
         detector.unfold_epic(readings, save_result=True)
         assert len(detector.results_history) == 1
-        assert detector.results_history[list(detector.results_history)[0]]["method"] == "EPIC"
+        assert (
+            detector.results_history[list(detector.results_history)[0]][
+                "method"
+            ]
+            == "EPIC"
+        )
 
     def test_regularization_order_2(self, detector, readings):
         result = detector.unfold_epic(
@@ -325,7 +332,9 @@ class TestUnfoldEpicDetector:
         assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_non_neg_false(self, detector, readings):
-        result = detector.unfold_epic(readings, non_neg=False, save_result=False)
+        result = detector.unfold_epic(
+            readings, non_neg=False, save_result=False
+        )
         assert result["non_neg"] is False
         assert len(result["spectrum"]) == detector.n_energy_bins
 
@@ -337,7 +346,8 @@ class TestUnfoldEpicDetector:
             n_energy_bins=detector.n_energy_bins,
             E_MeV=detector.E_MeV,
             sensitivities={
-                n: detector.sensitivities[n] for n in detector.detector_names[:5]
+                n: detector.sensitivities[n]
+                for n in detector.detector_names[:5]
             },
             cc_icrp116=detector._get_interpolated_cc(),
             save_result_callback=detector._save_result,
@@ -352,13 +362,19 @@ class TestUnfoldEpicDetector:
             {"method": "landweber", "params": {"max_iterations": 50}},
             {"method": "epic", "params": {"regularization_order": 1}},
         ]
-        result = detector.unfold_combined(readings, pipeline=pipeline, verbose=False)
+        result = detector.unfold_combined(
+            readings, pipeline=pipeline, verbose=False
+        )
         assert result["pipeline_info"]["stages"] == ["landweber", "epic"]
         assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_invalid_order_raises(self, detector, readings):
-        with pytest.raises(ValueError, match="Unsupported regularization_order"):
-            detector.unfold_epic(readings, regularization_order=5, save_result=False)
+        with pytest.raises(
+            ValueError, match="Unsupported regularization_order"
+        ):
+            detector.unfold_epic(
+                readings, regularization_order=5, save_result=False
+            )
 
 
 class TestUnfoldEpicExports:
@@ -401,7 +417,9 @@ class TestEpicEdgeCases:
         A, b, _ = _synthetic_problem()
         mask = np.zeros(A.shape[1], dtype=bool)
         mask[:4] = True
-        x = solve_epic(A, b, EPIC_bool=mask, target_sigmas=np.full(A.shape[1], 0.5))
+        x = solve_epic(
+            A, b, EPIC_bool=mask, target_sigmas=np.full(A.shape[1], 0.5)
+        )
         assert x.shape == (A.shape[1],)
         assert np.all(np.isfinite(x))
 
@@ -455,7 +473,8 @@ class TestEpicEdgeCases:
 
         n = detector.n_energy_bins
         with patch.object(
-            epic_mod, "_epic_weights",
+            epic_mod,
+            "_epic_weights",
             return_value=(
                 np.eye(5),
                 np.eye(n)[: n - 1],
@@ -466,4 +485,3 @@ class TestEpicEdgeCases:
             with pytest.warns(UserWarning, match="did not converge"):
                 result = detector.unfold_epic(readings, save_result=False)
         assert result["epic_converged"] is False
-

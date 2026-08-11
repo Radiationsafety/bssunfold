@@ -18,7 +18,6 @@ import logging
 from bssunfold import Detector, RF_PTB, RF_LANL
 from bssunfold.utils.comparison import (
     compare_spectra,
-    _ALL_METRICS,
     _METRIC_FUNCTIONS,
     _METRIC_FUNCTIONS_WITH_PARAMS,
     _SINGLE_SPECTRUM_METRICS,
@@ -26,11 +25,22 @@ from bssunfold.utils.comparison import (
 
 logger = logging.getLogger("iaea_validation")
 
-CSV_PATH = Path(__file__).parent / "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
-ALL_METRIC_KEYS = list(_METRIC_FUNCTIONS.keys()) + list(_METRIC_FUNCTIONS_WITH_PARAMS.keys())
+CSV_PATH = (
+    Path(__file__).parent
+    / "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
+)
+ALL_METRIC_KEYS = list(_METRIC_FUNCTIONS.keys()) + list(
+    _METRIC_FUNCTIONS_WITH_PARAMS.keys()
+)
 # energy_group_fluence_diff returns a dict and gets flattened into per-group columns
-ALL_METRIC_KEYS = [k for k in ALL_METRIC_KEYS if k != "energy_group_fluence_diff"]
-ALL_METRIC_KEYS += ["energy_group_fluence_diff_thermal", "energy_group_fluence_diff_epithermal", "energy_group_fluence_diff_fast"]
+ALL_METRIC_KEYS = [
+    k for k in ALL_METRIC_KEYS if k != "energy_group_fluence_diff"
+]
+ALL_METRIC_KEYS += [
+    "energy_group_fluence_diff_thermal",
+    "energy_group_fluence_diff_epithermal",
+    "energy_group_fluence_diff_fast",
+]
 # Single-spectrum integral quantities are reported per spectrum with _ref/_test suffixes
 for m in _SINGLE_SPECTRUM_METRICS:
     if m == "energy_group_fluence":
@@ -58,26 +68,108 @@ DETECTOR_CONFIGS = {
 }
 
 METHODS = [
-    ("cvxpy", lambda d, r: d.unfold_cvxpy(r, regularization=1e-3, save_result=False)),
-    ("qpsolvers", lambda d, r: d.unfold_qpsolvers(r, regularization=1e-3, save_result=False)),
-    ("landweber", lambda d, r: d.unfold_landweber(r, max_iterations=500, save_result=False)),
-    ("mlem", lambda d, r: d.unfold_mlem(r, max_iterations=500, save_result=False)),
-    ("doroshenko", lambda d, r: d.unfold_doroshenko(r, max_iterations=500, save_result=False)),
-    ("kaczmarz", lambda d, r: d.unfold_kaczmarz(r, max_iterations=500, save_result=False)),
-    ("gravel", lambda d, r: d.unfold_gravel(r, max_iterations=500, save_result=False)),
-    ("maxed", lambda d, r: d.unfold_maxed(r, max_iterations=500, save_result=False)),
-    ("tikhonov_legendre", lambda d, r: d.unfold_tikhonov_legendre(r, delta=0.05, save_result=False)),
-    ("bayes", lambda d, r: d.unfold_bayes(r, max_iterations=500, save_result=False)),
-    ("bayes_spline", lambda d, r: d.unfold_bayes_spline_regularization(r, max_iterations=500, save_result=False)),
+    (
+        "cvxpy",
+        lambda d, r: d.unfold_cvxpy(r, regularization=1e-3, save_result=False),
+    ),
+    (
+        "qpsolvers",
+        lambda d, r: d.unfold_qpsolvers(
+            r, regularization=1e-3, save_result=False
+        ),
+    ),
+    (
+        "landweber",
+        lambda d, r: d.unfold_landweber(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "mlem",
+        lambda d, r: d.unfold_mlem(r, max_iterations=500, save_result=False),
+    ),
+    (
+        "doroshenko",
+        lambda d, r: d.unfold_doroshenko(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "kaczmarz",
+        lambda d, r: d.unfold_kaczmarz(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "gravel",
+        lambda d, r: d.unfold_gravel(r, max_iterations=500, save_result=False),
+    ),
+    (
+        "maxed",
+        lambda d, r: d.unfold_maxed(r, max_iterations=500, save_result=False),
+    ),
+    (
+        "tikhonov_legendre",
+        lambda d, r: d.unfold_tikhonov_legendre(
+            r, delta=0.05, save_result=False
+        ),
+    ),
+    (
+        "bayes",
+        lambda d, r: d.unfold_bayes(r, max_iterations=500, save_result=False),
+    ),
+    (
+        "bayes_spline",
+        lambda d, r: d.unfold_bayes_spline_regularization(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
     ("statreg", lambda d, r: d.unfold_statreg(r, save_result=False)),
-    ("scipy_direct", lambda d, r: d.unfold_scipy_direct_method(r, method="cg", max_iterations=500, save_result=False)),
-    ("tsvd", lambda d, r: d.unfold_tsvd(r, method="discrepancy", save_result=False)),
-    ("lmfit", lambda d, r: d.unfold_lmfit(r, method="lbfgsb", model_name="elastic", regularization=1e-4, save_result=False)),
-    ("mlem_odl", lambda d, r: d.unfold_mlem_odl(r, max_iterations=500, save_result=False)),
+    (
+        "scipy_direct",
+        lambda d, r: d.unfold_scipy_direct_method(
+            r, method="cg", max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "tsvd",
+        lambda d, r: d.unfold_tsvd(r, method="discrepancy", save_result=False),
+    ),
+    (
+        "lmfit",
+        lambda d, r: d.unfold_lmfit(
+            r,
+            method="lbfgsb",
+            model_name="elastic",
+            regularization=1e-4,
+            save_result=False,
+        ),
+    ),
+    (
+        "mlem_odl",
+        lambda d, r: d.unfold_mlem_odl(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
     ("fruit_like", lambda d, r: d.unfold_fruit_like(r, save_result=False)),
-    ("hybrid_parametric_landweber", lambda d, r: d.unfold_hybrid_parametric(r, refinement_method="landweber", save_result=False)),
-    ("hybrid_parametric_mlem", lambda d, r: d.unfold_hybrid_parametric(r, refinement_method="mlem", save_result=False)),
-    ("bayesian_parametric", lambda d, r: d.unfold_bayesian_parametric(r, n_samples=100, burn_in=20, save_result=False)),
+    (
+        "hybrid_parametric_landweber",
+        lambda d, r: d.unfold_hybrid_parametric(
+            r, refinement_method="landweber", save_result=False
+        ),
+    ),
+    (
+        "hybrid_parametric_mlem",
+        lambda d, r: d.unfold_hybrid_parametric(
+            r, refinement_method="mlem", save_result=False
+        ),
+    ),
+    (
+        "bayesian_parametric",
+        lambda d, r: d.unfold_bayesian_parametric(
+            r, n_samples=100, burn_in=20, save_result=False
+        ),
+    ),
     ("parametric", lambda d, r: d.unfold_parametric(r, save_result=False)),
 ]
 
@@ -132,35 +224,55 @@ def test_iaea_validation(detector_type, reference_data):
             try:
                 result = method_fn(detector, readings)
             except ImportError:
-                rows.append({
-                    "spectrum": spec_name, "method": method_name, "status": "SKIP",
-                    **{k: np.nan for k in ALL_METRIC_KEYS},
-                })
+                rows.append(
+                    {
+                        "spectrum": spec_name,
+                        "method": method_name,
+                        "status": "SKIP",
+                        **{k: np.nan for k in ALL_METRIC_KEYS},
+                    }
+                )
                 continue
             except Exception as e:
-                rows.append({
-                    "spectrum": spec_name, "method": method_name, "status": f"ERROR: {e}",
-                    **{k: np.nan for k in ALL_METRIC_KEYS},
-                })
+                rows.append(
+                    {
+                        "spectrum": spec_name,
+                        "method": method_name,
+                        "status": f"ERROR: {e}",
+                        **{k: np.nan for k in ALL_METRIC_KEYS},
+                    }
+                )
                 continue
 
             if result is None or "spectrum" not in result:
-                rows.append({
-                    "spectrum": spec_name, "method": method_name, "status": "ERROR: no spectrum",
-                    **{k: np.nan for k in ALL_METRIC_KEYS},
-                })
+                rows.append(
+                    {
+                        "spectrum": spec_name,
+                        "method": method_name,
+                        "status": "ERROR: no spectrum",
+                        **{k: np.nan for k in ALL_METRIC_KEYS},
+                    }
+                )
                 continue
 
             unfolded = result["spectrum"]
-            metrics = compare_spectra(interp_spectrum, unfolded, energy=detector_energy)
+            metrics = compare_spectra(
+                interp_spectrum, unfolded, energy=detector_energy
+            )
 
             warning_msgs = _check_warnings(metrics)
             status = "OK"
             if warning_msgs:
                 status = "WARN: " + "; ".join(warning_msgs)
-                all_warnings.append((detector_type, spec_name, method_name, warning_msgs))
+                all_warnings.append(
+                    (detector_type, spec_name, method_name, warning_msgs)
+                )
 
-            row = {"spectrum": spec_name, "method": method_name, "status": status}
+            row = {
+                "spectrum": spec_name,
+                "method": method_name,
+                "status": status,
+            }
             row.update(metrics)
             rows.append(row)
 
@@ -168,14 +280,18 @@ def test_iaea_validation(detector_type, reference_data):
         pytest.skip(f"No results for detector type {detector_type}")
 
     result_df = pd.DataFrame(rows)
-    result_df = result_df.sort_values(["spectrum", "method"]).reset_index(drop=True)
+    result_df = result_df.sort_values(["spectrum", "method"]).reset_index(
+        drop=True
+    )
 
-    logger.info(f"\n{'='*80}")
+    logger.info(f"\n{'=' * 80}")
     logger.info(f"IAEA Validation Report: {detector_type}")
-    logger.info(f"Detector: {detector.n_detectors} spheres, {detector.n_energy_bins} energy bins")
+    logger.info(
+        f"Detector: {detector.n_detectors} spheres, {detector.n_energy_bins} energy bins"
+    )
     logger.info(f"Reference spectra: {len(spectrum_names)}")
     logger.info(f"Methods tested: {result_df['method'].nunique()}")
-    logger.info(f"{'='*80}")
+    logger.info(f"{'=' * 80}")
 
     n_total = len(result_df)
     n_ok = (result_df["status"] == "OK").sum()
@@ -183,7 +299,9 @@ def test_iaea_validation(detector_type, reference_data):
     n_warn = result_df["status"].str.startswith("WARN").sum()
     n_err = result_df["status"].str.startswith("ERROR").sum()
 
-    logger.info(f"Total: {n_total} | OK: {n_ok} | WARN: {n_warn} | SKIP: {n_skip} | ERR: {n_err}")
+    logger.info(
+        f"Total: {n_total} | OK: {n_ok} | WARN: {n_warn} | SKIP: {n_skip} | ERR: {n_err}"
+    )
 
     if n_warn > 0:
         logger.warning(f"\nWarnings ({n_warn}):")
@@ -191,17 +309,24 @@ def test_iaea_validation(detector_type, reference_data):
         for _, r in warn_df.iterrows():
             extra = " | ".join(
                 f"{m}={r[m]:.4f}" if not np.isnan(r[m]) else f"{m}=N/A"
-                for m in KEY_METRICS if m in warn_df.columns
+                for m in KEY_METRICS
+                if m in warn_df.columns
             )
-            logger.warning(f"  {r['spectrum']:30s} | {r['method']:20s} | {r['status']:50s} | {extra}")
+            logger.warning(
+                f"  {r['spectrum']:30s} | {r['method']:20s} | {r['status']:50s} | {extra}"
+            )
 
     if n_err > 0:
         logger.error(f"\nErrors ({n_err}):")
         err_df = result_df[result_df["status"].str.startswith("ERROR")]
         for _, r in err_df.iterrows():
-            logger.error(f"  {r['spectrum']:30s} | {r['method']:20s} | {r['status']}")
+            logger.error(
+                f"  {r['spectrum']:30s} | {r['method']:20s} | {r['status']}"
+            )
 
-    summary_path = Path(__file__).parent / f"iaea_validation_{detector_type}.csv"
+    summary_path = (
+        Path(__file__).parent / f"iaea_validation_{detector_type}.csv"
+    )
     result_df.to_csv(summary_path, index=False, quoting=csv.QUOTE_ALL)
     logger.info(f"\nDetailed results saved to: {summary_path}")
 
@@ -212,8 +337,7 @@ def test_iaea_validation(detector_type, reference_data):
 
     if n_warn > 0:
         warn_summary = "; ".join(
-            f"{s}/{m}: {'; '.join(w)}"
-            for dt, s, m, w in all_warnings[:5]
+            f"{s}/{m}: {'; '.join(w)}" for dt, s, m, w in all_warnings[:5]
         )
         logger.warning(
             f"{detector_type}: {n_warn}/{n_total} combinations exceed thresholds. "

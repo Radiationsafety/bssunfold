@@ -24,7 +24,10 @@ def detector():
 @pytest.fixture
 def readings(detector):
     return {
-        "3in": 0.053, "5in": 0.184, "10in": 0.172, "18in": 0.034,
+        "3in": 0.053,
+        "5in": 0.184,
+        "10in": 0.172,
+        "18in": 0.034,
     }
 
 
@@ -46,7 +49,11 @@ def b(readings, selected):
 def test_unfold_genetic_two_step(detector, readings):
     """The two-step coarse-to-fine scheme runs and honors selection."""
     result = detector.unfold_genetic(
-        readings, solver="pso", epoch=40, pop_size=24, two_step=True,
+        readings,
+        solver="pso",
+        epoch=40,
+        pop_size=24,
+        two_step=True,
         save_result=False,
     )
     assert result["two_step"] is True
@@ -57,8 +64,14 @@ def test_unfold_genetic_two_step(detector, readings):
 def test_unfold_genetic_two_step_ga_tgasu(detector, readings):
     """TGASU-style two-step with arithmetic crossover + iterative mutation."""
     result = detector.unfold_genetic(
-        readings, solver="ga", epoch=40, pop_size=24, two_step=True,
-        crossover="arithmetic", mutation="iterative", save_result=False,
+        readings,
+        solver="ga",
+        epoch=40,
+        pop_size=24,
+        two_step=True,
+        crossover="arithmetic",
+        mutation="iterative",
+        save_result=False,
     )
     assert result["two_step"] is True
     assert result["crossover"] == "arithmetic"
@@ -70,8 +83,12 @@ def test_unfold_genetic_nsga2(detector, readings):
     """The NSGA-II multi-objective solver runs with Pareto selection."""
     for select in ("knee", "min_residual", "max_entropy"):
         result = detector.unfold_genetic(
-            readings, solver="nsga2", pareto_select=select, epoch=30,
-            pop_size=24, save_result=False,
+            readings,
+            solver="nsga2",
+            pareto_select=select,
+            epoch=30,
+            pop_size=24,
+            save_result=False,
         )
         assert result["solver"] == "nsga2"
         assert result["pareto_select"] == select
@@ -82,8 +99,13 @@ def test_unfold_genetic_smoothers(detector, readings):
     """Each post-processing smoother runs and keeps the spectrum positive."""
     for smoother in ("gaussian", "gaussian_mbc", "second_difference"):
         result = detector.unfold_genetic(
-            readings, solver="pso", smoother=smoother, sigma_smooth=2.0,
-            epoch=30, pop_size=20, save_result=False,
+            readings,
+            solver="pso",
+            smoother=smoother,
+            sigma_smooth=2.0,
+            epoch=30,
+            pop_size=20,
+            save_result=False,
         )
         assert result["smoother"] == smoother
         assert np.all(result["spectrum"] >= 0)
@@ -92,7 +114,11 @@ def test_unfold_genetic_smoothers(detector, readings):
 def test_unfold_genetic_smoother_alias(detector, readings):
     """The 'mbc' alias normalizes to 'gaussian_mbc'."""
     result = detector.unfold_genetic(
-        readings, solver="pso", smoother="mbc", epoch=30, pop_size=20,
+        readings,
+        solver="pso",
+        smoother="mbc",
+        epoch=30,
+        pop_size=20,
         save_result=False,
     )
     assert result["smoother"] == "gaussian_mbc"
@@ -101,8 +127,13 @@ def test_unfold_genetic_smoother_alias(detector, readings):
 def test_unfold_genetic_tgasu_operators_flat(detector, readings):
     """Arithmetic crossover and iterative mutation on a flat one-stage run."""
     result = detector.unfold_genetic(
-        readings, solver="ga", crossover="arithmetic", mutation="iterative",
-        epoch=30, pop_size=20, save_result=False,
+        readings,
+        solver="ga",
+        crossover="arithmetic",
+        mutation="iterative",
+        epoch=30,
+        pop_size=20,
+        save_result=False,
     )
     assert result["crossover"] == "arithmetic"
     assert result["mutation"] == "iterative"
@@ -129,7 +160,9 @@ def test_unfold_genetic_invalid_pareto_select(detector, readings):
     """Unknown pareto_select values are rejected."""
     with pytest.raises(ValueError, match="pareto_select"):
         detector.unfold_genetic(
-            readings, solver="nsga2", pareto_select="bogus",
+            readings,
+            solver="nsga2",
+            pareto_select="bogus",
             save_result=False,
         )
 
@@ -137,8 +170,13 @@ def test_unfold_genetic_invalid_pareto_select(detector, readings):
 def test_two_step_two_solvers_agree_with_metadata(detector, readings):
     """two_step + nsga2 combo runs and records both selections."""
     result = detector.unfold_genetic(
-        readings, solver="nsga2", two_step=True, n_coarse=15, epoch=30,
-        pop_size=24, save_result=False,
+        readings,
+        solver="nsga2",
+        two_step=True,
+        n_coarse=15,
+        epoch=30,
+        pop_size=24,
+        save_result=False,
     )
     assert result["two_step"] is True
     assert result["solver"] == "nsga2"
@@ -153,7 +191,7 @@ def test_coarsen_columns_shape(A):
 
 def test_coarsen_columns_reduces_resolution(A, b):
     """The coarse response still approximates the fine one."""
-    from bssunfold.core.unfold_genetic import _coarsen_columns, _split_coarse
+    from bssunfold.core.unfold_genetic import _coarsen_columns
 
     coarse = _coarsen_columns(A, 8)
     n = A.shape[1]
@@ -189,9 +227,7 @@ def test_make_starting_solutions_injects_extra(detector):
     extra = np.linspace(1.0, 2.0, n)
 
     base = _make_starting_solutions(seed, lb, ub, 10)
-    with_extra = _make_starting_solutions(
-        seed, lb, ub, 10, extra=extra
-    )
+    with_extra = _make_starting_solutions(seed, lb, ub, 10, extra=extra)
     assert len(with_extra) == len(base)
     assert np.allclose(with_extra[0], np.log(seed))
     assert np.allclose(with_extra[1], np.log(extra))
@@ -213,7 +249,11 @@ def test_make_starting_solutions_extra_masked_inside_bounds(detector):
 def test_two_step_converges_to_good_fit(detector, readings, A, b):
     """Two-step residual is bounded by the unregularized measurement norm."""
     r_two = detector.unfold_genetic(
-        readings, solver="pso", epoch=40, pop_size=24, two_step=True,
+        readings,
+        solver="pso",
+        epoch=40,
+        pop_size=24,
+        two_step=True,
         save_result=False,
     )
     assert r_two["residual_norm"] < np.linalg.norm(b)

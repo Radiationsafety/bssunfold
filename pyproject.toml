@@ -194,6 +194,9 @@ dev = [
     "bandit>=1.9.4",
     "mealpy>=3.0.2",
     "pyoptexplain>=0.1.1",
+    "pylint>=3.3.0",
+    "vulture>=2.14",
+    "sphinxcontrib-mermaid>=2.1.0",
 ]
 
 [project.urls]
@@ -236,6 +239,73 @@ targets = ["src"]
 recursive = true
 exclude_dirs = ["tests", "docs", "examples", "addon", "graphify-out"]
 
+[tool.pylint.main]
+fail-under = 7.0
+ignore = [
+    "CVS",
+    "addon",
+    "docs",
+    "dist",
+    "examples",
+    "graphify-out",
+    "htmlcov",
+]
+# Only analyze the source package
+module-naming-style = "snake_case"
+
+[tool.pylint.message_control]
+# Disable stylistic/convention checks that are not actionable for this
+# scientific package (names, docstring style, refactor complexity that is
+# intentional in numeric kernels). Errors, warnings and logical issues stay on.
+disable = [
+    "C0103",   # invalid-name
+    "C0114",   # missing-module-docstring
+    "C0115",   # missing-class-docstring
+    "C0116",   # missing-function-docstring
+    "C0121",   # singleton-comparison
+    "C0301",   # line-too-long (handled by ruff/black)
+    "C0302",   # too-many-lines
+    "C0325",   # superfluous-parens
+    "C0411",   # wrong-import-order (handled by ruff)
+    "C0412",   # ungrouped-imports
+    "C0413",   # wrong-import-position
+    "C0415",   # import-outside-toplevel (lazy optional deps by design)
+    "C1801",   # len-as-condition
+    "E1101",   # no-member (numpy/ctypes false positives)
+    "E1120",   # no-value-for-parameter (numpy overload false positives)
+    "E1141",   # dict-iter-missing-items
+    "R0901",   # too-many-ancestors
+    "R0902",   # too-many-instance-attributes
+    "R0903",   # too-few-public-methods
+    "R0904",   # too-many-public-methods (Detector exposes many unfold_* by design)
+    "R0911",   # too-many-return-statements
+    "R0912",   # too-many-branches
+    "R0913",   # too-many-arguments
+    "R0914",   # too-many-locals
+    "R0915",   # too-many-statements
+    "R0916",   # too-many-boolean-expressions
+    "R0917",   # too-many-positional-arguments (numeric solver signatures by design)
+    "R1702",   # too-many-nested-blocks
+    "R1732",   # consider-using-with
+    "R0801",   # duplicate-code (repeated __all__ / boilerplate across modules)
+    "W0102",   # dangerous-default-value (mutable default args by design)
+    "W0107",   # unnecessary-pass
+    "W0212",   # protected-access (tests reach into internals on purpose)
+    "W0221",   # arguments-differ
+    "W0223",   # abstract-method
+    "W0603",   # global-statement (module-level availability flags by design)
+    "W0613",   # unused-argument (interface-compatible signatures by design)
+    "W0718",   # broad-exception-catch
+    "W1203",   # logging-fstring-interpolation
+]
+
+[tool.pylint."messages output"]
+score = "no"
+
+[tool.pylint.reports]
+output-format = "colorized"
+reports = false
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -272,14 +342,6 @@ line-length = 80
 indent-width = 4
 
 [tool.ruff.lint]
-# F401 — unused import (will be fixed in code, but allow for now)
-# F541 — f-string without placeholders (will be fixed)
-# E741 — ambiguous variable name (will be fixed)
-ignore = [
-    "F401",
-    "F541",
-    "E741",
-]
 
 [[tool.uv.index]]
 name = "testpypi"

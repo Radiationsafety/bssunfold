@@ -64,7 +64,9 @@ def monte_carlo_uncertainty(
     n_readings = len(keys)
 
     # Generate all noise factors: shape (n_samples, n_readings)
-    noise_factors = 1.0 + rng.normal(0, noise_level, size=(n_samples, n_readings))
+    noise_factors = 1.0 + rng.normal(
+        0, noise_level, size=(n_samples, n_readings)
+    )
 
     # Pre-allocate output array
     spectra_samples = np.zeros((n_samples, n_energy_bins))
@@ -84,8 +86,12 @@ def monte_carlo_uncertainty(
         "spectrum_uncert_min": np.min(spectra_samples, axis=0),
         "spectrum_uncert_max": np.max(spectra_samples, axis=0),
         "spectrum_uncert_median": np.median(spectra_samples, axis=0),
-        "spectrum_uncert_percentile_5": np.percentile(spectra_samples, 5, axis=0),
-        "spectrum_uncert_percentile_95": np.percentile(spectra_samples, 95, axis=0),
+        "spectrum_uncert_percentile_5": np.percentile(
+            spectra_samples, 5, axis=0
+        ),
+        "spectrum_uncert_percentile_95": np.percentile(
+            spectra_samples, 95, axis=0
+        ),
         "spectrum_uncert_all": spectra_samples,
     }
 

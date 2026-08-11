@@ -142,8 +142,11 @@ class TestUnfoldScip:
 
     def test_smoothness(self, detector, readings):
         result = detector.unfold_scip(
-            readings, smoothness_order=2, smoothness_weight=2.0,
-            save_result=False, timeout=10.0,
+            readings,
+            smoothness_order=2,
+            smoothness_weight=2.0,
+            save_result=False,
+            timeout=10.0,
         )
         assert result["smoothness_order"] == 2
         assert result["smoothness_weight"] == 2.0
@@ -156,8 +159,11 @@ class TestUnfoldScip:
 
     def test_cosine_regularization(self, detector, readings, initial):
         result = detector.unfold_scip(
-            readings, regularization_method="cosine", initial_spectrum=initial,
-            save_result=False, timeout=10.0,
+            readings,
+            regularization_method="cosine",
+            initial_spectrum=initial,
+            save_result=False,
+            timeout=10.0,
         )
         assert result["regularization_method"] == "cosine"
         assert result["selected_regularization"] > 0
@@ -170,22 +176,29 @@ class TestUnfoldScip:
 
     def test_lcurve_regularization(self, detector, readings):
         result = detector.unfold_scip(
-            readings, regularization_method="lcurve",
-            save_result=False, timeout=10.0,
+            readings,
+            regularization_method="lcurve",
+            save_result=False,
+            timeout=10.0,
         )
         assert result["regularization_method"] == "lcurve"
 
     def test_gcv_regularization(self, detector, readings):
         result = detector.unfold_scip(
-            readings, regularization_method="gcv",
-            save_result=False, timeout=10.0,
+            readings,
+            regularization_method="gcv",
+            save_result=False,
+            timeout=10.0,
         )
         assert result["regularization_method"] == "gcv"
 
     def test_dp_regularization(self, detector, readings):
         result = detector.unfold_scip(
-            readings, regularization_method="dp", noise_var=0.01,
-            save_result=False, timeout=10.0,
+            readings,
+            regularization_method="dp",
+            noise_var=0.01,
+            save_result=False,
+            timeout=10.0,
         )
         assert result["regularization_method"] == "dp"
 
@@ -197,8 +210,12 @@ class TestUnfoldScip:
 
     def test_with_errors(self, detector, readings):
         result = detector.unfold_scip(
-            readings, calculate_errors=True, n_montecarlo=5,
-            noise_level=0.05, save_result=False, timeout=10.0,
+            readings,
+            calculate_errors=True,
+            n_montecarlo=5,
+            noise_level=0.05,
+            save_result=False,
+            timeout=10.0,
         )
         assert "spectrum_uncert_mean" in result
         assert "spectrum_uncert_std" in result
@@ -209,9 +226,7 @@ class TestUnfoldScip:
         assert len(detector.results_history) == 1
 
     def test_solver_failure_returns_zero(self, detector, readings):
-        with patch(
-            "bssunfold.core.unfold_scip.solve_scip", return_value=None
-        ):
+        with patch("bssunfold.core.unfold_scip.solve_scip", return_value=None):
             with pytest.warns(Warning):
                 result = detector.unfold_scip(
                     readings, save_result=False, timeout=10.0

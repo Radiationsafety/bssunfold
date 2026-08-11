@@ -38,12 +38,12 @@ __all__ = [
 ]
 
 # Fixed constants from the papers / FRUIT code
-_T0 = 2.53e-8   # Thermal peak energy (MeV)
-_Ed = 7.07e-8   # Epithermal lower boundary parameter (MeV)
+_T0 = 2.53e-8  # Thermal peak energy (MeV)
+_Ed = 7.07e-8  # Epithermal lower boundary parameter (MeV)
 
 # Energy region boundaries (hard-coded per papers)
-_THERMAL_MAX = 1e-7    # MeV
-_FAST_MIN = 0.1        # MeV
+_THERMAL_MAX = 1e-7  # MeV
+_FAST_MIN = 0.1  # MeV
 
 _RESIDUAL_WARN_THRESHOLD = 10.0  # warn when residual norm exceeds this
 
@@ -54,9 +54,10 @@ logger = logging.getLogger(__name__)
 #  Parametric model
 # ------------------------------------------------------------------ #
 
+
 def _thermal(E: np.ndarray) -> np.ndarray:
     """Thermal neutron component: (E/T0^2) * exp(-E/T0)."""
-    return (E / (_T0 ** 2)) * np.exp(-E / _T0)
+    return (E / (_T0**2)) * np.exp(-E / _T0)
 
 
 def _epithermal(E: np.ndarray, b: float, beta_prime: float) -> np.ndarray:
@@ -64,12 +65,16 @@ def _epithermal(E: np.ndarray, b: float, beta_prime: float) -> np.ndarray:
 
     [1 - exp(-(E/Ed)^2)] * E^(b-1) * exp(-E/beta')
     """
-    return (1.0 - np.exp(-(_Ed > 0) * (E / _Ed) ** 2)) * E ** (b - 1.0) * np.exp(-E / beta_prime)
+    return (
+        (1.0 - np.exp(-(_Ed > 0) * (E / _Ed) ** 2))
+        * E ** (b - 1.0)
+        * np.exp(-E / beta_prime)
+    )
 
 
 def _fast(E: np.ndarray, alpha: float, beta: float) -> np.ndarray:
     """Fast neutron component: E^alpha * exp(-E/beta)."""
-    return E ** alpha * np.exp(-E / beta)
+    return E**alpha * np.exp(-E / beta)
 
 
 def parametric_model(
@@ -130,8 +135,16 @@ def parametric_model(
 #  Core solver (lmfit)
 # ------------------------------------------------------------------ #
 
-def _residuals(params, A_matrix, b_readings, E, log_steps,
-               reg_alpha=0.0, initial_param_vec=None):
+
+def _residuals(
+    params,
+    A_matrix,
+    b_readings,
+    E,
+    log_steps,
+    reg_alpha=0.0,
+    initial_param_vec=None,
+):
     """Residual function for lmfit minimization.
 
     Parameters
@@ -144,21 +157,25 @@ def _residuals(params, A_matrix, b_readings, E, log_steps,
         Reference parameter vector (initial guess) for regularization.
         If None, regularization is applied to raw parameter values.
     """
-    b_val = params['b'].value
-    bp_val = params['beta_prime'].value
-    alpha_val = params['alpha'].value
-    beta_val = params['beta'].value
-    P_th_val = params['P_th'].value
-    P_epi_val = params['P_epi'].value
+    b_val = params["b"].value
+    bp_val = params["beta_prime"].value
+    alpha_val = params["alpha"].value
+    beta_val = params["beta"].value
+    P_th_val = params["P_th"].value
+    P_epi_val = params["P_epi"].value
 
-    spectrum = parametric_model(E, b_val, bp_val, alpha_val, beta_val, P_th_val, P_epi_val)
+    spectrum = parametric_model(
+        E, b_val, bp_val, alpha_val, beta_val, P_th_val, P_epi_val
+    )
     spectrum_with_steps = spectrum * log_steps
 
     computed = A_matrix @ spectrum_with_steps
     residual_data = computed - b_readings
 
     if reg_alpha > 0:
-        param_vec = np.array([b_val, bp_val, alpha_val, beta_val, P_th_val, P_epi_val])
+        param_vec = np.array(
+            [b_val, bp_val, alpha_val, beta_val, P_th_val, P_epi_val]
+        )
         if initial_param_vec is not None:
             reg_term = np.sqrt(reg_alpha) * (param_vec - initial_param_vec)
         else:
@@ -223,21 +240,28 @@ def solve_parametric(
 
     # Grid scan for initial parameters if not provided
     if initial_params is None:
-        initial_params = _find_initial_params(A_matrix, b_readings, E, log_steps,
-                                               n_grid=7, return_top=n_restarts)
+        initial_params = _find_initial_params(
+            A_matrix, b_readings, E, log_steps, n_grid=7, return_top=n_restarts
+        )
 
     # GCV-based alpha selection (uses best starting point)
     if alpha_auto:
-        best_start = initial_params[0] if isinstance(initial_params, list) else initial_params
-        alpha = _gcv_select_alpha(A_matrix, b_readings, E, log_steps, best_start)
+        best_start = (
+            initial_params[0]
+            if isinstance(initial_params, list)
+            else initial_params
+        )
+        alpha = _gcv_select_alpha(
+            A_matrix, b_readings, E, log_steps, best_start
+        )
 
     defaults = {
-        'b':         (1.0,   0.5,  2.0),
-        'beta_prime': (0.01, 1e-4, 1.0),
-        'alpha':     (0.5,   0.0,  5.0),
-        'beta':      (2.0,   0.1,  20.0),
-        'P_th':      (1.0,   0.0,  1.0),
-        'P_epi':     (1.0,   0.0,  1.0),
+        "b": (1.0, 0.5, 2.0),
+        "beta_prime": (0.01, 1e-4, 1.0),
+        "alpha": (0.5, 0.0, 5.0),
+        "beta": (2.0, 0.1, 20.0),
+        "P_th": (1.0, 0.0, 1.0),
+        "P_epi": (1.0, 0.0, 1.0),
     }
 
     # Multi-start: collect top starting points from grid scan
@@ -259,11 +283,16 @@ def solve_parametric(
                 val = start_params[name]
             params.add(name, value=val, min=lo, max=hi)
 
-        initial_param_vec = np.array([
-            start_params["b"], start_params["beta_prime"],
-            start_params["alpha"], start_params["beta"],
-            start_params["P_th"], start_params["P_epi"],
-        ])
+        initial_param_vec = np.array(
+            [
+                start_params["b"],
+                start_params["beta_prime"],
+                start_params["alpha"],
+                start_params["beta"],
+                start_params["P_th"],
+                start_params["P_epi"],
+            ]
+        )
 
         result = lmfit.minimize(
             _residuals,
@@ -275,12 +304,18 @@ def solve_parametric(
         total_nfev += result.nfev
 
         fp = result.params
-        spectrum = parametric_model(
-            E,
-            fp['b'].value, fp['beta_prime'].value,
-            fp['alpha'].value, fp['beta'].value,
-            fp['P_th'].value, fp['P_epi'].value,
-        ) * log_steps
+        spectrum = (
+            parametric_model(
+                E,
+                fp["b"].value,
+                fp["beta_prime"].value,
+                fp["alpha"].value,
+                fp["beta"].value,
+                fp["P_th"].value,
+                fp["P_epi"].value,
+            )
+            * log_steps
+        )
 
         # Evaluate fit quality
         computed = A_matrix @ spectrum
@@ -302,12 +337,12 @@ def solve_parametric(
 _PARAM_NAMES = ["b", "beta_prime", "alpha", "beta", "P_th", "P_epi"]
 
 _PARAM_DEFAULTS = {
-    "b":         (1.0,   0.5,  2.0),
+    "b": (1.0, 0.5, 2.0),
     "beta_prime": (0.01, 1e-4, 1.0),
-    "alpha":     (0.5,   0.0,  5.0),
-    "beta":      (2.0,   0.1,  20.0),
-    "P_th":      (1.0,   0.0,  1.0),
-    "P_epi":     (1.0,   0.0,  1.0),
+    "alpha": (0.5, 0.0, 5.0),
+    "beta": (2.0, 0.1, 20.0),
+    "P_th": (1.0, 0.0, 1.0),
+    "P_epi": (1.0, 0.0, 1.0),
 }
 
 
@@ -352,11 +387,18 @@ def _compute_jacobian(E, log_steps, params, delta=1e-8):
     n_params = len(_PARAM_NAMES)
     J = np.zeros((len(E), n_params))
 
-    s0 = parametric_model(
-        E, params["b"], params["beta_prime"],
-        params["alpha"], params["beta"],
-        params["P_th"], params["P_epi"],
-    ) * log_steps
+    s0 = (
+        parametric_model(
+            E,
+            params["b"],
+            params["beta_prime"],
+            params["alpha"],
+            params["beta"],
+            params["P_th"],
+            params["P_epi"],
+        )
+        * log_steps
+    )
 
     for i, name in enumerate(_PARAM_NAMES):
         lo, hi = bounds[name]
@@ -374,10 +416,16 @@ def _compute_jacobian(E, log_steps, params, delta=1e-8):
             d = delta
             if lo is not None and p_val - d >= lo:
                 p_pert = p_val - d
-                s_pert = parametric_model(
-                    E,
-                    *(p_pert if n == name else params[n] for n in _PARAM_NAMES),
-                ) * log_steps
+                s_pert = (
+                    parametric_model(
+                        E,
+                        *(
+                            p_pert if n == name else params[n]
+                            for n in _PARAM_NAMES
+                        ),
+                    )
+                    * log_steps
+                )
                 J[:, i] = (s0 - s_pert) / d
             else:
                 J[:, i] = 0.0
@@ -385,18 +433,26 @@ def _compute_jacobian(E, log_steps, params, delta=1e-8):
 
         p_plus = dict(params)
         p_plus[name] = p_val + d
-        s_plus = parametric_model(
-            E, p_plus["b"], p_plus["beta_prime"],
-            p_plus["alpha"], p_plus["beta"],
-            p_plus["P_th"], p_plus["P_epi"],
-        ) * log_steps
+        s_plus = (
+            parametric_model(
+                E,
+                p_plus["b"],
+                p_plus["beta_prime"],
+                p_plus["alpha"],
+                p_plus["beta"],
+                p_plus["P_th"],
+                p_plus["P_epi"],
+            )
+            * log_steps
+        )
         J[:, i] = (s_plus - s0) / d
 
     return J
 
 
-def _find_initial_params(A_matrix, b_readings, E, log_steps, n_grid=5,
-                          return_top=1):
+def _find_initial_params(
+    A_matrix, b_readings, E, log_steps, n_grid=5, return_top=1
+):
     """Brute-force scan over a small parameter grid to find best starting point.
 
     Scans P_th and P_epi on a coarse grid (the two parameters that most
@@ -422,18 +478,29 @@ def _find_initial_params(A_matrix, b_readings, E, log_steps, n_grid=5,
             params["P_th"] = p_th
             params["P_epi"] = p_epi
 
-            spectrum = parametric_model(
-                E, params["b"], params["beta_prime"],
-                params["alpha"], params["beta"],
-                params["P_th"], params["P_epi"],
-            ) * log_steps
+            spectrum = (
+                parametric_model(
+                    E,
+                    params["b"],
+                    params["beta_prime"],
+                    params["alpha"],
+                    params["beta"],
+                    params["P_th"],
+                    params["P_epi"],
+                )
+                * log_steps
+            )
 
             residual = A_matrix @ spectrum - b_readings
             res_norm = np.linalg.norm(residual)
             candidates.append((res_norm, dict(params)))
 
     if not candidates:
-        return _get_initial_params(None) if return_top == 1 else [_get_initial_params(None)]
+        return (
+            _get_initial_params(None)
+            if return_top == 1
+            else [_get_initial_params(None)]
+        )
 
     candidates.sort(key=lambda x: x[0])
 
@@ -443,8 +510,9 @@ def _find_initial_params(A_matrix, b_readings, E, log_steps, n_grid=5,
     return [c[1] for c in candidates[:return_top]]
 
 
-def _gcv_select_alpha(A_matrix, b_readings, E, log_steps, initial_params,
-                       n_coarse=50, n_refine=20):
+def _gcv_select_alpha(
+    A_matrix, b_readings, E, log_steps, initial_params, n_coarse=50, n_refine=20
+):
     """Select Tikhonov regularization alpha via SVD-based GCV with refine.
 
     Stage 1: coarse search on logspace [1e-8, 1e2].
@@ -485,7 +553,7 @@ def _gcv_select_alpha(A_matrix, b_readings, E, log_steps, initial_params,
     if m < 2 or n < 2:
         return 1e-4
 
-    U, s, Vt, s_sq = compute_svd_components(A_eff)
+    U, _, _, s_sq = compute_svd_components(A_eff)
     UTb = U.T @ b_readings
 
     def _gcv_value(alpha):
@@ -553,6 +621,7 @@ def _resolve_cvxpy_solvers(backend):
     """Return list of cvxpy solvers to try."""
     try:
         import cvxpy as cp
+
         installed = cp.installed_solvers()
     except ImportError:
         installed = []
@@ -560,9 +629,8 @@ def _resolve_cvxpy_solvers(backend):
     if backend == "default":
         candidates = [s for s in ["ECOS", "SCS", "CLARABEL"] if s in installed]
         return candidates or ["ECOS"]
-    else:
-        fallbacks = [s for s in ["ECOS", "SCS", "CLARABEL"] if s != backend]
-        return [backend] + fallbacks
+    fallbacks = [s for s in ["ECOS", "SCS", "CLARABEL"] if s != backend]
+    return [backend] + fallbacks
 
 
 def _resolve_qpsolver_name(backend):
@@ -571,6 +639,7 @@ def _resolve_qpsolver_name(backend):
         return backend
     try:
         from qpsolvers import available_solvers
+
         if "osqp" in available_solvers:
             return "osqp"
         if "ecos" in available_solvers:
@@ -583,6 +652,7 @@ def _resolve_qpsolver_name(backend):
 # ------------------------------------------------------------------ #
 #  cvxpy-based parametric solver (SQP)
 # ------------------------------------------------------------------ #
+
 
 def solve_parametric_cvxpy(
     A_matrix,
@@ -650,17 +720,26 @@ def solve_parametric_cvxpy(
     nfev = 0
 
     for k in range(max_iter):
-        spectrum_k = parametric_model(
-            E, params["b"], params["beta_prime"],
-            params["alpha"], params["beta"],
-            params["P_th"], params["P_epi"],
-        ) * log_steps
+        spectrum_k = (
+            parametric_model(
+                E,
+                params["b"],
+                params["beta_prime"],
+                params["alpha"],
+                params["beta"],
+                params["P_th"],
+                params["P_epi"],
+            )
+            * log_steps
+        )
 
         residual = A_matrix @ spectrum_k - b_readings
         nfev += 1
 
         if np.linalg.norm(residual) < tol:
-            _check_fit_quality(np.linalg.norm(residual), b_readings, "parametric_cvxpy")
+            _check_fit_quality(
+                np.linalg.norm(residual), b_readings, "parametric_cvxpy"
+            )
             message = f"Converged in {k} iterations"
             return spectrum_k, True, message, nfev
 
@@ -708,20 +787,38 @@ def solve_parametric_cvxpy(
             message = f"Converged in {k + 1} iterations"
             return (
                 parametric_model(
-                    E, params["b"], params["beta_prime"],
-                    params["alpha"], params["beta"],
-                    params["P_th"], params["P_epi"],
-                ) * log_steps,
-                True, message, nfev,
+                    E,
+                    params["b"],
+                    params["beta_prime"],
+                    params["alpha"],
+                    params["beta"],
+                    params["P_th"],
+                    params["P_epi"],
+                )
+                * log_steps,
+                True,
+                message,
+                nfev,
             )
 
-    spectrum = parametric_model(
-        E, params["b"], params["beta_prime"],
-        params["alpha"], params["beta"],
-        params["P_th"], params["P_epi"],
-    ) * log_steps
+    spectrum = (
+        parametric_model(
+            E,
+            params["b"],
+            params["beta_prime"],
+            params["alpha"],
+            params["beta"],
+            params["P_th"],
+            params["P_epi"],
+        )
+        * log_steps
+    )
 
-    _check_fit_quality(np.linalg.norm(A_matrix @ spectrum - b_readings), b_readings, "parametric_cvxpy")
+    _check_fit_quality(
+        np.linalg.norm(A_matrix @ spectrum - b_readings),
+        b_readings,
+        "parametric_cvxpy",
+    )
 
     if not message:
         message = f"Max iterations ({max_iter}) reached"
@@ -732,6 +829,7 @@ def solve_parametric_cvxpy(
 # ------------------------------------------------------------------ #
 #  qpsolvers-based parametric solver (SQP)
 # ------------------------------------------------------------------ #
+
 
 def solve_parametric_qpsolvers(
     A_matrix,
@@ -811,17 +909,26 @@ def solve_parametric_qpsolvers(
     nfev = 0
 
     for k in range(max_iter):
-        spectrum_k = parametric_model(
-            E, params["b"], params["beta_prime"],
-            params["alpha"], params["beta"],
-            params["P_th"], params["P_epi"],
-        ) * log_steps
+        spectrum_k = (
+            parametric_model(
+                E,
+                params["b"],
+                params["beta_prime"],
+                params["alpha"],
+                params["beta"],
+                params["P_th"],
+                params["P_epi"],
+            )
+            * log_steps
+        )
 
         residual = A_matrix @ spectrum_k - b_readings
         nfev += 1
 
         if np.linalg.norm(residual) < tol:
-            _check_fit_quality(np.linalg.norm(residual), b_readings, "parametric_qpsolvers")
+            _check_fit_quality(
+                np.linalg.norm(residual), b_readings, "parametric_qpsolvers"
+            )
             message = f"Converged in {k} iterations"
             return spectrum_k, True, message, nfev
 
@@ -856,11 +963,17 @@ def solve_parametric_qpsolvers(
 
         try:
             delta_val = solve_qp(
-                P=P, q=q, G=G, h=h,
-                solver=solver_name, verbose=False,
+                P=P,
+                q=q,
+                G=G,
+                h=h,
+                solver=solver_name,
+                verbose=False,
             )
         except Exception as exc:
-            logger.debug("QP solver %s failed at iteration %d: %s", solver_name, k, exc)
+            logger.debug(
+                "QP solver %s failed at iteration %d: %s", solver_name, k, exc
+            )
             message = f"QP subproblem failed at iteration {k}"
             break
 
@@ -877,20 +990,38 @@ def solve_parametric_qpsolvers(
             message = f"Converged in {k + 1} iterations"
             return (
                 parametric_model(
-                    E, params["b"], params["beta_prime"],
-                    params["alpha"], params["beta"],
-                    params["P_th"], params["P_epi"],
-                ) * log_steps,
-                True, message, nfev,
+                    E,
+                    params["b"],
+                    params["beta_prime"],
+                    params["alpha"],
+                    params["beta"],
+                    params["P_th"],
+                    params["P_epi"],
+                )
+                * log_steps,
+                True,
+                message,
+                nfev,
             )
 
-    spectrum = parametric_model(
-        E, params["b"], params["beta_prime"],
-        params["alpha"], params["beta"],
-        params["P_th"], params["P_epi"],
-    ) * log_steps
+    spectrum = (
+        parametric_model(
+            E,
+            params["b"],
+            params["beta_prime"],
+            params["alpha"],
+            params["beta"],
+            params["P_th"],
+            params["P_epi"],
+        )
+        * log_steps
+    )
 
-    _check_fit_quality(np.linalg.norm(A_matrix @ spectrum - b_readings), b_readings, "parametric_qpsolvers")
+    _check_fit_quality(
+        np.linalg.norm(A_matrix @ spectrum - b_readings),
+        b_readings,
+        "parametric_qpsolvers",
+    )
 
     if not message:
         message = f"Max iterations ({max_iter}) reached"
@@ -901,6 +1032,7 @@ def solve_parametric_qpsolvers(
 # ------------------------------------------------------------------ #
 #  Combined: lmfit first, then QP refinement
 # ------------------------------------------------------------------ #
+
 
 def solve_parametric_combined(
     A_matrix,
@@ -946,12 +1078,18 @@ def solve_parametric_combined(
     """
     # Step 1: lmfit
     spectrum_lmfit, lmfit_success, lmfit_msg, lmfit_nfev = solve_parametric(
-        A_matrix, b_readings, E, log_steps, initial_params, method,
+        A_matrix,
+        b_readings,
+        E,
+        log_steps,
+        initial_params,
+        method,
     )
 
     _check_fit_quality(
         np.linalg.norm(A_matrix @ spectrum_lmfit - b_readings),
-        b_readings, "parametric_combined(lmfit)",
+        b_readings,
+        "parametric_combined(lmfit)",
     )
 
     # Step 2: QP refinement on the spectrum
@@ -963,7 +1101,8 @@ def solve_parametric_combined(
     # Auto-detect: try cvxpy first, then qpsolvers
     if library == "auto":
         try:
-            import cvxpy  # noqa: F401
+            import cvxpy  # noqa: F401  # pylint: disable=unused-import
+
             library = "cvxpy"
         except ImportError:
             library = "qpsolvers"
@@ -998,13 +1137,18 @@ def solve_parametric_combined(
                 continue
 
         if refined is None:
-            return spectrum_lmfit, lmfit_success, "QP refinement failed", lmfit_nfev
+            return (
+                spectrum_lmfit,
+                lmfit_success,
+                "QP refinement failed",
+                lmfit_nfev,
+            )
 
         success = lmfit_success
         message = f"lmfit ({lmfit_msg}) + QP refinement OK"
         return refined * log_steps, success, message, lmfit_nfev
 
-    elif library == "qpsolvers":
+    if library == "qpsolvers":
         try:
             from qpsolvers import available_solvers, solve_qp
         except ImportError as e:
@@ -1021,7 +1165,12 @@ def solve_parametric_combined(
             elif "ecos" in available_solvers:
                 qpsolver_name = "ecos"
             else:
-                return spectrum_lmfit, lmfit_success, "No QP solver available", lmfit_nfev
+                return (
+                    spectrum_lmfit,
+                    lmfit_success,
+                    "No QP solver available",
+                    lmfit_nfev,
+                )
 
         P = csc_matrix(A_matrix.T @ A_matrix + alpha * np.eye(n))
         q = -(A_matrix.T @ b_readings + alpha * spectrum_init)
@@ -1030,25 +1179,36 @@ def solve_parametric_combined(
         h = np.zeros(n)
 
         x_opt = solve_qp(
-            P=P, q=q, G=G, h=h,
-            solver=qpsolver_name, verbose=False,
+            P=P,
+            q=q,
+            G=G,
+            h=h,
+            solver=qpsolver_name,
+            verbose=False,
         )
 
         if x_opt is None:
-            return spectrum_lmfit, lmfit_success, "QP refinement failed", lmfit_nfev
+            return (
+                spectrum_lmfit,
+                lmfit_success,
+                "QP refinement failed",
+                lmfit_nfev,
+            )
 
         refined = np.asarray(x_opt)
         success = lmfit_success
         message = f"lmfit ({lmfit_msg}) + QP refinement OK"
         return refined * log_steps, success, message, lmfit_nfev
 
-    else:
-        raise ValueError(f"Unknown solver library: '{library}'. Use 'cvxpy' or 'qpsolvers'.")
+    raise ValueError(
+        f"Unknown solver library: '{library}'. Use 'cvxpy' or 'qpsolvers'."
+    )
 
 
 # ------------------------------------------------------------------ #
 #  Workflow wrapper
 # ------------------------------------------------------------------ #
+
 
 def unfold_parametric(
     detector_names: List[str],
@@ -1140,7 +1300,7 @@ def unfold_parametric(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    A, b, selected = _build_system(readings, detector_names, sensitivities)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
     log_steps = compute_log_steps(E_MeV, n_energy_bins)
     ln_steps = log_steps * np.log(10)
@@ -1150,12 +1310,20 @@ def unfold_parametric(
         # regularization (deviation from initial guess) provides
         # numerical stability for this ill-conditioned problem.
         lmfit_alpha = alpha if alpha_auto else 1e-8
+
         def solve_wrapper(A_mat, b_vec, **kwargs):
-            x_opt, success, message, nfev = solve_parametric(
-                A_mat, b_vec, E_MeV, ln_steps, initial_params, method,
-                alpha=lmfit_alpha, alpha_auto=alpha_auto,
+            x_opt, success, _message, nfev = solve_parametric(
+                A_mat,
+                b_vec,
+                E_MeV,
+                ln_steps,
+                initial_params,
+                method,
+                alpha=lmfit_alpha,
+                alpha_auto=alpha_auto,
             )
             return x_opt, nfev, success
+
         method_name = "parametric"
         extra = {
             "initial_params": initial_params,
@@ -1166,13 +1334,21 @@ def unfold_parametric(
         }
 
     elif optimizer == "cvxpy":
+
         def solve_wrapper(A_mat, b_vec, **kwargs):
-            x_opt, success, message, nfev = solve_parametric_cvxpy(
-                A_mat, b_vec, E_MeV, ln_steps,
-                initial_params=initial_params, alpha=alpha,
-                solver_backend=solver_backend, max_iter=max_iter, tol=tol,
+            x_opt, success, _message, nfev = solve_parametric_cvxpy(
+                A_mat,
+                b_vec,
+                E_MeV,
+                ln_steps,
+                initial_params=initial_params,
+                alpha=alpha,
+                solver_backend=solver_backend,
+                max_iter=max_iter,
+                tol=tol,
             )
             return x_opt, nfev, success
+
         method_name = "parametric_cvxpy"
         extra = {
             "initial_params": initial_params,
@@ -1186,13 +1362,21 @@ def unfold_parametric(
         }
 
     elif optimizer == "qpsolvers":
+
         def solve_wrapper(A_mat, b_vec, **kwargs):
-            x_opt, success, message, nfev = solve_parametric_qpsolvers(
-                A_mat, b_vec, E_MeV, ln_steps,
-                initial_params=initial_params, alpha=alpha,
-                solver_backend=solver_backend, max_iter=max_iter, tol=tol,
+            x_opt, success, _message, nfev = solve_parametric_qpsolvers(
+                A_mat,
+                b_vec,
+                E_MeV,
+                ln_steps,
+                initial_params=initial_params,
+                alpha=alpha,
+                solver_backend=solver_backend,
+                max_iter=max_iter,
+                tol=tol,
             )
             return x_opt, nfev, success
+
         method_name = "parametric_qpsolvers"
         extra = {
             "initial_params": initial_params,
@@ -1206,13 +1390,20 @@ def unfold_parametric(
         }
 
     elif optimizer == "combined":
+
         def solve_wrapper(A_mat, b_vec, **kwargs):
-            x_opt, success, message, nfev = solve_parametric_combined(
-                A_mat, b_vec, E_MeV, ln_steps,
-                initial_params=initial_params, method=method,
-                alpha=alpha, solver_backend=solver_backend,
+            x_opt, success, _message, nfev = solve_parametric_combined(
+                A_mat,
+                b_vec,
+                E_MeV,
+                ln_steps,
+                initial_params=initial_params,
+                method=method,
+                alpha=alpha,
+                solver_backend=solver_backend,
             )
             return x_opt, nfev, success
+
         method_name = "parametric_combined"
         extra = {
             "initial_params": initial_params,

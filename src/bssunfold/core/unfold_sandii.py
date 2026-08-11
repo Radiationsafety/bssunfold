@@ -188,6 +188,7 @@ def unfold_sandii(
         Unfolding results dictionary.
     """
     x0_default = np.ones(n_energy_bins)
+    x0_default[0] = 0.0
 
     return run_unfolding(
         detector_names=detector_names,
