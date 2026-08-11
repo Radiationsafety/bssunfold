@@ -84,6 +84,7 @@ and this project adheres to [Semantic Versioning].
     Tikhonov regularization applied to the projected problem at each
     iteration. The regularization parameter is selected automatically
     using GCV or discrepancy principle.
+- **code refactoring** after vulture dead-code removal and pylint.
 
 ## [0.15.0] - 2026-08-06
 
