@@ -85,6 +85,7 @@ from .unfold_interpret import (
 )
 from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
+from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
 
 __all__ = ["Detector"]
 
@@ -3836,6 +3837,170 @@ class Detector:
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,
+        )
+
+    def unfold_mcmc(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_prior: float = 0.1,
+        lambda_prior: float = 1.0,
+        n_samples: int = 2000,
+        tune: int = 1000,
+        chains: int = 2,
+        target_accept: float = 0.8,
+        use_hierarchical: bool = False,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        progressbar: bool = False,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Bayesian MCMC with NUTS sampler.
+
+        This method implements a full Bayesian approach to neutron spectrum unfolding
+        using Markov Chain Monte Carlo (MCMC) methods with the No-U-Turn Sampler
+        (NUTS), an adaptive variant of Hamiltonian Monte Carlo (HMC).
+
+        Unlike traditional methods that provide only point estimates, MCMC generates
+        samples from the full posterior distribution p(f|b), enabling comprehensive
+        uncertainty quantification through credible intervals (HPD intervals).
+
+        Key Features
+        ------------
+        1. **Uncertainty Quantification**: Provides 95% credible intervals for each
+           energy bin, showing where the spectrum is well-constrained vs uncertain.
+
+        2. **Automatic Regularization**: Through hierarchical modeling, the method
+           can automatically infer appropriate regularization strength from data,
+           eliminating manual tuning of regularization parameters.
+
+        3. **Flexible Modeling**: The Bayesian framework allows easy incorporation
+           of complex priors (e.g., smoothness via Gaussian Processes), uncertainty
+           in response matrix, and multiple sources of systematic error.
+
+        4. **Convergence Diagnostics**: Built-in R-hat and effective sample size
+           (ESS) metrics ensure reliable posterior estimates.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings (counts or count rates).
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused in MCMC, kept for API consistency).
+        sigma_prior : float, optional
+            Prior scale for measurement noise std dev (default: 0.1).
+        lambda_prior : float, optional
+            Prior scale for spectrum regularization (default: 1.0).
+        n_samples : int, optional
+            Number of MCMC samples per chain after tuning (default: 2000).
+        tune : int, optional
+            Number of tuning (warmup) samples per chain (default: 1000).
+        chains : int, optional
+            Number of independent MCMC chains (default: 2).
+        target_accept : float, optional
+            Target acceptance rate for NUTS (default: 0.8).
+        use_hierarchical : bool, optional
+            Use hierarchical priors for hyperparameters (default: False).
+            If True, sigma and lambda are inferred from data.
+        calculate_errors : bool, optional
+            Calculate additional Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for additional Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of additional Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        progressbar : bool, optional
+            Show sampling progress bar (default: False).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary containing:
+            - 'energy': Energy grid (MeV)
+            - 'spectrum': Mean posterior spectrum
+            - 'spectrum_uncertainty': Posterior standard deviation
+            - 'spectrum_lower': Lower bound of 95% HPD interval
+            - 'spectrum_upper': Upper bound of 95% HPD interval
+            - 'effective_readings': Computed readings from posterior mean
+            - 'residual': Difference between measured and computed readings
+            - 'residual_norm': L2 norm of residual
+            - 'method': 'mcmc'
+            - 'doserates': Dose rates calculated from spectrum
+            - 'mcmc_stats': Dictionary with MCMC diagnostics:
+                - 'rhat': R-hat convergence diagnostic
+                - 'ess': Effective sample size
+                - 'n_samples_total': Total number of samples
+                - 'trace': ArviZ InferenceData object
+
+        Raises
+        ------
+        ImportError
+            If PyMC or ArviZ is not installed.
+
+        Examples
+        --------
+        >>> from bssunfold import Detector
+        >>> detector = Detector()
+        >>> readings = {'sphere_1': 100.5, 'sphere_2': 85.3, ...}
+        >>> result = detector.unfold_mcmc(
+        ...     readings,
+        ...     n_samples=2000,
+        ...     chains=2,
+        ...     use_hierarchical=True,
+        ...     progressbar=True
+        ... )
+        >>> # Access uncertainty
+        >>> spectrum_mean = result['spectrum']
+        >>> spectrum_std = result['spectrum_uncertainty']
+        >>> hpd_lower = result['spectrum_lower']
+        >>> hpd_upper = result['spectrum_upper']
+        >>> # Check convergence
+        >>> rhat = result['mcmc_stats']['rhat']
+        >>> print(f"Max R-hat: {rhat.max():.3f}")  # Should be < 1.1
+
+        Notes
+        -----
+        1. **Sampling Time**: MCMC is computationally intensive. Expect 10-60
+           seconds for typical problems with default settings.
+
+        2. **Convergence**: Always check R-hat values (< 1.1 indicates good
+           convergence) and effective sample size (> 100 per chain recommended).
+
+        3. **Hierarchical Mode**: Using use_hierarchical=True is recommended when
+           unsure about appropriate noise/regularization levels.
+
+        See Also
+        --------
+        unfold_bayes : Bayesian iterative unfolding (D'Agostini)
+        unfold_bayesian_parametric : Bayesian parametric model with MCMC
+        """
+        return unfold_mcmc_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_prior=sigma_prior,
+            lambda_prior=lambda_prior,
+            n_samples=n_samples,
+            tune=tune,
+            chains=chains,
+            target_accept=target_accept,
+            use_hierarchical=use_hierarchical,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            progressbar=progressbar,
         )
 
     def unfold_fruit_like(

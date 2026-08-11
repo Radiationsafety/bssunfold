@@ -7,6 +7,40 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.17.0] - 2026-08-11
+
+### Added
+- **Bayesian MCMC unfolding with NUTS sampler** — new `unfold_mcmc()` method
+  implementing full Bayesian inference via Markov Chain Monte Carlo with the
+  No-U-Turn Sampler (NUTS), an adaptive variant of Hamiltonian Monte Carlo.
+  Unlike traditional methods providing only point estimates, MCMC generates
+  samples from the full posterior distribution p(f|b), enabling comprehensive
+  uncertainty quantification through credible intervals (HPD intervals).
+  - **Uncertainty Quantification**: Provides 95% credible intervals for each
+    energy bin, showing where the spectrum is well-constrained vs uncertain.
+  - **Automatic Regularization**: Through hierarchical modeling, the method
+    can automatically infer appropriate regularization strength from data,
+    eliminating manual tuning of regularization parameters.
+  - **Convergence Diagnostics**: Built-in R-hat and effective sample size
+    (ESS) metrics ensure reliable posterior estimates.
+  - **Flexible Modeling**: The Bayesian framework allows easy incorporation
+    of complex priors (e.g., smoothness via Gaussian Processes), uncertainty
+    in response matrix, and multiple sources of systematic error.
+  - New file: `core/unfold_mcmc.py` (`solve_mcmc`, `unfold_mcmc_impl`)
+  - New `Detector.unfold_mcmc()` method
+  - Optional dependency group: `bssunfold[mcmc]` (`pymc>=5.0`, `arviz>=0.15`)
+  - Registered in documentation and examples
+  - 18 new tests in `tests/test_mcmc.py` covering structure, uncertainty
+    estimates, convergence diagnostics, hierarchical priors, error handling
+  - Example notebook: `examples/29-MCMC_example.ipynb`
+- **Fixed deprecation warning**: Updated PyMC sampling call to avoid
+  `log_likelihood` deprecation in `idata_kwargs` (now uses
+  `pm.compute_log_likelihood(idata)` post-sampling).
+
+### Changed
+- Bayesian methods category expanded to include MCMC-based full posterior inference
+- Documentation updated with MCMC method details and usage examples
+
 ## [0.16.0] - 2026-08-10
 
 ### Added
