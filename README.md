@@ -444,7 +444,7 @@ ISO scatter plots with per-detector color coding are generated in `tests/iso_plo
 
 ## 📊 Spectrum Comparison
 
-Compare two or more unfolded spectra using a comprehensive set of 25 metrics.
+Compare two or more unfolded spectra using a comprehensive set of **40+ metrics**, including spectral shape, dose-based, and energy-group comparisons.
 
 ```python
 import numpy as np
@@ -455,7 +455,7 @@ detector = Detector()
 r1 = detector.unfold_qpsolvers(readings, save_result=False)
 r2 = detector.unfold_cvxpy(readings, save_result=False)
 
-# Compare two results (all 25 metrics)
+# Compare two results (all available metrics)
 result = detector.compare(r1, r2)
 print(result['cosine_similarity'], result['mean_squared_error'])
 
@@ -471,7 +471,7 @@ df = detector.compare(
 )
 print(df)
 
-# Visual comparison
+# Visual comparison with scatter plot for ISO effective dose
 detector.compare(r1, r2, plot=True, save_to='comparison.png')
 
 # Independent usage
@@ -482,13 +482,15 @@ print(kl_divergence(s1, s2))
 
 ```mermaid
 graph TD
-    A[Comparison Metrics<br/>25 total] --> B[Entropy]
+    A[Comparison Metrics<br/>40+ total] --> B[Entropy]
     A --> C[Distribution]
     A --> D[Correlation]
     A --> E[Error]
     A --> F[Similarity]
     A --> G[Chi-squared]
     A --> H[Statistical]
+    A --> I[Dose-based<br/>EURADOS]
+    A --> J[Energy Groups]
 
     B --> B1[kl_divergence]
     B --> B2[cross_entropy]
@@ -511,6 +513,7 @@ graph TD
 
     F --> F1[cosine_similarity]
     F --> F2[mmd_rbf]
+    F --> F3[spectral_shape_similarity]
 
     G --> G1[chi_squared]
     G --> G2[g_test]
@@ -522,10 +525,26 @@ graph TD
     H --> H3[mannwhitneyu_test]
     H --> H4[standardized_mean_difference]
 
+    I --> I1[dose_difference_percent]
+    I --> I2[fluence_averaged_energy_diff]
+    I --> I3[dose_averaged_energy_diff]
+    I --> I4[iso_dose_rel_diff]
+
+    J --> J1[fluence_difference_percent]
+    J --> J2[energy_group_fluence_diff]
+    J --> J3[fluence_averaged_energy]
+    J --> J4[dose_averaged_energy]
+
     style A fill:#4a90d9,color:#fff
+    style I fill:#d98f4a,color:#fff
+    style J fill:#8fd94a,color:#fff
 ```
 
-### All 25 Metrics
+### All Metrics
+
+The following table lists all available comparison metrics:
+
+#### Basic Spectral Comparison (25 metrics)
 
 | Category | Metric Key | Description | Range |
 |----------|-----------|-------------|-------|
@@ -546,6 +565,7 @@ graph TD
 | | `median_absolute_error` | Median absolute error | [0, ∞) |
 | **Similarity** | `cosine_similarity` | Cosine similarity cos(θ) = (p·q)/(‖p‖‖q‖) | [0, 1] |
 | | `mmd_rbf` | Maximum Mean Discrepancy (RBF kernel) | [0, ∞) |
+| | `spectral_shape_similarity` | Log-lethargy spectral shape correlation | [-1, 1] |
 | **Chi-squared** | `chi_squared` | Pearson's chi-squared statistic | [0, ∞) |
 | | `g_test` | G-test (log-likelihood ratio) | [0, ∞) |
 | | `freeman_tukey` | Freeman-Tukey statistic | [0, ∞) |
@@ -554,6 +574,27 @@ graph TD
 | | `wilcoxon_test` | Wilcoxon signed-rank test statistic | [0, ∞) |
 | | `mannwhitneyu_test` | Mann-Whitney U test statistic | [0, ∞) |
 | | `standardized_mean_difference` | Cohen's d (SMD) | (-∞, ∞) |
+
+#### Dose-Based Metrics (EURADOS style)
+
+These metrics require the energy grid and ICRP conversion coefficients:
+
+| Metric Key | Description | Range |
+|-----------|-------------|-------|
+| `dose_difference_percent` | Relative difference in ambient dose equivalent H*(10) (%) | (-∞, ∞) |
+| `fluence_averaged_energy_diff` | Relative difference in fluence-averaged energy <E> (%) | (-∞, ∞) |
+| `dose_averaged_energy_diff` | Relative difference in dose-averaged energy <E>_H (%) | (-∞, ∞) |
+| `iso_dose_rel_diff` | Relative difference in ISO effective dose (%) | (-∞, ∞) |
+
+#### Energy Group Metrics
+
+| Metric Key | Description | Range |
+|-----------|-------------|-------|
+| `fluence_difference_percent` | Relative difference in total fluence (%) | (-∞, ∞) |
+| `energy_group_fluence_diff` | Relative fluence difference per group (thermal/epithermal/fast) | Dict[str, float] |
+| `fluence_averaged_energy` | Fluence-averaged energy <E> (MeV) | [0, ∞) |
+| `dose_averaged_energy` | Dose-averaged energy <E>_H (MeV) | [0, ∞) |
+| `ambient_dose_equivalent_rate` | Ambient dose equivalent rate H*(10) | [0, ∞) |
 
 All metrics are implemented with pure NumPy/SciPy — no extra dependencies required.
 
