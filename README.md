@@ -95,35 +95,38 @@ pip install -e .
 
 ```bash
 # Basic installation (without additional solvers)
-pip install bssunfold
+uv add bssunfold
+
+# all methods
+uv add bssunfold[all]
 
 # With numba JIT acceleration (recommended for iterative solvers)
-pip install "bssunfold[numba]"
+uv add "bssunfold[numba]"
 
 # With additional cross-platform solvers (recommended)
-pip install "bssunfold[solvers-core]"
+uv add "bssunfold[solvers-core]"
 
 # All solvers (Unix/Linux/macOS)
-pip install "bssunfold[all-solvers]"
+uv add "bssunfold[all-solvers]"
 
 # Windows (all except proxsuite)
-pip install "bssunfold[windows]"
+uv add "bssunfold[windows]"
 
 # With QP interpretation via pyoptexplain
-pip install "bssunfold[interpret]"
+uv add "bssunfold[interpret]"
 
 # With Bayesian MCMC unfolding (PyMC + ArviZ)
-pip install "bssunfold[mcmc]"
+uv add "bssunfold[mcmc]"
 ```
 
 Install with all solvers (Unix/Linux/Mac):
 ```bash
-pip install bssunfold[all-solvers]
+uv add bssunfold[all-solvers]
 ```
 
 For Windows is recommended to use the following command because of the problem with proxsuite:
 ```bash
-pip install bssunfold[windows]
+uv add bssunfold[windows]
 ```
 
 ## 🎯 Quick Start
@@ -803,7 +806,7 @@ All iterative solvers use Numba JIT-compiled inner loops when numba is installed
 
 Install numba for the best performance:
 ```bash
-pip install bssunfold[numba]
+uv add bssunfold[numba]
 ```
 
 ## 📖 Citation
