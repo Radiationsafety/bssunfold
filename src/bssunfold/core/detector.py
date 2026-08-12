@@ -1017,6 +1017,7 @@ class Detector:
         initial_spectrum: Optional[np.ndarray] = None,
         nonneg: bool = True,
         timeout_ms: int = 10000,
+        objective: str = "l2",
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -1025,9 +1026,10 @@ class Detector:
     ) -> Dict[str, Any]:
         """Unfold a neutron spectrum using an SMT solver.
 
-        Minimizes ``||A x - b||_1`` and then the total fluence ``sum(x)``
+        Minimizes ``||A x - b||_2`` and then the total fluence ``sum(x)``
         over the non-negative orthant using the Z3 optimizer
-        (z3-solver package, optional dependency).
+        (z3-solver package, optional dependency). Falls back to the L1
+        residual on non-converging solves.
 
         Parameters
         ----------
@@ -1039,6 +1041,8 @@ class Detector:
             Constrain the spectrum to be non-negative, default: True.
         timeout_ms : int, optional
             SMT solver timeout in milliseconds, default: 10000.
+        objective : str, optional
+            Residual objective: ``'l2'`` (default) or ``'l1'``.
         calculate_errors : bool, optional
             If True, calculate Monte-Carlo uncertainty, default: False.
         noise_level : float, optional
@@ -1066,6 +1070,7 @@ class Detector:
             initial_spectrum=initial_spectrum,
             nonneg=nonneg,
             timeout_ms=timeout_ms,
+            objective=objective,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

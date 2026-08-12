@@ -203,11 +203,16 @@ def test_solve_smt_no_solution_warns():
 
 
 def test_solve_smt_refine_failure_warns():
-    """An unsat refinement check warns and returns a zero vector."""
+    """An unsat refinement check warns and returns a zero vector.
+
+    ``solve_smt`` first attempts the L2 objective (KKT) and then the L1
+    objective; the L2 attempt consumes the first ``sat`` from the shared
+    mock, the L1 fallback performs the sat + unsat refinement sequence.
+    """
     from bssunfold.core.unfold_smt import solve_smt
 
     with patch.object(
-        z3, "Optimize", return_value=_FakeOptimize([z3.sat, z3.unknown])
+        z3, "Optimize", return_value=_FakeOptimize([z3.sat, z3.sat, z3.unknown])
     ):
         with pytest.warns(UserWarning, match="could not refine"):
             spectrum = solve_smt(np.array([[1.0, 2.0]]), np.array([10.0]))
@@ -405,3 +410,95 @@ def test_unfold_combined_smt(detector, readings):
     )
     assert "spectrum" in result
     assert np.all(result["spectrum"] >= 0)
+
+
+# Infeasible-under-nonnegativity system where the L1 and L2 objectives
+# select different solutions (L2 gives the least-squares optimum).
+_AL2 = np.array(
+    [
+        [1.0, 0.0, 1.0, 0.0],
+        [0.0, 1.0, 0.0, 1.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 1.0],
+    ]
+)
+_BL2 = np.array([2.0, -1.0, 0.5, 0.5])
+
+
+def test_solve_smt_l2_matches_nnls():
+    """The default L2 objective yields the exact least-squares residual."""
+    from scipy.optimize import nnls
+
+    from bssunfold.core.unfold_smt import solve_smt
+
+    x_ref, _ = nnls(_AL2, _BL2)
+    ref_resid = np.linalg.norm(_AL2 @ x_ref - _BL2)
+
+    spectrum = solve_smt(_AL2, _BL2)
+    resid = np.linalg.norm(_AL2 @ spectrum - _BL2)
+    assert resid == pytest.approx(ref_resid, rel=1e-6)
+
+
+def test_solve_smt_l2_beats_l1():
+    """L2 objective gives a smaller L2 residual than the L1 objective."""
+    from bssunfold.core.unfold_smt import solve_smt
+
+    x_l2 = solve_smt(_AL2, _BL2, objective="l2")
+    x_l1 = solve_smt(_AL2, _BL2, objective="l1")
+    resid_l2 = np.linalg.norm(_AL2 @ x_l2 - _BL2)
+    resid_l1 = np.linalg.norm(_AL2 @ x_l1 - _BL2)
+    assert resid_l2 < resid_l1
+
+
+def test_solve_smt_l2_nonneg_false_free_ls():
+    """nonneg=False L2 path matches the unconstrained least-squares optimum."""
+    from bssunfold.core.unfold_smt import solve_smt
+
+    Au = np.array(
+        [
+            [1.0, 2.0, 0.0],
+            [0.0, 1.0, 1.0],
+            [2.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+        ]
+    )
+    bu = np.array([3.0, 1.0, 2.5, 0.7])
+    x_ref, *_ = np.linalg.lstsq(Au, bu, rcond=None)
+    ref_resid = np.linalg.norm(Au @ x_ref - bu)
+
+    spectrum = solve_smt(Au, bu, nonneg=False)
+    resid = np.linalg.norm(Au @ spectrum - bu)
+    assert resid == pytest.approx(ref_resid, rel=1e-6)
+
+
+def test_solve_smt_objective_l1_backcompat():
+    """objective='l1' reproduces the historical lexicographic solution."""
+    from bssunfold.core.unfold_smt import solve_smt
+
+    spectrum = solve_smt(
+        np.array([[1.0, 2.0]]), np.array([10.0]), objective="l1"
+    )
+    assert spectrum == pytest.approx([0.0, 5.0])
+
+
+def test_solve_smt_unknown_objective_warns():
+    """An unknown objective falls back to 'l2' with a warning."""
+    from bssunfold.core.unfold_smt import solve_smt
+
+    with pytest.warns(UserWarning, match="using 'l2'"):
+        spectrum = solve_smt(
+            np.array([[1.0, 2.0]]), np.array([10.0]), objective="sparse"
+        )
+    assert spectrum.shape == (2,)
+    assert np.linalg.norm(np.array([1.0, 2.0]) @ spectrum - 10.0) < 1e-6
+
+
+def test_unfold_smt_objective_metadata(detector, readings):
+    """The objective is reported in the result metadata."""
+    result_l2 = detector.unfold_smt(readings, save_result=False)
+    assert result_l2["objective"] == "l2"
+
+    result_l1 = detector.unfold_smt(
+        readings, objective="l1", save_result=False
+    )
+    assert result_l1["objective"] == "l1"

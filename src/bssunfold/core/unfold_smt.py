@@ -231,6 +231,127 @@ def solve_rational_linear_eqs_all(
     )
 
 
+def _solve_smt_l1(
+    A: np.ndarray,
+    b: np.ndarray,
+    nonneg: bool,
+    timeout_ms: int,
+    z3,
+) -> np.ndarray:
+    """Minimize the L1 residual ``||A x - b||_1`` then the total fluence.
+
+    This is the original lexicographic objective of ``solve_smt``: the
+    residual is bounded by non-negative slack variables and the slacks are
+    minimized first, followed by ``sum(x)``.
+    """
+    n = A.shape[1]
+    xs = [z3.Real(f"x{i}") for i in range(n)]
+    slacks = [z3.Real(f"s{i}") for i in range(A.shape[0])]
+
+    opt = z3.Optimize()
+    opt.set("timeout", int(timeout_ms))
+    for row, r, slack in zip(A, b, slacks):
+        lhs = z3.Sum([xs[j] * _to_real_value(row[j], z3) for j in range(n)])
+        rhs = _to_real_value(r, z3)
+        opt.add(lhs - slack <= rhs)
+        opt.add(lhs + slack >= rhs)
+        opt.add(slack >= 0)
+    if nonneg:
+        for x in xs:
+            opt.add(x >= 0)
+
+    obj_residual = opt.minimize(z3.Sum(slacks))
+    if opt.check() != z3.sat:
+        warnings.warn(
+            "SMT solver could not find a solution. Returning zero vector."
+        )
+        return np.zeros(n)
+
+    opt.add(z3.Sum(slacks) == opt.lower(obj_residual))
+    opt.minimize(z3.Sum(xs))
+    if opt.check() != z3.sat:
+        warnings.warn(
+            "SMT solver could not refine the solution. Returning zero vector."
+        )
+        return np.zeros(n)
+
+    model = opt.model()
+    return np.array(
+        [
+            float(model.eval(x, model_completion=True).as_fraction())
+            for x in xs
+        ]
+    )
+
+
+def _solve_smt_l2(
+    A: np.ndarray,
+    b: np.ndarray,
+    nonneg: bool,
+    timeout_ms: int,
+    z3,
+) -> Optional[np.ndarray]:
+    """Minimize the L2 residual ``||A x - b||_2`` via the KKT conditions.
+
+    The non-negative least-squares optimum ``min ||A x - b||_2^2 s.t.
+    x >= 0`` is characterized by linear constraints (a linear complementarity
+    problem), so Z3 can solve it exactly without non-linear arithmetic:
+
+    - stationarity: ``mu = 2 A^T (A x - b)``
+    - dual feasibility: ``mu >= 0``
+    - complementarity: ``x_i * mu_i = 0`` via the disjunction
+      ``x_i == 0 OR mu_i == 0``.
+
+    For ``nonneg=False`` only the stationarity ``mu == 0`` (normal equations)
+    is imposed. The unconstrained least-squares residual is then returned.
+
+    Among the L2-optimal solutions the total fluence ``sum(x)`` is minimized.
+    Returns ``None`` on ``unknown``/``unsat``/error so the caller can fall
+    back to the L1 objective.
+    """
+    try:
+        n = A.shape[1]
+        gram = 2.0 * (A.T @ A)
+        rhs = 2.0 * (A.T @ b)
+
+        xs = [z3.Real(f"x{i}") for i in range(n)]
+        mu = [
+            z3.Sum(
+                [xs[j] * _to_real_value(gram[i, j], z3) for j in range(n)]
+            )
+            - _to_real_value(rhs[i], z3)
+            for i in range(n)
+        ]
+
+        opt = z3.Optimize()
+        opt.set("timeout", int(timeout_ms))
+        if nonneg:
+            for i in range(n):
+                opt.add(xs[i] >= 0)
+                opt.add(mu[i] >= 0)
+                opt.add(z3.Or(xs[i] == 0, mu[i] == 0))
+        else:
+            for i in range(n):
+                opt.add(mu[i] == 0)
+
+        opt.minimize(z3.Sum(xs))
+        if opt.check() != z3.sat:
+            return None
+
+        model = opt.model()
+        return np.array(
+            [
+                float(model.eval(x, model_completion=True).as_fraction())
+                for x in xs
+            ]
+        )
+    except Exception as exc:  # fall back to L1 on any solver failure
+        warnings.warn(
+            f"SMT L2 objective failed ({exc}); falling back to L1."
+        )
+        return None
+
+
 def solve_smt(
     A: np.ndarray,
     b: np.ndarray,
@@ -238,12 +359,18 @@ def solve_smt(
     nonneg: bool = True,
     timeout_ms: int = 10000,
     random_state: Optional[int] = None,
+    objective: str = "l2",
 ) -> np.ndarray:
     """Solve the unfolding problem with an SMT solver.
 
-    Minimizes the L1 residual ``||A x - b||_1`` and then the total fluence
-    ``sum(x)`` over the non-negative orthant using the Z3 optimizer. The
-    system ``A x = b`` is usually underdetermined (fewer detectors than
+    Minimizes the L2 residual ``||A x - b||_2`` and then the total fluence
+    ``sum(x)`` over the non-negative orthant using the Z3 optimizer (via the
+    exact KKT characterization of the non-negative least-squares optimum).
+    If the L2 solve does not converge within its (bounded) time budget,
+    e.g. on large systems, the solver falls back to the L1 residual
+    ``||A x - b||_1``.
+
+    The system ``A x = b`` is usually underdetermined (fewer detectors than
     energy bins), so the lexicographic objective selects a deterministic
     solution.
 
@@ -261,6 +388,9 @@ def solve_smt(
         SMT solver timeout in milliseconds (default: 10000).
     random_state : int, optional
         Random seed for the SMT solver, for reproducibility.
+    objective : str, optional
+        Residual objective: ``'l2'`` (default, least squares) or ``'l1'``.
+        On a non-converging L2 solve the L1 objective is used as a fallback.
 
     Returns
     -------
@@ -274,48 +404,23 @@ def solve_smt(
         raise ValueError("SMT solver: received ill-formed input.")
     n = A.shape[1]
 
-    try:
-        xs = [z3.Real(f"x{i}") for i in range(n)]
-        slacks = [z3.Real(f"s{i}") for i in range(A.shape[0])]
+    if objective not in ("l1", "l2"):
+        warnings.warn(
+            f"SMT: unknown objective {objective!r}; using 'l2'."
+        )
+        objective = "l2"
 
-        opt = z3.Optimize()
-        opt.set("timeout", int(timeout_ms))
+    try:
         if random_state is not None:
             z3.set_param("smt.random_seed", int(random_state))
-
-        for row, r, slack in zip(A, b, slacks):
-            lhs = z3.Sum([xs[j] * _to_real_value(row[j], z3) for j in range(n)])
-            rhs = _to_real_value(r, z3)
-            opt.add(lhs - slack <= rhs)
-            opt.add(lhs + slack >= rhs)
-            opt.add(slack >= 0)
-        if nonneg:
-            for x in xs:
-                opt.add(x >= 0)
-
-        obj_residual = opt.minimize(z3.Sum(slacks))
-        if opt.check() != z3.sat:
-            warnings.warn(
-                "SMT solver could not find a solution. Returning zero vector."
+        if objective == "l2":
+            l2_timeout_ms = max(1, min(timeout_ms // 2, 2000))
+            solution = _solve_smt_l2(
+                A, b, nonneg, l2_timeout_ms, z3
             )
-            return np.zeros(n)
-
-        opt.add(z3.Sum(slacks) == opt.lower(obj_residual))
-        opt.minimize(z3.Sum(xs))
-        if opt.check() != z3.sat:
-            warnings.warn(
-                "SMT solver could not refine the solution. "
-                "Returning zero vector."
-            )
-            return np.zeros(n)
-
-        model = opt.model()
-        return np.array(
-            [
-                float(model.eval(x, model_completion=True).as_fraction())
-                for x in xs
-            ]
-        )
+            if solution is not None:
+                return solution
+        return _solve_smt_l1(A, b, nonneg, timeout_ms, z3)
     except Exception as exc:
         warnings.warn(f"SMT solver failed: {exc}. Returning zero vector.")
         return np.zeros(n)
@@ -332,6 +437,7 @@ def unfold_smt(
     initial_spectrum: Optional[np.ndarray] = None,
     nonneg: bool = True,
     timeout_ms: int = 10000,
+    objective: str = "l2",
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -339,6 +445,11 @@ def unfold_smt(
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Unfold a neutron spectrum using an SMT solver.
+
+    Minimizes the L2 residual ``||A x - b||_2`` (via the exact KKT
+    characterization of the least-squares optimum) and then the total
+    fluence ``sum(x)``. Falls back to the L1 residual on non-converging
+    solves.
 
     Parameters
     ----------
@@ -362,6 +473,8 @@ def unfold_smt(
         Constrain the spectrum to be non-negative (default: True).
     timeout_ms : int, optional
         SMT solver timeout in milliseconds (default: 10000).
+    objective : str, optional
+        Residual objective: ``'l2'`` (default) or ``'l1'``.
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty, default: False.
     noise_level : float, optional
@@ -394,12 +507,14 @@ def unfold_smt(
             solve_smt,
             nonneg=nonneg,
             timeout_ms=timeout_ms,
+            objective=objective,
         ),
         solve_kwargs={},
         method_name="SMT",
         extra_output={
             "nonneg": nonneg,
             "timeout_ms": timeout_ms,
+            "objective": objective,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level,
