@@ -111,6 +111,9 @@ pip install "bssunfold[windows]"
 
 # With QP interpretation via pyoptexplain
 pip install "bssunfold[interpret]"
+
+# With Bayesian MCMC unfolding (PyMC + ArviZ)
+pip install "bssunfold[mcmc]"
 ```
 
 Install with all solvers (Unix/Linux/Mac):
@@ -370,6 +373,7 @@ graph TD
 | 49 | `unfold_nsduaz` | Multi-sphere ratio | `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance` | — | NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode |
 | 50 | `unfold_fista` | Krylov/hybrid | `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta` | — | FISTA (Fast Iterative Shrinkage-Thresholding Algorithm): accelerated proximal gradient method for L1/L2/TV regularized problems with box constraints; O(1/k²) convergence |
 | 51 | `unfold_hybrid_gmres` | Krylov/hybrid | `max_iterations`, `regularization_method`, `regularization`, `noise_level`, `eta`, `reorthogonalization` | — | Hybrid GMRES: combines GMRES iteration with Tikhonov regularization on projected problem; automatic regularization selection via GCV/discrepancy principle |
+| 52 | `unfold_mcmc` | Bayesian | `sigma_prior`, `lambda_prior`, `n_samples`, `tune`, `chains`, `target_accept`, `use_hierarchical`, `progressbar` | pymc, arviz | Full Bayesian unfolding with the NUTS (Hamiltonian Monte Carlo) sampler: mean posterior spectrum, 95% HPD credible intervals, per-bin posterior std and R-hat / ESS convergence diagnostics under `mcmc_stats` |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -776,6 +780,7 @@ bssunfold/
 - `mealpy` — population-based meta-heuristic optimization (unfold_genetic)
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
 - `odl` — Operator Discretization Library (unfold_mlem_odl)
+- `pymc` + `arviz` — Bayesian MCMC/NUTS sampling (unfold_mcmc)
 
 All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre) have **no extra dependencies** beyond NumPy/SciPy.
 

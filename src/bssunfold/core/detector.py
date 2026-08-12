@@ -85,6 +85,7 @@ from .unfold_interpret import (
 )
 from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
+from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
 
 __all__ = ["Detector"]
 
@@ -3374,6 +3375,107 @@ class Detector:
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,
+        )
+
+    def unfold_mcmc(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_prior: float = 0.1,
+        lambda_prior: float = 1.0,
+        n_samples: int = 2000,
+        tune: int = 1000,
+        chains: int = 2,
+        target_accept: float = 0.8,
+        use_hierarchical: bool = False,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        progressbar: bool = False,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Bayesian MCMC with NUTS sampler.
+
+        Full Bayesian unfolding with the No-U-Turn Sampler (NUTS). The method
+        returns the mean posterior spectrum together with 95% HPD credible
+        intervals, per-bin posterior standard deviations and convergence
+        diagnostics (R-hat, effective sample size) under ``result['mcmc_stats']``.
+
+        Requires optional ``pymc`` and ``arviz`` (``pip install bssunfold[mcmc]``
+        or ``pip install pymc arviz``).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused in MCMC, kept for API consistency).
+        sigma_prior : float, optional
+            Prior scale for measurement noise standard deviation (default: 0.1).
+        lambda_prior : float, optional
+            Prior scale for spectrum regularization (default: 1.0).
+        n_samples : int, optional
+            Number of MCMC samples per chain after tuning (default: 2000).
+        tune : int, optional
+            Number of tuning (warmup) samples per chain (default: 1000).
+        chains : int, optional
+            Number of independent MCMC chains (default: 2).
+        target_accept : float, optional
+            Target acceptance rate for NUTS (default: 0.8).
+        use_hierarchical : bool, optional
+            Use hierarchical priors for hyperparameters (default: False).
+        calculate_errors : bool, optional
+            Calculate additional Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for additional Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of additional Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        progressbar : bool, optional
+            Show sampling progress bar (default: False).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary. Includes the standard keys
+            (``energy``, ``spectrum``, ``effective_readings``, ``residual``,
+            ``residual_norm``, ``method``, ``doserates``) plus MCMC-specific
+            keys ``spectrum_uncertainty``, ``spectrum_lower``,
+            ``spectrum_upper`` and ``mcmc_stats``.
+
+        Raises
+        ------
+        ImportError
+            If PyMC or ArviZ is not installed.
+        RuntimeError
+            If MCMC sampling fails.
+        """
+        return unfold_mcmc_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_prior=sigma_prior,
+            lambda_prior=lambda_prior,
+            n_samples=n_samples,
+            tune=tune,
+            chains=chains,
+            target_accept=target_accept,
+            use_hierarchical=use_hierarchical,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            progressbar=progressbar,
         )
 
     def unfold_osem(
