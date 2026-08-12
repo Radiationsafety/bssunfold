@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.17.0] - 2026-08-12
+
+### Added
+- **MCMC** draft version
+
+### Fixed
+- fix test of CS 
+
+
 ## [0.16.0] - 2026-08-10
 
 ### Added

@@ -102,6 +102,7 @@ from .unfold_osem import unfold_osem
 from .unfold_mapem import unfold_mapem
 from .unfold_bsrem import unfold_bsrem
 from .unfold_sart import unfold_sart
+from .unfold_mcmc import solve_bayesian_mcmc, unfold_mcmc
 from .unfold_parametric2 import unfold_parametric2
 from .unfold_smt import unfold_smt
 from .unfold_scip import unfold_scip
@@ -154,6 +155,7 @@ __all__ = [
     "solve_mapem",
     "solve_bsrem",
     "solve_sart",
+    "solve_bayesian_mcmc",
     "solve_parametric2",
     "solve_fruit_like",
     "solve_hybrid_parametric",
@@ -206,6 +208,7 @@ __all__ = [
     "unfold_mapem",
     "unfold_bsrem",
     "unfold_sart",
+    "unfold_mcmc",
     "unfold_parametric2",
     "unfold_fruit_like",
     "unfold_hybrid_parametric",
