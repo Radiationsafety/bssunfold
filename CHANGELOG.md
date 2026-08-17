@@ -7,19 +7,6 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [0.17.2] - 2026-08-17
-
-### Added
-- **New example notebook `examples/30-smt.ipynb`** — demonstrates the SMT-based
-  unfolding method (`unfold_smt()`), backed by the Z3 solver. Uses a reduced
-  12-bin LANL grid (the full 60-bin system is too large for Z3's exact rational
-  arithmetic) and covers both residual objectives: the default `objective='l2'`
-  (exact KKT characterization of the least-squares optimum) and `objective='l1'`
-  (the historical lexicographic fallback), each solving the Cf-252 benchmark
-  exactly (`residual_norm = 0`), plus a Monte-Carlo uncertainty section and an
-  L2-vs-L1 comparison panel.
-
-
 ## [0.17.1] - 2026-08-17
 
 ### Changed
@@ -39,6 +26,14 @@ and this project adheres to [Semantic Versioning].
     interval is computed with pure NumPy (avoids ArviZ version drift).
   - Tests: `tests/test_mcmc.py` (fake-PyMC wrapper/statistics tests plus real
     NUTS smoke tests).
+  - **New example notebook `examples/30-smt.ipynb`** — demonstrates the SMT-based
+    unfolding method (`unfold_smt()`), backed by the Z3 solver. Uses a reduced
+    12-bin LANL grid (the full 60-bin system is too large for Z3's exact rational
+    arithmetic) and covers both residual objectives: the default `objective='l2'`
+    (exact KKT characterization of the least-squares optimum) and `objective='l1'`
+    (the historical lexicographic fallback), each solving the Cf-252 benchmark
+    exactly (`residual_norm = 0`), plus a Monte-Carlo uncertainty section and an
+    L2-vs-L1 comparison panel.
 - **Rewritten example `examples/29-MCMC_example.ipynb`** — demonstrates that
   `unfold_mcmc` works well: with a fast deterministic `unfold_cvxpy` result passed
   as `initial_spectrum`, the Cf-252 benchmark is recovered with R-hat ~1.00,
