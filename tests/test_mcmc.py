@@ -26,13 +26,26 @@ MOD = importlib.import_module("bssunfold.core.unfold_mcmc")
 class _FakeMath:
     @staticmethod
     def matmul(a, b):
-        return np.matmul(a, b)
+        a = np.asarray(a, dtype=float)
+        return np.zeros(a.shape[0])
+
+    @staticmethod
+    def dot(a, b):
+        a = np.asarray(a, dtype=float)
+        return np.zeros(a.shape[1])
+
+    @staticmethod
+    def exp(x):
+        return np.exp(np.asarray(x, dtype=float))
 
 
 class _FakeRV:
     def __init__(self, name, **kwargs):
         self.name = name
         self.kwargs = kwargs
+
+    def __array__(self, dtype=None):
+        return np.zeros(1)
 
     def __mul__(self, other):
         return np.asarray(other)
@@ -149,6 +162,8 @@ def _stats(n_energy, chains=2, draws=50, tune=10):
         "tune_samples": tune,
         "target_accept": 0.8,
         "use_hierarchical": False,
+        "lengthscale": 3.0,
+        "prior_center": np.ones(n_energy),
     }
 
 
@@ -349,6 +364,7 @@ def test_unfold_mcmc_result_dict(detector, readings, monkeypatch):
         "mcmc_stats",
         "sigma_prior",
         "lambda_prior",
+        "lengthscale",
         "n_samples",
         "chains",
     ):
@@ -394,6 +410,7 @@ def test_unfold_mcmc_detector_method(detector, readings, monkeypatch):
         tune=10,
         chains=1,
         target_accept=0.9,
+        lengthscale=2.0,
         use_hierarchical=True,
         random_state=7,
         progressbar=False,
@@ -405,6 +422,7 @@ def test_unfold_mcmc_detector_method(detector, readings, monkeypatch):
     assert captured["tune"] == 10
     assert captured["chains"] == 1
     assert captured["target_accept"] == 0.9
+    assert captured["lengthscale"] == 2.0
     assert captured["use_hierarchical"] is True
     assert captured["random_state"] == 7
     assert captured["progressbar"] is False

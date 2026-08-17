@@ -4,11 +4,19 @@ This module implements a full Bayesian approach to neutron spectrum unfolding
 using Markov Chain Monte Carlo (MCMC) methods, specifically the No-U-Turn
 Sampler (NUTS), which is an adaptive variant of Hamiltonian Monte Carlo (HMC).
 
+The spectrum is modelled on the log scale with a smoothness (Ornstein-Uhlenbeck)
+prior anchored on a data-driven center (the non-negative least-squares solution,
+or a user-supplied ``initial_spectrum``).  This keeps the severely
+underdetermined unfolding problem well behaved: the spectrum stays positive,
+smooth and bounded in the null space of the response matrix, and the posterior
+mean matches deterministic solvers (e.g. ``unfold_cvxpy``) on the IAEA
+reference-spectrum database.
+
 The Bayesian framework provides:
 - Full posterior distributions for each energy bin
 - Uncertainty quantification via credible intervals (HPD intervals)
 - Automatic regularization through prior specification
-- Hierarchical modeling capabilities for hyperparameters
+- Hierarchical modeling capabilities for the likelihood noise
 
 Key advantages over point-estimate methods:
 1. Uncertainty estimation: 95% credible intervals for each spectral bin
@@ -32,9 +40,72 @@ except ImportError:
     pm = None
 
 from ._base_unfolder import run_unfolding
-from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_bayesian_mcmc", "unfold_mcmc"]
+
+
+def _ou_correlation_cholesky(n_bins: int, lengthscale: float) -> np.ndarray:
+    """Cholesky factor of the Ornstein-Uhlenbeck correlation matrix.
+
+    The OU correlation ``C[i, j] = exp(-|i - j| / lengthscale)`` yields smooth,
+    stationary prior draws that stay bounded in amplitude (unlike a pure random
+    walk), which keeps the highly underdetermined unfolding posterior well
+    behaved for NUTS.
+
+    Parameters
+    ----------
+    n_bins : int
+        Number of energy bins.
+    lengthscale : float
+        Correlation length in units of energy bins.
+
+    Returns
+    -------
+    np.ndarray
+        Lower-triangular Cholesky factor of shape (n_bins, n_bins).
+    """
+    idx = np.arange(n_bins)
+    corr = np.exp(-np.abs(idx[:, None] - idx[None, :]) / max(float(lengthscale), 1e-9))
+    return np.linalg.cholesky(corr + 1e-9 * np.eye(n_bins))
+
+
+def _prior_center(
+    A_matrix: np.ndarray,
+    b_readings: np.ndarray,
+    initial_spectrum: Optional[np.ndarray],
+    n_energy: int,
+) -> np.ndarray:
+    """Data-driven log-space prior center for the spectrum.
+
+    Uses the user-supplied ``initial_spectrum`` when available, otherwise the
+    non-negative least-squares solution of ``A @ x = b``.  The center is
+    returned on the log scale (``log(max(x, eps))``) so the spectrum prior
+    ``f = exp(theta)`` is anchored near a spectrum consistent with the measured
+    readings.
+
+    Parameters
+    ----------
+    A_matrix : np.ndarray
+        Response matrix (n_detectors x n_energy).
+    b_readings : np.ndarray
+        Measured readings (n_detectors,).
+    initial_spectrum : Optional[np.ndarray]
+        User-provided prior guess (None to use the least-squares center).
+    n_energy : int
+        Number of energy bins.
+
+    Returns
+    -------
+    np.ndarray
+        Log-scale prior center of shape (n_energy,).
+    """
+    if initial_spectrum is not None:
+        center = np.maximum(np.asarray(initial_spectrum, dtype=float), 0.0)
+        if center.ndim != 1 or len(center) != n_energy:
+            center = np.zeros(n_energy)
+    else:
+        center = np.maximum(np.linalg.lstsq(A_matrix, b_readings, rcond=None)[0], 0.0)
+    return np.log(np.maximum(center, 1e-6))
 
 
 def _hpd_interval(samples: np.ndarray, prob: float = 0.95):
@@ -113,27 +184,37 @@ def solve_bayesian_mcmc(
     b_readings: np.ndarray,
     E: np.ndarray,
     log_steps: np.ndarray,
-    sigma_prior: float = 0.1,
-    lambda_prior: float = 1.0,
+    sigma_prior: float = 0.05,
+    lambda_prior: float = 0.5,
+    lengthscale: float = 3.0,
     n_samples: int = 2000,
     tune: int = 1000,
     chains: int = 2,
-    target_accept: float = 0.8,
+    target_accept: float = 0.95,
     random_state: Optional[int] = None,
     use_hierarchical: bool = False,
+    initial_spectrum: Optional[np.ndarray] = None,
     progressbar: bool = False,
 ) -> Tuple[np.ndarray, Dict[str, Any]]:
     """Solve unfolding problem using Bayesian MCMC with NUTS sampler.
 
-    This function implements a hierarchical Bayesian model for neutron spectrum
-    unfolding. The model assumes:
+    The spectrum is modelled on the log scale with a smoothness (Ornstein-
+    Uhlenbeck) prior anchored on a data-driven center, which is the standard
+    "prior guess" approach for ill-posed unfolding:
 
-    - Likelihood: b ~ Normal(A @ (f * log_steps), sigma^2)
-    - Prior on spectrum: f ~ HalfNormal(lambda) or hierarchical
-    - Hyperpriors: sigma ~ HalfCauchy, lambda ~ HalfCauchy (if hierarchical)
+    - Prior center: user-supplied ``initial_spectrum`` when given, otherwise the
+      non-negative least-squares solution of ``A @ x = b``.
+    - Prior: ``f = exp(theta)`` with ``theta ~ MvNormal(mu_prior, s * C_ou)``,
+      ``s ~ HalfNormal(lambda_prior)`` and the OU correlation
+      ``C_ou[i, j] = exp(-|i - j| / lengthscale)``.  This keeps the spectrum
+      positive, smooth and bounded in the null space of the (severely
+      underdetermined) response matrix.
+    - Likelihood: ``b ~ Normal(A @ f, sigma)`` with a relative noise scale
+      ``sigma = sigma_prior * |b|`` (fixed) or estimated hierarchically when
+      ``use_hierarchical`` is True.
 
-    The NUTS sampler generates samples from the posterior distribution p(f|b),
-    which are then used to compute statistics (mean, median, std, HPD intervals).
+    The NUTS sampler generates samples from the posterior p(f|b), which are
+    used to compute statistics (mean, median, std, HPD intervals).
 
     Parameters
     ----------
@@ -142,13 +223,22 @@ def solve_bayesian_mcmc(
     b_readings : np.ndarray
         Measured readings (n_detectors,).
     E : np.ndarray
-        Energy grid in MeV.
+        Energy grid in MeV (unused by the model, kept for API consistency).
     log_steps : np.ndarray
-        Logarithmic energy steps for flux-to-counts conversion.
+        Logarithmic energy steps (unused by the model, kept for API
+        consistency; the forward model follows the package convention
+        ``b = A @ spectrum``).
     sigma_prior : float, optional
-        Prior scale for measurement noise (default: 0.1).
+        Relative measurement noise scale (default: 0.05).  With
+        ``use_hierarchical=False`` the likelihood noise is fixed at
+        ``sigma_prior * |b|``; with ``use_hierarchical=True`` it is the prior
+        scale of the estimated relative noise.
     lambda_prior : float, optional
-        Prior scale for spectrum regularization (default: 1.0).
+        Prior scale of the spatial amplitude ``s`` of the log-spectrum
+        deviations from the prior center (default: 0.5).
+    lengthscale : float, optional
+        OU correlation length of the smoothness prior, in energy bins
+        (default: 3.0).
     n_samples : int, optional
         Number of MCMC samples per chain (default: 2000).
     tune : int, optional
@@ -156,11 +246,15 @@ def solve_bayesian_mcmc(
     chains : int, optional
         Number of independent MCMC chains (default: 2).
     target_accept : float, optional
-        Target acceptance rate for NUTS (default: 0.8).
+        Target acceptance rate for NUTS (default: 0.95).
     random_state : int, optional
         Random seed for reproducibility.
     use_hierarchical : bool, optional
-        Use hierarchical priors for hyperparameters (default: False).
+        Estimate the likelihood noise scale from the data instead of fixing it
+        (default: False).
+    initial_spectrum : np.ndarray, optional
+        Prior center guess (n_energy,).  When None, the non-negative
+        least-squares solution is used as the center.
     progressbar : bool, optional
         Show sampling progress bar (default: False).
 
@@ -194,33 +288,41 @@ def solve_bayesian_mcmc(
 
     n_detectors, n_energy = A_matrix.shape
 
+    mu_prior = _prior_center(A_matrix, b_readings, initial_spectrum, n_energy)
+    L_corr = _ou_correlation_cholesky(n_energy, lengthscale)
+
     coords = {
         "energy_bin": range(n_energy),
         "detector": range(n_detectors),
     }
 
     with pm.Model(coords=coords) as model:
-        # Priors for spectrum (non-negative)
-        if use_hierarchical:
-            # Hierarchical prior: learn regularization strength from data
-            lambda_hyper = pm.HalfCauchy("lambda_hyper", beta=lambda_prior)
-            spectrum = pm.HalfNormal(
-                "spectrum", sigma=lambda_hyper, dims="energy_bin"
-            )
-            # Learn noise level from data
-            sigma = pm.HalfCauchy("sigma", beta=sigma_prior)
-        else:
-            # Fixed priors
-            spectrum = pm.HalfNormal(
-                "spectrum", sigma=lambda_prior, dims="energy_bin"
-            )
-            sigma = pm.HalfNormal("sigma", sigma=sigma_prior)
+        # Spatial amplitude of log-spectrum deviations from the prior center
+        s = pm.HalfNormal("s", sigma=lambda_prior)
+        # Whitened latent field; theta = mu_prior + s * (L_corr @ z) is a
+        # non-centered MvNormal with OU covariance.
+        z = pm.Normal("z", mu=0.0, sigma=1.0, dims="energy_bin")
+        theta = pm.Deterministic(
+            "theta",
+            mu_prior + s * pm.math.dot(L_corr, z),
+            dims="energy_bin",
+        )
+        spectrum = pm.Deterministic(
+            "spectrum", pm.math.exp(theta), dims="energy_bin"
+        )
 
-        # Forward model: expected counts
-        # Note: We multiply by log_steps to account for flux-to-counts conversion
+        # Likelihood noise: fixed relative scale or estimated hierarchically
+        b_abs = np.abs(b_readings) + 1e-6
+        if use_hierarchical:
+            rel_noise = pm.HalfNormal("rel_noise", sigma=sigma_prior)
+            sigma = rel_noise * b_abs
+        else:
+            sigma = sigma_prior * b_abs
+
+        # Forward model (package convention: b = A @ spectrum)
         expected_counts = pm.Deterministic(
             "expected_counts",
-            pm.math.matmul(A_matrix, spectrum * log_steps),
+            pm.math.matmul(A_matrix, spectrum),
             dims="detector",
         )
 
@@ -279,6 +381,8 @@ def solve_bayesian_mcmc(
         "tune_samples": tune,
         "target_accept": target_accept,
         "use_hierarchical": use_hierarchical,
+        "lengthscale": lengthscale,
+        "prior_center": np.exp(mu_prior),
     }
 
     return mean_spectrum, stats
@@ -293,12 +397,13 @@ def unfold_mcmc(
     save_result_callback,
     readings: Dict[str, float],
     initial_spectrum: Optional[np.ndarray] = None,
-    sigma_prior: float = 0.1,
-    lambda_prior: float = 1.0,
+    sigma_prior: float = 0.05,
+    lambda_prior: float = 0.5,
+    lengthscale: float = 3.0,
     n_samples: int = 2000,
     tune: int = 1000,
     chains: int = 2,
-    target_accept: float = 0.8,
+    target_accept: float = 0.95,
     use_hierarchical: bool = False,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
@@ -325,9 +430,9 @@ def unfold_mcmc(
        for each energy bin, showing where the spectrum is well-constrained vs
        uncertain.
 
-    2. **Automatic Regularization**: Through hierarchical modeling, the method
-       can automatically infer the appropriate regularization strength from
-       the data.
+    2. **Automatic Regularization**: Through the log-space smoothness prior,
+       the method keeps the underdetermined solution positive and smooth
+       without the collapse seen with independent per-bin priors.
 
     3. **Convergence Diagnostics**: Built-in R-hat and effective sample size
        (ESS) metrics ensure reliable posterior estimates.
@@ -336,11 +441,15 @@ def unfold_mcmc(
     -----------
     The Bayesian model is defined as:
 
-    - Likelihood: b ~ Normal(A @ (f * log_steps), sigma^2)
+    - Likelihood: b ~ Normal(A @ f, sigma)
       where b is measured readings, A is response matrix, f is spectrum
-    - Prior: f ~ HalfNormal(lambda), ensures a non-negative spectrum
-    - Hyperpriors (optional):
-      sigma ~ HalfCauchy(sigma_prior), lambda ~ HalfCauchy(lambda_prior)
+    - Prior: f = exp(theta) with theta ~ MvNormal(mu_prior, s * C_ou),
+      where mu_prior is the log of the data-driven prior center
+      (non-negative least-squares solution or user ``initial_spectrum``),
+      C_ou is the OU correlation exp(-|i-j|/lengthscale), and
+      s ~ HalfNormal(lambda_prior).
+    - Hyperpriors (optional): when ``use_hierarchical=True`` the relative
+      likelihood noise is estimated as rel_noise ~ HalfNormal(sigma_prior).
 
     Parameters
     ----------
@@ -359,11 +468,17 @@ def unfold_mcmc(
     readings : Dict[str, float]
         Detector readings (counts or count rates).
     initial_spectrum : Optional[np.ndarray], optional
-        Initial spectrum guess (unused in MCMC, but kept for API consistency).
+        Prior center guess for the spectrum. When None, the non-negative
+        least-squares solution of A @ x = b is used as the prior center.
     sigma_prior : float, optional
-        Prior scale for measurement noise standard deviation (default: 0.1).
+        Relative likelihood noise scale (default: 0.05). With
+        ``use_hierarchical=False`` the noise is fixed at ``sigma_prior * |b|``;
+        with ``use_hierarchical=True`` it is the prior scale of the estimated
+        relative noise.
     lambda_prior : float, optional
-        Prior scale for spectrum regularization (default: 1.0).
+        Prior scale of the log-spectrum spatial amplitude (default: 0.5).
+    lengthscale : float, optional
+        OU smoothness correlation length in energy bins (default: 3.0).
     n_samples : int, optional
         Number of MCMC samples per chain after tuning (default: 2000).
     tune : int, optional
@@ -371,9 +486,9 @@ def unfold_mcmc(
     chains : int, optional
         Number of independent MCMC chains (default: 2).
     target_accept : float, optional
-        Target acceptance rate for NUTS (default: 0.8).
+        Target acceptance rate for NUTS (default: 0.95).
     use_hierarchical : bool, optional
-        Use hierarchical priors for hyperparameters (default: False).
+        Estimate the likelihood noise from the data (default: False).
     calculate_errors : bool, optional
         Calculate additional Monte-Carlo errors (default: False).
     noise_level : float, optional
@@ -440,26 +555,27 @@ def unfold_mcmc(
             "Install them with: pip install pymc arviz"
         )
 
-    log_steps = compute_log_steps(E_MeV, n_energy_bins)
-
     # The main solve is captured in a holder so its MCMC statistics (trace,
     # samples, diagnostics) can be merged into the standardized output.
     holder: Dict[str, Any] = {}
 
     def _solve_mcmc(A, b, **kwargs):
+        x0 = kwargs.get("x0")
         mean_spectrum, stats = solve_bayesian_mcmc(
             A_matrix=A,
             b_readings=b,
             E=E_MeV,
-            log_steps=log_steps,
+            log_steps=np.ones(n_energy_bins),
             sigma_prior=sigma_prior,
             lambda_prior=lambda_prior,
+            lengthscale=lengthscale,
             n_samples=n_samples,
             tune=tune,
             chains=chains,
             target_accept=target_accept,
             random_state=random_state,
             use_hierarchical=use_hierarchical,
+            initial_spectrum=x0 if x0 is not None else initial_spectrum,
             progressbar=progressbar,
         )
         holder.setdefault("stats", stats)
@@ -481,6 +597,7 @@ def unfold_mcmc(
         extra_output={
             "sigma_prior": sigma_prior,
             "lambda_prior": lambda_prior,
+            "lengthscale": lengthscale,
             "n_samples": n_samples,
             "chains": chains,
         },
@@ -510,6 +627,8 @@ def unfold_mcmc(
             "tune_samples": stats["tune_samples"],
             "target_accept": stats["target_accept"],
             "use_hierarchical": stats["use_hierarchical"],
+            "lengthscale": stats["lengthscale"],
+            "prior_center": stats["prior_center"],
             "trace": stats["trace"],
         }
 

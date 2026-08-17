@@ -7,6 +7,32 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.17.1] - 2026-08-17
+
+### Changed
+- **MCMC rework: log-space Ornstein-Uhlenbeck smoothness prior** — the Bayesian
+  NUTS model (`unfold_mcmc`/`solve_bayesian_mcmc`) now models the spectrum on the
+  log scale (`f = exp(theta)` with `theta ~ MvNormal(mu_prior, s * C_ou)`) instead
+  of independent per-bin `HalfNormal` priors. The prior is anchored on a
+  data-driven center: the user-supplied `initial_spectrum` when given, otherwise
+  the non-negative least-squares solution of `A @ x = b`. This keeps the severely
+  underdetermined unfolding problem positive, smooth and bounded in the null space
+  of the response matrix, and the posterior mean matches deterministic solvers
+  (e.g. `unfold_cvxpy`) on the IAEA reference-spectrum database.
+  - New parameters: `lengthscale` (OU correlation length in energy bins, default
+    3.0) and a now-effective `initial_spectrum` (previously unused). Defaults
+    updated: `sigma_prior=0.05`, `lambda_prior=0.5`, `target_accept=0.95`.
+  - Statistics extended with `lengthscale` and `prior_center`; the 95% HPD
+    interval is computed with pure NumPy (avoids ArviZ version drift).
+  - Tests: `tests/test_mcmc.py` (fake-PyMC wrapper/statistics tests plus real
+    NUTS smoke tests).
+- **Rewritten example `examples/29-MCMC_example.ipynb`** — demonstrates that
+  `unfold_mcmc` works well: with a fast deterministic `unfold_cvxpy` result passed
+  as `initial_spectrum`, the Cf-252 benchmark is recovered with R-hat ~1.00,
+  ESS > 400, R² ≈ 0.99, total fluence within ~0.05 % and ICRP-116 dose rates
+  within ~0.1 %, including a hierarchical-noise-model comparison.
+
+
 ## [0.17.0] - 2026-08-12
 
 ### Added

@@ -3386,12 +3386,13 @@ class Detector:
         self,
         readings: Dict[str, float],
         initial_spectrum: Optional[np.ndarray] = None,
-        sigma_prior: float = 0.1,
-        lambda_prior: float = 1.0,
+        sigma_prior: float = 0.05,
+        lambda_prior: float = 0.5,
+        lengthscale: float = 3.0,
         n_samples: int = 2000,
         tune: int = 1000,
         chains: int = 2,
-        target_accept: float = 0.8,
+        target_accept: float = 0.95,
         use_hierarchical: bool = False,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
@@ -3407,6 +3408,12 @@ class Detector:
         intervals, per-bin posterior standard deviations and convergence
         diagnostics (R-hat, effective sample size) under ``result['mcmc_stats']``.
 
+        The spectrum is modelled on the log scale with a smoothness
+        (Ornstein-Uhlenbeck) prior anchored on a data-driven center (the
+        non-negative least-squares solution, or a user-supplied
+        ``initial_spectrum``), which keeps the underdetermined unfolding
+        problem well posed for NUTS.
+
         Requires optional ``pymc`` and ``arviz`` (``pip install bssunfold[mcmc]``
         or ``pip install pymc arviz``).
 
@@ -3415,11 +3422,17 @@ class Detector:
         readings : Dict[str, float]
             Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
-            Initial spectrum guess (unused in MCMC, kept for API consistency).
+            Prior center guess for the spectrum. When None, the non-negative
+            least-squares solution of ``A @ x = b`` is used as the prior center.
         sigma_prior : float, optional
-            Prior scale for measurement noise standard deviation (default: 0.1).
+            Relative likelihood noise scale (default: 0.05). With
+            ``use_hierarchical=False`` the noise is fixed at
+            ``sigma_prior * |b|``; with ``use_hierarchical=True`` it is the
+            prior scale of the estimated relative noise.
         lambda_prior : float, optional
-            Prior scale for spectrum regularization (default: 1.0).
+            Prior scale of the log-spectrum spatial amplitude (default: 0.5).
+        lengthscale : float, optional
+            OU smoothness correlation length in energy bins (default: 3.0).
         n_samples : int, optional
             Number of MCMC samples per chain after tuning (default: 2000).
         tune : int, optional
@@ -3427,9 +3440,9 @@ class Detector:
         chains : int, optional
             Number of independent MCMC chains (default: 2).
         target_accept : float, optional
-            Target acceptance rate for NUTS (default: 0.8).
+            Target acceptance rate for NUTS (default: 0.95).
         use_hierarchical : bool, optional
-            Use hierarchical priors for hyperparameters (default: False).
+            Estimate the likelihood noise from the data (default: False).
         calculate_errors : bool, optional
             Calculate additional Monte-Carlo errors (default: False).
         noise_level : float, optional
@@ -3470,6 +3483,7 @@ class Detector:
             initial_spectrum=initial_spectrum,
             sigma_prior=sigma_prior,
             lambda_prior=lambda_prior,
+            lengthscale=lengthscale,
             n_samples=n_samples,
             tune=tune,
             chains=chains,
