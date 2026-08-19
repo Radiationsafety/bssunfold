@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [Unreleased]
+## [0.17.2] - 2026-08-19
 
 ### Added
 - **AIC/AICc/BIC regularization selection for `unfold_lmfit`** — new
