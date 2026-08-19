@@ -115,6 +115,17 @@ def solve_statreg(
     """
     n_ene = A.shape[1]
 
+    # Zero readings (e.g. 18-inch spheres for purely thermal spectra) would
+    # blow up sigma_inv = 1/sigma to ~1e300 and overflow ATA. Drop them.
+    if np.any(b < 0):
+        raise ValueError("STREG requires strictly positive measurements")
+    if np.any(b == 0):
+        keep = b > 0
+        A = A[keep]
+        b = b[keep]
+        if b.size == 0:
+            raise ValueError("STREG requires strictly positive measurements")
+
     L = create_derivative_matrix(n_ene, 2).toarray()
 
     sigma = np.maximum(b * 0.05, 1e-300)

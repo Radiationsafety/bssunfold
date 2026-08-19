@@ -64,7 +64,7 @@ def solve_bunki(
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float)
     x0 = np.asarray(x0, dtype=float)
-    m, n = A.shape
+    n = A.shape[1]
 
     if lethargy_weights is not None:
         wdleth = np.asarray(lethargy_weights, dtype=float)
@@ -72,8 +72,21 @@ def solve_bunki(
             raise ValueError(f"lethargy_weights must have shape ({n},)")
         A = A * wdleth[None, :]
 
-    if np.any(b <= 0):
+    if np.any(b < 0):
         raise ValueError("BUNKI requires strictly positive measurements")
+
+    if np.any(b == 0):
+        # Zero readings carry no usable information for BUNKI and would cause
+        # division by zero. Drop those detectors instead of failing the whole
+        # unfolding (e.g. purely thermal spectra where the 18-inch spheres
+        # have essentially zero response).
+        keep = b > 0
+        A = A[keep]
+        b = b[keep]
+        if b.size == 0:
+            raise ValueError("BUNKI requires strictly positive measurements")
+
+    m = A.shape[0]
 
     x0_safe = np.maximum(x0, 0.0)
     # trans_mat: response scaled by the initial spectrum, spl starts at ones.
