@@ -1425,6 +1425,10 @@ class Detector:
         regularization: float = 1e-4,
         regularization2: float = 1e-4,
         l1_weight: float = 0.5,
+        regularization_method: str = "manual",
+        lambda_range: Tuple[float, float] = (1e-6, 1e-1),
+        n_lambda: int = 30,
+        verbose: bool = True,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -1449,6 +1453,21 @@ class Detector:
             L2 regularization strength for elastic net, default: 1e-4.
         l1_weight : float, optional
             L1 weight for elastic net (0=pure L2, 1=pure L1), default: 0.5.
+        regularization_method : str, optional
+            How to choose the regularization parameter. Options: 'manual'
+            (use the supplied ``regularization``/``regularization2``), or an
+            information criterion 'aic', 'aicc' or 'bic'. For non-manual
+            selection the regularization parameter is swept over
+            ``lambda_range`` and the candidate minimizing the chosen
+            criterion is used. Default: 'manual'.
+        lambda_range : Tuple[float, float], optional
+            Log-spaced range of lambda candidates for information-criterion
+            selection, default: (1e-6, 1e-1).
+        n_lambda : int, optional
+            Number of lambda candidates for information-criterion selection,
+            default: 30.
+        verbose : bool, optional
+            Print the regularization selection summary, default: True.
         calculate_errors : bool, optional
             Flag to calculate uncertainty via Monte-Carlo, default: False.
         noise_level : float, optional
@@ -1479,6 +1498,10 @@ class Detector:
             regularization=regularization,
             regularization2=regularization2,
             l1_weight=l1_weight,
+            regularization_method=regularization_method,
+            lambda_range=lambda_range,
+            n_lambda=n_lambda,
+            verbose=verbose,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

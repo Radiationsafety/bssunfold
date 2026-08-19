@@ -169,6 +169,8 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_lmfit.solve_lmfit
 
+.. autofunction:: bssunfold.core.unfold_lmfit.select_regularization_aic_bic
+
 .. autofunction:: bssunfold.core.unfold_gravel.solve_gravel
 
 .. autofunction:: bssunfold.core.unfold_maxed.solve_maxed
