@@ -220,9 +220,9 @@ Method Reference
    * - 18
      - ``unfold_lmfit``
      - Optimization
-     - `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight`
+     - `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight`, `regularization_method` (manual/aic/aicc/bic), `lambda_range`, `n_lambda`
      - lmfit
-     - L1/L2/Elastic Net via lmfit
+     - L1/L2/Elastic Net via lmfit, with optional AIC/AICc/BIC-based regularization selection
    * - 19
      - ``unfold_scipy_direct_method``
      - Optimization

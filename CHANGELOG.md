@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.17.2] - 2026-08-19
+
+### Added
+- **AIC/AICc/BIC regularization selection for `unfold_lmfit`** — new
+  `regularization_method` parameter (`'manual'` | `'aic'` | `'aicc'` | `'bic'`)
+  on `unfold_lmfit()` / `Detector.unfold_lmfit()`. When a non-manual method is
+  selected, the L1 (and for elastic net the L2) regularization strength is
+  swept over a log-spaced grid of `n_lambda` candidates in `lambda_range`,
+  each solved by lmfit and scored with the Akaike information criterion using
+  effective degrees of freedom (ridge: `sum(s_i^2/(s_i^2+lambda))`; lasso and
+  elastic net: active-set/SVD heuristic). The candidate minimizing the chosen
+  criterion is used for the final unfolding. The selected values and the full
+  sweep path are reported in the result dict (`selected_regularization`,
+  `selected_regularization2`, `best_df`, `best_criterion_value`,
+  `aic_bic_path`).
+  - New public helper `select_regularization_aic_bic()` with a manual-parameter
+    fallback when every candidate solve fails.
+  - Tests: `tests/test_new_methods_fixed.py` (`TestUnfoldLmfit`,
+    `TestDirectSolveFunctions`).
+
+
 ## [0.17.1] - 2026-08-17
 
 ### Changed

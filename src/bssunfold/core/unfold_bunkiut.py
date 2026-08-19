@@ -75,8 +75,16 @@ def solve_bunkiut(
             raise ValueError(f"lethargy_weights must have shape ({n},)")
         A = A * wdleth[None, :]
 
-    if np.any(b <= 0):
+    if np.any(b < 0):
         raise ValueError("BUNKI-UT requires strictly positive measurements")
+
+    if np.any(b == 0):
+        # Same guard as BUNKI: drop zero-reading detectors instead of failing.
+        keep = b > 0
+        A = A[keep]
+        b = b[keep]
+        if b.size == 0:
+            raise ValueError("BUNKI-UT requires strictly positive measurements")
 
     x0_safe = np.maximum(x0, 0.0)
     # trans_mat: response scaled by the initial spectrum, spl starts at ones.
