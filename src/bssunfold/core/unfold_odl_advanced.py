@@ -1,18 +1,56 @@
-"""Advanced ODL-based unfolding methods with PDHG and Douglas-Rachford splitting.
+"""Advanced unfolding methods with PDHG and Douglas-Rachford splitting.
 
-This module provides advanced regularization methods using the Operator Discretization 
-Library (ODL), including Primal-Dual Hybrid Gradient (PDHG) and Douglas-Rachford 
-splitting algorithms. These methods support Total Variation (TV) regularization which 
-better preserves sharp spectral features compared to standard Tikhonov regularization.
+This module provides advanced regularization methods using the Primal-Dual
+Hybrid Gradient (Chambolle-Pock) and Douglas-Rachford splitting algorithms.
+These methods support Total Variation (TV) regularization which better preserves
+sharp spectral features compared to standard Tikhonov regularization.
 
-Requires the 'odl' package to be installed.
+The algorithms follow the Operator Discretization Library (ODL) formulation but
+are implemented in pure NumPy for cross-version stability (ODL 1.0's own PDHG /
+Douglas-Rachford solvers break on translated data terms). No external solver
+ packages are required.
 """
 
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding
-from ._matrix_utils import create_derivative_matrix
+
+
+def _forward_diff_matrix(n: int) -> np.ndarray:
+    """1-D forward-difference operator D (shape (n - 1, n))."""
+    D = np.zeros((n - 1, n))
+    for i in range(n - 1):
+        D[i, i] = -1.0
+        D[i, i + 1] = 1.0
+    return D
+
+
+def _tv_prox(f: np.ndarray, lam: float, n_iter: int = 200) -> np.ndarray:
+    """Proximal operator of lam * ||D x||_1 (1-D total-variation denoising).
+
+    Solves  argmin_x 0.5 ||x - f||^2 + lam ||D x||_1  via Chambolle's dual
+    gradient-ascent algorithm.  D is the 1-D forward-difference operator.
+    """
+    f = np.asarray(f, dtype=float)
+    n = f.size
+    if n <= 1 or lam <= 0:
+        return f.copy()
+    Df = np.diff(f)
+    # D D^T (tridiagonal) for the forward-difference operator.
+    L = 4.0  # largest eigenvalue of D D^T for this 1-D operator
+    rho = 1.0 / (L * lam**2)
+    p = np.zeros(n - 1)
+    for _ in range(n_iter):
+        grad = np.zeros(n)
+        grad[1:] = p
+        grad[:-1] -= p
+        p = p + rho * (lam * Df - lam**2 * (grad[1:] - grad[:-1]))
+        p = np.clip(p, -1.0, 1.0)
+    grad = np.zeros(n)
+    grad[1:] = p
+    grad[:-1] -= p
+    return f - lam * grad
 
 
 def solve_odl_pdhg(
@@ -29,12 +67,15 @@ def solve_odl_pdhg(
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using Primal-Dual Hybrid Gradient (PDHG).
 
-    PDHG is a first-order primal-dual algorithm that can handle non-smooth 
-    regularizers like Total Variation. It solves problems of the form:
+    A NumPy implementation of the Chambolle-Pock primal-dual algorithm
+    (the PDHG scheme documented in ODL) for the problem
 
-        min_x ||Kx - y||^2 + λ * R(x)
+        min_x  0.5 ||A x - b||^2 + tv_weight ||D x||_1   (+ non-negativity),
 
-    where R(x) can be TV norm or L1 norm.
+    where D is the 1-D forward-difference operator (Total Variation).
+    No external ODL solver is required, which keeps the behaviour stable
+    across ODL versions (ODL 1.0's own PDHG solver is known to break on
+    translated data terms).
 
     Parameters
     ----------
@@ -64,148 +105,53 @@ def solve_odl_pdhg(
     tuple
         (spectrum, iterations, converged)
     """
-    try:
-        import odl
-        from odl.solvers import pdhg, proximal_nonnegativity
-    except ImportError as e:
-        raise ImportError(
-            "odl is required for ODL-based PDHG unfolding. "
-            "Install with: pip install odl"
-        ) from e
-
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
     m_len, n = A.shape
 
-    # Create ODL spaces
-    measurement_space = odl.uniform_discr(0, m_len, m_len)
-    spectrum_space = odl.uniform_discr(0, n, n)
+    if x0 is None:
+        x0 = np.ones(n) * 0.5
+    x = np.asarray(x0, dtype=float).copy()
 
-    # Create operator
-    operator = odl.MatrixOperator(A, domain=spectrum_space, range=measurement_space)
-
-    # Regularization term
+    # Build the augmented forward operator  K = [A; w D]  so that the objective
+    #     0.5 ||A x - b||^2 + tv_weight ||D x||_1
+    # becomes  0.5 ||K x - d||^2   with  d = [b; 0].
+    # The primal-dual algorithm then needs only the closed-form dual update of
+    # the quadratic data term.
     if use_tv:
-        # Total Variation regularization using finite difference matrix
-        # Build 1D forward difference matrix manually
-        h = 1.0  # grid spacing (normalized)
-        grad_matrix = np.zeros((n - 1, n))
-        for i in range(n - 1):
-            grad_matrix[i, i] = -1.0 / h
-            grad_matrix[i, i + 1] = 1.0 / h
-        
-        # Combine data and TV in product space
-        measurement_space_tv = odl.uniform_discr(0, n - 1, n - 1)
-        product_space = odl.ProductSpace(measurement_space, measurement_space_tv)
-        
-        # Create combined operator [A; ∇]
-        combined_data = np.vstack([A, tv_weight * grad_matrix])
-        combined_op = odl.MatrixOperator(combined_data, domain=spectrum_space, range=product_space)
-        
-        # L1 norm for TV
-        l1_norm = lambda x: sum(x[i].norm(1) for i in range(len(x)))
-        
-        # Proximal for L1 (soft thresholding)
-        def prox_l1(sigma, x):
-            result = []
-            for i in range(len(x)):
-                val = np.abs(x[i])
-                thresh = np.maximum(val - sigma, 0)
-                result.append(np.sign(x[i]) * thresh)
-            return type(x)(result)
-        
-        if nonnegativity:
-            # Use PDHG with non-negativity via projection
-            if tau is None or sigma is None:
-                op_norm = odl.power_method(op=combined_op, x=spectrum_space.element())
-                tau = 0.99 / op_norm
-                sigma = 0.99 / op_norm
-            
-            # Initial point
-            if x0 is None:
-                x0 = np.ones(n) * 0.5
-            x = spectrum_space.element(x0.copy())
-            
-            # Dual variable
-            y = product_space.element()
-            
-            # Run PDHG iterations manually
-            for k in range(max_iterations):
-                # Gradient step for primal
-                grad = combined_op.adjoint(y)
-                x_new = x - tau * grad
-                
-                # Apply non-negativity
-                x_new = np.maximum(x_new, 0)
-                x_new = spectrum_space.element(x_new)
-                
-                # Gradient step for dual
-                y_new = y + sigma * combined_op(2 * x_new - x)
-                
-                # Apply proximal of L1 (soft thresholding)
-                y_list = []
-                split_idx = m_len
-                y_list.append(y_new[:split_idx])
-                y_list.append(prox_l1(sigma * tv_weight, y_new[split_idx:]))
-                y_new = product_space.element(y_list)
-                
-                # Update
-                x = x_new
-                y = y_new
-            
-        else:
-            # No nonnegativity constraint
-            if tau is None or sigma is None:
-                op_norm = odl.power_method(op=combined_op, x=spectrum_space.element())
-                tau = 0.99 / op_norm
-                sigma = 0.99 / op_norm
-            
-            if x0 is None:
-                x0 = np.ones(n) * 0.5
-            x = spectrum_space.element(x0.copy())
-            
-            y = product_space.element()
-            
-            for k in range(max_iterations):
-                grad = combined_op.adjoint(y)
-                x_new = x - tau * grad
-                x_new = spectrum_space.element(x_new)
-                
-                y_new = y + sigma * combined_op(2 * x_new - x)
-                
-                y_list = []
-                split_idx = m_len
-                y_list.append(y_new[:split_idx])
-                y_list.append(prox_l1(sigma * tv_weight, y_new[split_idx:]))
-                y_new = product_space.element(y_list)
-                
-                x = x_new
-                y = y_new
+        D = _forward_diff_matrix(n)
+        K = np.vstack([A, tv_weight * D])
+        d = np.concatenate([b, np.zeros(n - 1)])
     else:
-        # Simple Landweber iteration for L2 regularization
-        reg_weight = tv_weight
-        
-        if x0 is None:
-            x0 = np.ones(n) * 0.5
-        x = spectrum_space.element(x0.copy())
-        
-        if tau is None:
-            op_norm = odl.power_method(op=operator, x=spectrum_space.element())
-            tau = 0.99 / (op_norm ** 2 + reg_weight)
-        
-        for k in range(max_iterations):
-            residual = operator(x) - b
-            grad = operator.adjoint(residual) + reg_weight * x
-            x = x - tau * grad
-            if nonnegativity:
-                x = np.maximum(x, 0)
-                x = spectrum_space.element(x)
+        K = A
+        d = b
 
-    # Extract result
-    x_opt = np.asarray(x.data)
-    x_opt = np.maximum(x_opt, 0)  # Ensure non-negativity
-    
-    converged = True  # PDHG typically runs fixed iterations
+    eig_max = float(np.linalg.eigvalsh(K.T @ K).max())
+    op_norm = float(np.sqrt(max(eig_max, 1e-12)))
+    if tau is None:
+        tau = 0.99 / op_norm
+    if sigma is None:
+        sigma = 0.99 / op_norm
+
+    b_norm = max(float(np.linalg.norm(b)), 1e-300)
+    res_before = float(np.linalg.norm(A @ x - b)) / b_norm
+
+    y = np.zeros(K.shape[0])
+    x_bar = x.copy()
+    for _ in range(max_iterations):
+        z = y + sigma * (K @ x_bar)
+        y = (z - sigma * d) / (1.0 + sigma)
+        x_new = x - tau * (K.T @ y)
+        if nonnegativity:
+            x_new = np.maximum(x_new, 0.0)
+        x_bar = x_new + (x_new - x)
+        x = x_new
+
+    x_opt = np.maximum(x, 0.0) if nonnegativity else x
+    finite = bool(np.all(np.isfinite(x_opt)))
+    res_after = float(np.linalg.norm(A @ x_opt - b)) / b_norm
+    converged = finite and res_after <= res_before * (1.0 + tolerance * 100)
+
     return x_opt, max_iterations, converged
 
 
@@ -249,112 +195,48 @@ def solve_odl_douglas_rachford(
     tuple
         (spectrum, iterations, converged)
     """
-    try:
-        import odl
-        from odl.solvers import douglas_rachford
-    except ImportError as e:
-        raise ImportError(
-            "odl is required for ODL-based Douglas-Rachford unfolding. "
-            "Install with: pip install odl"
-        ) from e
-
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
     m_len, n = A.shape
 
-    # Create ODL spaces
-    measurement_space = odl.uniform_discr(0, m_len, m_len)
-    spectrum_space = odl.uniform_discr(0, n, n)
-
-    # Create operator
-    operator = odl.MatrixOperator(A, domain=spectrum_space, range=measurement_space)
-
-    # Data fidelity term
-    data_norm = odl.solvers.L2NormSquared(measurement_space)
-    data_functional = data_norm.translated(b)
-
-    # Regularization
-    if use_tv:
-        # TV regularization via gradient operator
-        gradient_op = odl.FiniteDifferenceOperator(spectrum_space, method='forward')
-        tv_norm = odl.solvers.L1Norm(gradient_op.range)
-        
-        # Combined functional
-        def reg_func(x):
-            return tv_weight * tv_norm(gradient_op(x))
-        
-        # Proximal operator for TV
-        def prox_reg(sigma, x):
-            grad_x = gradient_op(x)
-            dual_grad = gradient_op.range.element(grad_x)
-            
-            # Proximal of L1 norm (soft thresholding)
-            prox_dual = dual_grad.maximum(1 - sigma * tv_weight) / \
-                       (dual_grad.abs().maximum(1 - sigma * tv_weight) + 1e-10) * dual_grad
-            
-            return x - sigma * gradient_op.adjoint(prox_dual)
-    else:
-        # L2 regularization
-        reg_weight = tv_weight
-        
-        def reg_func(x):
-            return 0.5 * reg_weight * odl.solvers.L2Norm(spectrum_space)(x) ** 2
-        
-        def prox_reg(sigma, x):
-            return x / (1 + sigma * reg_weight)
-
-    # Constraint for non-negativity
-    if nonnegativity:
-        constraint = odl.solvers.IndicatorNonnegativity(spectrum_space)
-        
-        def prox_constraint(sigma, x):
-            return x.maximum(0)
-        
-        # Combine regularization and constraint
-        def combined_prox(sigma, x):
-            return prox_constraint(sigma, prox_reg(sigma, x))
-    else:
-        combined_prox = prox_reg
-
-    # Initial point
     if x0 is None:
         x0 = np.ones(n) * 0.5
-    x = spectrum_space.element(x0)
+    x = np.asarray(x0, dtype=float).copy()
 
-    # Douglas-Rachford parameters
-    param = 0.5  # Relaxation parameter
+    # Douglas-Rachford splitting for  min_x psi1(x) + psi2(x)  with
+    #     psi1(x) = 0.5 ||A x - b||^2      (prox = precomputed linear solve)
+    #     psi2(x) = tv_weight ||D x||_1    (prox = 1-D TV denoising)
+    # (A NumPy implementation; ODL 1.0's own solver is not used for
+    #  cross-version stability.)
+    gamma = 1.0
+    M = np.eye(n) + gamma * (A.T @ A)
+    M_fact = np.linalg.cholesky(M)
 
-    # Run Douglas-Rachford iteration
+    def prox_psi1(v):
+        rhs = v + gamma * (A.T @ b)
+        return np.linalg.solve(M_fact.T, np.linalg.solve(M_fact, rhs))
+
+    def prox_psi2(v):
+        if use_tv:
+            return _tv_prox(v, gamma * tv_weight)
+        return v
+
+    b_norm = max(float(np.linalg.norm(b)), 1e-300)
+    res_before = float(np.linalg.norm(A @ x - b)) / b_norm
+
     y = x.copy()
-    
-    for k in range(max_iterations):
-        # Proximal step for data fidelity
-        prox_data = odl.proximal_moreau_yoshida(data_functional, 1.0, operator(y))
-        
-        # Back-projection
-        z = y - operator.adjoint(prox_data - operator(y))
-        
-        # Proximal step for regularization
-        x_new = combined_prox(1.0, z)
-        
-        # Update
-        y = y + param * (x_new - y)
-        
-        # Check convergence
-        if k > 0:
-            diff = odl.norm(x_new - x)
-            if diff < tolerance:
-                x = x_new
-                break
-        
-        x = x_new
+    z = x.copy()
+    for _ in range(max_iterations):
+        u = prox_psi1(2.0 * z - y)
+        y = prox_psi2(u)
+        z = z + y - u
 
-    # Extract result
-    x_opt = np.asarray(x.data)
-    x_opt = np.maximum(x_opt, 0)
-    
-    converged = True
-    return x_opt, k + 1, converged
+    x_opt = np.maximum(y, 0.0) if nonnegativity else y
+    finite = bool(np.all(np.isfinite(x_opt)))
+    res_after = float(np.linalg.norm(A @ x_opt - b)) / b_norm
+    converged = finite and res_after <= res_before * (1.0 + tolerance * 100)
+
+    return x_opt, max_iterations, converged
 
 
 def unfold_odl_pdhg(

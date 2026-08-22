@@ -77,14 +77,25 @@ docplex = [
 interpret = [
     "pyoptexplain>=0.1.1",
 ]
-mcmc = [
-    "pymc>=5.0.0",
-    "arviz>=0.17.0",
-]
+ mcmc = [
+     "pymc>=5.0.0",
+     "arviz>=0.17.0",
+ ]
+ maeo = [
+     "pymoo>=0.6.0",
+ ]
+ qubo = [
+     "pyqubo>=1.4.0",
+     "dwave-neal>=0.6.0",
+ ]
+ zfit = [
+     "zfit>=0.10.0",
+     "tensorflow>=2.15.0",
+ ]
 
-test = [
-    "pytest>=9.0.3",
-]
+ test = [
+     "pytest>=9.0.3",
+ ]
 # All optional backends
 all = [
     "bssunfold[lmfit]",
@@ -97,10 +108,13 @@ all = [
     "bssunfold[scip]",
     "bssunfold[docplex]",
     "bssunfold[mealpy]",
-    "bssunfold[interpret]",
-    "bssunfold[mcmc]",
-    "bssunfold[test]",
-]
+     "bssunfold[interpret]",
+     "bssunfold[mcmc]",
+     "bssunfold[maeo]",
+     "bssunfold[qubo]",
+     "bssunfold[zfit]",
+     "bssunfold[test]",
+ ]
 # Base set of QP solvers available on all platforms (including Windows)
 solvers-core = [
     "qpsolvers[osqp,piqp,qpalm,ecos,scs,clarabel]>=4.10.0",

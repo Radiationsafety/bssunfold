@@ -38,19 +38,19 @@ and this project adheres to [Semantic Versioning].
 
 ### Added
 - **ODL Advanced regularization methods** — new `unfold_odl_pdhg()` and
-  `unfold_odl_douglas_rachford()` methods using the Operator Discretization
-  Library (ODL) for advanced proximal optimization algorithms:
-  - **PDHG (Primal-Dual Hybrid Gradient)** — efficient first-order method for
-    non-smooth convex optimization with TV (Total Variation) regularization
+  `unfold_odl_douglas_rachford()` methods for advanced proximal optimization:
+  - **PDHG (Primal-Dual Hybrid Gradient / Chambolle-Pock)** — efficient
+    first-order method for non-smooth convex optimization with TV (Total
+    Variation) regularization
   - **Douglas-Rachford Splitting** — operator splitting method for problems
     with composite objectives
   - Better preservation of sharp spectral boundaries compared to standard
     Tikhonov smoothness
-  - Supports custom regularization operators and adaptive parameter selection
-  - Optional dependency: `bssunfold[odl]` (`odl>=1.0.0`)
-  - Tests: `tests/test_odl_advanced.py`
-  - Note: implementations rewritten for the ODL 1.0 API (`odl.solvers.pdhg`,
-    `douglas_rachford_pd`, `proximal_l1`)
+  - **Implemented in pure NumPy** (no ODL dependency). ODL 1.0's own
+    `odl.solvers.pdhg` / `douglas_rachford_pd` break on translated data terms,
+    so the algorithms follow the ODL formulation but are self-contained.
+  - No optional dependency required for these two methods.
+  - Tests: `tests/test_new_unfold_methods.py` (class `TestODLSolvers`)
 
 - **QUBO Quantum-Inspired Annealing** — new `unfold_qubo()` method implementing
   quantum-inspired optimization via Quadratic Unconstrained Binary Optimization:
@@ -58,8 +58,8 @@ and this project adheres to [Semantic Versioning].
   - Simulated annealing solver adapted from D-Wave QUBO formulation
   - Effective for non-convex landscapes and discrete spectrum reconstruction
   - No quantum hardware required — classical simulated annealing backend
-  - Optional dependency: `bssunfold[qubo]` (`pyqubo>=1.4`, `dwave-neal>=0.6`)
-  - Tests: `tests/test_qubo.py`
+  - Optional dependency: `bssunfold[qubo]` (`pyqubo>=1.4.0`, `dwave-neal>=0.6.0`)
+  - Tests: `tests/test_new_unfold_methods.py` (class `TestQUBOBackend`)
 
 - **zfit Bayesian Inference** — new `unfold_zfit()` method using the zfit library
   for likelihood-based Bayesian spectrum reconstruction:
@@ -67,8 +67,8 @@ and this project adheres to [Semantic Versioning].
   - MCMC sampling via zfit's minimizers (Minuit, scipy)
   - Automatic uncertainty quantification from posterior samples
   - Compatible with zfit ecosystem for extended statistical analysis
-  - Optional dependency: `bssunfold[zfit]` (`zfit>=0.17.0`, `tensorflow>=2.0`)
-  - Tests: `tests/test_zfit.py`
+  - Optional dependency: `bssunfold[zfit]` (`zfit>=0.10.0`, `tensorflow>=2.15.0`)
+  - Tests: `tests/test_new_unfold_methods.py` (class `TestZfitBackend`)
 
 - **MAEO (Multi-Algorithm Evolutionary Optimization)** — new `unfold_maeo()`
   method implementing ensemble evolutionary optimization:

@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 from bssunfold import Detector
 
+pytest.importorskip("pymoo")
+
 
 def test_maeo_basic():
     """Test basic MAEO functionality."""

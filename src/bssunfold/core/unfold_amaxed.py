@@ -118,8 +118,6 @@ def solve_amaxed(
         phi_sol_sum = np.sum(phi_sol_safe)
         
         # Precompute terms
-        R_phi = A @ phi_sol_safe
-        residual = R_phi - b_work
         a = b_work @ S_b @ A
         b_term = phi_sol_safe @ (A.T @ S_b @ A)
         
@@ -136,7 +134,7 @@ def solve_amaxed(
         # Assemble full Hessian
         H_top = np.column_stack([H_phi_phi, H_phi_mu])
         H_bottom = np.hstack([H_phi_mu.reshape(1, -1), H_mu_mu])
-        Hessian = np.row_stack([H_top, H_bottom])
+        Hessian = np.vstack([H_top, H_bottom])
         
         return Hessian
     

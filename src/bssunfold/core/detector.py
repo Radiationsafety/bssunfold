@@ -35,6 +35,17 @@ from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
 from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
 from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
 from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
+from .unfold_imaxed import unfold_imaxed as unfold_imaxed_impl
+from .unfold_amaxed import unfold_amaxed as unfold_amaxed_impl
+from .unfold_amaxed_regularization import (
+    unfold_amaxed_regularization as unfold_amaxed_regularization_impl,
+)
+from .unfold_odl_advanced import (
+    unfold_odl_pdhg as unfold_odl_pdhg_impl,
+    unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
+)
+from .unfold_qubo import unfold_qubo as unfold_qubo_impl
+from .unfold_zfit import unfold_zfit as unfold_zfit_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
 from .unfold_gravel import unfold_gravel as unfold_gravel_impl
 from .unfold_maxed import unfold_maxed as unfold_maxed_impl
@@ -1563,6 +1574,265 @@ class Detector:
             initial_spectrum=initial_spectrum,
             tolerance=tolerance,
             max_iterations=max_iterations,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_imaxed(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_factor: float = 0.1,
+        max_iterations: int = 5000,
+        tolerance: float = 1e-8,
+        line_search_tol: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the IMAXED algorithm (Wong 2024)."""
+        return unfold_imaxed_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_factor=sigma_factor,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            line_search_tol=line_search_tol,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_amaxed(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_factor: float = 0.1,
+        target_chi2: Optional[float] = None,
+        max_iterations: int = 5000,
+        tolerance: float = 1e-8,
+        line_search_tol: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the AMAXED algorithm (Wong 2024)."""
+        return unfold_amaxed_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_factor=sigma_factor,
+            target_chi2=target_chi2,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            line_search_tol=line_search_tol,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_amaxed_regularization(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_factor: float = 0.1,
+        tau: float = 1.0,
+        max_iterations: int = 5000,
+        tolerance: float = 1e-8,
+        line_search_tol: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the AMAXED-Regularization algorithm (Wong 2024)."""
+        return unfold_amaxed_regularization_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_factor=sigma_factor,
+            tau=tau,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            line_search_tol=line_search_tol,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_odl_pdhg(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        tau: Optional[float] = None,
+        sigma: Optional[float] = None,
+        use_tv: bool = True,
+        tv_weight: float = 0.1,
+        nonnegativity: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the Primal-Dual Hybrid Gradient (PDHG) algorithm."""
+        return unfold_odl_pdhg_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tau=tau,
+            sigma=sigma,
+            use_tv=use_tv,
+            tv_weight=tv_weight,
+            nonnegativity=nonnegativity,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_odl_douglas_rachford(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        use_tv: bool = True,
+        tv_weight: float = 0.1,
+        nonnegativity: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using Douglas-Rachford splitting."""
+        return unfold_odl_douglas_rachford_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            use_tv=use_tv,
+            tv_weight=tv_weight,
+            nonnegativity=nonnegativity,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_qubo(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_bits: int = 6,
+        max_value: Optional[float] = None,
+        regularization: float = 0.01,
+        max_iterations: int = 1000,
+        annealing_time: int = 1000,
+        num_reads: int = 10,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 50,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using a QUBO formulation with quantum-inspired annealing."""
+        return unfold_qubo_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_bits=n_bits,
+            max_value=max_value,
+            regularization=regularization,
+            max_iterations=max_iterations,
+            annealing_time=annealing_time,
+            num_reads=num_reads,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_zfit(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        use_mcmc: bool = False,
+        n_samples: int = 1000,
+        regularization: float = 0.1,
+        smoothness_weight: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using zfit Bayesian inference."""
+        return unfold_zfit_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            use_mcmc=use_mcmc,
+            n_samples=n_samples,
+            regularization=regularization,
+            smoothness_weight=smoothness_weight,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
