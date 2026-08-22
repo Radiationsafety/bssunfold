@@ -7,6 +7,38 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.19.1] - 2026-08-23
+
+### Added
+- **Integration of new unfolding methods into Detector class** — all recently
+  implemented unfolding algorithms are now fully integrated into the main
+  `Detector` class interface:
+  - `unfold_lcurve_tikhonov()` — L-curve automatic regularization parameter selection
+  - `unfold_odl_pdhg()` — Primal-Dual Hybrid Gradient with TV regularization
+  - `unfold_odl_douglas_rachford()` — Douglas-Rachford splitting for non-smooth optimization
+  - `unfold_qubo()` — QUBO-based quantum-inspired annealing
+  - `unfold_zfit()` — Bayesian inference with zfit likelihood modeling
+  
+### Changed
+- Updated method count from 55 to 60 unfolding algorithms in total
+
+## [0.19.0] - 2026-08-23
+
+### Added
+- **L-curve Automatic Regularization** — new `unfold_lcurve_tikhonov()` method
+  implementing automatic regularization parameter selection via L-curve analysis:
+  - **L-curve corner detection** — curvature-based and triangle-method for finding
+    the optimal regularization parameter at the "corner" of the L-shaped curve
+  - **Generalized Cross-Validation (GCV)** — data-driven alpha selection minimizing
+    prediction error without noise level estimation
+  - **Discrepancy Principle** — Morozov's discrepancy principle for selecting alpha
+    based on known noise level
+  - **Quasi-optimality criterion** — selects alpha by minimizing solution difference
+    between adjacent regularization parameters
+  - Flexible regularization matrix L (identity, first/second derivative for smoothness)
+  - Pure NumPy/SciPy implementation (no additional dependencies)
+  - Tests: `tests/test_lcurve.py`
+
 ## [0.18.0] - 2026-08-22
 
 ### Added

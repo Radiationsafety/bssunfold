@@ -124,6 +124,21 @@ from .unfold_odl_advanced import (
 )
 from .unfold_qubo import solve_qubo_unfold, unfold_qubo
 from .unfold_zfit import solve_zfit_unfold, unfold_zfit
+from .unfold_lcurve import (
+    solve_lcurve_tikhonov,
+    unfold_lcurve_tikhonov,
+    compute_l_curve,
+    find_lcorner,
+    gcv_tikhonov,
+    discrepancy_principle,
+)
+from .unfold_occamy import (
+    OccamPyUnfolder,
+    unfold_occamy_lsqr,
+    unfold_occamy_lbfgs,
+    unfold_occamy_ista,
+    unfold_occamy_splitbregman,
+)
 
 __all__ = [
     # detector
@@ -238,6 +253,19 @@ __all__ = [
     # zfit Bayesian method
     "solve_zfit_unfold",
     "unfold_zfit",
+    # L-curve automatic regularization
+    "solve_lcurve_tikhonov",
+    "unfold_lcurve_tikhonov",
+    "compute_l_curve",
+    "find_lcorner",
+    "gcv_tikhonov",
+    "discrepancy_principle",
+    # OccamPy scalable iterative methods
+    "OccamPyUnfolder",
+    "unfold_occamy_lsqr",
+    "unfold_occamy_lbfgs",
+    "unfold_occamy_ista",
+    "unfold_occamy_splitbregman",
     # interpretation
     "InterpretationResult",
     "build_interpretation_qp",

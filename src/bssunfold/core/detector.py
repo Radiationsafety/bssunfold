@@ -87,6 +87,13 @@ from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
 from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
 from .unfold_maeo import unfold_maeo as unfold_maeo_impl
+from .unfold_lcurve import unfold_lcurve_tikhonov as unfold_lcurve_tikhonov_impl
+from .unfold_odl_advanced import (
+    unfold_odl_pdhg as unfold_odl_pdhg_impl,
+    unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
+)
+from .unfold_qubo import unfold_qubo as unfold_qubo_impl
+from .unfold_zfit import unfold_zfit as unfold_zfit_impl
 
 __all__ = ["Detector"]
 
@@ -3677,6 +3684,453 @@ class Detector:
             self._save_result(result)
 
         return result
+
+    def unfold_lcurve_tikhonov(
+        self,
+        readings: Dict[str, float],
+        n_alpha: int = 50,
+        alpha_min: float = 1e-6,
+        alpha_max: float = 1e2,
+        max_iterations: int = 100,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Tikhonov regularization with L-curve parameter selection.
+
+        This method automatically selects the optimal regularization parameter alpha
+        by scanning the L-curve and finding its corner point. This eliminates the
+        need for manual tuning of the regularization parameter.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        n_alpha : int, optional
+            Number of alpha values to scan (default: 50).
+        alpha_min : float, optional
+            Minimum alpha value (default: 1e-6).
+        alpha_max : float, optional
+            Maximum alpha value (default: 1e2).
+        max_iterations : int, optional
+            Maximum iterations for each Tikhonov solve (default: 100).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional 'lcurve_info' containing:
+            - 'alpha_values': Array of scanned alpha values
+            - 'residual_norms': Residual norms for each alpha
+            - 'solution_norms': Solution norms for each alpha
+            - 'optimal_alpha': Selected optimal alpha
+            - 'corner_index': Index of the L-curve corner
+
+        Notes
+        -----
+        The L-curve is a log-log plot of the solution norm vs. residual norm.
+        The corner of this curve represents the optimal trade-off between
+        data fidelity and regularization.
+        """
+        return unfold_lcurve_tikhonov_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            n_alpha=n_alpha,
+            alpha_min=alpha_min,
+            alpha_max=alpha_max,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_odl_pdhg(
+        self,
+        readings: Dict[str, float],
+        max_iterations: int = 100,
+        tau: Optional[float] = None,
+        sigma: Optional[float] = None,
+        use_tv: bool = True,
+        tv_weight: float = 0.1,
+        nonnegativity: bool = True,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Primal-Dual Hybrid Gradient (PDHG) from ODL.
+
+        PDHG is a first-order primal-dual algorithm that can handle non-smooth
+        regularizers like Total Variation (TV). It solves problems of the form:
+
+            min_x ||Kx - y||^2 + λ * R(x)
+
+        where R(x) can be TV norm or L1 norm. TV regularization better preserves
+        sharp spectral features compared to standard Tikhonov regularization.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 100).
+        tau : float, optional
+            Primal step size. If None, computed automatically.
+        sigma : float, optional
+            Dual step size. If None, computed automatically.
+        use_tv : bool, optional
+            Use Total Variation regularization (default: True). If False, uses L2.
+        tv_weight : float, optional
+            Weight for TV regularization term (default: 0.1).
+        nonnegativity : bool, optional
+            Enforce non-negative spectrum (default: True).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional 'odl_info' containing:
+            - 'algorithm': 'PDHG'
+            - 'n_iterations': Number of iterations performed
+            - 'converged': Whether the algorithm converged
+            - 'use_tv': Whether TV regularization was used
+
+        Notes
+        -----
+        Requires the 'odl' package to be installed.
+
+        References
+        ----------
+        [1] A. Chambolle, T. Pock, "A First-Order Primal-Dual Algorithm for Convex
+            Problems with Applications to Imaging", J Math Imaging Vis 40 (2011).
+        """
+        return unfold_odl_pdhg_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            max_iterations=max_iterations,
+            tau=tau,
+            sigma=sigma,
+            use_tv=use_tv,
+            tv_weight=tv_weight,
+            nonnegativity=nonnegativity,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_odl_douglas_rachford(
+        self,
+        readings: Dict[str, float],
+        max_iterations: int = 100,
+        gamma: Optional[float] = None,
+        use_tv: bool = True,
+        tv_weight: float = 0.1,
+        nonnegativity: bool = True,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Douglas-Rachford splitting from ODL.
+
+        Douglas-Rachford splitting is an operator splitting method that can handle
+        the sum of two convex functions. It's particularly effective for problems
+        with non-smooth regularizers like Total Variation.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 100).
+        gamma : float, optional
+            Step size parameter. If None, computed automatically.
+        use_tv : bool, optional
+            Use Total Variation regularization (default: True). If False, uses L2.
+        tv_weight : float, optional
+            Weight for TV regularization term (default: 0.1).
+        nonnegativity : bool, optional
+            Enforce non-negative spectrum (default: True).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional 'odl_info' containing:
+            - 'algorithm': 'Douglas-Rachford'
+            - 'n_iterations': Number of iterations performed
+            - 'converged': Whether the algorithm converged
+            - 'use_tv': Whether TV regularization was used
+
+        Notes
+        -----
+        Requires the 'odl' package to be installed.
+
+        References
+        ----------
+        [1] J. Douglas, H.H. Rachford, "On the numerical solution of heat conduction
+            problems in two and three space variables", Trans Amer Math Soc 82 (1956).
+        """
+        return unfold_odl_douglas_rachford_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            max_iterations=max_iterations,
+            gamma=gamma,
+            use_tv=use_tv,
+            tv_weight=tv_weight,
+            nonnegativity=nonnegativity,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_qubo(
+        self,
+        readings: Dict[str, float],
+        n_bits: int = 8,
+        n_samples: int = 1000,
+        annealing_time: float = 20.0,
+        qubo_weight: float = 1.0,
+        smoothness_weight: float = 0.01,
+        initial_temperature: float = 1.0,
+        cooling_rate: float = 0.95,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using QUBO-based quantum-inspired annealing.
+
+        This method formulates the unfolding problem as a Quadratic Unconstrained
+        Binary Optimization (QUBO) problem and solves it using simulated annealing.
+        The spectrum is discretized into binary representations, enabling the use
+        of quantum-inspired optimization techniques.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        n_bits : int, optional
+            Number of bits for binary discretization per energy bin (default: 8).
+        n_samples : int, optional
+            Number of annealing samples (default: 1000).
+        annealing_time : float, optional
+            Annealing time/sweeps (default: 20.0).
+        qubo_weight : float, optional
+            Weight for data fidelity term in QUBO (default: 1.0).
+        smoothness_weight : float, optional
+            Weight for smoothness regularization (default: 0.01).
+        initial_temperature : float, optional
+            Initial temperature for annealing (default: 1.0).
+        cooling_rate : float, optional
+            Cooling rate per iteration (default: 0.95).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional 'qubo_info' containing:
+            - 'n_bits': Number of bits used
+            - 'n_samples': Number of samples generated
+            - 'best_energy': Best QUBO energy found
+            - 'annealing_schedule': Temperature schedule used
+
+        Notes
+        -----
+        This is a classical implementation of QUBO solving using simulated annealing.
+        It can be extended to use actual quantum hardware or quantum simulators.
+
+        References
+        ----------
+        [1] A. Lucas, "Ising formulations of many NP problems", Front Phys 2 (2014).
+        [2] QUnfold package: https://pypi.org/project/qunfold/
+        """
+        return unfold_qubo_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            n_bits=n_bits,
+            n_samples=n_samples,
+            annealing_time=annealing_time,
+            qubo_weight=qubo_weight,
+            smoothness_weight=smoothness_weight,
+            initial_temperature=initial_temperature,
+            cooling_rate=cooling_rate,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_zfit(
+        self,
+        readings: Dict[str, float],
+        model_type: str = "poisson",
+        n_samples: int = 2000,
+        warmup: int = 1000,
+        prior_mean: Optional[np.ndarray] = None,
+        prior_std: Optional[np.ndarray] = None,
+        calculate_errors: bool = True,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        chains: int = 2,
+        target_accept: float = 0.8,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Bayesian inference with zfit likelihood.
+
+        This method uses the zfit package for likelihood-based inference, providing
+        a flexible framework for Bayesian spectrum reconstruction. It supports
+        Poisson likelihood modeling and MCMC sampling for uncertainty quantification.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        model_type : str, optional
+            Likelihood model type: 'poisson' or 'gaussian' (default: 'poisson').
+        n_samples : int, optional
+            Number of MCMC samples (default: 2000).
+        warmup : int, optional
+            Number of warmup samples (default: 1000).
+        prior_mean : np.ndarray, optional
+            Prior mean spectrum. If None, uniform prior is used.
+        prior_std : np.ndarray, optional
+            Prior standard deviation. If None, broad prior is used.
+        calculate_errors : bool, optional
+            Calculate uncertainties from posterior (default: True).
+        noise_level : float, optional
+            Noise level for additional Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        chains : int, optional
+            Number of MCMC chains (default: 2).
+        target_accept : float, optional
+            Target acceptance rate for NUTS sampler (default: 0.8).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional 'zfit_info' containing:
+            - 'model_type': Likelihood model used
+            - 'n_samples': Number of posterior samples
+            - 'converged': Whether MCMC chains converged
+            - 'r_hat': R-hat convergence diagnostic for each parameter
+
+        Notes
+        -----
+        Requires the 'zfit' and 'zfit-sampler' packages to be installed.
+
+        References
+        ----------
+        [1] zfit documentation: https://docs.zfit.org/
+        [2] J. Salvat et al., "zfit: scalable parallelized fit in Python", J Phys Conf Ser (2020).
+        """
+        return unfold_zfit_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            model_type=model_type,
+            n_samples=n_samples,
+            warmup=warmup,
+            prior_mean=prior_mean,
+            prior_std=prior_std,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            chains=chains,
+            target_accept=target_accept,
+        )
 
     def unfold_osem(
         self,

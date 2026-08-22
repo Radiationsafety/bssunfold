@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 51 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 60 unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 51 methods are accessible as instance methods on the
+All 60 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 

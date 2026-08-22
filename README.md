@@ -36,8 +36,8 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (55 methods):
-  - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
+- **Multiple Unfolding Algorithms** (60 methods):
+  - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition), L-curve Tikhonov (automatic α selection via L-curve corner, GCV, discrepancy principle, quasi-optimality)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
   - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)

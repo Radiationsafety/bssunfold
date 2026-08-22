@@ -48,9 +48,26 @@ from .platform_check import (
 )
 from .logging_config import setup_logging, get_logger
 
+# Import L-curve methods for convenience
+from .core.unfold_lcurve import (
+    unfold_lcurve_tikhonov,
+    solve_lcurve_tikhonov,
+    compute_l_curve,
+    find_lcorner,
+    gcv_tikhonov,
+    discrepancy_principle,
+)
+
 __all__ = [
     # Main class
     "Detector",
+    # L-curve methods
+    "unfold_lcurve_tikhonov",
+    "solve_lcurve_tikhonov",
+    "compute_l_curve",
+    "find_lcorner",
+    "gcv_tikhonov",
+    "discrepancy_principle",
     # Constants
     "ICRP116_COEFF_EFFECTIVE_DOSE",
     "ICRP74_COEFF_EFFECTIVE_DOSE",
