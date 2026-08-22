@@ -192,3 +192,10 @@ bandit.json
 pip-audit.json
 *.py.orig
 .sentrux/baseline.toml
+examples/bias_variance_decomposition.png
+examples/robustness_all_results.pkl
+examples/robustness_cv_mean.png
+examples/robustness_dose_cv_percent.png
+examples/robustness_stability_score.png
+examples/robustness_summary.csv
+examples/uncertainty_bands.png
