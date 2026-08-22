@@ -58,27 +58,32 @@ def solve_amaxed(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
-    from scipy.optimize import root_scalar
-    
     m, n = A.shape
     
-    # Measurement uncertainties
-    b_safe = np.maximum(b, 1e-300)
-    sigma = sigma_factor * b_safe
-    S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
+    # Positivity floor for iterates (absolute; avoids inf in Hessian terms)
+    phi_floor = 1e-12
     
     # Reference spectrum (strictly positive)
-    phi_0 = np.maximum(x0, 1e-300)
+    phi_0 = np.maximum(np.asarray(x0, dtype=float), 1e-300)
     phi_0_sum = np.sum(phi_0)
     
     # Normalize reference spectrum
     phi_0_norm = phi_0 / phi_0_sum
     
+    # Work on the normalized simplex: scale the measurements by the same
+    # factor so A @ (phi / phi_0_sum) == b / phi_0_sum is reachable. Without
+    # this scaling the chi-squared term is evaluated against an inconsistent
+    # normalization and the Newton iteration diverges.
+    b_work = np.asarray(b, dtype=float).ravel() / phi_0_sum
+    b_safe = np.maximum(b_work, 1e-300)
+    sigma = sigma_factor * b_safe
+    S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
+    
     # Compute target chi-squared if not provided
     if target_chi2 is None:
-        # Use degrees of freedom as default
-        dof = max(m - n, 1)
-        target_chi2 = float(dof)
+        # Expected value of a chi-squared distributed residual vector
+        # with m measurements
+        target_chi2 = float(m)
     
     Omega = target_chi2
     
@@ -88,16 +93,13 @@ def solve_amaxed(
     
     def compute_Lagrangian_gradients(phi_sol: np.ndarray, mu: float):
         """Compute Lagrangian function gradients (Equations C.7, C.8)."""
-        phi_sol_safe = np.maximum(phi_sol, 1e-300)
+        phi_sol_safe = np.maximum(phi_sol, phi_floor)
         phi_sol_sum = np.sum(phi_sol_safe)
         
-        # Normalized solution
-        phi_sol_norm = phi_sol_safe / phi_sol_sum
-        
         # Precompute terms
-        a = b @ S_b @ A  # Shape (n,)
+        a = b_work @ S_b @ A  # Shape (n,)
         R_phi = A @ phi_sol_safe
-        residual = R_phi - b
+        residual = R_phi - b_work
         b_term = phi_sol_safe @ (A.T @ S_b @ A)  # Shape (n,)
         
         # Gradient w.r.t. phi_sol (Equation C.7)
@@ -112,13 +114,13 @@ def solve_amaxed(
     
     def compute_Hessian(phi_sol: np.ndarray, mu: float):
         """Compute Hessian matrix (Equation C.8)."""
-        phi_sol_safe = np.maximum(phi_sol, 1e-300)
+        phi_sol_safe = np.maximum(phi_sol, phi_floor)
         phi_sol_sum = np.sum(phi_sol_safe)
         
         # Precompute terms
         R_phi = A @ phi_sol_safe
-        residual = R_phi - b
-        a = b @ S_b @ A
+        residual = R_phi - b_work
+        a = b_work @ S_b @ A
         b_term = phi_sol_safe @ (A.T @ S_b @ A)
         
         # Second derivative blocks
@@ -129,18 +131,17 @@ def solve_amaxed(
                     2 * mu * (A.T @ S_b @ A)
         
         H_phi_mu = 2 * (b_term - a)
-        H_mu_phi = H_phi_mu.T
         H_mu_mu = np.array([[0.0]])
         
         # Assemble full Hessian
         H_top = np.column_stack([H_phi_phi, H_phi_mu])
-        H_bottom = np.column_stack([H_mu_phi.reshape(-1, 1), H_mu_mu])
+        H_bottom = np.hstack([H_phi_mu.reshape(1, -1), H_mu_mu])
         Hessian = np.row_stack([H_top, H_bottom])
         
         return Hessian
     
-    # Newton iteration with line search
-    state_vec = np.concatenate([phi_sol, [mu]])
+    # Newton iteration with backtracking line search on the KKT residual
+    grad_norm = np.inf
     
     for iteration in range(max_iterations):
         grad_phi, grad_mu = compute_Lagrangian_gradients(phi_sol, mu)
@@ -166,41 +167,34 @@ def solve_amaxed(
         delta_phi = delta_state[:n]
         delta_mu = delta_state[n]
         
-        # Line search to find optimal step size beta
-        def line_search_obj(beta):
-            new_phi = phi_sol + beta * delta_phi
+        def kkt_residual(beta):
+            new_phi = np.maximum(phi_sol + beta * delta_phi, phi_floor)
             new_mu = mu + beta * delta_mu
-            new_phi = np.maximum(new_phi, 1e-300)
-            grad_phi_new, grad_mu_new = compute_Lagrangian_gradients(new_phi, new_mu)
-            return np.dot(grad_phi_new, delta_phi) + grad_mu_new * delta_mu
+            g_phi, g_mu = compute_Lagrangian_gradients(new_phi, new_mu)
+            return np.sqrt(np.dot(g_phi, g_phi) + g_mu * g_mu)
         
-        # Find beta that makes derivative zero
-        try:
-            result = root_scalar(
-                line_search_obj,
-                bracket=[0, 2],
-                method='brentq',
-                xtol=line_search_tol
-            )
-            beta = result.root if result.converged else 1.0
-        except (ValueError, RuntimeError):
-            beta = 1.0
-        
-        # Ensure beta is in reasonable range
-        beta = np.clip(beta, 0.1, 2.0)
+        # Backtracking line search: accept the step only if it reduces the
+        # norm of the KKT residual (sufficient-decrease condition).
+        beta = 1.0
+        accepted = False
+        for _ in range(30):
+            if kkt_residual(beta) <= (1.0 - 1e-4 * beta) * grad_norm:
+                accepted = True
+                break
+            beta *= 0.5
+        if not accepted:
+            # Damped fallback step to keep making progress
+            beta = 0.01
         
         # Update state
-        phi_sol = phi_sol + beta * delta_phi
+        phi_sol = np.maximum(phi_sol + beta * delta_phi, phi_floor)
         mu = mu + beta * delta_mu
-        
-        # Ensure positivity
-        phi_sol = np.maximum(phi_sol, 1e-300)
     
     # Scale back to original magnitude
     phi_sol = phi_sol * phi_0_sum
     
     iterations = iteration + 1
-    converged = grad_norm < tolerance
+    converged = bool(grad_norm < tolerance)
     
     return phi_sol, iterations, converged
 

@@ -62,24 +62,36 @@ def solve_amaxed_regularization(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
-    from scipy.optimize import root_scalar
-    
     m, n = A.shape
     
-    # Measurement uncertainties
-    b_safe = np.maximum(b, 1e-300)
-    sigma = sigma_factor * b_safe
-    S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
+    # Positivity floor for iterates (absolute; avoids inf in Hessian terms)
+    phi_floor = 1e-12
     
     # Reference spectrum (strictly positive)
-    phi_0 = np.maximum(x0, 1e-300)
+    phi_0 = np.maximum(np.asarray(x0, dtype=float), 1e-300)
     phi_0_sum = np.sum(phi_0)
     
     # Normalize reference spectrum
     phi_0_norm = phi_0 / phi_0_sum
     
+    # Work on the normalized simplex: scale the measurements by the same
+    # factor so A @ (phi / phi_0_sum) == b / phi_0_sum is reachable. Without
+    # this scaling the chi-squared term is evaluated against an inconsistent
+    # normalization and the iteration converges to a wrongly scaled solution.
+    b_work = np.asarray(b, dtype=float).ravel() / phi_0_sum
+    b_safe = np.maximum(b_work, 1e-300)
+    sigma = sigma_factor * b_safe
+    S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
+    
     # Initialize solution
     phi_sol = phi_0_norm.copy()
+    
+    def objective(phi_sol: np.ndarray):
+        """Loss function L = tau * D_KL(phi || phi_0_norm) + chi^2."""
+        p = np.maximum(phi_sol, phi_floor)
+        residual = A @ p - b_work
+        kl = np.sum(p * (np.log(p / phi_0_norm + 1e-300)) - p + phi_0_norm)
+        return tau * kl + residual @ S_b @ residual
     
     def compute_objective_and_gradients(phi_sol: np.ndarray):
         """Compute loss function and gradient for AMAXED-Regularization.
@@ -88,11 +100,11 @@ def solve_amaxed_regularization(
         
         where D_KL is the Kullback-Leibler divergence.
         """
-        phi_sol_safe = np.maximum(phi_sol, 1e-300)
+        phi_sol_safe = np.maximum(phi_sol, phi_floor)
         
         # Forward model
         R_phi = A @ phi_sol_safe
-        residual = R_phi - b
+        residual = R_phi - b_work
         
         # KL divergence gradient (cross-entropy term)
         # d/dphi [phi * log(phi/phi_0) - phi + phi_0] = log(phi/phi_0)
@@ -108,7 +120,7 @@ def solve_amaxed_regularization(
     
     def compute_Hessian(phi_sol: np.ndarray):
         """Compute Hessian matrix for Newton's method."""
-        phi_sol_safe = np.maximum(phi_sol, 1e-300)
+        phi_sol_safe = np.maximum(phi_sol, phi_floor)
         
         # KL divergence Hessian: diag(1/phi)
         kl_hess = np.diag(1.0 / (phi_sol_safe + 1e-300))
@@ -121,7 +133,9 @@ def solve_amaxed_regularization(
         
         return Hessian
     
-    # Newton iteration with line search
+    # Newton iteration with backtracking (Armijo) line search
+    grad_norm = np.inf
+    
     for iteration in range(max_iterations):
         grad = compute_objective_and_gradients(phi_sol)
         
@@ -142,33 +156,23 @@ def solve_amaxed_regularization(
             Hessian_reg = Hessian + reg_param * np.eye(n)
             delta_phi = np.linalg.solve(Hessian_reg, -grad)
         
-        # Line search to find optimal step size beta
-        def line_search_obj(beta):
-            new_phi = phi_sol + beta * delta_phi
-            new_phi = np.maximum(new_phi, 1e-300)
-            grad_new = compute_objective_and_gradients(new_phi)
-            return np.dot(grad_new, delta_phi)
+        # Backtracking line search on the objective value
+        base_obj = objective(phi_sol)
+        slope = float(np.dot(grad, delta_phi))
+        beta = 1.0
+        accepted = False
+        for _ in range(30):
+            new_phi = np.maximum(phi_sol + beta * delta_phi, phi_floor)
+            if objective(new_phi) <= base_obj + 1e-4 * beta * slope:
+                accepted = True
+                break
+            beta *= 0.5
+        if not accepted:
+            # Damped fallback step to keep making progress
+            beta = 0.01
         
-        # Find beta that makes derivative zero
-        try:
-            result = root_scalar(
-                line_search_obj,
-                bracket=[0, 2],
-                method='brentq',
-                xtol=line_search_tol
-            )
-            beta = result.root if result.converged else 1.0
-        except (ValueError, RuntimeError):
-            beta = 1.0
-        
-        # Ensure beta is in reasonable range
-        beta = np.clip(beta, 0.1, 2.0)
-        
-        # Update solution
-        phi_sol = phi_sol + beta * delta_phi
-        
-        # Ensure positivity
-        phi_sol = np.maximum(phi_sol, 1e-300)
+        # Update solution (positivity enforced via the floor)
+        phi_sol = np.maximum(phi_sol + beta * delta_phi, phi_floor)
     
     # Scale back to original magnitude
     phi_sol = phi_sol * phi_0_sum
