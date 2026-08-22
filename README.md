@@ -36,16 +36,18 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (51 methods):
+- **Multiple Unfolding Algorithms** (55 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
   - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
   - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
-  - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
+  - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
   - **Statistical Regularization**: Turchin's method (StatReg, Reconst — Fortran STREG1 port)
-  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex)
+  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired annealing)
+  - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
+  - **Advanced Proximal**: ODL PDHG, ODL Douglas-Rachford (Total Variation regularization)
   - **Pipeline**: Combined approach for chaining multiple methods
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
