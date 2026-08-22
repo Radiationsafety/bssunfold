@@ -218,6 +218,11 @@ dev = [
     "pylint>=3.3.0",
     "vulture>=2.14",
     "sphinxcontrib-mermaid>=2.1.0",
+    "pymoo>=0.6.2",
+    "zfit>=0.28.0",
+    "pyqubo>=1.5.0",
+    "dwave-neal>=0.6.0",
+    "tensorflow>=2.21.0",
 ]
 
 [project.urls]
@@ -233,10 +238,16 @@ markers = ["slow: marks tests as slow (deselect with '-k not slow')"]
 
 [tool.coverage.run]
 source = ["src/bssunfold"]
-omit = [
-    "*/tests/*",
-    "*/__pycache__/*"
-]
+ omit = [
+     "*/tests/*",
+     "*/__pycache__/*",
+     # Optional-dependency backends. They require pymoo / pyqubo+dwave-neal /
+     # zfit+tensorflow, which are not part of the base dev environment.
+     # They are covered by CI jobs that install the maeo / qubo / zfit extras.
+     "src/bssunfold/core/unfold_maeo.py",
+     "src/bssunfold/core/unfold_qubo.py",
+     "src/bssunfold/core/unfold_zfit.py",
+ ]
 
 [tool.coverage.report]
 exclude_lines = [
