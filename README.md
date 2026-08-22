@@ -43,7 +43,8 @@
   - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
   - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization
-  - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
+  - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
+    IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
   - **Statistical Regularization**: Turchin's method (StatReg, Reconst — Fortran STREG1 port)
   - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex)
   - **Pipeline**: Combined approach for chaining multiple methods
@@ -285,6 +286,9 @@ graph TD
     D --> D2[unfold_bayes_spline_regularization]
 
     E --> E1[unfold_maxed]
+    E --> E2[unfold_imaxed]
+    E --> E3[unfold_amaxed]
+    E --> E4[unfold_amaxed_regularization]
     F --> F1[unfold_statreg]
     F --> F2[unfold_reconst]
 
@@ -340,7 +344,10 @@ graph TD
 | 13 | `unfold_bayes` | Bayesian | `max_iterations`, `tolerance` | — | D'Agostini Bayesian iterative unfolding |
 | 14 | `unfold_bayes_spline_regularization` | Bayesian | `max_iterations`, `tolerance`, `spline_degree`, `spline_smooth` | — | Bayes iteration with spline smoothing |
 | 15 | `unfold_maxed` | MaxEnt | `sigma_factor`, `max_iterations`, `tolerance` | — | Maximum entropy deconvolution (Reginatto & Goldhagen) |
-| 16 | `unfold_statreg` | Statistical Reg. | `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree` | — | Turchin's statistical regularization |
+| 16 | `unfold_imaxed` | MaxEnt | `sigma_factor`, `max_iterations`, `tolerance` | — | Improved MAXED with gradient-based log-space optimization and cross-entropy regularization (Wong 2024) |
+| 17 | `unfold_amaxed` | MaxEnt | `sigma_factor`, `target_chi2`, `max_iterations`, `tolerance` | — | Alternative MAXED with reversed cross-entropy definition using Lagrangian multipliers (Wong 2024) |
+| 18 | `unfold_amaxed_regularization` | MaxEnt | `sigma_factor`, `tau`, `max_iterations`, `tolerance` | — | AMAXED with Tikhonov-style simultaneous minimization of chi-squared and cross-entropy (Wong 2024) |
+| 19 | `unfold_statreg` | Statistical Reg. | `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree` | — | Turchin's statistical regularization |
 | 17 | `unfold_reconst` | Statistical Reg. | `alpha`, `beta`, `max_iter_alpha`, `max_iter_beta`, `tol_alpha`, `tol_beta` | — | Fortran STREG1 port: auto α/β with discrepancy principle & ω-criterion |
 | 18 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight`, `regularization_method` (manual/aic/aicc/bic), `lambda_range`, `n_lambda` | lmfit | L1/L2/Elastic Net via lmfit, with optional AIC/AICc/BIC-based regularization selection |
 | 19 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |

@@ -1,0 +1,718 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Index &#8212; bssunfold 0.7.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'genindex';</script>
+    <link rel="index" title="Index" href="#" />
+    <link rel="search" title="Search" href="search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">bssunfold 0.7.0 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="detector.html">
+    Detector Class
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples.html">
+    Examples
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="detector.html">
+    Detector Class
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples.html">
+    Examples
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none"></div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+
+<h1 id="index">Index</h1>
+
+<div class="genindex-jumpbox">
+ <a href="#_"><strong>_</strong></a>
+ | <a href="#B"><strong>B</strong></a>
+ | <a href="#C"><strong>C</strong></a>
+ | <a href="#D"><strong>D</strong></a>
+ | <a href="#F"><strong>F</strong></a>
+ | <a href="#G"><strong>G</strong></a>
+ | <a href="#L"><strong>L</strong></a>
+ | <a href="#M"><strong>M</strong></a>
+ | <a href="#N"><strong>N</strong></a>
+ | <a href="#P"><strong>P</strong></a>
+ | <a href="#R"><strong>R</strong></a>
+ | <a href="#S"><strong>S</strong></a>
+ | <a href="#T"><strong>T</strong></a>
+ | <a href="#U"><strong>U</strong></a>
+ 
+</div>
+<h2 id="_">_</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.BinBasis.__init__">__init__() (bssunfold.core.basis.BinBasis method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.basis.FourierBasis.__init__">(bssunfold.core.basis.FourierBasis method)</a>
+</li>
+        <li><a href="detector.html#bssunfold.core.basis.LegendreBasis.__init__">(bssunfold.core.basis.LegendreBasis method)</a>
+</li>
+        <li><a href="detector.html#bssunfold.Detector.__init__">(bssunfold.Detector method)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.__repr__">__repr__() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector.__str__">__str__() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._add_noise">_add_noise() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._build_system">_build_system() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector._convert_rf_to_matrix_variable_step">_convert_rf_to_matrix_variable_step() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._cosine_similarity">_cosine_similarity() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._import_optional">_import_optional() (bssunfold.Detector static method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._normalize_initial_spectrum">_normalize_initial_spectrum() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._process_input">_process_input() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._save_figure">_save_figure() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._save_result">_save_result() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._standardize_output">_standardize_output() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector._validate_readings">_validate_readings() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="B">B</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.BinBasis">BinBasis (class in bssunfold.core.basis)</a>
+</li>
+      <li>
+    bssunfold.core.basis
+
+      <ul>
+        <li><a href="detector.html#module-bssunfold.core.basis">module</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.BinBasis.build_matrix">build_matrix() (bssunfold.core.basis.BinBasis method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.basis.FourierBasis.build_matrix">(bssunfold.core.basis.FourierBasis method)</a>
+</li>
+        <li><a href="detector.html#bssunfold.core.basis.LegendreBasis.build_matrix">(bssunfold.core.basis.LegendreBasis method)</a>
+</li>
+        <li><a href="detector.html#bssunfold.core.basis.SpectralBasis.build_matrix">(bssunfold.core.basis.SpectralBasis method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="C">C</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.clear_results">clear_results() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.compare_regularization_methods">compare_regularization_methods() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.regularization.cosine_similarity_selection">cosine_similarity_selection() (in module bssunfold.core.regularization)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="D">D</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector">Detector (class in bssunfold)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.regularization.discrepancy_principle_selection">discrepancy_principle_selection() (in module bssunfold.core.regularization)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector.discretize_spectra">discretize_spectra() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="F">F</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.FourierBasis">FourierBasis (class in bssunfold.core.basis)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.regularization.gcv_selection">gcv_selection() (in module bssunfold.core.regularization)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.get_effective_readings_for_spectra">get_effective_readings_for_spectra() (bssunfold.Detector method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector.get_result">get_result() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="L">L</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.regularization.lcurve_selection">lcurve_selection() (in module bssunfold.core.regularization)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.LegendreBasis">LegendreBasis (class in bssunfold.core.basis)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector.list_results">list_results() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="M">M</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    module
+
+      <ul>
+        <li><a href="detector.html#module-bssunfold.core.basis">bssunfold.core.basis</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="N">N</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.BinBasis.n_coeffs">n_coeffs (bssunfold.core.basis.BinBasis property)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.basis.FourierBasis.n_coeffs">(bssunfold.core.basis.FourierBasis property)</a>
+</li>
+        <li><a href="detector.html#bssunfold.core.basis.LegendreBasis.n_coeffs">(bssunfold.core.basis.LegendreBasis property)</a>
+</li>
+        <li><a href="detector.html#bssunfold.core.basis.SpectralBasis.n_coeffs">(bssunfold.core.basis.SpectralBasis property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.n_detectors">n_detectors (bssunfold.Detector property)</a>
+</li>
+      <li><a href="detector.html#bssunfold.Detector.n_energy_bins">n_energy_bins (bssunfold.Detector property)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="P">P</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.plot_response_functions">plot_response_functions() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.plot_with_uncertainty">plot_with_uncertainty() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="R">R</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.randomization_experiment">randomization_experiment() (bssunfold.Detector method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="S">S</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.regularization.select_regularization_parameter">select_regularization_parameter() (in module bssunfold.core.regularization)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_bayes.solve_bayes">solve_bayes() (in module bssunfold.core.unfold_bayes)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_bayes_spline_regularization.solve_bayes_spline">solve_bayes_spline() (in module bssunfold.core.unfold_bayes_spline_regularization)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_cvxpy.solve_cvxpy">solve_cvxpy() (in module bssunfold.core.unfold_cvxpy)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_doroshenko.solve_doroshenko">solve_doroshenko() (in module bssunfold.core.unfold_doroshenko)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_gravel.solve_gravel">solve_gravel() (in module bssunfold.core.unfold_gravel)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_kaczmarz.solve_kaczmarz">solve_kaczmarz() (in module bssunfold.core.unfold_kaczmarz)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_landweber.solve_landweber">solve_landweber() (in module bssunfold.core.unfold_landweber)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.unfold_lmfit.solve_lmfit">solve_lmfit() (in module bssunfold.core.unfold_lmfit)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_maxed.solve_maxed">solve_maxed() (in module bssunfold.core.unfold_maxed)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_mlem.solve_mlem">solve_mlem() (in module bssunfold.core.unfold_mlem)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_qpsolvers.solve_qpsolvers">solve_qpsolvers() (in module bssunfold.core.unfold_qpsolvers)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_scipy_direct_method.solve_scipy_direct">solve_scipy_direct() (in module bssunfold.core.unfold_scipy_direct_method)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_statreg.solve_statreg">solve_statreg() (in module bssunfold.core.unfold_statreg)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.unfold_tsvd.solve_tsvd">solve_tsvd() (in module bssunfold.core.unfold_tsvd)</a>
+</li>
+      <li><a href="detector.html#bssunfold.core.basis.SpectralBasis">SpectralBasis (class in bssunfold.core.basis)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="T">T</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.BinBasis.to_coeffs">to_coeffs() (bssunfold.core.basis.BinBasis method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.basis.SpectralBasis.to_coeffs">(bssunfold.core.basis.SpectralBasis method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.core.basis.BinBasis.to_spectrum">to_spectrum() (bssunfold.core.basis.BinBasis method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.basis.SpectralBasis.to_spectrum">(bssunfold.core.basis.SpectralBasis method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="U">U</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.unfold_bayes">unfold_bayes() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_bayes.unfold_bayes">(in module bssunfold.core.unfold_bayes)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_bayes_spline_regularization">unfold_bayes_spline_regularization() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_bayes_spline_regularization.unfold_bayes_spline_regularization">(in module bssunfold.core.unfold_bayes_spline_regularization)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_combined">unfold_combined() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_combined.unfold_combined">(in module bssunfold.core.unfold_combined)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_cvxpy">unfold_cvxpy() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_cvxpy.unfold_cvxpy">(in module bssunfold.core.unfold_cvxpy)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_doroshenko">unfold_doroshenko() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_doroshenko.unfold_doroshenko">(in module bssunfold.core.unfold_doroshenko)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_gravel">unfold_gravel() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_gravel.unfold_gravel">(in module bssunfold.core.unfold_gravel)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_kaczmarz">unfold_kaczmarz() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_kaczmarz.unfold_kaczmarz">(in module bssunfold.core.unfold_kaczmarz)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_landweber">unfold_landweber() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_landweber.unfold_landweber">(in module bssunfold.core.unfold_landweber)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="detector.html#bssunfold.Detector.unfold_lmfit">unfold_lmfit() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_lmfit.unfold_lmfit">(in module bssunfold.core.unfold_lmfit)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_maxed">unfold_maxed() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_maxed.unfold_maxed">(in module bssunfold.core.unfold_maxed)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_mlem">unfold_mlem() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_mlem.unfold_mlem">(in module bssunfold.core.unfold_mlem)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_mlem_odl">unfold_mlem_odl() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_mlem_odl.unfold_mlem_odl">(in module bssunfold.core.unfold_mlem_odl)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_qpsolvers">unfold_qpsolvers() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_qpsolvers.unfold_qpsolvers">(in module bssunfold.core.unfold_qpsolvers)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_scipy_direct_method">unfold_scipy_direct_method() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_scipy_direct_method.unfold_scipy_direct_method">(in module bssunfold.core.unfold_scipy_direct_method)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_statreg">unfold_statreg() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_statreg.unfold_statreg">(in module bssunfold.core.unfold_statreg)</a>
+</li>
+      </ul></li>
+      <li><a href="detector.html#bssunfold.Detector.unfold_tsvd">unfold_tsvd() (bssunfold.Detector method)</a>
+
+      <ul>
+        <li><a href="detector.html#bssunfold.core.unfold_tsvd.unfold_tsvd">(in module bssunfold.core.unfold_tsvd)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Konstantin Chizhov.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

@@ -1,57 +1,25 @@
 ```
-# Jupyter Notebook checkpoints
-.checkpoints/
-*.ipynb_checkpoints/
-
-# Python
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-*.so
-# Virtual environments
-venv/
-.venv/
-env/
-ENV/
-.ENV/
-
-# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Compiled and build artifacts
 *.o
 *.obj
-*.out
 *.so
+*.a
+*.lib
 *.dll
+*.dylib
 *.exe
+*.out
 
 # Dependencies
 .venv/
 venv/
-# Build outputs
-dist/
-build/
-*.egg-info/
-
-# Logs
-*.log
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Environment variables
+env/
 .env
 .env.local
 .env.*
@@ -60,277 +28,32 @@ Thumbs.db
 *.log
 *.tmp
 *.swp
+*.swo
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Editors
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-```
-# IDE specific
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Testing
-.coverage
-htmlcov/
-.coverage.*
-.nyc_output/
-istanbul/
-.mypy_cache/
-.pytest_cache/
-.hypothesis/
-
-# Distribution / packaging
-*.tar.gz
-*.whl
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Coverage
-coverage/
-*.gcov
-*.lcov
-
-# Jupyter
-.ipynb_checkpoints
-.nbdime/
-.dvc/
-
-
-# ---> Python
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-README.pdf
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-.ruff_cache
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/#use-with-ide
-.pdm.toml
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-.codeassistant
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
-
-
-#streamlit
-.streamlit
-
-README_tmp*
-.~lock*
-tmp
-CHANGELOG.pdf
-README.pdf
-LICENSE.pdf
-docker.pdf
-TODO.pdf
-logs
-# Text
-Docs/User_manual.pdf
-TODO.md
-CONTRIBUTING.pdf
-
-paper/
-
-.vscode/
-.flake8
-.pypirc
-.config
+# OS generated files
 .DS_Store
-__marimo__
-.idea
-.gigaide
-.continue/
-plans/
-data/
-AGENTS.md
-opencode.json
-graphify-out/
-.gigacode/
-papers/
-tests/iaea_validation_*.csv
-tests/IAEA_compendium_results.csv
-tests/iaea_validation_*.csv
-tests/IAEA_compendium_analysis.md
-tests/iaea_validation_GSF.csv
-tests/iaea_validation_LANL.csv
-tests/iaea_validation_PTB.csv
-tests/iaea_plots/*.png
-tests/iaea_validation_PTB.csv
-tests/iaea_validation_LANL.csv
-tests/iaea_validation_GSF.csv
-tests/dose_rate_results.csv
-tests/dose_rate_scatter.png
-tests/dose_rate_evaluation.md
-tests/iso_plots/
-tests/iaea_compendium_iso_plots
-tests/iaea_compendium_dose_rate_results.csv
-tests/iaea_compendium_dose_rate_scatter.png
-tests/iaea_compendium_dose_rate_evaluation.md
-tests/qpsolvers_cvxpy_dose_rate_results.csv
-presentation/
-presentation.zip
-addon/
-tests/method_ranking.csv
-.dynapyt/
-.dynapyt_report/
-dynapyt.json
-bandit.json
-pip-audit.json
-*.py.orig
-.sentrux/baseline.toml
+Thumbs.db
+```

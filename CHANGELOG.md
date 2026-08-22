@@ -7,6 +7,33 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.17.3] - 2026-08-22
+
+### Added
+- **IMAXED, AMAXED, and AMAXED-Regularization unfolding methods** — new algorithms
+  from Wong's 2024 PhD thesis "Modernising neutron spectrum unfolding for fusion
+  applications" (Sheffield Hallam University). These methods use cross-entropy
+  regularization with Newton-type optimization and line search for improved
+  convergence and stability.
+  - `unfold_imaxed` / `solve_imaxed`: Improved MAXED using gradient-based
+    optimization in log-space with cross-entropy regularization relative to
+    a prior spectrum. Provides faster convergence than standard MAXED.
+  - `unfold_amaxed` / `solve_amaxed`: Alternative MAXED with reversed
+    cross-entropy definition, using Lagrangian multipliers to enforce
+    chi-squared constraints.
+  - `unfold_amaxed_regularization` / `solve_amaxed_regularization`: AMAXED
+    with Tikhonov-style simultaneous minimization of chi-squared and
+    cross-entropy, eliminating the need for manual chi-squared tuning.
+    This method showed best performance in the thesis for fusion neutron
+    spectrum unfolding.
+  - All methods support Monte Carlo uncertainty propagation and are
+    compatible with the existing Detector API.
+  - Tests: `tests/test_wong2024_methods.py` (basic functionality, noise
+    robustness, and comparison tests).
+  - Reference: Wong, O. (2024). Modernising neutron spectrum unfolding for
+    fusion applications. PhD Thesis. https://shura.shu.ac.uk/36014/
+
+
 ## [0.17.2] - 2026-08-19
 
 ### Added
