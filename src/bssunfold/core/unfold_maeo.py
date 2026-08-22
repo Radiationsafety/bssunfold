@@ -426,10 +426,12 @@ def solve_maeo(
             # Initialize algorithm
             AlgoClass = algo_registry[algo_name]
             
+            # Handle reference-direction-based algorithms (NSGA-III, CTAEA)
+            # They set pop_size from ref_dirs length, so don't pass it explicitly
             if algo_name == "nsga3":
-                algorithm = AlgoClass(ref_dirs=ref_dirs, pop_size=pop_size)
+                algorithm = AlgoClass(ref_dirs=ref_dirs)
             elif algo_name == "ctaea":
-                algorithm = AlgoClass(ref_dirs=ref_dirs, pop_size=pop_size)
+                algorithm = AlgoClass(ref_dirs=ref_dirs)
             elif algo_name == "agemoea2":
                 algorithm = AlgoClass(pop_size=pop_size)
             elif algo_name == "spea2":
