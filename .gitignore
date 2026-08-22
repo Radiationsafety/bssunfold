@@ -1,32 +1,39 @@
 ```
-# Python
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
 # Testing
 .pytest_cache/
 .coverage
 coverage/
-htmlcov/
 
-# Logs
-*.log
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
-# Dependencies
-.venv/
-venv/
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*~
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*
 ```

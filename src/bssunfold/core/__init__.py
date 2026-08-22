@@ -117,6 +117,17 @@ from .unfold_interpret import (
     unfold_interpret,
 )
 
+from .unfold_composite import (
+    unfold_composite,
+    unfold_composite_iterative,
+    compute_spectrum_features,
+    classify_spectrum_by_hardness,
+    select_methods_for_spectrum,
+    run_method_ensemble,
+    DEFAULT_BIN_METHODS,
+    DEFAULT_ENSEMBLE_WEIGHTS,
+)
+
 __all__ = [
     # detector
     "Detector",
@@ -225,6 +236,15 @@ __all__ = [
     "solve_interpret",
     "interpret_qp",
     "unfold_interpret",
+    # composite/ensemble methods
+    "unfold_composite",
+    "unfold_composite_iterative",
+    "compute_spectrum_features",
+    "classify_spectrum_by_hardness",
+    "select_methods_for_spectrum",
+    "run_method_ensemble",
+    "DEFAULT_BIN_METHODS",
+    "DEFAULT_ENSEMBLE_WEIGHTS",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",
