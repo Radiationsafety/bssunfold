@@ -86,6 +86,7 @@ from .unfold_interpret import (
 from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
 from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
+from .unfold_maeo import unfold_maeo as unfold_maeo_impl
 
 __all__ = ["Detector"]
 
@@ -3519,6 +3520,163 @@ class Detector:
             random_state=random_state,
             progressbar=progressbar,
         )
+
+    def unfold_maeo(
+        self,
+        readings: Dict[str, float],
+        n_cycles: int = 20,
+        n_gen_per_cycle: int = 10,
+        pop_size: int = 100,
+        algorithms: Optional[List[str]] = None,
+        lambda_smooth: float = 0.01,
+        prior_spectrum: Optional[np.ndarray] = None,
+        initial_spectrum: Optional[np.ndarray] = None,
+        convergence_assist_ratio: float = 0.2,
+        seed: Optional[int] = None,
+        verbose: bool = False,
+        save_result: bool = False,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using MAEO ensemble optimization.
+
+        This method implements the Multiobjective Animorphic Ensemble Optimization
+        (MAEO) framework from Erdem et al. (2026), which combines multiple
+        multiobjective optimization algorithms (NSGA-III, CTAEA, AGEMOEA2, SPEA2)
+        in an ensemble with adaptive migration based on hypervolume performance.
+
+        The MAEO framework is particularly effective for neutron spectrum unfolding
+        because it:
+        - Handles multiple conflicting objectives (data fit vs. smoothness)
+        - Automatically selects the best-performing algorithm for the problem
+        - Provides robust convergence through ensemble diversity
+        - Supports parallel evaluation of individuals
+
+        Parameters
+        ----------
+        readings : dict
+            Dictionary mapping detector names to measured count rates.
+        n_cycles : int, optional
+            Number of MAEO cycles (default: 20). Each cycle runs n_gen_per_cycle
+            generations for each island algorithm.
+        n_gen_per_cycle : int, optional
+            Generations per cycle for each island (default: 10).
+        pop_size : int, optional
+            Population size per island (default: 100).
+        algorithms : list of str, optional
+            List of algorithm names to use as islands. Default uses the four
+            algorithms from the MAEO paper: ["nsga3", "ctaea", "agemoea2", "spea2"].
+            Available options: "nsga3", "ctaea", "agemoea2", "spea2".
+        lambda_smooth : float, optional
+            Smoothness regularization weight (default: 0.01). Controls the trade-off
+            between data fidelity and spectrum smoothness.
+        prior_spectrum : np.ndarray, optional
+            Prior/guess spectrum for additional objective. If provided, adds a third
+            objective to minimize deviation from this prior.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum for warm-start. Used to seed the population in log space.
+        convergence_assist_ratio : float, optional
+            Fraction of cycles to dedicate to the best-performing island at the end
+            (default: 0.2). Implements the "convergence assist" mechanism from MAEO.
+        seed : int, optional
+            Random seed for reproducibility.
+        verbose : bool, optional
+            Print progress information including hypervolume history (default: False).
+        save_result : bool, optional
+            Save result to history (default: False).
+        **kwargs
+            Additional keyword arguments passed to the underlying optimizer.
+
+        Returns
+        -------
+        dict
+            Standardized result dictionary containing:
+            - 'energy': Energy grid in MeV
+            - 'spectrum': Unfolded spectrum (non-negative)
+            - 'spectrum_absolute': Absolute flux values
+            - 'effective_readings': Computed readings from unfolded spectrum
+            - 'residual': Difference between measured and computed readings
+            - 'residual_norm': L2 norm of residual
+            - 'method': 'MAEO'
+            - 'doserates': Dose rates calculated from spectrum
+            - 'maeo_info': Dictionary with MAEO-specific information:
+                - 'n_cycles': Number of cycles executed
+                - 'best_algorithm': Name of best-performing algorithm
+                - 'hypervolume_history': HV history for each island
+                - 'population_history': Population sizes per island per cycle
+                - 'algorithms_used': List of algorithms used
+            - 'maeo_pareto_front': Final Pareto front objectives (if available)
+            - 'maeo_objectives': Objectives for selected solution
+
+        Notes
+        -----
+        The MAEO framework optimizes multiple objectives simultaneously:
+        1. Minimize data fidelity error ||b - A*phi||^2 / ||b||^2
+        2. Minimize spectrum roughness ||D2 * phi||^2 (second derivative)
+        3. (Optional) Minimize deviation from prior spectrum
+
+        The final solution is selected from the combined Pareto front using a
+        knee-point detection method to balance accuracy and smoothness.
+
+        The algorithm runs in two phases:
+        1. Migration phase: All islands run in parallel, with individuals migrating
+           toward better-performing islands based on hypervolume indicators.
+        2. Convergence phase: Only the best-performing island continues, focusing
+           computational resources on exploitation.
+
+        References
+        ----------
+        [1] O.F. Erdem, D. Price, P. Seurin, M.I. Radaideh, "MAEO: Multiobjective
+            Animorphic Ensemble Optimization for Scalable Large-scale Engineering
+            Applications", arXiv:2604.26973 (2026).
+
+        [2] D. Price, M.I. Radaideh, "Animorphic Ensemble Optimization: a large-scale
+            island model", Neural Computing and Applications 35 (4) (2023) 3221-3243.
+
+        Examples
+        --------
+        >>> from bssunfold import Detector
+        >>> detector = Detector()
+        >>> readings = {
+        ...     'sphere_1': 100.5,
+        ...     'sphere_2': 85.3,
+        ...     'sphere_3': 72.1,
+        ...     'sphere_4': 58.9,
+        ...     'sphere_5': 45.2,
+        ...     'sphere_6': 32.8,
+        ... }
+        >>> # Run MAEO with default settings
+        >>> result = detector.unfold_maeo(readings, n_cycles=15)
+        >>> print(f"Spectrum integral: {np.sum(result['spectrum']):.2f}")
+        >>> print(f"Best algorithm: {result['maeo_info']['best_algorithm']}")
+        >>>
+        >>> # Run with custom algorithms and verbose output
+        >>> result = detector.unfold_maeo(
+        ...     readings,
+        ...     algorithms=["nsga3", "spea2"],
+        ...     n_cycles=10,
+        ...     verbose=True,
+        ... )
+        """
+        result = unfold_maeo_impl(
+            detector=self,
+            readings=readings,
+            n_cycles=n_cycles,
+            n_gen_per_cycle=n_gen_per_cycle,
+            pop_size=pop_size,
+            algorithms=algorithms,
+            lambda_smooth=lambda_smooth,
+            prior_spectrum=prior_spectrum,
+            initial_spectrum=initial_spectrum,
+            convergence_assist_ratio=convergence_assist_ratio,
+            seed=seed,
+            verbose=verbose,
+            **kwargs,
+        )
+
+        if save_result:
+            self._save_result(result)
+
+        return result
 
     def unfold_osem(
         self,
