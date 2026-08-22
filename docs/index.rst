@@ -9,6 +9,7 @@ bssunfold is a Python package for neutron spectrum unfolding using various algor
 
    overview
    detector
+   interpretation
    examples
    reconst_comparison
 
@@ -27,15 +28,16 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (27 methods):
-  - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD
-  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP, GRAVEL, Doroshenko, Kaczmarz
+- **Multiple Unfolding Algorithms** (36 methods):
+  - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD, EPIC (Equal Posterior Information Condition)
+  - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS
+  - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
   - **Statistical Regularisation**: Turchin's method (StatReg), Fortran STREG1 port (Reconst)
-  - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR)
-   - **Pipeline**: Combined approach for chaining multiple methods
-   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
+  - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact constraint solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex)
+  - **Pipeline**: Combined approach for chaining multiple methods
+  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
 - **Numba JIT-Accelerated Iterative Solvers**:
   - ``@njit(cache=True)`` compiled inner loops for Doroshenko, Kaczmarz, MLEM, GRAVEL

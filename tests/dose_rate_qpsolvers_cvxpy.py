@@ -18,7 +18,6 @@ import pandas as pd
 
 from bssunfold import (
     Detector,
-    RF_GSF,
     RF_PTB,
     RF_LANL,
     RF_JINR,

@@ -40,6 +40,7 @@ def solve_landweber(
         Tuple of (solution, iterations, converged).
     """
     import warnings
+
     x = x0.copy()
     sigma_max = np.linalg.norm(A, 2)
 
@@ -47,7 +48,7 @@ def solve_landweber(
         warnings.warn("Response matrix has zero norm. Returning initial guess.")
         return x, 0, False
 
-    step_size = 1.0 / (sigma_max ** 2)
+    step_size = 1.0 / (sigma_max**2)
     AT = A.T
 
     # Precompute ATb for efficiency

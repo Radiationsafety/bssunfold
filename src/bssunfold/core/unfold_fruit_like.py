@@ -13,7 +13,8 @@ Reference: Bedogni et al., Nucl. Instrum. Methods A 580, 1301-1309 (2007)
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, _build_system
+from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_fruit_like", "unfold_fruit_like"]
 
@@ -88,11 +89,11 @@ def parametric_model(
 
 def _residuals(params, A_matrix, b_readings, E, log_steps):
     """Residual function for lmfit minimization."""
-    A_th = params['A_th'].value
-    T_th = params['T_th'].value
-    A_epi = params['A_epi'].value
-    A_f = params['A_f'].value
-    T_ev = params['T_ev'].value
+    A_th = params["A_th"].value
+    T_th = params["T_th"].value
+    A_epi = params["A_epi"].value
+    A_f = params["A_f"].value
+    T_ev = params["T_ev"].value
 
     spectrum = parametric_model(E, A_th, T_th, A_epi, A_f, T_ev)
     spectrum_with_steps = spectrum * log_steps
@@ -144,23 +145,23 @@ def solve_fruit_like(
     params = lmfit.Parameters()
 
     if initial_params is None:
-        params.add('A_th', value=1e-6, min=0.0)
-        params.add('T_th', value=0.025e-6, min=1e-9, max=1e-3)
-        params.add('A_epi', value=1e-6, min=0.0)
-        params.add('A_f', value=1e-6, min=0.0)
-        params.add('T_ev', value=2.0, min=0.1, max=20.0)
+        params.add("A_th", value=1e-6, min=0.0)
+        params.add("T_th", value=0.025e-6, min=1e-9, max=1e-3)
+        params.add("A_epi", value=1e-6, min=0.0)
+        params.add("A_f", value=1e-6, min=0.0)
+        params.add("T_ev", value=2.0, min=0.1, max=20.0)
     else:
         for name, value in initial_params.items():
-            if name == 'A_th':
-                params.add('A_th', value=value, min=0.0)
-            elif name == 'T_th':
-                params.add('T_th', value=value, min=1e-9, max=1e-3)
-            elif name == 'A_epi':
-                params.add('A_epi', value=value, min=0.0)
-            elif name == 'A_f':
-                params.add('A_f', value=value, min=0.0)
-            elif name == 'T_ev':
-                params.add('T_ev', value=value, min=0.1, max=20.0)
+            if name == "A_th":
+                params.add("A_th", value=value, min=0.0)
+            elif name == "T_th":
+                params.add("T_th", value=value, min=1e-9, max=1e-3)
+            elif name == "A_epi":
+                params.add("A_epi", value=value, min=0.0)
+            elif name == "A_f":
+                params.add("A_f", value=value, min=0.0)
+            elif name == "T_ev":
+                params.add("T_ev", value=value, min=0.1, max=20.0)
 
     result = lmfit.minimize(
         _residuals,
@@ -172,11 +173,11 @@ def solve_fruit_like(
     final_params = result.params
     spectrum = parametric_model(
         E,
-        final_params['A_th'].value,
-        final_params['T_th'].value,
-        final_params['A_epi'].value,
-        final_params['A_f'].value,
-        final_params['T_ev'].value,
+        final_params["A_th"].value,
+        final_params["T_th"].value,
+        final_params["A_epi"].value,
+        final_params["A_f"].value,
+        final_params["T_ev"].value,
     )
     spectrum = spectrum * log_steps
 
@@ -240,19 +241,13 @@ def unfold_fruit_like(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
-    log_steps = np.zeros(n_energy_bins)
-    log_e = np.log10(E_MeV + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if n_energy_bins > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if n_energy_bins > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    log_steps = compute_log_steps(E_MeV, n_energy_bins)
     ln_steps = log_steps * np.log(10)
 
     def solve_wrapper(A_mat, b_vec, **kwargs):
-        x_opt, success, message, nfev = solve_fruit_like(
+        x_opt, success, _message, nfev = solve_fruit_like(
             A_mat, b_vec, E_MeV, ln_steps, initial_params, method
         )
         return x_opt, nfev, success

@@ -11,7 +11,8 @@ which is then refined using iterative methods to better fit the data.
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, _build_system
+from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_hybrid_parametric", "unfold_hybrid_parametric"]
 
@@ -138,36 +139,49 @@ def solve_hybrid_parametric(
     try:
         from .unfold_parametric import _find_initial_params, parametric_model
 
-        log_steps = np.zeros(n_energy)
-        log_e = np.log10(E + 1e-15)
-        log_steps[0] = log_e[1] - log_e[0] if n_energy > 1 else 1.0
-        log_steps[-1] = log_e[-1] - log_e[-2] if n_energy > 1 else 1.0
-        log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+        log_steps = compute_log_steps(E, n_energy)
         ln_steps = log_steps * np.log(10)
 
         best_params = _find_initial_params(A, b, E, ln_steps)
-        parametric_guess = parametric_model(
-            E, best_params["b"], best_params["beta_prime"],
-            best_params["alpha"], best_params["beta"],
-            best_params["P_th"], best_params["P_epi"],
-        ) * ln_steps
+        parametric_guess = (
+            parametric_model(
+                E,
+                best_params["b"],
+                best_params["beta_prime"],
+                best_params["alpha"],
+                best_params["beta"],
+                best_params["P_th"],
+                best_params["P_epi"],
+            )
+            * ln_steps
+        )
         parametric_guess = np.maximum(parametric_guess, 1e-30)
     except Exception:
         # Fallback to flat spectrum if parametric model fails
-        parametric_guess = np.ones(n_energy) * np.mean(b) / np.mean(A.sum(axis=1))
+        parametric_guess = (
+            np.ones(n_energy) * np.mean(b) / np.mean(A.sum(axis=1))
+        )
 
     if refinement_method == "landweber":
         refined, n_iter = _landweber_iteration(
             parametric_guess, A, b, step_size, max_iterations, tolerance
         )
         success = n_iter < max_iterations
-        message = f"Converged in {n_iter} iterations" if success else "Max iterations reached"
+        message = (
+            f"Converged in {n_iter} iterations"
+            if success
+            else "Max iterations reached"
+        )
     elif refinement_method == "mlem":
         refined, n_iter = _mlem_iteration(
             parametric_guess, A, b, max_iterations, tolerance
         )
         success = n_iter < max_iterations
-        message = f"Converged in {n_iter} iterations" if success else "Max iterations reached"
+        message = (
+            f"Converged in {n_iter} iterations"
+            if success
+            else "Max iterations reached"
+        )
     else:
         raise ValueError(f"Unknown refinement method: {refinement_method}")
 
@@ -237,20 +251,20 @@ def unfold_hybrid_parametric(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
-    log_steps = np.zeros(n_energy_bins)
-    log_e = np.log10(E_MeV + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if n_energy_bins > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if n_energy_bins > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    log_steps = compute_log_steps(E_MeV, n_energy_bins)
 
     def solve_wrapper(A_mat, b_vec, **kwargs):
-        x_opt, success, message, nfev = solve_hybrid_parametric(
-            A_mat, b_vec, E_MeV, log_steps, refinement_method,
-            max_iterations, tolerance, step_size
+        x_opt, success, _message, nfev = solve_hybrid_parametric(
+            A_mat,
+            b_vec,
+            E_MeV,
+            log_steps,
+            refinement_method,
+            max_iterations,
+            tolerance,
+            step_size,
         )
         return x_opt, nfev, success
 

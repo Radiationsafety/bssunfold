@@ -11,7 +11,6 @@ from bssunfold.core.unfold_parametric import (
     solve_parametric_cvxpy,
     solve_parametric_qpsolvers,
     solve_parametric_combined,
-    unfold_parametric,
     _T0,
     _Ed,
     _THERMAL_MAX,
@@ -40,7 +39,10 @@ def energy_grid():
 
 @pytest.fixture
 def sample_readings():
-    return {name: float(1.0 + i * 0.1) for i, name in enumerate(Detector().detector_names)}
+    return {
+        name: float(1.0 + i * 0.1)
+        for i, name in enumerate(Detector().detector_names)
+    }
 
 
 # ─── Parametric model tests ───────────────────────────────────────
@@ -48,45 +50,101 @@ def sample_readings():
 
 class TestParametricModel:
     def test_shape(self, energy_grid):
-        result = parametric_model(energy_grid, b=1.0, beta_prime=0.01,
-                                  alpha=0.5, beta=2.0, P_th=0.33, P_epi=0.33)
+        result = parametric_model(
+            energy_grid,
+            b=1.0,
+            beta_prime=0.01,
+            alpha=0.5,
+            beta=2.0,
+            P_th=0.33,
+            P_epi=0.33,
+        )
         assert result.shape == energy_grid.shape
 
     def test_nonnegative(self, energy_grid):
-        result = parametric_model(energy_grid, b=1.0, beta_prime=0.01,
-                                  alpha=0.5, beta=2.0, P_th=0.33, P_epi=0.33)
+        result = parametric_model(
+            energy_grid,
+            b=1.0,
+            beta_prime=0.01,
+            alpha=0.5,
+            beta=2.0,
+            P_th=0.33,
+            P_epi=0.33,
+        )
         assert_array_less(-1e-30, result)
 
     def test_weights_sum_to_one(self, energy_grid):
-        result = parametric_model(energy_grid, b=1.0, beta_prime=0.01,
-                                  alpha=0.5, beta=2.0, P_th=0.33, P_epi=0.33)
+        result = parametric_model(
+            energy_grid,
+            b=1.0,
+            beta_prime=0.01,
+            alpha=0.5,
+            beta=2.0,
+            P_th=0.33,
+            P_epi=0.33,
+        )
         assert result.sum() > 0
 
     def test_thermal_dominates_low_energy(self, energy_grid):
-        result = parametric_model(energy_grid, b=1.0, beta_prime=0.01,
-                                  alpha=0.5, beta=2.0, P_th=1.0, P_epi=0.0)
+        result = parametric_model(
+            energy_grid,
+            b=1.0,
+            beta_prime=0.01,
+            alpha=0.5,
+            beta=2.0,
+            P_th=1.0,
+            P_epi=0.0,
+        )
         low = energy_grid < _THERMAL_MAX
         high = energy_grid >= _FAST_MIN
         assert result[low].sum() > result[high].sum()
 
     def test_fast_dominates_high_energy(self, energy_grid):
-        result = parametric_model(energy_grid, b=1.0, beta_prime=0.01,
-                                  alpha=0.5, beta=2.0, P_th=0.0, P_epi=0.0)
+        result = parametric_model(
+            energy_grid,
+            b=1.0,
+            beta_prime=0.01,
+            alpha=0.5,
+            beta=2.0,
+            P_th=0.0,
+            P_epi=0.0,
+        )
         # P_f = 1.0 when P_th=P_epi=0
         high = energy_grid >= _FAST_MIN
         assert result[high].sum() > 0
 
     def test_epithermal_region(self, energy_grid):
-        result = parametric_model(energy_grid, b=1.0, beta_prime=0.01,
-                                  alpha=0.5, beta=2.0, P_th=0.0, P_epi=1.0)
+        result = parametric_model(
+            energy_grid,
+            b=1.0,
+            beta_prime=0.01,
+            alpha=0.5,
+            beta=2.0,
+            P_th=0.0,
+            P_epi=1.0,
+        )
         epi = (energy_grid >= _THERMAL_MAX) & (energy_grid < _FAST_MIN)
         assert result[epi].sum() > 0
 
     def test_custom_params(self, energy_grid):
-        r1 = parametric_model(energy_grid, b=0.5, beta_prime=0.01,
-                              alpha=0.5, beta=2.0, P_th=0.5, P_epi=0.3)
-        r2 = parametric_model(energy_grid, b=1.5, beta_prime=0.1,
-                              alpha=1.0, beta=5.0, P_th=0.1, P_epi=0.6)
+        r1 = parametric_model(
+            energy_grid,
+            b=0.5,
+            beta_prime=0.01,
+            alpha=0.5,
+            beta=2.0,
+            P_th=0.5,
+            P_epi=0.3,
+        )
+        r2 = parametric_model(
+            energy_grid,
+            b=1.5,
+            beta_prime=0.1,
+            alpha=1.0,
+            beta=5.0,
+            P_th=0.1,
+            P_epi=0.6,
+        )
         assert not np.allclose(r1, r2)
 
     def test_constants_match_papers(self):
@@ -130,8 +188,14 @@ class TestSolveParametric:
         ln_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
         ln_steps *= np.log(10)
 
-        init = {'b': 0.8, 'beta_prime': 0.05, 'alpha': 0.3, 'beta': 1.5,
-                'P_th': 0.4, 'P_epi': 0.4}
+        init = {
+            "b": 0.8,
+            "beta_prime": 0.05,
+            "alpha": 0.3,
+            "beta": 1.5,
+            "P_th": 0.4,
+            "P_epi": 0.4,
+        }
         spectrum, success, message, nfev = solve_parametric(
             A, b, E, ln_steps, initial_params=init
         )
@@ -149,8 +213,14 @@ class TestDetectorUnfoldParametric:
         assert len(result["spectrum"]) == detector.n_energy_bins
 
     def test_with_custom_params(self, detector, sample_readings):
-        init = {'b': 0.8, 'beta_prime': 0.05, 'alpha': 0.3, 'beta': 1.5,
-                'P_th': 0.4, 'P_epi': 0.4}
+        init = {
+            "b": 0.8,
+            "beta_prime": 0.05,
+            "alpha": 0.3,
+            "beta": 1.5,
+            "P_th": 0.4,
+            "P_epi": 0.4,
+        }
         result = detector.unfold_parametric(
             sample_readings, initial_params=init, save_result=False
         )
@@ -202,7 +272,14 @@ class TestJacobian:
         assert np.any(np.abs(J) > 0)
 
     def test_param_names(self):
-        assert _PARAM_NAMES == ["b", "beta_prime", "alpha", "beta", "P_th", "P_epi"]
+        assert _PARAM_NAMES == [
+            "b",
+            "beta_prime",
+            "alpha",
+            "beta",
+            "P_th",
+            "P_epi",
+        ]
 
     def test_param_bounds_keys(self):
         bounds = _get_param_bounds()
@@ -276,7 +353,11 @@ class TestSolveParametricCvxpy:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_cvxpy(
-            A, b, E, ln_steps, alpha=1e-3,
+            A,
+            b,
+            E,
+            ln_steps,
+            alpha=1e-3,
         )
         assert isinstance(spectrum, np.ndarray)
         assert spectrum.shape == E.shape
@@ -291,7 +372,11 @@ class TestSolveParametricCvxpy:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_cvxpy(
-            A, b, E, ln_steps, alpha=1e-2,
+            A,
+            b,
+            E,
+            ln_steps,
+            alpha=1e-2,
         )
         assert_array_less(-1e-30, spectrum)
 
@@ -302,10 +387,21 @@ class TestSolveParametricCvxpy:
         E = detector.E_MeV
         ln_steps = _make_ln_steps(E)
 
-        init = {'b': 0.8, 'beta_prime': 0.05, 'alpha': 0.3, 'beta': 1.5,
-                'P_th': 0.4, 'P_epi': 0.4}
+        init = {
+            "b": 0.8,
+            "beta_prime": 0.05,
+            "alpha": 0.3,
+            "beta": 1.5,
+            "P_th": 0.4,
+            "P_epi": 0.4,
+        }
         spectrum, success, message, nfev = solve_parametric_cvxpy(
-            A, b, E, ln_steps, initial_params=init, alpha=1e-3,
+            A,
+            b,
+            E,
+            ln_steps,
+            initial_params=init,
+            alpha=1e-3,
         )
         assert spectrum.shape == E.shape
 
@@ -317,7 +413,12 @@ class TestSolveParametricCvxpy:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_cvxpy(
-            A, b, E, ln_steps, alpha=1e-3, solver_backend="cvxpy:SCS",
+            A,
+            b,
+            E,
+            ln_steps,
+            alpha=1e-3,
+            solver_backend="cvxpy:SCS",
         )
         assert spectrum.shape == E.shape
 
@@ -334,7 +435,11 @@ class TestSolveParametricQpsolvers:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_qpsolvers(
-            A, b, E, ln_steps, alpha=1e-3,
+            A,
+            b,
+            E,
+            ln_steps,
+            alpha=1e-3,
         )
         assert isinstance(spectrum, np.ndarray)
         assert spectrum.shape == E.shape
@@ -349,7 +454,11 @@ class TestSolveParametricQpsolvers:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_qpsolvers(
-            A, b, E, ln_steps, alpha=1e-2,
+            A,
+            b,
+            E,
+            ln_steps,
+            alpha=1e-2,
         )
         assert_array_less(-1e-30, spectrum)
 
@@ -361,7 +470,12 @@ class TestSolveParametricQpsolvers:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_qpsolvers(
-            A, b, E, ln_steps, alpha=1e-3, solver_backend="qpsolvers:osqp",
+            A,
+            b,
+            E,
+            ln_steps,
+            alpha=1e-3,
+            solver_backend="qpsolvers:osqp",
         )
         assert spectrum.shape == E.shape
 
@@ -378,7 +492,12 @@ class TestSolveParametricCombined:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_combined(
-            A, b, E, ln_steps, solver_backend="cvxpy", alpha=1e-3,
+            A,
+            b,
+            E,
+            ln_steps,
+            solver_backend="cvxpy",
+            alpha=1e-3,
         )
         assert isinstance(spectrum, np.ndarray)
         assert spectrum.shape == E.shape
@@ -393,7 +512,12 @@ class TestSolveParametricCombined:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_combined(
-            A, b, E, ln_steps, solver_backend="qpsolvers", alpha=1e-3,
+            A,
+            b,
+            E,
+            ln_steps,
+            solver_backend="qpsolvers",
+            alpha=1e-3,
         )
         assert isinstance(spectrum, np.ndarray)
         assert spectrum.shape == E.shape
@@ -407,7 +531,12 @@ class TestSolveParametricCombined:
         ln_steps = _make_ln_steps(E)
 
         spectrum, success, message, nfev = solve_parametric_combined(
-            A, b, E, ln_steps, solver_backend="cvxpy", alpha=1e-2,
+            A,
+            b,
+            E,
+            ln_steps,
+            solver_backend="cvxpy",
+            alpha=1e-2,
         )
         assert_array_less(-1e-30, spectrum)
 
@@ -420,7 +549,11 @@ class TestSolveParametricCombined:
 
         with pytest.raises(ValueError, match="Unknown solver library"):
             solve_parametric_combined(
-                A, b, E, ln_steps, solver_backend="invalid",
+                A,
+                b,
+                E,
+                ln_steps,
+                solver_backend="invalid",
             )
 
 
@@ -430,7 +563,10 @@ class TestSolveParametricCombined:
 class TestDetectorUnfoldParametricOptimizers:
     def test_cvxpy_optimizer(self, detector, sample_readings):
         result = detector.unfold_parametric(
-            sample_readings, optimizer="cvxpy", alpha=1e-3, save_result=False,
+            sample_readings,
+            optimizer="cvxpy",
+            alpha=1e-3,
+            save_result=False,
         )
         assert "spectrum" in result
         assert len(result["spectrum"]) == detector.n_energy_bins
@@ -438,7 +574,10 @@ class TestDetectorUnfoldParametricOptimizers:
 
     def test_qpsolvers_optimizer(self, detector, sample_readings):
         result = detector.unfold_parametric(
-            sample_readings, optimizer="qpsolvers", alpha=1e-3, save_result=False,
+            sample_readings,
+            optimizer="qpsolvers",
+            alpha=1e-3,
+            save_result=False,
         )
         assert "spectrum" in result
         assert len(result["spectrum"]) == detector.n_energy_bins
@@ -446,8 +585,11 @@ class TestDetectorUnfoldParametricOptimizers:
 
     def test_combined_optimizer_cvxpy(self, detector, sample_readings):
         result = detector.unfold_parametric(
-            sample_readings, optimizer="combined", solver_backend="cvxpy",
-            alpha=1e-3, save_result=False,
+            sample_readings,
+            optimizer="combined",
+            solver_backend="cvxpy",
+            alpha=1e-3,
+            save_result=False,
         )
         assert "spectrum" in result
         assert len(result["spectrum"]) == detector.n_energy_bins
@@ -455,8 +597,11 @@ class TestDetectorUnfoldParametricOptimizers:
 
     def test_combined_optimizer_qpsolvers(self, detector, sample_readings):
         result = detector.unfold_parametric(
-            sample_readings, optimizer="combined", solver_backend="qpsolvers",
-            alpha=1e-3, save_result=False,
+            sample_readings,
+            optimizer="combined",
+            solver_backend="qpsolvers",
+            alpha=1e-3,
+            save_result=False,
         )
         assert "spectrum" in result
         assert len(result["spectrum"]) == detector.n_energy_bins
@@ -464,35 +609,54 @@ class TestDetectorUnfoldParametricOptimizers:
     def test_invalid_optimizer_raises(self, detector, sample_readings):
         with pytest.raises(ValueError, match="Unknown optimizer"):
             detector.unfold_parametric(
-                sample_readings, optimizer="invalid", save_result=False,
+                sample_readings,
+                optimizer="invalid",
+                save_result=False,
             )
 
     def test_lmfit_optimizer_unchanged(self, detector, sample_readings):
         result = detector.unfold_parametric(
-            sample_readings, optimizer="lmfit", save_result=False,
+            sample_readings,
+            optimizer="lmfit",
+            save_result=False,
         )
         assert "spectrum" in result
         assert result["method"] == "parametric"
 
     def test_cvxpy_has_doserates(self, detector, sample_readings):
         result = detector.unfold_parametric(
-            sample_readings, optimizer="cvxpy", alpha=1e-3, save_result=False,
+            sample_readings,
+            optimizer="cvxpy",
+            alpha=1e-3,
+            save_result=False,
         )
         assert "doserates" in result
         assert isinstance(result["doserates"], dict)
 
     def test_combined_with_custom_params(self, detector, sample_readings):
-        init = {'b': 0.8, 'beta_prime': 0.05, 'alpha': 0.3, 'beta': 1.5,
-                'P_th': 0.4, 'P_epi': 0.4}
+        init = {
+            "b": 0.8,
+            "beta_prime": 0.05,
+            "alpha": 0.3,
+            "beta": 1.5,
+            "P_th": 0.4,
+            "P_epi": 0.4,
+        }
         result = detector.unfold_parametric(
-            sample_readings, optimizer="combined", initial_params=init,
-            alpha=1e-3, save_result=False,
+            sample_readings,
+            optimizer="combined",
+            initial_params=init,
+            alpha=1e-3,
+            save_result=False,
         )
         assert "spectrum" in result
 
     def test_cvxpy_with_solver_backend(self, detector, sample_readings):
         result = detector.unfold_parametric(
-            sample_readings, optimizer="cvxpy", alpha=1e-3,
-            solver_backend="cvxpy:SCS", save_result=False,
+            sample_readings,
+            optimizer="cvxpy",
+            alpha=1e-3,
+            solver_backend="cvxpy:SCS",
+            save_result=False,
         )
         assert "spectrum" in result

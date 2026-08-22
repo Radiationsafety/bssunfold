@@ -36,7 +36,8 @@ import warnings
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, _build_system
+from ._matrix_utils import compute_log_steps
 
 __all__ = [
     "solve_bon95_parametric",
@@ -49,11 +50,11 @@ __all__ = [
 ]
 
 # Fixed constants from the BON95 papers
-_Tth = 3.5e-8   # Thermal peak temperature (MeV), = 0.035 eV
+_Tth = 3.5e-8  # Thermal peak temperature (MeV), = 0.035 eV
 
 # Energy region boundaries for component masking
-_THERMAL_MAX_BON95 = 0.1    # MeV — thermal + epithermal dominant
-_FAST_MIN_BON95 = 0.1       # MeV — fast component starts
+_THERMAL_MAX_BON95 = 0.1  # MeV — thermal + epithermal dominant
+_FAST_MIN_BON95 = 0.1  # MeV — fast component starts
 
 _RESIDUAL_WARN_THRESHOLD = 10.0
 
@@ -64,10 +65,11 @@ logger = logging.getLogger(__name__)
 #  BON95 parametric model
 # ------------------------------------------------------------------ #
 
+
 def _Fth(E: np.ndarray, Tth: float = _Tth) -> np.ndarray:
     """Thermal component: Xth^(3/2) * exp(-Xth), Xth = E/Tth."""
     Xth = E / Tth
-    return Xth ** 1.5 * np.exp(-Xth)
+    return Xth**1.5 * np.exp(-Xth)
 
 
 def _Fepi(E: np.ndarray, b: float, Tth: float = _Tth) -> np.ndarray:
@@ -85,7 +87,7 @@ def _Fint(E: np.ndarray, Tth: float = _Tth) -> np.ndarray:
 def _Ff(E: np.ndarray, Tf: float, c: float) -> np.ndarray:
     """Fast component: Xf^(3/2) * exp(-Xf), Xf = (E/Tf)^c."""
     Xf = (E / Tf) ** c
-    return Xf ** 1.5 * np.exp(-Xf)
+    return Xf**1.5 * np.exp(-Xf)
 
 
 def bon95_model(
@@ -140,7 +142,7 @@ def bon95_spectrum(
     """
     E = np.asarray(E, dtype=float)
     lethargy = bon95_model(E, b, Tf, c, a1, a2, a3, a4)
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         phi = np.where(E > 0, lethargy / E, 0.0)
     return phi
 
@@ -148,6 +150,7 @@ def bon95_spectrum(
 # ------------------------------------------------------------------ #
 #  Weighted NLS for linear coefficients
 # ------------------------------------------------------------------ #
+
 
 def _solve_linear_coefficients(
     A_matrix: np.ndarray,
@@ -191,16 +194,20 @@ def _solve_linear_coefficients(
 
     # Build the four basis columns: B_ik = sum_j A_i(E_j) * F_k(E_j) / E_j * ln_steps_j
     E_safe = np.where(E > 0, E, 1.0)
-    F_cols = np.column_stack([
-        _Fth(E),
-        _Fepi(E, b),
-        _Fint(E),
-        _Ff(E, Tf, c),
-    ])  # (n_energy, 4)
+    F_cols = np.column_stack(
+        [
+            _Fth(E),
+            _Fepi(E, b),
+            _Fint(E),
+            _Ff(E, Tf, c),
+        ]
+    )  # (n_energy, 4)
 
     # Each column of B: B_i_k = sum_j A_i_j * F_k_j / E_j * ln_steps_j
     # F_cols/E_safe divides each row by corresponding E, then * ln_steps
-    weighted_F = F_cols / E_safe[:, np.newaxis] * ln_steps[:, np.newaxis]  # (n_energy, 4)
+    weighted_F = (
+        F_cols / E_safe[:, np.newaxis] * ln_steps[:, np.newaxis]
+    )  # (n_energy, 4)
     B = A_matrix @ weighted_F  # (n_det, 4)
 
     if weights is None:
@@ -211,12 +218,16 @@ def _solve_linear_coefficients(
     bw = W @ b_readings
 
     # Solve via least-squares
-    result, res, rank, sv = np.linalg.lstsq(Bw, bw, rcond=None)
+    result, _, _, _ = np.linalg.lstsq(Bw, bw, rcond=None)
     a = np.maximum(result, 0.0)  # enforce non-negativity of coefficients
 
     # Compute chi2
     residual = B @ a - b_readings
-    chi2 = np.mean((residual ** 2) * weights) if np.all(weights > 0) else np.mean(residual ** 2)
+    chi2 = (
+        np.mean((residual**2) * weights)
+        if np.all(weights > 0)
+        else np.mean(residual**2)
+    )
 
     return a, chi2
 
@@ -226,9 +237,9 @@ def _solve_linear_coefficients(
 # ------------------------------------------------------------------ #
 
 # Default grid ranges for shape parameters
-_DEFAULT_B_RANGE = (0.5, 2.0, 5)      # (min, max, n_points)
-_DEFAULT_TF_RANGE = (0.5, 10.0, 5)    # (min MeV, max MeV, n_points)
-_DEFAULT_C_RANGE = (0.5, 3.0, 4)      # (min, max, n_points)
+_DEFAULT_B_RANGE = (0.5, 2.0, 5)  # (min, max, n_points)
+_DEFAULT_TF_RANGE = (0.5, 10.0, 5)  # (min MeV, max MeV, n_points)
+_DEFAULT_C_RANGE = (0.5, 3.0, 4)  # (min, max, n_points)
 
 
 def solve_bon95_parametric(
@@ -277,7 +288,7 @@ def solve_bon95_parametric(
 
     # Weights from measurement uncertainties
     if b_meas is not None:
-        weights = np.where(b_meas > 0, 1.0 / (b_meas ** 2), 1.0)
+        weights = np.where(b_meas > 0, 1.0 / (b_meas**2), 1.0)
     else:
         weights = np.ones(A_matrix.shape[0])
 
@@ -287,25 +298,33 @@ def solve_bon95_parametric(
         for Tf_val in Tf_vals:
             for c_val in c_vals:
                 a, chi2 = _solve_linear_coefficients(
-                    A_matrix, b_readings, E, ln_steps,
-                    b_val, Tf_val, c_val, weights,
+                    A_matrix,
+                    b_readings,
+                    E,
+                    ln_steps,
+                    b_val,
+                    Tf_val,
+                    c_val,
+                    weights,
                 )
-                candidates.append({
-                    'b': b_val,
-                    'Tf': Tf_val,
-                    'c': c_val,
-                    'a1': a[0],
-                    'a2': a[1],
-                    'a3': a[2],
-                    'a4': a[3],
-                    'chi2': chi2,
-                })
+                candidates.append(
+                    {
+                        "b": b_val,
+                        "Tf": Tf_val,
+                        "c": c_val,
+                        "a1": a[0],
+                        "a2": a[1],
+                        "a3": a[2],
+                        "a4": a[3],
+                        "chi2": chi2,
+                    }
+                )
 
     # Sort by chi2 (best first)
-    candidates.sort(key=lambda x: x['chi2'])
+    candidates.sort(key=lambda x: x["chi2"])
     best = candidates[0]
 
-    return best, best['chi2'], candidates[:top_n]
+    return best, best["chi2"], candidates[:top_n]
 
 
 # ------------------------------------------------------------------ #
@@ -315,9 +334,9 @@ def solve_bon95_parametric(
 _BON95_SHAPE_NAMES = ["b", "Tf", "c"]
 
 _BON95_SHAPE_BOUNDS = {
-    "b":  (0.5, 2.0),
+    "b": (0.5, 2.0),
     "Tf": (0.5, 10.0),
-    "c":  (0.5, 3.0),
+    "c": (0.5, 3.0),
 }
 
 
@@ -335,11 +354,25 @@ def _clamp_bon95_shape(params, bounds):
 
 
 def _solve_shape_nls(
-    A_matrix, b_readings, E, ln_steps, b, Tf, c, weights,
+    A_matrix,
+    b_readings,
+    E,
+    ln_steps,
+    b,
+    Tf,
+    c,
+    weights,
 ):
     """Solve for optimal (a1..a4) given shape params, return spectrum + chi2."""
     a, chi2 = _solve_linear_coefficients(
-        A_matrix, b_readings, E, ln_steps, b, Tf, c, weights,
+        A_matrix,
+        b_readings,
+        E,
+        ln_steps,
+        b,
+        Tf,
+        c,
+        weights,
     )
     phi = bon95_spectrum(E, b, Tf, c, a[0], a[1], a[2], a[3])
     phi = np.maximum(phi, 0.0)
@@ -349,7 +382,13 @@ def _solve_shape_nls(
 
 
 def _compute_bon95_shape_jacobian(
-    A_matrix, b_readings, E, ln_steps, params, weights, delta=1e-6,
+    A_matrix,
+    b_readings,
+    E,
+    ln_steps,
+    params,
+    weights,
+    delta=1e-6,
 ):
     """Jacobian of spectrum w.r.t. shape params (b, Tf, c).
 
@@ -367,8 +406,14 @@ def _compute_bon95_shape_jacobian(
 
     # Current spectrum and residual
     s0, _, _ = _solve_shape_nls(
-        A_matrix, b_readings, E, ln_steps,
-        params["b"], params["Tf"], params["c"], weights,
+        A_matrix,
+        b_readings,
+        E,
+        ln_steps,
+        params["b"],
+        params["Tf"],
+        params["c"],
+        weights,
     )
     residual = A_matrix @ s0 - b_readings
 
@@ -389,8 +434,14 @@ def _compute_bon95_shape_jacobian(
                 p_pert = dict(params)
                 p_pert[name] = p_val - d
                 s_pert, _, _ = _solve_shape_nls(
-                    A_matrix, b_readings, E, ln_steps,
-                    p_pert["b"], p_pert["Tf"], p_pert["c"], weights,
+                    A_matrix,
+                    b_readings,
+                    E,
+                    ln_steps,
+                    p_pert["b"],
+                    p_pert["Tf"],
+                    p_pert["c"],
+                    weights,
                 )
                 J[:, i] = (s0 - s_pert) / d
             else:
@@ -400,8 +451,14 @@ def _compute_bon95_shape_jacobian(
         p_pert = dict(params)
         p_pert[name] = p_val + d
         s_pert, _, _ = _solve_shape_nls(
-            A_matrix, b_readings, E, ln_steps,
-            p_pert["b"], p_pert["Tf"], p_pert["c"], weights,
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            p_pert["b"],
+            p_pert["Tf"],
+            p_pert["c"],
+            weights,
         )
         J[:, i] = (s_pert - s0) / d
 
@@ -411,6 +468,7 @@ def _compute_bon95_shape_jacobian(
 # ------------------------------------------------------------------ #
 #  Solver backend helpers
 # ------------------------------------------------------------------ #
+
 
 def _parse_solver_backend(solver_backend):
     """Parse 'auto', 'cvxpy', 'cvxpy:ECOS', 'qpsolvers:osqp' etc."""
@@ -426,11 +484,14 @@ def _resolve_cvxpy_solvers(backend):
     """Return list of cvxpy solvers to try."""
     try:
         import cvxpy as cp
+
         installed = cp.installed_solvers()
     except ImportError:
         installed = []
     if backend == "default":
-        return [s for s in ["ECOS", "SCS", "CLARABEL"] if s in installed] or ["ECOS"]
+        return [s for s in ["ECOS", "SCS", "CLARABEL"] if s in installed] or [
+            "ECOS"
+        ]
     fallbacks = [s for s in ["ECOS", "SCS", "CLARABEL"] if s != backend]
     return [backend] + fallbacks
 
@@ -441,6 +502,7 @@ def _resolve_qpsolver_name(backend):
         return backend
     try:
         from qpsolvers import available_solvers
+
         if "osqp" in available_solvers:
             return "osqp"
         if "ecos" in available_solvers:
@@ -453,6 +515,7 @@ def _resolve_qpsolver_name(backend):
 # ------------------------------------------------------------------ #
 #  SQP solver via cvxpy
 # ------------------------------------------------------------------ #
+
 
 def solve_bon95_cvxpy(
     A_matrix: np.ndarray,
@@ -514,7 +577,7 @@ def solve_bon95_cvxpy(
 
     # Weights
     if b_meas is not None:
-        weights = np.where(b_meas > 0, 1.0 / (b_meas ** 2), 1.0)
+        weights = np.where(b_meas > 0, 1.0 / (b_meas**2), 1.0)
     else:
         weights = np.ones(A_matrix.shape[0])
 
@@ -523,7 +586,12 @@ def solve_bon95_cvxpy(
         params = {k: initial_params[k] for k in _BON95_SHAPE_NAMES}
     else:
         best, _, _ = solve_bon95_parametric(
-            A_matrix, b_readings, E, ln_steps, b_meas=b_meas, top_n=1,
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            b_meas=b_meas,
+            top_n=1,
         )
         params = {"b": best["b"], "Tf": best["Tf"], "c": best["c"]}
 
@@ -534,20 +602,33 @@ def solve_bon95_cvxpy(
 
     for k in range(max_iter):
         # Current spectrum via NLS for a1..a4
-        spectrum_k, chi2_k, _ = _solve_shape_nls(
-            A_matrix, b_readings, E, ln_steps,
-            params["b"], params["Tf"], params["c"], weights,
+        spectrum_k, _, _ = _solve_shape_nls(
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            params["b"],
+            params["Tf"],
+            params["c"],
+            weights,
         )
         nfev += 1
 
         residual = A_matrix @ spectrum_k - b_readings
         if np.linalg.norm(residual) < tol:
-            _check_fit_quality(np.linalg.norm(residual), b_readings, "bon95_cvxpy")
+            _check_fit_quality(
+                np.linalg.norm(residual), b_readings, "bon95_cvxpy"
+            )
             return spectrum_k, True, f"Converged in {k} iterations", nfev
 
         # Jacobian w.r.t. shape params
         J, _ = _compute_bon95_shape_jacobian(
-            A_matrix, b_readings, E, ln_steps, params, weights,
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            params,
+            weights,
         )
         nfev += 2 * n_params  # finite differences
         A_eff = A_matrix @ J  # (n_det x 3) effective forward operator
@@ -590,23 +671,42 @@ def solve_bon95_cvxpy(
 
         if np.linalg.norm(delta_val) < tol:
             spectrum_final, _, _ = _solve_shape_nls(
-                A_matrix, b_readings, E, ln_steps,
-                params["b"], params["Tf"], params["c"], weights,
+                A_matrix,
+                b_readings,
+                E,
+                ln_steps,
+                params["b"],
+                params["Tf"],
+                params["c"],
+                weights,
             )
             _check_fit_quality(
                 np.linalg.norm(A_matrix @ spectrum_final - b_readings),
-                b_readings, "bon95_cvxpy",
+                b_readings,
+                "bon95_cvxpy",
             )
-            return spectrum_final, True, f"Converged in {k + 1} iterations", nfev
+            return (
+                spectrum_final,
+                True,
+                f"Converged in {k + 1} iterations",
+                nfev,
+            )
 
     # Final spectrum
     spectrum_final, _, _ = _solve_shape_nls(
-        A_matrix, b_readings, E, ln_steps,
-        params["b"], params["Tf"], params["c"], weights,
+        A_matrix,
+        b_readings,
+        E,
+        ln_steps,
+        params["b"],
+        params["Tf"],
+        params["c"],
+        weights,
     )
     _check_fit_quality(
         np.linalg.norm(A_matrix @ spectrum_final - b_readings),
-        b_readings, "bon95_cvxpy",
+        b_readings,
+        "bon95_cvxpy",
     )
     if not message:
         message = f"Max iterations ({max_iter}) reached"
@@ -616,6 +716,7 @@ def solve_bon95_cvxpy(
 # ------------------------------------------------------------------ #
 #  SQP solver via qpsolvers
 # ------------------------------------------------------------------ #
+
 
 def solve_bon95_qpsolvers(
     A_matrix: np.ndarray,
@@ -680,11 +781,13 @@ def solve_bon95_qpsolvers(
         elif "ecos" in available_solvers:
             solver_name = "ecos"
         else:
-            raise ValueError(f"No QP solver available. Available: {available_solvers}")
+            raise ValueError(
+                f"No QP solver available. Available: {available_solvers}"
+            )
 
     # Weights
     if b_meas is not None:
-        weights = np.where(b_meas > 0, 1.0 / (b_meas ** 2), 1.0)
+        weights = np.where(b_meas > 0, 1.0 / (b_meas**2), 1.0)
     else:
         weights = np.ones(A_matrix.shape[0])
 
@@ -693,7 +796,12 @@ def solve_bon95_qpsolvers(
         params = {k: initial_params[k] for k in _BON95_SHAPE_NAMES}
     else:
         best, _, _ = solve_bon95_parametric(
-            A_matrix, b_readings, E, ln_steps, b_meas=b_meas, top_n=1,
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            b_meas=b_meas,
+            top_n=1,
         )
         params = {"b": best["b"], "Tf": best["Tf"], "c": best["c"]}
 
@@ -703,19 +811,32 @@ def solve_bon95_qpsolvers(
     nfev = 0
 
     for k in range(max_iter):
-        spectrum_k, chi2_k, _ = _solve_shape_nls(
-            A_matrix, b_readings, E, ln_steps,
-            params["b"], params["Tf"], params["c"], weights,
+        spectrum_k, _, _ = _solve_shape_nls(
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            params["b"],
+            params["Tf"],
+            params["c"],
+            weights,
         )
         nfev += 1
 
         residual = A_matrix @ spectrum_k - b_readings
         if np.linalg.norm(residual) < tol:
-            _check_fit_quality(np.linalg.norm(residual), b_readings, "bon95_qpsolvers")
+            _check_fit_quality(
+                np.linalg.norm(residual), b_readings, "bon95_qpsolvers"
+            )
             return spectrum_k, True, f"Converged in {k} iterations", nfev
 
         J, _ = _compute_bon95_shape_jacobian(
-            A_matrix, b_readings, E, ln_steps, params, weights,
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            params,
+            weights,
         )
         nfev += 2 * n_params
         A_eff = A_matrix @ J
@@ -742,9 +863,13 @@ def solve_bon95_qpsolvers(
         h = np.array(h_rows)
 
         try:
-            delta_val = solve_qp(P=P, q=q, G=G, h=h, solver=solver_name, verbose=False)
+            delta_val = solve_qp(
+                P=P, q=q, G=G, h=h, solver=solver_name, verbose=False
+            )
         except Exception as exc:
-            logger.debug("QP solver %s failed at iter %d: %s", solver_name, k, exc)
+            logger.debug(
+                "QP solver %s failed at iter %d: %s", solver_name, k, exc
+            )
             message = f"QP subproblem failed at iteration {k}"
             break
 
@@ -759,22 +884,41 @@ def solve_bon95_qpsolvers(
 
         if np.linalg.norm(delta_val) < tol:
             spectrum_final, _, _ = _solve_shape_nls(
-                A_matrix, b_readings, E, ln_steps,
-                params["b"], params["Tf"], params["c"], weights,
+                A_matrix,
+                b_readings,
+                E,
+                ln_steps,
+                params["b"],
+                params["Tf"],
+                params["c"],
+                weights,
             )
             _check_fit_quality(
                 np.linalg.norm(A_matrix @ spectrum_final - b_readings),
-                b_readings, "bon95_qpsolvers",
+                b_readings,
+                "bon95_qpsolvers",
             )
-            return spectrum_final, True, f"Converged in {k + 1} iterations", nfev
+            return (
+                spectrum_final,
+                True,
+                f"Converged in {k + 1} iterations",
+                nfev,
+            )
 
     spectrum_final, _, _ = _solve_shape_nls(
-        A_matrix, b_readings, E, ln_steps,
-        params["b"], params["Tf"], params["c"], weights,
+        A_matrix,
+        b_readings,
+        E,
+        ln_steps,
+        params["b"],
+        params["Tf"],
+        params["c"],
+        weights,
     )
     _check_fit_quality(
         np.linalg.norm(A_matrix @ spectrum_final - b_readings),
-        b_readings, "bon95_qpsolvers",
+        b_readings,
+        "bon95_qpsolvers",
     )
     if not message:
         message = f"Max iterations ({max_iter}) reached"
@@ -784,6 +928,7 @@ def solve_bon95_qpsolvers(
 # ------------------------------------------------------------------ #
 #  Combined: grid search first, then SQP refinement
 # ------------------------------------------------------------------ #
+
 
 def solve_bon95_combined(
     A_matrix: np.ndarray,
@@ -822,7 +967,12 @@ def solve_bon95_combined(
     """
     # Step 1: Grid search
     best, _, _ = solve_bon95_parametric(
-        A_matrix, b_readings, E, ln_steps, b_meas=b_meas, top_n=1,
+        A_matrix,
+        b_readings,
+        E,
+        ln_steps,
+        b_meas=b_meas,
+        top_n=1,
     )
     init_params = {"b": best["b"], "Tf": best["Tf"], "c": best["c"]}
     nfev_grid = 1
@@ -830,29 +980,47 @@ def solve_bon95_combined(
     # Step 2: SQP refinement
     library, _ = _parse_solver_backend(solver_backend)
 
-    if library == "cvxpy" or library == "auto":
+    if library in ("cvxpy", "auto"):
         try:
             result = solve_bon95_cvxpy(
-                A_matrix, b_readings, E, ln_steps,
-                b_meas=b_meas, initial_params=init_params,
-                alpha=alpha, solver_backend=solver_backend,
-                max_iter=max_iter_qp, tol=tol_qp,
+                A_matrix,
+                b_readings,
+                E,
+                ln_steps,
+                b_meas=b_meas,
+                initial_params=init_params,
+                alpha=alpha,
+                solver_backend=solver_backend,
+                max_iter=max_iter_qp,
+                tol=tol_qp,
             )
             spectrum, success, msg, nfev_qp = result
-            return spectrum, success, f"grid + cvxpy ({msg})", nfev_grid + nfev_qp
+            return (
+                spectrum,
+                success,
+                f"grid + cvxpy ({msg})",
+                nfev_grid + nfev_qp,
+            )
         except ImportError:
             if library == "cvxpy":
                 raise
 
     # Fallback to qpsolvers
     result = solve_bon95_qpsolvers(
-        A_matrix, b_readings, E, ln_steps,
-        b_meas=b_meas, initial_params=init_params,
-        alpha=alpha, solver_backend=solver_backend,
-        max_iter=max_iter_qp, tol=tol_qp,
+        A_matrix,
+        b_readings,
+        E,
+        ln_steps,
+        b_meas=b_meas,
+        initial_params=init_params,
+        alpha=alpha,
+        solver_backend=solver_backend,
+        max_iter=max_iter_qp,
+        tol=tol_qp,
     )
     spectrum, success, msg, nfev_qp = result
     return spectrum, success, f"grid + qpsolvers ({msg})", nfev_grid + nfev_qp
+
 
 def directed_divergence_iteration(
     A_matrix: np.ndarray,
@@ -909,7 +1077,7 @@ def directed_divergence_iteration(
 
     n_det = A_matrix.shape[0]
     if b_meas is not None:
-        weights = np.where(b_meas > 0, 1.0 / (b_meas ** 2), 1.0)
+        weights = np.where(b_meas > 0, 1.0 / (b_meas**2), 1.0)
     else:
         weights = np.ones(n_det)
 
@@ -926,7 +1094,7 @@ def directed_divergence_iteration(
 
         # Chi-squared
         residual = M_p - b_readings
-        chi2 = np.mean(residual ** 2 * weights)
+        chi2 = np.mean(residual**2 * weights)
 
         # Check convergence
         if chi2 < tol_chi2:
@@ -964,6 +1132,7 @@ def directed_divergence_iteration(
 # ------------------------------------------------------------------ #
 #  Full pipeline solver
 # ------------------------------------------------------------------ #
+
 
 def solve_parametric2(
     A_matrix: np.ndarray,
@@ -1030,39 +1199,69 @@ def solve_parametric2(
     # Step 1: Parametric fit using selected optimizer
     if optimizer == "grid":
         best_params, best_chi2, top_candidates = solve_bon95_parametric(
-            A_matrix, b_readings, E, ln_steps,
-            b_range=b_range, Tf_range=Tf_range, c_range=c_range,
-            b_meas=b_meas, top_n=5,
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            b_range=b_range,
+            Tf_range=Tf_range,
+            c_range=c_range,
+            b_meas=b_meas,
+            top_n=5,
         )
         phi_param = bon95_spectrum(
-            E, best_params['b'], best_params['Tf'], best_params['c'],
-            best_params['a1'], best_params['a2'], best_params['a3'], best_params['a4'],
+            E,
+            best_params["b"],
+            best_params["Tf"],
+            best_params["c"],
+            best_params["a1"],
+            best_params["a2"],
+            best_params["a3"],
+            best_params["a4"],
         )
         nfev = len(top_candidates)
 
     elif optimizer == "cvxpy":
-        spectrum_fit, success, msg, nfev = solve_bon95_cvxpy(
-            A_matrix, b_readings, E, ln_steps,
-            b_meas=b_meas, alpha=alpha, solver_backend=solver_backend,
-            max_iter=max_iter_qp, tol=tol_qp,
+        spectrum_fit, _success, _msg, nfev = solve_bon95_cvxpy(
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            b_meas=b_meas,
+            alpha=alpha,
+            solver_backend=solver_backend,
+            max_iter=max_iter_qp,
+            tol=tol_qp,
         )
         phi_param = spectrum_fit / np.maximum(ln_steps, 1e-30)
         best_chi2 = 0.0  # computed after DD
 
     elif optimizer == "qpsolvers":
-        spectrum_fit, success, msg, nfev = solve_bon95_qpsolvers(
-            A_matrix, b_readings, E, ln_steps,
-            b_meas=b_meas, alpha=alpha, solver_backend=solver_backend,
-            max_iter=max_iter_qp, tol=tol_qp,
+        spectrum_fit, _success, _msg, nfev = solve_bon95_qpsolvers(
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            b_meas=b_meas,
+            alpha=alpha,
+            solver_backend=solver_backend,
+            max_iter=max_iter_qp,
+            tol=tol_qp,
         )
         phi_param = spectrum_fit / np.maximum(ln_steps, 1e-30)
         best_chi2 = 0.0
 
     elif optimizer == "combined":
-        spectrum_fit, success, msg, nfev = solve_bon95_combined(
-            A_matrix, b_readings, E, ln_steps,
-            b_meas=b_meas, alpha=alpha, solver_backend=solver_backend,
-            max_iter_qp=max_iter_qp, tol_qp=tol_qp,
+        spectrum_fit, _success, _msg, nfev = solve_bon95_combined(
+            A_matrix,
+            b_readings,
+            E,
+            ln_steps,
+            b_meas=b_meas,
+            alpha=alpha,
+            solver_backend=solver_backend,
+            max_iter_qp=max_iter_qp,
+            tol_qp=tol_qp,
         )
         phi_param = spectrum_fit / np.maximum(ln_steps, 1e-30)
         best_chi2 = 0.0
@@ -1079,8 +1278,14 @@ def solve_parametric2(
 
     # Step 2: Directed-divergence refinement
     phi_refined, n_iter, chi2_final, converged = directed_divergence_iteration(
-        A_matrix, b_readings, E, ln_steps, phi_param,
-        b_meas=b_meas, max_iter=max_iter, tol_chi2=tol_chi2,
+        A_matrix,
+        b_readings,
+        E,
+        ln_steps,
+        phi_param,
+        b_meas=b_meas,
+        max_iter=max_iter,
+        tol_chi2=tol_chi2,
     )
 
     # Build final spectrum: Phi(E) * ln_steps for the system matrix
@@ -1109,6 +1314,7 @@ def solve_parametric2(
 # ------------------------------------------------------------------ #
 #  Helpers
 # ------------------------------------------------------------------ #
+
 
 def _check_fit_quality(residual_norm, b_readings, method_name="parametric2"):
     """Emit a warning if the fit residual is large."""
@@ -1175,6 +1381,7 @@ def _build_measurement_uncertainties(
 # ------------------------------------------------------------------ #
 #  Workflow wrapper
 # ------------------------------------------------------------------ #
+
 
 def unfold_parametric2(
     detector_names: List[str],
@@ -1269,27 +1476,29 @@ def unfold_parametric2(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
-    log_steps = np.zeros(n_energy_bins)
-    log_e = np.log10(E_MeV + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if n_energy_bins > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if n_energy_bins > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    log_steps = compute_log_steps(E_MeV, n_energy_bins)
     ln_steps = log_steps * np.log(10)
 
     def solve_wrapper(A_mat, b_vec, **kwargs):
         b_meas_local = _build_measurement_uncertainties(b_vec, noise_level)
-        x_opt, success, message, nfev = solve_parametric2(
-            A_mat, b_vec, E_MeV, ln_steps,
+        x_opt, success, _message, nfev = solve_parametric2(
+            A_mat,
+            b_vec,
+            E_MeV,
+            ln_steps,
             b_meas=b_meas_local,
             optimizer=optimizer,
-            b_range=b_range, Tf_range=Tf_range, c_range=c_range,
-            alpha=alpha, solver_backend=solver_backend,
-            max_iter_qp=max_iter_qp, tol_qp=tol_qp,
-            max_iter=max_iter, tol_chi2=tol_chi2,
+            b_range=b_range,
+            Tf_range=Tf_range,
+            c_range=c_range,
+            alpha=alpha,
+            solver_backend=solver_backend,
+            max_iter_qp=max_iter_qp,
+            tol_qp=tol_qp,
+            max_iter=max_iter,
+            tol_chi2=tol_chi2,
         )
         return x_opt, nfev, success
 

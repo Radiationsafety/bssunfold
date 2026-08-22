@@ -22,6 +22,7 @@ from bssunfold.core.dose_calculation import (
 # Constants structure tests
 # ---------------------------------------------------------------------------
 
+
 class TestCoefficientStructures:
     """Verify that all CC datasets have the expected structure."""
 
@@ -59,11 +60,21 @@ class TestCoefficientStructures:
         assert "E_MeV" in ICRP74_COEFF_OPERATIONAL_QUANTITIES
 
     def test_icrp74_operational_energy_length(self):
-        assert len(ICRP74_COEFF_OPERATIONAL_QUANTITIES["E_MeV"]) == 60
+        assert len(ICRP74_COEFF_OPERATIONAL_QUANTITIES["E_MeV"]) == 61
 
     def test_icrp74_operational_quantities(self):
         expected = {"E_MeV", "ADE", "PDE0", "PDE45", "PDE60", "PDE75"}
         assert set(ICRP74_COEFF_OPERATIONAL_QUANTITIES.keys()) == expected
+
+    def test_icrp74_operational_last_bin_duplicate(self):
+        """Energy is the left bin edge; the last bin [398, 630.957] duplicates
+        the coefficient from 398 onto the 630.957 right edge."""
+        cc = ICRP74_COEFF_OPERATIONAL_QUANTITIES
+        assert cc["E_MeV"][-2] == 398.0
+        assert cc["E_MeV"][-1] == pytest.approx(630.957, rel=1e-6)
+        for key in ("ADE", "PDE0", "PDE45", "PDE60", "PDE75"):
+            assert len(cc[key]) == 61
+            assert cc[key][-1] == cc[key][-2], key
 
     def test_all_energies_positive(self):
         for name, cc in DOSE_COEFFICIENTS_REGISTRY.items():
@@ -80,14 +91,13 @@ class TestCoefficientStructures:
             for key, vals in cc.items():
                 if key != "E_MeV":
                     arr = np.array(vals)
-                    assert np.all(arr >= 0), (
-                        f"{name}.{key} has negative values"
-                    )
+                    assert np.all(arr >= 0), f"{name}.{key} has negative values"
 
 
 # ---------------------------------------------------------------------------
 # get_coefficients() tests
 # ---------------------------------------------------------------------------
+
 
 class TestGetCoefficients:
     """Test the get_coefficients() function."""
@@ -124,6 +134,7 @@ class TestGetCoefficients:
 # ---------------------------------------------------------------------------
 # interpolate_coefficients() tests
 # ---------------------------------------------------------------------------
+
 
 class TestInterpolateCoefficients:
     """Test the interpolate_coefficients() function."""
@@ -182,6 +193,7 @@ class TestInterpolateCoefficients:
 # Detector cc_type tests
 # ---------------------------------------------------------------------------
 
+
 class TestDetectorCCType:
     """Test Detector cc_type parameter and set_dose_coefficients()."""
 
@@ -226,6 +238,7 @@ class TestDetectorCCType:
 # calculate_dose_rates with different CC
 # ---------------------------------------------------------------------------
 
+
 class TestCalculateDoseRates:
     """Test calculate_dose_rates with different coefficient datasets."""
 
@@ -269,6 +282,7 @@ class TestCalculateDoseRates:
 # ---------------------------------------------------------------------------
 # Detector unfold integration test
 # ---------------------------------------------------------------------------
+
 
 class TestDetectorUnfoldIntegration:
     """Integration test: unfold with different CC types."""

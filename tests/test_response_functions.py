@@ -34,7 +34,9 @@ class TestRFStructuralIntegrity:
     def test_all_keys_same_length(self, name):
         rf = ALL_RFS[name]
         lengths = {k: len(v) for k, v in rf.items()}
-        assert len(set(lengths.values())) == 1, f"{name} has inconsistent key lengths: {lengths}"
+        assert len(set(lengths.values())) == 1, (
+            f"{name} has inconsistent key lengths: {lengths}"
+        )
 
     @pytest.mark.parametrize("name", ALL_RFS.keys())
     def test_positive_energy_values(self, name):
@@ -47,7 +49,9 @@ class TestRFStructuralIntegrity:
         rf = ALL_RFS[name]
         e = rf["E_MeV"]
         for i in range(1, len(e)):
-            assert e[i] > e[i - 1], f"{name} energy not strictly monotonic at index {i}: {e[i-1]} >= {e[i]}"
+            assert e[i] > e[i - 1], (
+                f"{name} energy not strictly monotonic at index {i}: {e[i - 1]} >= {e[i]}"
+            )
 
     @pytest.mark.parametrize("name", ALL_RFS.keys())
     def test_non_negative_detector_response(self, name):
@@ -148,6 +152,7 @@ class TestRFDetectorCreation:
 class TestRFImport:
     def test_import_from_package(self):
         import bssunfold
+
         assert hasattr(bssunfold, "RF_GSF")
         assert hasattr(bssunfold, "RF_PTB")
         assert hasattr(bssunfold, "RF_LANL")

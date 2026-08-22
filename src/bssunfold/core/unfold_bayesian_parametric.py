@@ -18,18 +18,19 @@ The Bayesian framework provides:
 import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
-from ._base_unfolder import run_unfolding
+from ._base_unfolder import run_unfolding, _build_system
+from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_bayesian_parametric", "unfold_bayesian_parametric"]
 
 
 def _log_prior(params: Dict[str, float]) -> float:
     """Log prior probability for spectral parameters."""
-    A_th = params.get('A_th', 0)
-    T_th = params.get('T_th', 0.025e-6)
-    A_epi = params.get('A_epi', 0)
-    A_f = params.get('A_f', 0)
-    T_ev = params.get('T_ev', 2.0)
+    A_th = params.get("A_th", 0)
+    T_th = params.get("T_th", 0.025e-6)
+    A_epi = params.get("A_epi", 0)
+    A_f = params.get("A_f", 0)
+    T_ev = params.get("T_ev", 2.0)
 
     log_p = 0.0
 
@@ -67,11 +68,11 @@ def _log_likelihood(
     """Log likelihood function for the parametric model."""
     from .unfold_fruit_like import parametric_model
 
-    A_th = params['A_th']
-    T_th = params['T_th']
-    A_epi = params['A_epi']
-    A_f = params['A_f']
-    T_ev = params['T_ev']
+    A_th = params["A_th"]
+    T_th = params["T_th"]
+    A_epi = params["A_epi"]
+    A_f = params["A_f"]
+    T_ev = params["T_ev"]
 
     spectrum = parametric_model(E, A_th, T_th, A_epi, A_f, T_ev)
     spectrum_with_steps = spectrum * log_steps
@@ -115,27 +116,29 @@ def _metropolis_hastings(
     rng = np.random.default_rng(random_state)
 
     current = initial_params.copy()
-    current_log_p = _log_posterior(current, A_matrix, b_readings, E, log_steps, sigma)
+    current_log_p = _log_posterior(
+        current, A_matrix, b_readings, E, log_steps, sigma
+    )
 
     samples = {k: [] for k in current.keys()}
-    n_accepted = 0
 
     for i in range(n_samples + burn_in):
         proposed = {}
         for k, v in current.items():
             proposed[k] = v + rng.normal(0, proposal_scale * abs(v) + 1e-15)
-            if k in ('T_th', 'T_ev'):
+            if k in ("T_th", "T_ev"):
                 proposed[k] = max(proposed[k], 1e-9)
-            elif k.startswith('A_'):
+            elif k.startswith("A_"):
                 proposed[k] = max(proposed[k], 0)
 
-        proposed_log_p = _log_posterior(proposed, A_matrix, b_readings, E, log_steps, sigma)
+        proposed_log_p = _log_posterior(
+            proposed, A_matrix, b_readings, E, log_steps, sigma
+        )
 
         log_alpha = proposed_log_p - current_log_p
         if np.log(rng.uniform()) < log_alpha:
             current = proposed
             current_log_p = proposed_log_p
-            n_accepted += 1
 
         if i >= burn_in:
             for k in samples:
@@ -192,27 +195,36 @@ def solve_bayesian_parametric(
     """
     if initial_params is None:
         initial_params = {
-            'A_th': 1e-6,
-            'T_th': 0.025e-6,
-            'A_epi': 1e-6,
-            'A_f': 1e-6,
-            'T_ev': 2.0,
+            "A_th": 1e-6,
+            "T_th": 0.025e-6,
+            "A_epi": 1e-6,
+            "A_f": 1e-6,
+            "T_ev": 2.0,
         }
 
     try:
         mean_params, _ = _metropolis_hastings(
-            A_matrix, b_readings, E, log_steps, sigma,
-            initial_params, n_samples, burn_in, proposal_scale, random_state
+            A_matrix,
+            b_readings,
+            E,
+            log_steps,
+            sigma,
+            initial_params,
+            n_samples,
+            burn_in,
+            proposal_scale,
+            random_state,
         )
 
         from .unfold_fruit_like import parametric_model
+
         spectrum = parametric_model(
             E,
-            mean_params['A_th'],
-            mean_params['T_th'],
-            mean_params['A_epi'],
-            mean_params['A_f'],
-            mean_params['T_ev'],
+            mean_params["A_th"],
+            mean_params["T_th"],
+            mean_params["A_epi"],
+            mean_params["A_f"],
+            mean_params["T_ev"],
         )
         spectrum = spectrum * log_steps
 
@@ -284,21 +296,21 @@ def unfold_bayesian_parametric(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
-    log_steps = np.zeros(n_energy_bins)
-    log_e = np.log10(E_MeV + 1e-15)
-    log_steps[0] = log_e[1] - log_e[0] if n_energy_bins > 1 else 1.0
-    log_steps[-1] = log_e[-1] - log_e[-2] if n_energy_bins > 1 else 1.0
-    log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
+    log_steps = compute_log_steps(E_MeV, n_energy_bins)
 
     def solve_wrapper(A_mat, b_vec, **kwargs):
-        x_opt, success, message, nfev = solve_bayesian_parametric(
-            A_mat, b_vec, E_MeV, log_steps, sigma,
-            n_samples=n_samples, burn_in=burn_in,
-            proposal_scale=proposal_scale, random_state=random_state
+        x_opt, success, _message, nfev = solve_bayesian_parametric(
+            A_mat,
+            b_vec,
+            E_MeV,
+            log_steps,
+            sigma,
+            n_samples=n_samples,
+            burn_in=burn_in,
+            proposal_scale=proposal_scale,
+            random_state=random_state,
         )
         return x_opt, nfev, success
 

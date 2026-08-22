@@ -58,9 +58,9 @@ def interpolate_spectrum(
     replace_negative: bool = True,
 ) -> np.ndarray:
     """Interpolate spectrum from one energy grid to another.
-    
+
     Uses PCHIP interpolation to preserve monotonicity and avoid oscillations.
-    
+
     Parameters
     ----------
     spectrum : np.ndarray
@@ -73,7 +73,7 @@ def interpolate_spectrum(
         Value for extrapolated points (default: 0.0).
     replace_negative : bool, optional
         If True, replace negative interpolated values with 0 (default: True).
-    
+
     Returns
     -------
     np.ndarray
@@ -83,15 +83,17 @@ def interpolate_spectrum(
     Emin = np.min(E_from)
     u_from = np.log10(E_from / Emin)
     u_to = np.log10(E_to / Emin)
-    
+
     # Create PCHIP interpolator
     interpolator = pchip(u_from, spectrum)
-    
+
     # Interpolate
     interp_vals = interpolator(u_to)
-    
+
     # Handle extrapolation and negatives
-    return _handle_extrapolation(interp_vals, u_from, u_to, fill_value, replace_negative)
+    return _handle_extrapolation(
+        interp_vals, u_from, u_to, fill_value, replace_negative
+    )
 
 
 def discretize_spectra(
@@ -101,7 +103,7 @@ def discretize_spectra(
     Emin: Optional[float] = None,
 ) -> pd.DataFrame:
     """Discretize spectra onto target energy grid.
-    
+
     Parameters
     ----------
     spectra : Union[pd.DataFrame, Dict[str, np.ndarray]]
@@ -114,7 +116,7 @@ def discretize_spectra(
         Name of energy column (default: 'E_MeV').
     Emin : float, optional
         Minimum energy for log scaling. If None, uses min of source grid.
-    
+
     Returns
     -------
     pd.DataFrame
@@ -127,7 +129,7 @@ def discretize_spectra(
         spectra_df = spectra.copy()
     else:
         raise TypeError("spectra must be DataFrame or dict")
-    
+
     # Extract source energies and spectra
     if energy_column in spectra_df.columns:
         E_from = spectra_df[energy_column].values
@@ -135,27 +137,27 @@ def discretize_spectra(
     else:
         E_from = spectra_df.iloc[:, 0].values
         spec_columns = spectra_df.columns[1:]
-    
+
     # Determine Emin
     if Emin is None:
         Emin = np.min(E_from)
-    
+
     # Convert to log scale
     u_from = np.log10(E_from / Emin)
     u_to = np.log10(target_E_MeV / Emin)
-    
+
     # Create result DataFrame
     result = pd.DataFrame({"E_MeV": target_E_MeV})
-    
+
     # Interpolate each spectrum
     for col in spec_columns:
         spec_data = spectra_df[col].values
         interpolator = pchip(u_from, spec_data)
         interp_vals = interpolator(u_to)
-        
+
         # Handle extrapolation and negatives
         result[col] = _handle_extrapolation(interp_vals, u_from, u_to)
-    
+
     return result
 
 
@@ -167,7 +169,7 @@ def resample_to_log_grid(
     Emax: Optional[float] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Resample spectrum to uniform logarithmic grid.
-    
+
     Parameters
     ----------
     spectrum : np.ndarray
@@ -180,7 +182,7 @@ def resample_to_log_grid(
         Minimum energy. If None, uses min of input grid.
     Emax : float, optional
         Maximum energy. If None, uses max of input grid.
-    
+
     Returns
     -------
     Tuple[np.ndarray, np.ndarray]
@@ -188,19 +190,19 @@ def resample_to_log_grid(
     """
     if n_points is None:
         n_points = len(E_MeV)
-    
+
     if Emin is None:
         Emin = np.min(E_MeV)
     if Emax is None:
         Emax = np.max(E_MeV)
-    
+
     # Create uniform log grid
     log_Emin = np.log10(Emin)
     log_Emax = np.log10(Emax)
     log_E_new = np.linspace(log_Emin, log_Emax, n_points)
-    E_new = 10 ** log_E_new
-    
+    E_new = 10**log_E_new
+
     # Interpolate spectrum
     new_spectrum = interpolate_spectrum(spectrum, E_MeV, E_new)
-    
+
     return E_new, new_spectrum

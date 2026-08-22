@@ -14,18 +14,9 @@ import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._matrix_utils import create_derivative_matrix
 
 __all__ = ["solve_statreg", "unfold_statreg"]
-
-
-def _build_penalty_matrix(n: int) -> np.ndarray:
-    """Build second-order finite difference matrix (n-2 × n)."""
-    L = np.zeros((n - 2, n))
-    for i in range(n - 2):
-        L[i, i] = 1.0
-        L[i, i + 1] = -2.0
-        L[i, i + 2] = 1.0
-    return L
 
 
 def _lcurve_statreg(
@@ -39,7 +30,9 @@ def _lcurve_statreg(
 
     Works in the whitened space: A_tilde = Σ⁻¹⸍² A,  b_tilde = Σ⁻¹⸍² b.
     """
-    alphas = np.logspace(np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas)
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
     ATA = A_tilde.T @ A_tilde
     ATb = A_tilde.T @ b_tilde
     LTL = L.T @ L
@@ -122,7 +115,18 @@ def solve_statreg(
     """
     n_ene = A.shape[1]
 
-    L = _build_penalty_matrix(n_ene)
+    # Zero readings (e.g. 18-inch spheres for purely thermal spectra) would
+    # blow up sigma_inv = 1/sigma to ~1e300 and overflow ATA. Drop them.
+    if np.any(b < 0):
+        raise ValueError("STREG requires strictly positive measurements")
+    if np.any(b == 0):
+        keep = b > 0
+        A = A[keep]
+        b = b[keep]
+        if b.size == 0:
+            raise ValueError("STREG requires strictly positive measurements")
+
+    L = create_derivative_matrix(n_ene, 2).toarray()
 
     sigma = np.maximum(b * 0.05, 1e-300)
     sigma_inv = 1.0 / sigma

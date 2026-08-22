@@ -13,20 +13,24 @@ from numpy.testing import assert_allclose
 # Low-level helpers
 # ============================================================================
 
+
 class TestBuildOmoMatrix:
     def test_shape_and_values(self):
         from bssunfold.core.unfold_reconst import _build_omo_matrix
+
         OMO = _build_omo_matrix(10, 1e-3)
         assert OMO.shape == (5, 10)
         assert np.all(np.isfinite(OMO))
 
     def test_n3(self):
         from bssunfold.core.unfold_reconst import _build_omo_matrix
+
         OMO = _build_omo_matrix(3, 0.0)
         assert OMO.shape == (5, 3)
 
     def test_pp_effect(self):
         from bssunfold.core.unfold_reconst import _build_omo_matrix
+
         OMO_no = _build_omo_matrix(10, 0.0)
         OMO_pp = _build_omo_matrix(10, 1.0)
         expected = OMO_no[2, :] + 1.0  # PP * (XX[i+1] - XX[i]) = 1.0
@@ -36,6 +40,7 @@ class TestBuildOmoMatrix:
 class TestInvertMatrix:
     def test_invert_2x2(self):
         from bssunfold.core.unfold_reconst import _invert_matrix
+
         D = np.array([[4.0, 1.0], [1.0, 3.0]], dtype=float)
         D_orig = D.copy()
         _invert_matrix(D)
@@ -44,6 +49,7 @@ class TestInvertMatrix:
 
     def test_invert_5x5(self):
         from bssunfold.core.unfold_reconst import _invert_matrix
+
         np.random.seed(42)
         D = np.random.randn(5, 5)
         D = D @ D.T + np.eye(5) * 2.0
@@ -53,6 +59,7 @@ class TestInvertMatrix:
 
     def test_singular_handled(self):
         from bssunfold.core.unfold_reconst import _invert_matrix
+
         D = np.zeros((3, 3))
         _invert_matrix(D)
         assert np.all(np.isfinite(D))
@@ -61,6 +68,7 @@ class TestInvertMatrix:
 class TestBuildSystemMatrix:
     def test_basic_structure(self):
         from bssunfold.core.unfold_reconst import _build_system_matrix
+
         n = 5
         B = np.eye(n)
         OMO = np.ones((5, n)) * 0.01
@@ -74,7 +82,11 @@ class TestBuildSystemMatrix:
         assert_allclose(np.diag(D, 2), 0.001, atol=1e-12)
 
     def test_symmetric(self):
-        from bssunfold.core.unfold_reconst import _build_system_matrix, _build_omo_matrix
+        from bssunfold.core.unfold_reconst import (
+            _build_system_matrix,
+            _build_omo_matrix,
+        )
+
         n = 8
         np.random.seed(7)
         B = np.random.randn(n, n)
@@ -87,6 +99,7 @@ class TestBuildSystemMatrix:
 class TestReg1:
     def test_ich_gt0_returns_inverse(self):
         from bssunfold.core.unfold_reconst import _reg1, _build_system_matrix
+
         n = 5
         np.random.seed(1)
         B = np.eye(n)
@@ -100,6 +113,7 @@ class TestReg1:
 
     def test_ich_eq0_returns_none(self):
         from bssunfold.core.unfold_reconst import _reg1
+
         n = 5
         B = np.eye(n)
         OMO = np.zeros((5, n))
@@ -111,6 +125,7 @@ class TestReg1:
 
     def test_matches_numpy_solve(self):
         from bssunfold.core.unfold_reconst import _reg1, _build_system_matrix
+
         n = 4
         np.random.seed(99)
         B = np.random.randn(n, n)
@@ -128,6 +143,7 @@ class TestReg1:
 # solve_reconst — all 4 parameter modes
 # ============================================================================
 
+
 class TestSolveReconstModes:
     """Test the 4 alpha/beta selection modes."""
 
@@ -144,6 +160,7 @@ class TestSolveReconstModes:
     def test_mode_fixed_alpha_fixed_beta(self, problem):
         """α > 0 fixed, β > 0 fixed."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         A, b, sigma, N = problem
         spec = solve_reconst(A, b, alpha=0.1, beta=1.0, sigma_b=sigma)
         assert spec.shape == (N,)
@@ -153,6 +170,7 @@ class TestSolveReconstModes:
     def test_mode_auto_alpha_fixed_beta(self, problem):
         """α < 0 auto, β > 0 fixed."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         A, b, sigma, N = problem
         spec = solve_reconst(A, b, alpha=-1.0, beta=1.0, sigma_b=sigma)
         assert spec.shape == (N,)
@@ -161,6 +179,7 @@ class TestSolveReconstModes:
     def test_mode_fixed_alpha_auto_beta(self, problem):
         """α >= 0 fixed, β == 0 auto."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         A, b, sigma, N = problem
         spec = solve_reconst(A, b, alpha=0.1, beta=0.0, sigma_b=sigma)
         assert spec.shape == (N,)
@@ -169,6 +188,7 @@ class TestSolveReconstModes:
     def test_mode_auto_both(self, problem):
         """α < 0 auto, β == 0 auto."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         A, b, sigma, N = problem
         spec = solve_reconst(A, b, alpha=-1.0, beta=0.0, sigma_b=sigma)
         assert spec.shape == (N,)
@@ -179,6 +199,7 @@ class TestSolveReconstEdgeCases:
     def test_default_sigma(self):
         """sigma_b=None → sqrt(b) used."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         np.random.seed(0)
         A = np.random.rand(4, 8) * 0.1
         b = np.ones(4) * 100.0
@@ -189,6 +210,7 @@ class TestSolveReconstEdgeCases:
     def test_small_problem(self):
         """M < N (underdetermined) — the typical case."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         np.random.seed(1)
         A = np.random.rand(3, 9) * 0.05
         b = np.ones(3) * 50.0
@@ -199,6 +221,7 @@ class TestSolveReconstEdgeCases:
     def test_zero_readings(self):
         """All zero readings produce zero spectrum."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         A = np.random.rand(4, 6) * 0.1
         b = np.zeros(4)
         spec = solve_reconst(A, b, alpha=0.1, beta=1.0)
@@ -209,6 +232,7 @@ class TestSolveReconstEdgeCases:
     def test_negative_readings(self):
         """Negative readings should be handled gracefully."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         np.random.seed(2)
         A = np.random.rand(4, 6) * 0.1
         b = np.array([-10.0, 100.0, 50.0, -5.0])
@@ -218,6 +242,7 @@ class TestSolveReconstEdgeCases:
     def test_noisy_vs_clean(self):
         """Clean data should give lower residual."""
         from bssunfold.core.unfold_reconst import solve_reconst
+
         np.random.seed(123)
         M, N = 5, 8
         A = np.random.rand(M, N) * 0.1
@@ -236,9 +261,11 @@ class TestSolveReconstEdgeCases:
 # Detector.unfold_reconst wrapper
 # ============================================================================
 
+
 @pytest.fixture
 def detector():
     from bssunfold import Detector
+
     return Detector()
 
 
@@ -251,23 +278,23 @@ class TestUnfoldReconstBasic:
     def test_basic_unfolding(self, detector, readings):
         """Standard unfold with auto alpha/beta."""
         result = detector.unfold_reconst(readings)
-        assert 'spectrum' in result
-        assert 'energy' in result
-        assert 'doserates' in result
-        assert result['method'] == 'Reconst'
-        assert len(result['spectrum']) == detector.n_energy_bins
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert "energy" in result
+        assert "doserates" in result
+        assert result["method"] == "Reconst"
+        assert len(result["spectrum"]) == detector.n_energy_bins
+        assert np.all(result["spectrum"] >= 0)
 
     def test_fixed_params(self, detector, readings):
         """Fixed alpha/beta."""
         result = detector.unfold_reconst(readings, alpha=0.1, beta=1.0)
-        assert 'spectrum' in result
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert np.all(result["spectrum"] >= 0)
 
     def test_with_pp(self, detector, readings):
         """Different PP parameter."""
         result = detector.unfold_reconst(readings, pp=1.0)
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_save_result(self, detector, readings):
         """Save to history."""
@@ -287,26 +314,28 @@ class TestUnfoldReconstWithErrors:
         """Monte-Carlo uncertainty estimation."""
         result = detector.unfold_reconst(
             readings,
-            alpha=0.1, beta=1.0,
+            alpha=0.1,
+            beta=1.0,
             calculate_errors=True,
             n_montecarlo=3,
             random_state=42,
         )
-        assert 'spectrum_uncert_mean' in result
-        assert 'spectrum_uncert_std' in result
+        assert "spectrum_uncert_mean" in result
+        assert "spectrum_uncert_std" in result
 
     @pytest.mark.slow
     def test_noise_level(self, detector, readings):
         """Different noise level for MC."""
         result = detector.unfold_reconst(
             readings,
-            alpha=0.1, beta=1.0,
+            alpha=0.1,
+            beta=1.0,
             calculate_errors=True,
             n_montecarlo=3,
             noise_level=0.05,
             random_state=7,
         )
-        assert 'spectrum_uncert_std' in result
+        assert "spectrum_uncert_std" in result
 
     def test_with_initial_spectrum(self, detector, readings):
         """initial_spectrum argument is accepted (ignored)."""
@@ -314,7 +343,7 @@ class TestUnfoldReconstWithErrors:
         result = detector.unfold_reconst(
             readings, initial_spectrum=initial, alpha=0.1, beta=1.0
         )
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
 
 class TestUnfoldReconstMultipleReadings:
@@ -324,50 +353,66 @@ class TestUnfoldReconstMultipleReadings:
             detector.detector_names[1]: 50.0,
         }
         result = detector.unfold_reconst(readings, alpha=0.1, beta=1.0)
-        assert 'spectrum' in result
-        assert np.all(result['spectrum'] >= 0)
+        assert "spectrum" in result
+        assert np.all(result["spectrum"] >= 0)
 
     def test_all_detectors(self, detector):
         readings = {name: 100.0 for name in detector.detector_names[:5]}
         result = detector.unfold_reconst(readings, alpha=0.1, beta=1.0)
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
 
 # ============================================================================
 # Module exports
 # ============================================================================
 
+
 class TestExports:
     def test_solve_reconst_exported(self):
         from bssunfold.core import solve_reconst
+
         assert callable(solve_reconst)
 
     def test_unfold_reconst_exported(self):
         from bssunfold import Detector
-        assert hasattr(Detector, 'unfold_reconst')
+
+        assert hasattr(Detector, "unfold_reconst")
 
     def test_unfold_reconst_core_exported(self):
         from bssunfold.core import unfold_reconst
+
         assert callable(unfold_reconst)
 
     def test_detector_method_runs(self, detector, readings):
         """End-to-end: Detector.unfold_reconst returns properly structured dict."""
         result = detector.unfold_reconst(readings, alpha=0.1, beta=1.0)
-        for key in ('spectrum', 'energy', 'doserates',
-                     'effective_readings', 'residual', 'residual_norm', 'method'):
-            assert key in result, f'Missing key: {key}'
-        assert result['method'] == 'Reconst'
-        assert isinstance(result['residual_norm'], float)
-        assert isinstance(result['effective_readings'], dict)
+        for key in (
+            "spectrum",
+            "energy",
+            "doserates",
+            "effective_readings",
+            "residual",
+            "residual_norm",
+            "method",
+        ):
+            assert key in result, f"Missing key: {key}"
+        assert result["method"] == "Reconst"
+        assert isinstance(result["residual_norm"], float)
+        assert isinstance(result["effective_readings"], dict)
 
 
 # ============================================================================
 # _compute_omega and _compute_delta (regression)
 # ============================================================================
 
+
 class TestComputeOmega:
     def test_returns_finite(self):
-        from bssunfold.core.unfold_reconst import _compute_omega, _build_omo_matrix
+        from bssunfold.core.unfold_reconst import (
+            _compute_omega,
+            _build_omo_matrix,
+        )
+
         n = 6
         np.random.seed(5)
         OMO = _build_omo_matrix(n, 0.01)
@@ -381,6 +426,7 @@ class TestComputeOmega:
 class TestComputeDelta:
     def test_returns_finite(self):
         from bssunfold.core.unfold_reconst import _compute_delta
+
         n, m = 6, 4
         np.random.seed(6)
         B = np.random.randn(n, n)
@@ -395,5 +441,5 @@ class TestComputeDelta:
         assert isinstance(delta, float)
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v', '-x'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "-x"])

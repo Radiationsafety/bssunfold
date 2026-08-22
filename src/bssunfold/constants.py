@@ -1,15 +1,5 @@
 # constants.py
 
-# Default parameters for unfolding and dose calculations
-DEFAULT_ALPHA_RANGE = (1e-9, 1e2)
-DEFAULT_N_ALPHAS = 50
-DEFAULT_EMIN = 1e-9
-DEFAULT_DLNE = 0.2
-DEFAULT_NOISE_LEVEL = 0.01
-DEFAULT_MONTECARLO_SAMPLES = 100
-DEFAULT_MAX_ITERATIONS = 1000
-DEFAULT_TOLERANCE = 1e-6
-
 ICRP116_COEFF_EFFECTIVE_DOSE = {
     "E_MeV": [
         1e-09,
@@ -7467,7 +7457,7 @@ NRB99_2009_COEFF_EFFECTIVE_DOSE = {
 
 # ICRP-74 operational quantity conversion coefficients (pSv cm^2)
 # Quantities: ADE (ambient dose equiv.), PDE0/45/60/75 (personal dose equiv.)
-# Energy range: 1e-9 to 631 MeV (60 points)
+# Energy range: 1e-9 to 630.957 MeV (61 points; last bin 398-630.957, coeff duplicated)
 # Source: ICRP Publication 74
 ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
     "E_MeV": [
@@ -7530,6 +7520,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         100,
         158,
         251,
+        398,
         630.9573444801944,
     ],
     "ADE": [
@@ -7593,6 +7584,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         259,
         0,
         0,
+        0,
     ],
     "PDE0": [
         8.3,
@@ -7648,6 +7640,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         459,
         527,
         600,
+        0,
         0,
         0,
         0,
@@ -7717,6 +7710,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         0,
         0,
         0,
+        0,
     ],
     "PDE60": [
         2.65,
@@ -7779,6 +7773,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         0,
         0,
         0,
+        0,
     ],
     "PDE75": [
         1.15,
@@ -7834,6 +7829,7 @@ ICRP74_COEFF_OPERATIONAL_QUANTITIES = {
         397,
         476,
         570,
+        0,
         0,
         0,
         0,

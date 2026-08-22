@@ -50,8 +50,11 @@ def solve_doroshenko(
 
     try:
         from ._numba_jit import _doroshenko_inner, NUMBA_AVAILABLE
+
         if NUMBA_AVAILABLE:
-            return _doroshenko_inner(A, x, b, denominator_cache, max_iterations, tolerance)
+            return _doroshenko_inner(
+                A, x, b, denominator_cache, max_iterations, tolerance
+            )
     except ImportError:
         pass
 

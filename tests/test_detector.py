@@ -6,7 +6,7 @@ import sys
 import os
 
 # Добавляем src в путь для импорта
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from bssunfold import Detector
 
@@ -173,17 +173,16 @@ class TestUnfoldingMethods:
         self, detector, sample_readings
     ):
         """Тест unfold_landweber с некорректным начальным спектром.
-        
-        Неправильный размер начального спектра игнорируется и используется
-        значение по умолчанию.
+
+        Неправильный размер начального спектра должен вызывать ValueError.
         """
         initial_spectrum = np.ones(10)  # Неправильный размер
-        # Должен использовать спектр по умолчанию без ошибки
-        result = detector.unfold_landweber(
-            sample_readings, initial_spectrum=initial_spectrum
-        )
-        assert result["method"] == "Landweber"
-        assert "spectrum" in result
+        with pytest.raises(
+            ValueError, match="must match number of energy bins"
+        ):
+            detector.unfold_landweber(
+                sample_readings, initial_spectrum=initial_spectrum
+            )
 
     def test_clear_results(self, detector, sample_readings):
         """Тест очистки результатов."""
@@ -278,11 +277,13 @@ class TestDetectorInitializationVariants:
 
     def test_init_with_dataframe(self):
         """Инициализация с DataFrame."""
-        df = pd.DataFrame({
-            "E_MeV": [1e-9, 1e-8, 1e-7],
-            "sphere1": [0.1, 0.2, 0.3],
-            "sphere2": [0.4, 0.5, 0.6],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7],
+                "sphere1": [0.1, 0.2, 0.3],
+                "sphere2": [0.4, 0.5, 0.6],
+            }
+        )
         detector = Detector(df)
         assert detector.n_detectors == 2
         assert detector.n_energy_bins == 3
@@ -309,6 +310,7 @@ class TestDetectorInitializationVariants:
     def test_init_with_response_functions_rf_gsf(self):
         """Инициализация с response_functions=RF_GSF (старый способ)."""
         from bssunfold.constants import RF_GSF
+
         detector = Detector(response_functions=RF_GSF)
         assert detector.n_detectors > 0
         assert detector.n_energy_bins > 0
@@ -365,7 +367,9 @@ class TestDetectorUtilities:
 
     def test_validate_readings_no_detectors(self, detector):
         """Валидация пустого словаря показаний вызывает ошибку."""
-        with pytest.raises(ValueError, match="No valid detector readings provided"):
+        with pytest.raises(
+            ValueError, match="No valid detector readings provided"
+        ):
             detector._validate_readings({})
 
     def test_build_system(self, detector, sample_readings):
@@ -425,10 +429,12 @@ class TestDetectorUtilities:
 
     def test_discretize_spectra_dataframe(self, detector):
         """Дискретизация спектра из DataFrame."""
-        df = pd.DataFrame({
-            "E_MeV": [1e-9, 1e-8, 1e-7],
-            "Phi": [1.0, 0.5, 0.2],
-        })
+        df = pd.DataFrame(
+            {
+                "E_MeV": [1e-9, 1e-8, 1e-7],
+                "Phi": [1.0, 0.5, 0.2],
+            }
+        )
         discretized = detector.discretize_spectra(df)
         assert isinstance(discretized, pd.DataFrame)
         assert "E_MeV" in discretized.columns
@@ -448,10 +454,12 @@ class TestDetectorUtilities:
 
     def test_get_effective_readings_for_spectra(self, detector):
         """Расчёт эффективных показаний для заданного спектра."""
-        spectra = pd.DataFrame({
-            "E_MeV": detector.E_MeV,
-            "Phi": np.ones(detector.n_energy_bins) * 0.5,
-        })
+        spectra = pd.DataFrame(
+            {
+                "E_MeV": detector.E_MeV,
+                "Phi": np.ones(detector.n_energy_bins) * 0.5,
+            }
+        )
         readings = detector.get_effective_readings_for_spectra(spectra)
         assert isinstance(readings, dict)
         for name in detector.detector_names:

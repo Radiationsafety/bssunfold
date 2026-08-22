@@ -11,7 +11,7 @@ from typing import Dict, Optional, Any, List
 
 from ..platform_check import get_recommended_solver
 from .regularization import select_regularization_parameter
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._base_unfolder import run_unfolding, make_solve_wrapper, _build_system
 
 __all__ = ["solve_cvxpy", "unfold_cvxpy"]
 
@@ -35,12 +35,12 @@ def _solve_cvxpy_problem(
 
     n = A.shape[1]
     x = cp.Variable(n, nonneg=True)
-    objective = cp.Minimize(
-        cp.norm(A @ x - b, 2) + alpha * cp.norm(x, norm)
-    )
+    objective = cp.Minimize(cp.norm(A @ x - b, 2) + alpha * cp.norm(x, norm))
     problem = cp.Problem(objective)
 
-    solvers_to_try = [solver] + [s for s in ["ECOS", "SCS", "CLARABEL"] if s != solver]
+    solvers_to_try = [solver] + [
+        s for s in ["ECOS", "SCS", "CLARABEL"] if s != solver
+    ]
 
     for s in solvers_to_try:
         try:
@@ -56,9 +56,7 @@ def _solve_cvxpy_problem(
             continue
 
     # All solvers failed — return with informative warning
-    warnings.warn(
-        "CVXPY: all conic solvers failed. Returning zero vector."
-    )
+    warnings.warn("CVXPY: all conic solvers failed. Returning zero vector.")
     return np.zeros(n)
 
 
@@ -164,6 +162,7 @@ def unfold_cvxpy(
     if solver == "default":
         try:
             import cvxpy as cp
+
             for candidate in ["ECOS", "SCS", "CLARABEL"]:
                 if candidate in cp.installed_solvers():
                     solver = candidate
@@ -171,9 +170,7 @@ def unfold_cvxpy(
         except ImportError:
             solver = get_recommended_solver()
 
-    selected = [name for name in detector_names if name in readings]
-    b = np.array([readings[name] for name in selected], dtype=float)
-    A = np.array([sensitivities[name] for name in selected], dtype=float)
+    A, b, _ = _build_system(readings, detector_names, sensitivities)
 
     if regularization_method == "manual":
         alpha = regularization
@@ -185,7 +182,9 @@ def unfold_cvxpy(
             )
         initial_spectrum_norm = np.maximum(initial_spectrum, 0)
         if len(initial_spectrum_norm) == n_energy_bins:
-            initial_spectrum_norm = initial_spectrum_norm / np.linalg.norm(initial_spectrum_norm)
+            initial_spectrum_norm = initial_spectrum_norm / np.linalg.norm(
+                initial_spectrum_norm
+            )
         else:
             raise ValueError(
                 f"Initial spectrum length ({len(initial_spectrum)}) "

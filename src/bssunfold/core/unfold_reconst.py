@@ -38,7 +38,12 @@ def _build_omo_matrix(n: int, pp: float) -> np.ndarray:
     for i in range(n):
         OMO[0, i] = AA[i] * CC[i]
         OMO[1, i] = AA[i] * BB[i] + BB[i + 1] * CC[i + 1]
-        OMO[2, i] = AA[i] ** 2 + BB[i + 1] ** 2 + CC[i + 2] ** 2 + pp * (XX[i + 1] - XX[i])
+        OMO[2, i] = (
+            AA[i] ** 2
+            + BB[i + 1] ** 2
+            + CC[i + 2] ** 2
+            + pp * (XX[i + 1] - XX[i])
+        )
 
     return OMO
 
@@ -266,26 +271,32 @@ def _streg1(
     B = W.T @ W
 
     # Vectorized construction of A_vec = A^T * (F / S_norm^2)
-    A_vec = AK.T @ (F / S_norm ** 2)
+    A_vec = AK.T @ (F / S_norm**2)
 
     OMO = _build_omo_matrix(n, pp)
 
     if beta > 0.0:
-        beta = beta / sa ** 2
+        beta = beta / sa**2
         if alpha >= 0.0:
             D_inv, FI, SIGMA = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
         else:
             alpha = -alpha
             D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
             omega_init = _compute_omega(OMO, D_inv, FI, n, alpha)
-            alpha = _def_alpha(B, OMO, A_vec, F, S_norm, n, m, alpha, beta, omega_init, ainf)
+            alpha = _def_alpha(
+                B, OMO, A_vec, F, S_norm, n, m, alpha, beta, omega_init, ainf
+            )
             D_inv, FI, SIGMA = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
     else:
-        beta = 1.0 / sa ** 2
+        beta = 1.0 / sa**2
         if alpha >= 0.0:
             D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
-            delta_init = _compute_delta(B, D_inv, FI, A_vec, F, S_norm, n, m, beta)
-            beta = _def_beta(B, OMO, A_vec, F, S_norm, n, m, alpha, beta, delta_init, ainf)
+            delta_init = _compute_delta(
+                B, D_inv, FI, A_vec, F, S_norm, n, m, beta
+            )
+            beta = _def_beta(
+                B, OMO, A_vec, F, S_norm, n, m, alpha, beta, delta_init, ainf
+            )
             D_inv, FI, SIGMA = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
         else:
             alpha = -alpha
@@ -293,10 +304,36 @@ def _streg1(
             D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
             for _ in range(30):
                 omega_init = _compute_omega(OMO, D_inv, FI, n, alpha)
-                alpha = _def_alpha(B, OMO, A_vec, F, S_norm, n, m, alpha, beta, omega_init, ainf)
+                alpha = _def_alpha(
+                    B,
+                    OMO,
+                    A_vec,
+                    F,
+                    S_norm,
+                    n,
+                    m,
+                    alpha,
+                    beta,
+                    omega_init,
+                    ainf,
+                )
                 D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)
-                delta_init = _compute_delta(B, D_inv, FI, A_vec, F, S_norm, n, m, beta)
-                beta = _def_beta(B, OMO, A_vec, F, S_norm, n, m, alpha, beta, delta_init, ainf)
+                delta_init = _compute_delta(
+                    B, D_inv, FI, A_vec, F, S_norm, n, m, beta
+                )
+                beta = _def_beta(
+                    B,
+                    OMO,
+                    A_vec,
+                    F,
+                    S_norm,
+                    n,
+                    m,
+                    alpha,
+                    beta,
+                    delta_init,
+                    ainf,
+                )
                 if abs(bet_saved - beta) <= beta * ainf[2]:
                     break
                 D_inv, FI, _ = _reg1(B, OMO, A_vec, n, alpha, beta, ich=2)

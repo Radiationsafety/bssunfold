@@ -19,7 +19,6 @@ from bssunfold.core.unfold_parametric2 import (
     solve_bon95_combined,
     directed_divergence_iteration,
     solve_parametric2,
-    unfold_parametric2,
     _Tth,
     _build_measurement_uncertainties,
     _clean_edge_bins,
@@ -41,7 +40,10 @@ def energy_grid():
 
 @pytest.fixture
 def sample_readings():
-    return {name: float(1.0 + i * 0.1) for i, name in enumerate(Detector().detector_names)}
+    return {
+        name: float(1.0 + i * 0.1)
+        for i, name in enumerate(Detector().detector_names)
+    }
 
 
 def _make_ln_steps(E):
@@ -105,37 +107,43 @@ class TestBon95Components:
 
 class TestBon95Model:
     def test_shape(self, energy_grid):
-        result = bon95_model(energy_grid, b=1.0, Tf=2.0, c=1.0,
-                             a1=1.0, a2=1.0, a3=1.0, a4=1.0)
+        result = bon95_model(
+            energy_grid, b=1.0, Tf=2.0, c=1.0, a1=1.0, a2=1.0, a3=1.0, a4=1.0
+        )
         assert result.shape == energy_grid.shape
 
     def test_nonnegative(self, energy_grid):
-        result = bon95_model(energy_grid, b=1.0, Tf=2.0, c=1.0,
-                             a1=1.0, a2=1.0, a3=1.0, a4=1.0)
+        result = bon95_model(
+            energy_grid, b=1.0, Tf=2.0, c=1.0, a1=1.0, a2=1.0, a3=1.0, a4=1.0
+        )
         assert_array_less(-1e-30, result)
 
     def test_thermal_only(self, energy_grid):
-        result = bon95_model(energy_grid, b=1.0, Tf=2.0, c=1.0,
-                             a1=1.0, a2=0.0, a3=0.0, a4=0.0)
+        result = bon95_model(
+            energy_grid, b=1.0, Tf=2.0, c=1.0, a1=1.0, a2=0.0, a3=0.0, a4=0.0
+        )
         low = energy_grid < 1e-6
         high = energy_grid > 1.0
         assert result[low].sum() > result[high].sum()
 
     def test_fast_only(self, energy_grid):
-        result = bon95_model(energy_grid, b=1.0, Tf=2.0, c=1.0,
-                             a1=0.0, a2=0.0, a3=0.0, a4=1.0)
+        result = bon95_model(
+            energy_grid, b=1.0, Tf=2.0, c=1.0, a1=0.0, a2=0.0, a3=0.0, a4=1.0
+        )
         low = energy_grid < 1e-6
         high = energy_grid > 1.0
         assert result[high].sum() > result[low].sum()
 
     def test_spectrum_shape(self, energy_grid):
-        result = bon95_spectrum(energy_grid, b=1.0, Tf=2.0, c=1.0,
-                                a1=1.0, a2=1.0, a3=1.0, a4=1.0)
+        result = bon95_spectrum(
+            energy_grid, b=1.0, Tf=2.0, c=1.0, a1=1.0, a2=1.0, a3=1.0, a4=1.0
+        )
         assert result.shape == energy_grid.shape
 
     def test_spectrum_nonnegative(self, energy_grid):
-        result = bon95_spectrum(energy_grid, b=1.0, Tf=2.0, c=1.0,
-                                a1=1.0, a2=1.0, a3=1.0, a4=1.0)
+        result = bon95_spectrum(
+            energy_grid, b=1.0, Tf=2.0, c=1.0, a1=1.0, a2=1.0, a3=1.0, a4=1.0
+        )
         assert_array_less(-1e-30, result)
 
 
@@ -150,7 +158,9 @@ class TestLinearCoefficients:
         A = np.array([detector.sensitivities[n] for n in selected])
         b = np.array([sample_readings[n] for n in selected])
 
-        a, chi2 = _solve_linear_coefficients(A, b, E, ln_steps, b=1.0, Tf=2.0, c=1.0)
+        a, chi2 = _solve_linear_coefficients(
+            A, b, E, ln_steps, b=1.0, Tf=2.0, c=1.0
+        )
         assert a.shape == (4,)
         assert isinstance(chi2, float)
 
@@ -161,7 +171,9 @@ class TestLinearCoefficients:
         A = np.array([detector.sensitivities[n] for n in selected])
         b = np.array([sample_readings[n] for n in selected])
 
-        a, _ = _solve_linear_coefficients(A, b, E, ln_steps, b=1.0, Tf=2.0, c=1.0)
+        a, _ = _solve_linear_coefficients(
+            A, b, E, ln_steps, b=1.0, Tf=2.0, c=1.0
+        )
         assert_array_less(-1e-10, a)
 
 
@@ -177,18 +189,21 @@ class TestSolveBon95Parametric:
         b = np.array([sample_readings[n] for n in selected])
 
         best, chi2, top = solve_bon95_parametric(
-            A, b, E, ln_steps,
+            A,
+            b,
+            E,
+            ln_steps,
             b_range=(0.8, 1.5, 3),
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'b' in best
-        assert 'Tf' in best
-        assert 'c' in best
-        assert 'a1' in best
-        assert 'a2' in best
-        assert 'a3' in best
-        assert 'a4' in best
+        assert "b" in best
+        assert "Tf" in best
+        assert "c" in best
+        assert "a1" in best
+        assert "a2" in best
+        assert "a3" in best
+        assert "a4" in best
         assert isinstance(chi2, float)
         assert len(top) <= 5
 
@@ -200,7 +215,10 @@ class TestSolveBon95Parametric:
         b = np.array([sample_readings[n] for n in selected])
 
         best, chi2, _ = solve_bon95_parametric(
-            A, b, E, ln_steps,
+            A,
+            b,
+            E,
+            ln_steps,
             b_range=(0.8, 1.5, 3),
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
@@ -223,7 +241,12 @@ class TestDirectedDivergence:
         phi0 = np.ones(len(E)) * 0.01
 
         phi, n_iter, chi2, converged = directed_divergence_iteration(
-            A, b, E, ln_steps, phi0, max_iter=200,
+            A,
+            b,
+            E,
+            ln_steps,
+            phi0,
+            max_iter=200,
         )
         assert phi.shape == E.shape
         assert_array_less(-1e-30, phi)
@@ -242,7 +265,12 @@ class TestDirectedDivergence:
         chi2_0 = np.mean((M_p0 - b) ** 2)
 
         phi, _, chi2_final, _ = directed_divergence_iteration(
-            A, b, E, ln_steps, phi0, max_iter=100,
+            A,
+            b,
+            E,
+            ln_steps,
+            phi0,
+            max_iter=100,
         )
         assert chi2_final <= chi2_0 + 1e-10
 
@@ -259,7 +287,10 @@ class TestSolveParametric2:
         b = np.array([sample_readings[n] for n in selected])
 
         spectrum, success, message, nfev = solve_parametric2(
-            A, b, E, ln_steps,
+            A,
+            b,
+            E,
+            ln_steps,
             b_range=(0.8, 1.5, 3),
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
@@ -277,7 +308,10 @@ class TestSolveParametric2:
         b = np.array([sample_readings[n] for n in selected])
 
         spectrum, _, _, _ = solve_parametric2(
-            A, b, E, ln_steps,
+            A,
+            b,
+            E,
+            ln_steps,
             b_range=(0.8, 1.5, 3),
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
@@ -296,9 +330,9 @@ class TestDetectorUnfoldParametric2:
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'spectrum' in result
-        assert 'doserates' in result
-        assert result['spectrum'].shape == (detector.n_energy_bins,)
+        assert "spectrum" in result
+        assert "doserates" in result
+        assert result["spectrum"].shape == (detector.n_energy_bins,)
 
     def test_save_result(self, detector, sample_readings):
         result = detector.unfold_parametric2(
@@ -308,7 +342,7 @@ class TestDetectorUnfoldParametric2:
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
     def test_with_custom_ranges(self, detector, sample_readings):
         result = detector.unfold_parametric2(
@@ -317,8 +351,8 @@ class TestDetectorUnfoldParametric2:
             Tf_range=(0.5, 8.0, 2),
             c_range=(0.5, 2.5, 2),
         )
-        assert 'spectrum' in result
-        assert result['spectrum'].shape == (detector.n_energy_bins,)
+        assert "spectrum" in result
+        assert result["spectrum"].shape == (detector.n_energy_bins,)
 
 
 # ─── Comparison tests (parametric vs parametric2) ─────────────────
@@ -335,9 +369,9 @@ class TestParametricComparison:
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'spectrum' in r1
-        assert 'spectrum' in r2
-        assert r1['spectrum'].shape == r2['spectrum'].shape
+        assert "spectrum" in r1
+        assert "spectrum" in r2
+        assert r1["spectrum"].shape == r2["spectrum"].shape
 
     def test_both_nonnegative(self, detector, sample_readings):
         r1 = detector.unfold_parametric(readings=sample_readings)
@@ -347,8 +381,8 @@ class TestParametricComparison:
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert_array_less(-1e-30, r1['spectrum'])
-        assert_array_less(-1e-30, r2['spectrum'])
+        assert_array_less(-1e-30, r1["spectrum"])
+        assert_array_less(-1e-30, r2["spectrum"])
 
     def test_both_compute_doserates(self, detector, sample_readings):
         r1 = detector.unfold_parametric(readings=sample_readings)
@@ -358,10 +392,10 @@ class TestParametricComparison:
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'doserates' in r1
-        assert 'doserates' in r2
-        assert len(r1['doserates']) > 0
-        assert len(r2['doserates']) > 0
+        assert "doserates" in r1
+        assert "doserates" in r2
+        assert len(r1["doserates"]) > 0
+        assert len(r2["doserates"]) > 0
 
     def test_residual_finite(self, detector, sample_readings):
         r2 = detector.unfold_parametric2(
@@ -371,8 +405,8 @@ class TestParametricComparison:
             c_range=(0.8, 2.0, 3),
         )
         # Residual should be present and finite
-        if 'residual' in r2:
-            assert np.all(np.isfinite(r2['residual']))
+        if "residual" in r2:
+            assert np.all(np.isfinite(r2["residual"]))
 
 
 # ─── Measurement uncertainty tests ────────────────────────────────
@@ -438,7 +472,9 @@ class TestCleanEdgeBins:
 
 
 class TestDictInitialSpectrum:
-    def test_unfold_parametric2_accepts_dict_initial_spectrum(self, detector, sample_readings):
+    def test_unfold_parametric2_accepts_dict_initial_spectrum(
+        self, detector, sample_readings
+    ):
         # Get a spectrum from a previous run to use as initial
         r1 = detector.unfold_parametric(readings=sample_readings)
         # Pass the entire result dict as initial_spectrum
@@ -449,19 +485,21 @@ class TestDictInitialSpectrum:
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'spectrum' in result
-        assert result['spectrum'].shape == (detector.n_energy_bins,)
+        assert "spectrum" in result
+        assert result["spectrum"].shape == (detector.n_energy_bins,)
 
-    def test_unfold_parametric2_accepts_array_initial_spectrum(self, detector, sample_readings):
+    def test_unfold_parametric2_accepts_array_initial_spectrum(
+        self, detector, sample_readings
+    ):
         r1 = detector.unfold_parametric(readings=sample_readings)
         result = detector.unfold_parametric2(
             readings=sample_readings,
-            initial_spectrum=r1['spectrum'],
+            initial_spectrum=r1["spectrum"],
             b_range=(0.8, 1.5, 3),
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'spectrum' in result
+        assert "spectrum" in result
 
 
 # ─── SQP solver tests ─────────────────────────────────────────────
@@ -476,7 +514,10 @@ class TestSolveBon95Cvxpy:
         b = np.array([sample_readings[n] for n in selected])
 
         spectrum, success, message, nfev = solve_bon95_cvxpy(
-            A, b, E, ln_steps,
+            A,
+            b,
+            E,
+            ln_steps,
             max_iter=10,
         )
         assert spectrum.shape == E.shape
@@ -503,7 +544,10 @@ class TestSolveBon95Qpsolvers:
         b = np.array([sample_readings[n] for n in selected])
 
         spectrum, success, message, nfev = solve_bon95_qpsolvers(
-            A, b, E, ln_steps,
+            A,
+            b,
+            E,
+            ln_steps,
             max_iter=10,
         )
         assert spectrum.shape == E.shape
@@ -516,7 +560,9 @@ class TestSolveBon95Qpsolvers:
         A = np.array([detector.sensitivities[n] for n in selected])
         b = np.array([sample_readings[n] for n in selected])
 
-        spectrum, _, _, _ = solve_bon95_qpsolvers(A, b, E, ln_steps, max_iter=10)
+        spectrum, _, _, _ = solve_bon95_qpsolvers(
+            A, b, E, ln_steps, max_iter=10
+        )
         assert_array_less(-1e-30, spectrum)
 
 
@@ -529,7 +575,10 @@ class TestSolveBon95Combined:
         b = np.array([sample_readings[n] for n in selected])
 
         spectrum, success, message, nfev = solve_bon95_combined(
-            A, b, E, ln_steps,
+            A,
+            b,
+            E,
+            ln_steps,
             max_iter_qp=10,
         )
         assert spectrum.shape == E.shape
@@ -542,7 +591,9 @@ class TestSolveBon95Combined:
         A = np.array([detector.sensitivities[n] for n in selected])
         b = np.array([sample_readings[n] for n in selected])
 
-        spectrum, _, _, _ = solve_bon95_combined(A, b, E, ln_steps, max_iter_qp=10)
+        spectrum, _, _, _ = solve_bon95_combined(
+            A, b, E, ln_steps, max_iter_qp=10
+        )
         assert_array_less(-1e-30, spectrum)
 
 
@@ -558,8 +609,8 @@ class TestOptimizerParam:
             Tf_range=(1.0, 5.0, 3),
             c_range=(0.8, 2.0, 3),
         )
-        assert 'spectrum' in result
-        assert result['spectrum'].shape == (detector.n_energy_bins,)
+        assert "spectrum" in result
+        assert result["spectrum"].shape == (detector.n_energy_bins,)
 
     def test_cvxpy_optimizer(self, detector, sample_readings):
         result = detector.unfold_parametric2(
@@ -567,8 +618,8 @@ class TestOptimizerParam:
             optimizer="cvxpy",
             max_iter_qp=10,
         )
-        assert 'spectrum' in result
-        assert result['spectrum'].shape == (detector.n_energy_bins,)
+        assert "spectrum" in result
+        assert result["spectrum"].shape == (detector.n_energy_bins,)
 
     def test_qpsolvers_optimizer(self, detector, sample_readings):
         result = detector.unfold_parametric2(
@@ -576,8 +627,8 @@ class TestOptimizerParam:
             optimizer="qpsolvers",
             max_iter_qp=10,
         )
-        assert 'spectrum' in result
-        assert result['spectrum'].shape == (detector.n_energy_bins,)
+        assert "spectrum" in result
+        assert result["spectrum"].shape == (detector.n_energy_bins,)
 
     def test_combined_optimizer(self, detector, sample_readings):
         result = detector.unfold_parametric2(
@@ -585,8 +636,8 @@ class TestOptimizerParam:
             optimizer="combined",
             max_iter_qp=10,
         )
-        assert 'spectrum' in result
-        assert result['spectrum'].shape == (detector.n_energy_bins,)
+        assert "spectrum" in result
+        assert result["spectrum"].shape == (detector.n_energy_bins,)
 
     def test_invalid_optimizer_raises(self, detector, sample_readings):
         with pytest.raises(ValueError, match="Unknown optimizer"):
@@ -605,4 +656,8 @@ class TestOptimizerParam:
                 Tf_range=(1.0, 5.0, 3),
                 c_range=(0.8, 2.0, 3),
             )
-            assert_array_less(-1e-30, result['spectrum'], err_msg=f"Failed for optimizer={opt}")
+            assert_array_less(
+                -1e-30,
+                result["spectrum"],
+                err_msg=f"Failed for optimizer={opt}",
+            )

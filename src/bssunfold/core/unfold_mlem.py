@@ -44,6 +44,7 @@ def solve_mlem(
 
     try:
         from ._numba_jit import _mlem_inner, NUMBA_AVAILABLE
+
         if NUMBA_AVAILABLE:
             return _mlem_inner(AT, A, x, b, max_iterations, tolerance)
     except ImportError:

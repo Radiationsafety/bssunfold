@@ -39,9 +39,11 @@ def make_solve_wrapper(solve_func, **fixed_params):
     callable
         Wrapper compatible with run_unfolding's solve_func interface.
     """
+
     def wrapper(A, b, **kwargs):
-        x0 = kwargs.pop('x0', None)
-        return solve_func(A, b, x0=x0, **fixed_params)
+        x0 = kwargs.pop("x0", None)
+        return solve_func(A, b, x0=x0, **kwargs, **fixed_params)
+
     wrapper.__name__ = f"{solve_func.__name__}_wrapper"
     return wrapper
 
@@ -127,7 +129,7 @@ def run_unfolding(
     x0 = _normalize_initial(initial_spectrum, default_initial, n_energy_bins)
 
     # 3. Solve (solve_func may return spectrum or (spectrum, iterations, converged))
-    solve_kwargs_with_x0 = {**solve_kwargs, 'x0': x0}
+    solve_kwargs_with_x0 = {**solve_kwargs, "x0": x0}
     solve_result = solve_func(A, b, **solve_kwargs_with_x0)
 
     # Handle both single return value and tuple returns
@@ -136,9 +138,9 @@ def run_unfolding(
         spectrum = solve_result[0]
         # Extract additional metadata from tuple
         if len(solve_result) >= 2:
-            extra_meta['iterations'] = int(solve_result[1])
+            extra_meta["iterations"] = int(solve_result[1])
         if len(solve_result) >= 3:
-            extra_meta['converged'] = bool(solve_result[2])
+            extra_meta["converged"] = bool(solve_result[2])
     else:
         spectrum = solve_result
 
@@ -200,15 +202,26 @@ def _normalize_initial(
     default_initial: np.ndarray,
     n_energy_bins: int,
 ) -> np.ndarray:
-    """Return normalized initial spectrum or default."""
+    """Return normalized initial spectrum or default.
+
+    Raises
+    ------
+    ValueError
+        If the provided initial spectrum length does not match the number
+        of energy bins (or if it is not one-dimensional).
+    """
     if initial_spectrum is not None:
         if isinstance(initial_spectrum, dict):
-            initial_spectrum = initial_spectrum.get('spectrum', None)
+            initial_spectrum = initial_spectrum.get("spectrum", None)
             if initial_spectrum is None:
                 return default_initial.copy()
         spectrum = np.asarray(initial_spectrum, dtype=float)
-        if len(spectrum) == n_energy_bins:
-            return np.maximum(spectrum, 0)
+        if spectrum.ndim != 1 or len(spectrum) != n_energy_bins:
+            raise ValueError(
+                f"Initial spectrum length ({len(spectrum)}) must match "
+                f"number of energy bins ({n_energy_bins})"
+            )
+        return np.maximum(spectrum, 0)
     return default_initial.copy()
 
 
@@ -234,8 +247,7 @@ def _standardize_output(
         "spectrum": spectrum_nonneg.copy(),
         "spectrum_absolute": spectrum_nonneg.copy(),
         "effective_readings": {
-            name: float(val)
-            for name, val in zip(selected, computed_readings)
+            name: float(val) for name, val in zip(selected, computed_readings)
         },
         "residual": residual.copy(),
         "residual_norm": float(np.linalg.norm(residual)),
@@ -274,10 +286,13 @@ def _add_montecarlo_uncertainty(
             kwargs["sensitivities"],
         )
         # Remove extra keys not meant for the solver
-        solver_kw = {k: v for k, v in kwargs.items()
-                     if k not in ("detector_names", "sensitivities")}
+        solver_kw = {
+            k: v
+            for k, v in kwargs.items()
+            if k not in ("detector_names", "sensitivities")
+        }
         # Add x0 to solver kwargs
-        solver_kw['x0'] = x0
+        solver_kw["x0"] = x0
         result = solve_func(A_noisy, b_noisy, **solver_kw)
         # Extract spectrum from tuple if needed
         if isinstance(result, tuple):

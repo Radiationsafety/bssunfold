@@ -1,3 +1,108 @@
+```
+# Jupyter Notebook checkpoints
+.checkpoints/
+*.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.ENV/
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Compiled and build artifacts
+*.o
+*.obj
+*.out
+*.so
+*.dll
+*.exe
+
+# Dependencies
+.venv/
+venv/
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+```
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov/
+.coverage.*
+.nyc_output/
+istanbul/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+
+# Distribution / packaging
+*.tar.gz
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage
+coverage/
+*.gcov
+*.lcov
+
+# Jupyter
+.ipynb_checkpoints
+.nbdime/
+.dvc/
+
+
 # ---> Python
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -180,6 +285,7 @@ Docs/User_manual.pdf
 TODO.md
 CONTRIBUTING.pdf
 
+paper/
 
 .vscode/
 .flake8
@@ -220,3 +326,11 @@ tests/qpsolvers_cvxpy_dose_rate_results.csv
 presentation/
 presentation.zip
 addon/
+tests/method_ranking.csv
+.dynapyt/
+.dynapyt_report/
+dynapyt.json
+bandit.json
+pip-audit.json
+*.py.orig
+.sentrux/baseline.toml

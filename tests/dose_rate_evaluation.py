@@ -40,16 +40,66 @@ ISO_PLOT_DIR = Path(__file__).parent / "iso_plots"
 
 CSV_ENERGIES = np.array(
     [
-        1e-9, 2.15e-9, 4.64e-9, 1e-8, 2.15e-8, 4.64e-8,
-        1e-7, 2.15e-7, 4.64e-7, 1e-6, 2.15e-6, 4.64e-6,
-        1e-5, 2.15e-5, 4.64e-5, 0.0001, 0.000215, 0.000464,
-        0.001, 0.00215, 0.00464, 0.01, 0.0125, 0.0158,
-        0.0199, 0.0251, 0.0316, 0.0398, 0.0501, 0.063,
-        0.0794, 0.1, 0.125, 0.158, 0.199, 0.251, 0.316,
-        0.398, 0.501, 0.63, 0.794, 1.0, 1.25, 1.58,
-        1.99, 2.51, 3.16, 3.98, 5.01, 6.3, 7.94,
-        10.0, 15.8, 25.1, 39.8, 63.0, 100.0, 158.0,
-        251.0, 398.0,
+        1e-9,
+        2.15e-9,
+        4.64e-9,
+        1e-8,
+        2.15e-8,
+        4.64e-8,
+        1e-7,
+        2.15e-7,
+        4.64e-7,
+        1e-6,
+        2.15e-6,
+        4.64e-6,
+        1e-5,
+        2.15e-5,
+        4.64e-5,
+        0.0001,
+        0.000215,
+        0.000464,
+        0.001,
+        0.00215,
+        0.00464,
+        0.01,
+        0.0125,
+        0.0158,
+        0.0199,
+        0.0251,
+        0.0316,
+        0.0398,
+        0.0501,
+        0.063,
+        0.0794,
+        0.1,
+        0.125,
+        0.158,
+        0.199,
+        0.251,
+        0.316,
+        0.398,
+        0.501,
+        0.63,
+        0.794,
+        1.0,
+        1.25,
+        1.58,
+        1.99,
+        2.51,
+        3.16,
+        3.98,
+        5.01,
+        6.3,
+        7.94,
+        10.0,
+        15.8,
+        25.1,
+        39.8,
+        63.0,
+        100.0,
+        158.0,
+        251.0,
+        398.0,
     ]
 )
 
@@ -91,7 +141,10 @@ METHODS = {
         r, max_iterations=n_iter, save_result=False
     ),
     "tikhonov_legendre": lambda d, r: d.unfold_tikhonov_legendre(
-        r, delta=0.05, n_polynomials=45, save_result=False, 
+        r,
+        delta=0.05,
+        n_polynomials=45,
+        save_result=False,
     ),
     "bayes": lambda d, r: d.unfold_bayes(
         r, max_iterations=n_iter, save_result=False
@@ -107,8 +160,11 @@ METHODS = {
         r, method="discrepancy", save_result=False
     ),
     "lmfit": lambda d, r: d.unfold_lmfit(
-        r, method="lbfgsb", model_name="elastic",
-        regularization=1e-4, save_result=False,
+        r,
+        method="lbfgsb",
+        model_name="elastic",
+        regularization=1e-4,
+        save_result=False,
     ),
     "mlem_odl": lambda d, r: d.unfold_mlem_odl(
         r, max_iterations=n_iter, save_result=False
@@ -145,7 +201,7 @@ def fit_angle(xs, ys):
     xs, ys = xs[mask], ys[mask]
     if len(xs) < 3:
         return np.nan, np.nan, "N/A"
-    k = float(np.sum(xs * ys) / np.sum(xs ** 2))
+    k = float(np.sum(xs * ys) / np.sum(xs**2))
     theta = float(np.degrees(np.arctan(k)))
     delta = theta - 45.0
     abs_delta = abs(delta)
@@ -191,7 +247,9 @@ def load_data():
     mc_energy = mc_df["E_MeV"].values
     mc_spectra_cols = [c for c in mc_df.columns if c != "E_MeV"]
 
-    print(f"MonteCarlo ref: {len(mc_spectra_cols)} spectra, {len(mc_energy)} energy bins")
+    print(
+        f"MonteCarlo ref: {len(mc_spectra_cols)} spectra, {len(mc_energy)} energy bins"
+    )
 
     return mc_df, mc_energy, mc_spectra_cols
 
@@ -207,7 +265,9 @@ def run_evaluation():
     n_detectors = len(DETECTOR_CONFIGS)
     n_places = len(mc_spectra_cols)
     total = n_methods * n_detectors * n_places
-    print(f"\nMethods: {n_methods}  |  Detectors: {n_detectors}  |  Places: {n_places}")
+    print(
+        f"\nMethods: {n_methods}  |  Detectors: {n_detectors}  |  Places: {n_places}"
+    )
     print(f"Total unfold calls: {total}\n")
 
     rows = []
@@ -254,7 +314,9 @@ def run_evaluation():
 
                 done += 1
                 if done % 100 == 0:
-                    print(f"  [{done}/{total}] {det_name} / {place} / {method_name}")
+                    print(
+                        f"  [{done}/{total}] {det_name} / {place} / {method_name}"
+                    )
 
     print(f"\nDone: {len(rows)} row records ({done} unfold calls)")
 
@@ -419,7 +481,12 @@ def plot_iso_scatter(df, angles_df):
 
         all_xs = mdf["dose_ref"].values
         all_ys = mdf["dose_unfolded"].values
-        mask = (all_xs > 0) & (all_ys > 0) & np.isfinite(all_xs) & np.isfinite(all_ys)
+        mask = (
+            (all_xs > 0)
+            & (all_ys > 0)
+            & np.isfinite(all_xs)
+            & np.isfinite(all_ys)
+        )
         if mask.sum() < 2:
             continue
         vmin = float(np.min(np.concatenate([all_xs[mask], all_ys[mask]])))
@@ -437,16 +504,29 @@ def plot_iso_scatter(df, angles_df):
             ys = det_mdf["dose_unfolded"].values
             det_mask = (xs > 0) & (ys > 0) & np.isfinite(xs) & np.isfinite(ys)
             ax.scatter(
-                xs[det_mask], ys[det_mask],
-                c=color, s=28, alpha=0.7, edgecolors="none", zorder=3,
+                xs[det_mask],
+                ys[det_mask],
+                c=color,
+                s=28,
+                alpha=0.7,
+                edgecolors="none",
+                zorder=3,
                 label=det_name,
             )
 
         line_x = np.logspace(np.log10(lo), np.log10(hi), 100)
-        ax.plot(line_x, line_x, "k--", lw=1.2, alpha=0.5, label="45\u00b0 (perfect)")
+        ax.plot(
+            line_x, line_x, "k--", lw=1.2, alpha=0.5, label="45\u00b0 (perfect)"
+        )
         if np.isfinite(k):
-            ax.plot(line_x, k * line_x, "r-", lw=1.5, alpha=0.8,
-                    label=f"fitted: y = {k:.3f}x")
+            ax.plot(
+                line_x,
+                k * line_x,
+                "r-",
+                lw=1.5,
+                alpha=0.8,
+                label=f"fitted: y = {k:.3f}x",
+            )
 
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -497,8 +577,10 @@ def generate_report(df, angles_df):
     a("# Dose Rate Evaluation Report\n")
     a("**Script**: `tests/dose_rate_evaluation.py`  ")
     a(f"**Total unfold calls**: {n_total} (OK: {n_ok}, ERROR: {n_err})  ")
-    a(f"**Places**: {n_places}  |  **Detectors**: {n_detectors}  |  "
-      f"**Methods**: {len(angles_df)}  |  **Geometries**: {len(DOSE_GEOMETRIES)}\n")
+    a(
+        f"**Places**: {n_places}  |  **Detectors**: {n_detectors}  |  "
+        f"**Methods**: {len(angles_df)}  |  **Geometries**: {len(DOSE_GEOMETRIES)}\n"
+    )
 
     a("---\n")
 
@@ -533,14 +615,18 @@ def generate_report(df, angles_df):
             k = r["_k"]
             cls = classify_simple(theta)
             d = direction(theta)
-            a(f"| {rank} | {r['method']} | {theta:.2f} | {k:.4f} | {cls} | {d} |")
+            a(
+                f"| {rank} | {r['method']} | {theta:.2f} | {k:.4f} | {cls} | {d} |"
+            )
         a("")
 
     # ── ISO scatter plots ──
     a("## ISO Dose Scatter Plots\n")
-    a("Reference ISO dose vs unfolded ISO dose across all 20 spectra and 5 detectors "
-      "(GSF, PTB, LANL, JINR, FERMILAB). "
-      "Dashed line = perfect 45\u00b0 reconstruction; solid red = fitted line y = k\u00b7x.\n")
+    a(
+        "Reference ISO dose vs unfolded ISO dose across all 20 spectra and 5 detectors "
+        "(GSF, PTB, LANL, JINR, FERMILAB). "
+        "Dashed line = perfect 45\u00b0 reconstruction; solid red = fitted line y = k\u00b7x.\n"
+    )
     methods_sorted = sorted(angles_df["method"].tolist())
     for method in methods_sorted:
         a(f"### {method}\n")
@@ -554,17 +640,25 @@ def generate_report(df, angles_df):
         cells = []
         for geom in DOSE_GEOMETRIES:
             cells.append(r[f"class_{geom}"].split(" (")[0])
-        a(f"| {r['method']} | " + " | ".join(cells) + f" | {r['class_avg'].split(' (')[0]} |")
+        a(
+            f"| {r['method']} | "
+            + " | ".join(cells)
+            + f" | {r['class_avg'].split(' (')[0]} |"
+        )
     a("")
 
     # ── Best / worst ──
     a("## Best and Worst Methods\n")
     best = ranked.iloc[0]
     worst = ranked.iloc[-1]
-    a(f"- **Best method**: {best['method']} — θ = {best['theta_avg']:.2f}° "
-      f"(k = {best['k_avg']:.4f}), {best['class_avg']}")
-    a(f"- **Worst method**: {worst['method']} — θ = {worst['theta_avg']:.2f}° "
-      f"(k = {worst['k_avg']:.4f}), {worst['class_avg']}")
+    a(
+        f"- **Best method**: {best['method']} — θ = {best['theta_avg']:.2f}° "
+        f"(k = {best['k_avg']:.4f}), {best['class_avg']}"
+    )
+    a(
+        f"- **Worst method**: {worst['method']} — θ = {worst['theta_avg']:.2f}° "
+        f"(k = {worst['k_avg']:.4f}), {worst['class_avg']}"
+    )
     a("")
 
     # ── Per-detector summary ──
@@ -582,7 +676,9 @@ def generate_report(df, angles_df):
                 all_ys.extend(gdf["dose_unfolded"].values)
             k, theta, cls = fit_angle(all_xs, all_ys)
             det_rows.append((method, theta, k, cls))
-        det_rows.sort(key=lambda x: abs(x[1] - 45.0) if np.isfinite(x[1]) else 999)
+        det_rows.sort(
+            key=lambda x: abs(x[1] - 45.0) if np.isfinite(x[1]) else 999
+        )
         a("| Method | θ (°) | k | Classification |")
         a("|--------|-------|---|----------------|")
         for method, theta, k, cls in det_rows:
@@ -595,7 +691,9 @@ def generate_report(df, angles_df):
     a("- θ = 45.0° → perfect dose reconstruction (k = 1.0)\n")
     a("- θ > 45° → method overestimates dose (k > 1.0)\n")
     a("- θ < 45° → method underestimates dose (k < 1.0)\n")
-    a("- Classification: Excellent (|Δ| < 1°), Good (1-5°), Fair (5-10°), Poor (>10°)\n")
+    a(
+        "- Classification: Excellent (|Δ| < 1°), Good (1-5°), Fair (5-10°), Poor (>10°)\n"
+    )
 
     report = "\n".join(lines)
     OUTPUT_MD.write_text(report, encoding="utf-8")
