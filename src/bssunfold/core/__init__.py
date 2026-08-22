@@ -116,6 +116,12 @@ from .unfold_interpret import (
     interpret_qp,
     unfold_interpret,
 )
+from .unfold_imaxed import solve_imaxed, unfold_imaxed
+from .unfold_amaxed import solve_amaxed, unfold_amaxed
+from .unfold_amaxed_regularization import (
+    solve_amaxed_regularization,
+    unfold_amaxed_regularization,
+)
 
 __all__ = [
     # detector
@@ -225,6 +231,13 @@ __all__ = [
     "solve_interpret",
     "interpret_qp",
     "unfold_interpret",
+    # Wong 2024 PhD thesis methods
+    "solve_imaxed",
+    "unfold_imaxed",
+    "solve_amaxed",
+    "unfold_amaxed",
+    "solve_amaxed_regularization",
+    "unfold_amaxed_regularization",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

@@ -1,32 +1,59 @@
 ```
-# Python
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Testing
-.pytest_cache/
-.coverage
-coverage/
-htmlcov/
-
-# Logs
-*.log
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
+# Compiled and build artifacts
+*.o
+*.obj
+*.so
+*.a
+*.lib
+*.dll
+*.dylib
+*.exe
+*.out
 
 # Dependencies
 .venv/
 venv/
+env/
+.env
+.env.local
+.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
 ```
