@@ -1,59 +1,194 @@
-```
-# Python cache
+# ==== Python ====
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 *.pyo
 *.pyd
+.Python
+*.so
 
-# Compiled and build artifacts
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+ENV/
+env.bak/
+venv.bak/
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.tar.gz
+*.whl
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==== Testing / coverage ====
+.coverage
+.coverage.*
+coverage/
+coverage.xml
+*.cover
+*.py,cover
+htmlcov/
+.tox/
+.nox/
+.nyc_output/
+istanbul/
+.nocache
+.cache
+nosetests.xml
+cover/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.hypothesis/
+.pytype/
+.pyre/
+.ruff_cache
+*.gcov
+*.lcov
+
+# ==== Compiled / build artifacts ====
 *.o
 *.obj
-*.so
+*.out
 *.a
 *.lib
 *.dll
 *.dylib
 *.exe
-*.out
+*.manifest
+*.spec
+cython_debug/
 
-# Dependencies
-.venv/
-venv/
-env/
-.env
-.env.local
-.env.*
-
-# Logs and temp files
+# ==== Logs and temp files ====
 *.log
 *.tmp
 *.swp
 *.swo
+logs
+tmp
 
-# Coverage reports
-.coverage
-htmlcov/
-coverage/
+# ==== Jupyter / IPython ====
+.checkpoints/
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+.nbdime/
 
-# Testing
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
+# ==== Environments / secrets ====
+.env
+.env.local
+.env.*
+.pypirc
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Editors
+# ==== Editors / IDE ====
 .vscode/
 .idea/
+.gigaide
+.gigacode/
+.continue/
 *.sublime-project
 *.sublime-workspace
 
-# OS generated files
+# ==== OS generated files ====
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
-```
+
+# ==== Docs / PDFs ====
+docs/_build/
+/site
+README.pdf
+CHANGELOG.pdf
+LICENSE.pdf
+docker.pdf
+TODO.pdf
+Docs/User_manual.pdf
+CONTRIBUTING.pdf
+
+# ==== Project-specific artifacts ====
+README_tmp*
+.~lock*
+paper/
+papers/
+presentation/
+presentation.zip
+addon/
+plans/
+data/
+.streamlit
+.codeassistant
+__marimo__
+__pypackages__
+celerybeat-schedule
+celerybeat.pid
+*.sage.py
+.spyderproject
+.spyproject
+.ropeproject
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+instance/
+.webassets-cache
+.scrapy
+.pybuilder/
+target/
+.flake8
+AGENTS.md
+opencode.json
+graphify-out/
+tests/iaea_validation_*.csv
+tests/IAEA_compendium_results.csv
+tests/IAEA_compendium_analysis.md
+tests/iaea_plots/*.png
+tests/dose_rate_results.csv
+tests/dose_rate_scatter.png
+tests/dose_rate_evaluation.md
+tests/iso_plots/
+tests/iaea_compendium_iso_plots
+tests/iaea_compendium_dose_rate_results.csv
+tests/iaea_compendium_dose_rate_scatter.png
+tests/iaea_compendium_dose_rate_evaluation.md
+tests/qpsolvers_cvxpy_dose_rate_results.csv
+tests/qpsolvers_cvxpy_output.log
+tests/method_ranking.csv
+.dynapyt/
+.dynapyt_report/
+dynapyt.json
+bandit.json
+pip-audit.json
+*.py.orig
+.sentrux/baseline.toml

@@ -34,6 +34,64 @@ and this project adheres to [Semantic Versioning].
     fusion applications. PhD Thesis. https://shura.shu.ac.uk/36014/
 
 
+## [0.18.0] - 2026-08-22
+
+### Added
+- **ODL Advanced regularization methods** — new `unfold_odl_pdhg()` and
+  `unfold_odl_douglas_rachford()` methods using the Operator Discretization
+  Library (ODL) for advanced proximal optimization algorithms:
+  - **PDHG (Primal-Dual Hybrid Gradient)** — efficient first-order method for
+    non-smooth convex optimization with TV (Total Variation) regularization
+  - **Douglas-Rachford Splitting** — operator splitting method for problems
+    with composite objectives
+  - Better preservation of sharp spectral boundaries compared to standard
+    Tikhonov smoothness
+  - Supports custom regularization operators and adaptive parameter selection
+  - Optional dependency: `bssunfold[odl]` (`odl>=1.0.0`)
+  - Tests: `tests/test_odl_advanced.py`
+  - Note: implementations rewritten for the ODL 1.0 API (`odl.solvers.pdhg`,
+    `douglas_rachford_pd`, `proximal_l1`)
+
+- **QUBO Quantum-Inspired Annealing** — new `unfold_qubo()` method implementing
+  quantum-inspired optimization via Quadratic Unconstrained Binary Optimization:
+  - Binary discretization of spectrum amplitudes with multi-bit precision
+  - Simulated annealing solver adapted from D-Wave QUBO formulation
+  - Effective for non-convex landscapes and discrete spectrum reconstruction
+  - No quantum hardware required — classical simulated annealing backend
+  - Optional dependency: `bssunfold[qubo]` (`pyqubo>=1.4`, `dwave-neal>=0.6`)
+  - Tests: `tests/test_qubo.py`
+
+- **zfit Bayesian Inference** — new `unfold_zfit()` method using the zfit library
+  for likelihood-based Bayesian spectrum reconstruction:
+  - Poissonian likelihood model for detector readings
+  - MCMC sampling via zfit's minimizers (Minuit, scipy)
+  - Automatic uncertainty quantification from posterior samples
+  - Compatible with zfit ecosystem for extended statistical analysis
+  - Optional dependency: `bssunfold[zfit]` (`zfit>=0.17.0`, `tensorflow>=2.0`)
+  - Tests: `tests/test_zfit.py`
+
+- **MAEO (Multi-Algorithm Evolutionary Optimization)** — new `unfold_maeo()`
+  method implementing ensemble evolutionary optimization:
+  - Combines 4 multi-objective algorithms: NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2
+  - Multi-cycle evolution with convergence assistance mechanism
+  - Hypervolume-based quality tracking across generations
+  - Prior spectrum integration for informed initialization
+  - Non-negativity constraints enforced throughout evolution
+  - Reproducible results via deterministic random seeding
+  - Optional dependency: `bssunfold[pymoo]` (`pymoo>=0.6.0`, `numba>=0.65.1`)
+  - Tests: `tests/test_maeo.py` (8 comprehensive test cases)
+
+- **Integration with external libraries**:
+  - ODL (Operator Discretization Library) for advanced proximal algorithms
+  - zfit for likelihood-based Bayesian inference
+  - QUBO formulation inspired by quantum annealing approaches
+  - pymoo for multi-objective evolutionary optimization
+
+### Changed
+- Updated method count from 51 to 55 unfolding algorithms
+- Enhanced documentation with new method categories in README.md and Sphinx docs
+
+
 ## [0.17.2] - 2026-08-19
 
 ### Added

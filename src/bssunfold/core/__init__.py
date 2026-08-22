@@ -122,6 +122,14 @@ from .unfold_amaxed_regularization import (
     solve_amaxed_regularization,
     unfold_amaxed_regularization,
 )
+from .unfold_odl_advanced import (
+    solve_odl_pdhg,
+    solve_odl_douglas_rachford,
+    unfold_odl_pdhg,
+    unfold_odl_douglas_rachford,
+)
+from .unfold_qubo import solve_qubo_unfold, unfold_qubo
+from .unfold_zfit import solve_zfit_unfold, unfold_zfit
 
 __all__ = [
     # detector
@@ -225,6 +233,17 @@ __all__ = [
     "unfold_cs",
     "solve_epic",
     "unfold_epic",
+    # ODL advanced methods
+    "solve_odl_pdhg",
+    "solve_odl_douglas_rachford",
+    "unfold_odl_pdhg",
+    "unfold_odl_douglas_rachford",
+    # QUBO quantum-inspired method
+    "solve_qubo_unfold",
+    "unfold_qubo",
+    # zfit Bayesian method
+    "solve_zfit_unfold",
+    "unfold_zfit",
     # interpretation
     "InterpretationResult",
     "build_interpretation_qp",
