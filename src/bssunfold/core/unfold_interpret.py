@@ -1427,7 +1427,9 @@ def unfold_interpret(
         alpha = float(selected_lambda)
 
     def solve_wrapper(A, b, **kwargs):
-        kwargs.pop("x0", None)
+        # x0 is forwarded for API consistency; solve_interpret documents that
+        # the warm start is currently unused.
+        x0 = kwargs.pop("x0", None)
         return solve_interpret(
             A,
             b,
@@ -1438,6 +1440,7 @@ def unfold_interpret(
             enforce_norm=enforce_norm,
             norm_value=norm_value,
             tolerance=tolerance,
+            x0=x0,
         )
 
     output = run_unfolding(

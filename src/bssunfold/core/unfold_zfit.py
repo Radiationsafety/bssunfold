@@ -61,7 +61,6 @@ def solve_zfit_unfold(
     """
     try:
         import zfit
-        from zfit import z
         import tensorflow as tf
     except ImportError as e:
         raise ImportError(
@@ -84,9 +83,6 @@ def solve_zfit_unfold(
         b_scaled = b * scale_factor
     else:
         b_scaled = b
-    
-    # Create zfit space for spectrum parameters
-    obs_space = zfit.Space('energy', lower=0, upper=n_bins)
     
     # Define spectrum parameters (one per energy bin)
     params = {}

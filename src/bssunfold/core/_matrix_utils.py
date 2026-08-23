@@ -4,6 +4,8 @@ This module provides common matrix operations used across unfolding methods
 and regularization modules, avoiding code duplication.
 """
 
+from typing import Optional
+
 import numpy as np
 from scipy.sparse import csc_matrix, diags
 
@@ -44,6 +46,78 @@ def create_derivative_matrix(n: int, order: int) -> csc_matrix:
         return L
 
     raise ValueError(f"Unsupported derivative order: {order}. Use 1 or 2.")
+
+
+def build_smoothness_penalty(
+    n: int,
+    alpha: float,
+    smoothness_order: int,
+    smoothness_weight: float = 1.0,
+) -> Optional[csc_matrix]:
+    """Build the additive smoothness (Tikhonov) penalty matrix.
+
+    Returns ``alpha * smoothness_weight * L.T @ L`` for the first/second-order
+    finite-difference matrix ``L`` (orders 1 and 2). For ``smoothness_order == 0``
+    returns ``None``: zeroth-order Tikhonov is the identity term, which callers
+    add separately (and only when their method semantics require it).
+
+    Parameters
+    ----------
+    n : int
+        Spectrum length.
+    alpha : float
+        Regularization strength.
+    smoothness_order : int
+        Derivative order (1 or 2); use 0 to request no derivative penalty.
+    smoothness_weight : float, optional
+        Weight applied to the derivative penalty.
+
+    Returns
+    -------
+    Optional[csc_matrix]
+        Sparse penalty matrix, or ``None`` when ``smoothness_order == 0``.
+    """
+    if smoothness_order not in (1, 2):
+        return None
+    L = create_derivative_matrix(n, smoothness_order)
+    return alpha * smoothness_weight * (L.T @ L)
+
+
+def make_regularization_operator(
+    n: int,
+    smoothness_order: int,
+    identity_for_zero: bool = True,
+) -> Optional[np.ndarray]:
+    """Build the regularization operator L (dense) for a derivative order.
+
+    A single source of truth for the repeated ``_make_regoperator`` helpers
+    across the iterative solvers (CGLS, GKS, ...).
+
+    Parameters
+    ----------
+    n : int
+        Number of energy bins.
+    smoothness_order : int
+        Derivative order: 0 (identity or ``None``), 1 (first), 2 (second).
+    identity_for_zero : bool, optional
+        Control order-0 behaviour. If ``True`` (default) returns
+        ``np.eye(n)``; if ``False`` returns ``None``. Solvers that apply the
+        operator implicitly (e.g. plain CGLS) pass ``False`` so they can skip
+        the regularization term entirely.
+
+    Returns
+    -------
+    Optional[np.ndarray]
+        Operator ``L`` as a dense ndarray, or ``None`` for order 0 when
+        ``identity_for_zero`` is ``False``.
+    """
+    if smoothness_order == 0:
+        return np.eye(n) if identity_for_zero else None
+    if smoothness_order not in (1, 2):
+        raise ValueError(
+            f"Unsupported smoothness_order: {smoothness_order}. Use 0, 1 or 2."
+        )
+    return create_derivative_matrix(n, smoothness_order).toarray()
 
 
 def build_tikhonov_system(

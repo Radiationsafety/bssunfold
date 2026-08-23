@@ -19,35 +19,9 @@ import numpy as np
 from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding, make_solve_wrapper
-from ._matrix_utils import create_derivative_matrix
+from ._matrix_utils import make_regularization_operator
 
 __all__ = ["solve_gks", "unfold_gks"]
-
-
-def _make_regoperator(n: int, smoothness_order: int = 0) -> np.ndarray:
-    """Build the regularization operator L for the given derivative order.
-
-    Parameters
-    ----------
-    n : int
-        Number of energy bins.
-    smoothness_order : int, optional
-        Derivative order of the regularization operator: 0 (identity),
-        1 (first derivative) or 2 (second derivative).
-
-    Returns
-    -------
-    np.ndarray
-        Regularization operator as a dense ndarray of shape
-        (n - order, n).
-    """
-    if smoothness_order == 0:
-        return np.eye(n)
-    if smoothness_order not in (1, 2):
-        raise ValueError(
-            f"Unsupported smoothness_order: {smoothness_order}. Use 0, 1 or 2."
-        )
-    return create_derivative_matrix(n, smoothness_order).toarray()
 
 
 def _projected_gcv(
@@ -221,7 +195,7 @@ def solve_gks(
         max_iterations = min(m, n)
     max_iterations = max(1, int(max_iterations))
 
-    L = _make_regoperator(n, smoothness_order)
+    L = make_regularization_operator(n, smoothness_order)
 
     beta = float(np.linalg.norm(b))
     if beta == 0.0:

@@ -269,10 +269,11 @@ def unfold_scip(
     x0_default = np.zeros(n_energy_bins)
 
     def solve_wrapper(A, b, **kwargs):
-        kwargs.pop("x0", None)
+        x0 = kwargs.pop("x0", None)
         x = solve_scip(
             A,
             b,
+            x0=x0,
             alpha=alpha,
             norm=norm,
             timeout=timeout,

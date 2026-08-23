@@ -21,11 +21,10 @@ References
 """
 
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple, Callable
+from typing import Dict, Optional, Any, List, Tuple
 import warnings
 
 from ._matrix_utils import create_derivative_matrix
-from ._base_unfolder import run_unfolding, make_solve_wrapper
 
 __all__ = ["solve_maeo", "unfold_maeo", "solve_maeo_ensemble", "unfold_maeo_ensemble"]
 
@@ -305,7 +304,6 @@ def solve_maeo(
         from pymoo.algorithms.moo.age2 import AGEMOEA2
         from pymoo.algorithms.moo.spea2 import SPEA2
         from pymoo.termination import get_termination
-        from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
         from pymoo.util.ref_dirs import get_reference_directions
     except ImportError as e:
         raise ImportError(_IMPORT_ERROR_MSG) from e
@@ -346,7 +344,7 @@ def solve_maeo(
     n_convergence_cycles = n_cycles - n_migration_cycles
     
     if verbose:
-        print(f"MAEO Configuration:")
+        print("MAEO Configuration:")
         print(f"  Islands: {n_islands} ({', '.join(algorithms)})")
         print(f"  Total cycles: {n_cycles}")
         print(f"  Migration cycles: {n_migration_cycles}")
@@ -406,7 +404,11 @@ def solve_maeo(
     # Run MAEO cycles
     current_populations = {}
     island_results = {}
-    
+    # Best island index, updated at the end of each migration cycle (line 490).
+    # Initialized to 0 so the convergence-phase read (line ~423) is always
+    # defined, even when no migration cycle runs first.
+    best_island_idx = 0
+
     for cycle in range(n_cycles):
         is_convergence_phase = cycle >= n_migration_cycles
         

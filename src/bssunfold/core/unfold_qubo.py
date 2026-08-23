@@ -143,7 +143,7 @@ def solve_qubo_unfold(
         (spectrum, iterations, converged)
     """
     try:
-        from pyqubo import Array, Binary, Constraint
+        from pyqubo import Array, Binary
         import dwave.samplers as ds
     except ImportError as e:
         raise ImportError(
@@ -183,13 +183,18 @@ def solve_qubo_unfold(
     # First, create transformation matrix from binary to continuous
     # x_cont[i] = sum_j (binary[i*n_bits + j] * 2^-(j+1)) * max_value
     
-    scale_factors = np.zeros(n_binary)
+    # Binary-to-continuous transformation: x_cont = T @ qubits, where
+    # T[i, i*n_bits + j] = 2^-(j+1) * max_value. The spectrum has n_bins
+    # entries, each encoded with n_bits qubits, so T is (n_bins, n_binary).
+    T = np.zeros((n_bins, n_binary))
     for i in range(n_bins):
         for j in range(n_bits):
-            scale_factors[i * n_bits + j] = (2 ** -(j + 1)) * max_value
-    
-    # A_transformed = A @ diag(scale_factors)
-    A_scaled = A @ np.diag(scale_factors)
+            T[i, i * n_bits + j] = (2 ** -(j + 1)) * max_value
+
+    # Effective response matrix acting on the qubit vector: A @ x_cont equals
+    # A @ (T @ qubits) = (A @ T) @ qubits, so A_scaled = A @ T (shape
+    # m_len x n_binary), consistent with _binary_to_spectrum's decoder.
+    A_scaled = A @ T
     
     # Objective: ||A_scaled @ qubits - b||^2
     # = qubits.T @ (A_scaled.T @ A_scaled) @ qubits - 2 * b.T @ A_scaled @ qubits + b.T @ b
