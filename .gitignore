@@ -206,3 +206,6 @@ examples/spectrum_ISO_ref_Cf252.png
 examples/time_vs_accuracy.png
 examples/benchmark_results_*.csv
 examples/benchmark_summary_*.csv
+examples/full_benchmark_results.csv
+examples/best_method_params.json
+examples/methods_comparison_summary.png
