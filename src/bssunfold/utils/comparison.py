@@ -5,8 +5,12 @@ Each function follows single-responsibility principle and operates on
 """
 
 import logging
+import time
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional, Union
+
 import numpy as np
-from typing import Dict, List, Optional, Union
+import pandas as pd
 
 __all__ = [
     "compare_spectra",
@@ -54,6 +58,10 @@ __all__ = [
     "peak_width_error",
     "dose_weighted_error",
     "response_matrix_consistency",
+    "benchmark_unfold_methods",
+    "DEFAULT_UNFOLD_BENCHMARK_METRICS",
+    "DEFAULT_UNFOLD_BENCHMARK_METHODS",
+    "BenchmarkResult",
 ]
 
 EPS = 1e-15
@@ -1268,3 +1276,369 @@ def compare_multiple(
         key = f"{labels[0]} vs {labels[i]}"
         results[key] = compare_spectra(ref, spectra[i], metrics=metrics)
     return results
+
+
+# ---------------------------------------------------------------------------
+# Unfolding-method benchmark harness
+#
+# Ported/adapted from the ``сравнение-методов-unfold`` comparison notebooks.
+# The original notebooks targeted an older API (``iterations`` / ``n_components``
+# / ``alpha`` and the obsolete ``solve_*`` module functions); this harness uses
+# the current public ``Detector.unfold_*`` API so it runs on current code.
+# ---------------------------------------------------------------------------
+
+#: Default metric keys used to rank unfolding methods. All are supported by
+#: :meth:`bssunfold.Detector.compare`.
+DEFAULT_UNFOLD_BENCHMARK_METRICS: List[str] = [
+    "r2_score",
+    "pearson_r",
+    "root_mean_squared_error",
+    "mape",
+    "wasserstein_dist",
+    "kl_divergence",
+    "cosine_similarity",
+]
+
+#: Default method registry: ``name -> {"method": <Detector method or callable>,
+#: "params": [param dict, ...]}``. Parameter names follow the current API
+#: (``max_iterations``, ``k``, ``epsilon``, ``sigma_factor``, ``solver``).
+DEFAULT_UNFOLD_BENCHMARK_METHODS: Dict[str, Dict[str, object]] = {
+    "mlem": {
+        "method": "unfold_mlem",
+        "params": [
+            {"max_iterations": 10},
+            {"max_iterations": 50},
+            {"max_iterations": 100},
+        ],
+    },
+    "maxed": {
+        "method": "unfold_maxed",
+        "params": [
+            {"sigma_factor": 0.01},
+            {"sigma_factor": 0.05},
+            {"sigma_factor": 0.1},
+        ],
+    },
+    "tsvd": {
+        "method": "unfold_tsvd",
+        "params": [{"k": 3}, {"k": 5}, {"k": 7}],
+    },
+    "bayes": {
+        "method": "unfold_bayes",
+        "params": [{"max_iterations": 100}, {"max_iterations": 500}],
+    },
+    "cvxpy": {
+        "method": "unfold_cvxpy",
+        "params": [{"solver": "ECOS"}, {"solver": "SCS"}],
+    },
+    "landweber": {
+        "method": "unfold_landweber",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "sart": {
+        "method": "unfold_sart",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "kaczmarz": {
+        "method": "unfold_kaczmarz",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "cgls": {
+        "method": "unfold_cgls",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "lanczos": {
+        "method": "unfold_lanczos",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "tikhonov_tv": {
+        "method": "unfold_tikhonov_tv",
+        "params": [{"epsilon": 0.001}, {"epsilon": 0.01}],
+    },
+    "gravel": {
+        "method": "unfold_gravel",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "doroshenko": {
+        "method": "unfold_doroshenko",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "bunki": {
+        "method": "unfold_bunki",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "sandii": {
+        "method": "unfold_sandii",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "osem": {
+        "method": "unfold_osem",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    "fista": {
+        "method": "unfold_fista",
+        "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+}
+
+
+@dataclass
+class BenchmarkResult:
+    """Container returned by :func:`benchmark_unfold_methods`.
+
+    Attributes
+    ----------
+    results : pandas.DataFrame
+        One row per ``(spectrum, method, param-set)`` run with columns
+        ``method``, ``params``, ``spectrum``, ``success``, ``time_sec``,
+        ``error`` and one column per requested metric.
+    summary : pandas.DataFrame
+        Per-method mean and std of each metric (columns suffixed
+        ``_mean`` / ``_std``).
+    ranking : pandas.DataFrame
+        Per-method mean metrics sorted by ``rank_by`` descending (ascending
+        for error-style metrics).
+    report : str
+        Human-readable text report (top methods, success rate, timing).
+    """
+
+    results: pd.DataFrame
+    summary: pd.DataFrame
+    ranking: pd.DataFrame
+    report: str
+
+
+def _resolve_method(detector: object, method: Union[str, Callable]) -> Callable:
+    """Return a callable ``func(readings, **params)`` for a method spec."""
+    if isinstance(method, str):
+        if not hasattr(detector, method):
+            raise AttributeError(
+                f"Detector has no method '{method}'. Available unfold_* "
+                f"methods: "
+                + ", ".join(
+                    m for m in dir(detector) if m.startswith("unfold_")
+                )
+            )
+        return getattr(detector, method)
+    if callable(method):
+        return method
+    raise TypeError(
+        f"method must be a Detector method name or callable, got {type(method)}"
+    )
+
+
+def _as_reference_dict(reference_spectra, spectrum_names):
+    """Normalize reference spectra into ``{name: {"E_MeV":.., "Phi":..}}``."""
+    if isinstance(reference_spectra, pd.DataFrame):
+        df = reference_spectra
+        if "E_MeV" not in df.columns:
+            raise ValueError("Reference DataFrame must have an 'E_MeV' column")
+        cols = [c for c in df.columns if c != "E_MeV"]
+        if spectrum_names is not None:
+            cols = [c for c in cols if c in spectrum_names]
+        return {
+            name: {"E_MeV": df["E_MeV"].values, "Phi": df[name].values}
+            for name in cols
+        }
+    if isinstance(reference_spectra, dict):
+        names = spectrum_names if spectrum_names is not None else list(
+            reference_spectra.keys()
+        )
+        out = {}
+        for name in names:
+            spec = reference_spectra[name]
+            if not isinstance(spec, dict) or "Phi" not in spec or "E_MeV" not in spec:
+                raise ValueError(
+                    f"Reference spectrum '{name}' must be a dict with "
+                    f"'E_MeV' and 'Phi' keys"
+                )
+            out[name] = spec
+        return out
+    raise TypeError(
+        "reference_spectra must be a DataFrame or dict, got "
+        f"{type(reference_spectra)}"
+    )
+
+
+def benchmark_unfold_methods(
+    detector: object,
+    reference_spectra: Union[pd.DataFrame, Dict],
+    methods: Optional[Dict[str, Dict[str, object]]] = None,
+    metrics: Optional[List[str]] = None,
+    spectrum_names: Optional[List[str]] = None,
+    rank_by: str = "r2_score",
+    progress: bool = False,
+) -> BenchmarkResult:
+    """Benchmark unfolding methods against reference spectra.
+
+    For every reference spectrum the effective detector readings are computed,
+    each configured ``unfold_*`` method is run over its parameter grid, and the
+    recovered spectrum is scored against the reference with
+    :meth:`bssunfold.Detector.compare`. The aggregated results form a metrics
+    table that can be used to rank methods (e.g. "which method is best?").
+
+    Parameters
+    ----------
+    detector : Detector
+        A configured :class:`bssunfold.Detector` instance.
+    reference_spectra : pandas.DataFrame or dict
+        Reference spectra on (or resamplable to) the detector energy grid.
+        As a DataFrame: an ``E_MeV`` column plus one column per spectrum.
+        As a dict: ``{name: {"E_MeV": ndarray, "Phi": ndarray}}``.
+    methods : dict, optional
+        Method registry ``{name: {"method": <Detector method or callable>,
+        "params": [param_dict, ...]}}``. If ``None``,
+        :data:`DEFAULT_UNFOLD_BENCHMARK_METHODS` is used.
+    metrics : list of str, optional
+        Metric keys passed to ``detector.compare``. Defaults to
+        :data:`DEFAULT_UNFOLD_BENCHMARK_METRICS`.
+    spectrum_names : list of str, optional
+        Subset of reference spectra to use. Defaults to all.
+    rank_by : str, optional
+        Metric used to rank methods (default ``"r2_score"``). Error-style
+        metrics (those containing ``error``/``rmse``/``mape``/``kl``/
+        ``wasserstein``) are ranked ascending (lower is better).
+    progress : bool, optional
+        If True, print a line per spectrum/method.
+
+    Returns
+    -------
+    BenchmarkResult
+        ``results``, ``summary``, ``ranking`` (pandas DataFrames) and a
+        ``report`` string.
+    """
+    if methods is None:
+        methods = DEFAULT_UNFOLD_BENCHMARK_METHODS
+    if metrics is None:
+        metrics = DEFAULT_UNFOLD_BENCHMARK_METRICS
+    if rank_by not in metrics:
+        raise ValueError(
+            f"rank_by='{rank_by}' is not in the requested metrics {metrics}"
+        )
+
+    refs = _as_reference_dict(reference_spectra, spectrum_names)
+    if not refs:
+        raise ValueError("No reference spectra selected")
+    if not methods:
+        raise ValueError("No methods configured")
+
+    asc_metrics = ("error", "rmse", "mape", "kl_", "wasserstein", "max_error")
+    ascending = any(token in rank_by for token in asc_metrics)
+
+    rows: List[Dict[str, object]] = []
+    for spec_name, ref in refs.items():
+        readings = detector.get_effective_readings_for_spectra(ref)
+        for mname, minfo in methods.items():
+            func = _resolve_method(detector, minfo["method"])
+            for params in minfo["params"]:
+                row: Dict[str, object] = {
+                    "method": mname,
+                    "params": str(params),
+                    "spectrum": spec_name,
+                    "success": False,
+                    "time_sec": float("nan"),
+                    "error": "",
+                }
+                t0 = time.time()
+                try:
+                    res = func(readings, **params)
+                    elapsed = time.time() - t0
+                    row["time_sec"] = elapsed
+                    metric_vals = detector.compare(ref, res, metrics=metrics)
+                    row.update(metric_vals)
+                    row["success"] = True
+                except Exception as exc:  # noqa: BLE001 - record any failure
+                    row["time_sec"] = time.time() - t0
+                    row["error"] = str(exc)
+                rows.append(row)
+                if progress:
+                    status = "ok" if row["success"] else "FAIL"
+                    print(f"  {spec_name}/{mname}: {status} ({row['time_sec']:.2f}s)")
+
+    results_df = pd.DataFrame(rows)
+
+    metric_cols = list(metrics)
+    summary = _summarize(results_df, metric_cols)
+    ranking = _rank(summary, metric_cols, rank_by, ascending)
+    report = _build_report(results_df, summary, ranking, rank_by, ascending)
+
+    return BenchmarkResult(
+        results=results_df, summary=summary, ranking=ranking, report=report
+    )
+
+
+def _summarize(results_df: pd.DataFrame, metric_cols: List[str]) -> pd.DataFrame:
+    """Build per-method mean/std summary table."""
+    if results_df.empty:
+        return pd.DataFrame(
+            columns=["method"]
+            + [f"{c}_mean" for c in metric_cols]
+            + [f"{c}_std" for c in metric_cols]
+        )
+    mean = results_df.groupby("method")[metric_cols].mean()
+    std = results_df.groupby("method")[metric_cols].std()
+    mean.columns = [f"{c}_mean" for c in metric_cols]
+    std.columns = [f"{c}_std" for c in metric_cols]
+    summary = mean.join(std).reset_index()
+    return summary
+
+
+def _rank(
+    summary: pd.DataFrame,
+    metric_cols: List[str],
+    rank_by: str,
+    ascending: bool,
+) -> pd.DataFrame:
+    """Sort the summary table by ``rank_by`` (mean column)."""
+    rank_col = f"{rank_by}_mean"
+    if rank_col not in summary.columns:
+        return summary
+    return summary.sort_values(rank_col, ascending=ascending).reset_index(drop=True)
+
+
+def _build_report(
+    results_df: pd.DataFrame,
+    summary: pd.DataFrame,
+    ranking: pd.DataFrame,
+    rank_by: str,
+    ascending: bool,
+) -> str:
+    """Assemble a human-readable benchmark report."""
+    lines = []
+    lines.append("=" * 70)
+    lines.append("UNFOLD METHOD COMPARISON REPORT")
+    lines.append("=" * 70)
+    n_runs = len(results_df)
+    n_methods = results_df["method"].nunique() if n_runs else 0
+    n_spec = results_df["spectrum"].nunique() if n_runs else 0
+    lines.append(f"Spectra: {n_spec} | Methods: {n_methods} | Runs: {n_runs}")
+
+    if ranking.empty:
+        lines.append("No successful runs to report.")
+        return "\n".join(lines)
+
+    lines.append(f"\nTOP methods by {rank_by} ({'asc' if ascending else 'desc'}):")
+    for i, (_, row) in enumerate(ranking.head(5).iterrows(), 1):
+        lines.append(f"{i}. {row['method']:20s} {rank_by}={row[f'{rank_by}_mean']:.4f}")
+
+    success = results_df.groupby("method")["success"].mean().sort_values(
+        ascending=False
+    )
+    lines.append("\nSuccess rate (%):")
+    for m, rate in success.items():
+        lines.append(f"{m:20s}: {rate * 100:5.1f}%")
+
+    if "time_sec" in results_df.columns:
+        time_avg = results_df.groupby("method")["time_sec"].mean().sort_values()
+        lines.append("\nTime (sec):")
+        for m, t in time_avg.items():
+            lines.append(f"{m:20s}: {t:8.3f}")
+
+    lines.append("=" * 70)
+    if not ranking.empty:
+        lines.append(f"Best by {rank_by}: {ranking.iloc[0]['method']}")
+        if "time_sec" in results_df.columns and not time_avg.empty:
+            lines.append(f"Fastest: {time_avg.index[0]}")
+        lines.append(f"Most stable: {success.idxmax()}")
+    lines.append("=" * 70)
+    return "\n".join(lines)

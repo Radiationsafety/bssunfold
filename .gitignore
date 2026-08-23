@@ -199,3 +199,10 @@ examples/robustness_dose_cv_percent.png
 examples/robustness_stability_score.png
 examples/robustness_summary.csv
 examples/uncertainty_bands.png
+examples/heatmap.png
+examples/method_comparison.png
+examples/multi_method.png
+examples/spectrum_ISO_ref_Cf252.png
+examples/time_vs_accuracy.png
+examples/benchmark_results_*.csv
+examples/benchmark_summary_*.csv
