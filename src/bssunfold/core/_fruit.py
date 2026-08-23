@@ -10,10 +10,11 @@ Public surface: :func:`parametric_model`, :func:`solve_parametric`.
 """
 
 import logging
-import warnings
 
 import numpy as np
 from typing import Dict, Optional, Tuple
+
+from ._parametric_shared import _check_fit_quality as _check_fit_quality_shared
 
 
 __all__ = ["parametric_model", "solve_parametric"]
@@ -24,8 +25,6 @@ _Ed = 7.07e-8  # Epithermal lower boundary parameter (MeV)
 # Energy region boundaries (hard-coded per papers)
 _THERMAL_MAX = 1e-7  # MeV
 _FAST_MIN = 0.1  # MeV
-
-_RESIDUAL_WARN_THRESHOLD = 10.0  # warn when residual norm exceeds this
 
 logger = logging.getLogger(__name__)
 
@@ -564,18 +563,11 @@ def _gcv_select_alpha(
 
 
 def _check_fit_quality(residual_norm, b_readings, method_name="parametric"):
-    """Emit a warning if the fit residual is large relative to readings."""
-    b_norm = np.linalg.norm(b_readings)
-    if b_norm > 0:
-        relative_residual = residual_norm / b_norm
-        if relative_residual > _RESIDUAL_WARN_THRESHOLD:
-            warnings.warn(
-                f"{method_name}: large residual "
-                f"({residual_norm:.2e} / {b_norm:.2e} = {relative_residual:.1f}x). "
-                f"The 3-component parametric model may not represent this spectrum well.",
-                UserWarning,
-                stacklevel=3,
-            )
+    """Emit a warning if the FRUIT fit residual is large relative to readings."""
+    return _check_fit_quality_shared(
+        residual_norm, b_readings, method_name,
+        model_descr="3-component parametric model",
+    )
 
 
 # ------------------------------------------------------------------ #

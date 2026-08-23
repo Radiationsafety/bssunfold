@@ -25,9 +25,15 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/regularization.py` — L-curve, GCV, discrepancy principle, cosine similarity (pytikhonov wrappers + fallbacks)
 - `core/unfolding_methods.py` — all `solve_*` functions, ~222 stmts
 - `core/unfold_qpsolvers.py`, `unfold_cvxpy.py`, `unfold_landweber.py`, `unfold_mlem.py`, `unfold_mlem_odl.py`, `unfold_doroshenko.py`, `unfold_kaczmarz.py`, `unfold_lmfit.py`, `unfold_smt.py`, `unfold_combined.py`, `unfold_ferdor.py`, `unfold_rebunki.py`, `unfold_nsduaz.py` — one file per unfolding algorithm (unfold_smt.py is a port of the Haskell/SBV `linearEqSolver`, backed by optional z3-solver)
-- `core/unfold_interpret.py` — pyoptexplain-based interpretation of the unfolding QP (solve + robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Optional dep: `bssunfold[interpret]`
+- `core/unfold_interpret.py` — public `interpret_qp`/`unfold_interpret` entry points for pyoptexplain-based interpretation of the unfolding QP (solve + robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Backed by `core/_interpret_pyopt.py` (QP build/solve + perturbation analyses, leaf) and `core/_interpret_report.py` (result dataclass + markdown report + metrics, leaf). Optional dep: `bssunfold[interpret]`
+- `core/unfold_parametric.py` — FRUIT solver backends (`solve_parametric_cvxpy`/`qpsolvers`/`combined`) + public `unfold_parametric`; model/fit lives in `core/_fruit.py`
+- `core/unfold_parametric2.py` — public BON95 `solve_parametric2`/`unfold_parametric2`; family logic lives in `core/_bon95.py`
 - `core/_matrix_utils.py` — SVD, derivative matrix, tikhonov system building
 - `core/_base_unfolder.py`, `core/_montecarlo.py` — internal base class and Monte Carlo uncertainty
+- `core/_solver_backends.py` — shared solver-backend resolution (`_parse_solver_backend`, `_resolve_cvxpy_solvers`, `_resolve_qpsolver_name`)
+- `core/_parametric_shared.py` — shared constants/fit helpers for the parametric family, incl. the canonical `_check_fit_quality` (leaf, no cyclic deps)
+- `core/_bon95.py` — BON95 parametric family (extracted from `unfold_parametric2.py`)
+- `core/_fruit.py` — FRUIT parametric model + NLS fit (extracted from `unfold_parametric.py`)
 - `utils/converters.py`, `interpolation.py`, `plotting.py`, `validators.py` — utility functions
 - `platform_check.py` — OS detection, solver availability checks
 - `constants.py` — ICRP116 dose coefficients, default response function data

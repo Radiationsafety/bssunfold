@@ -23,8 +23,13 @@ _RESIDUAL_WARN_THRESHOLD = 10.0
 logger = logging.getLogger(__name__)
 
 
-def _check_fit_quality(residual_norm, b_readings, method_name="parametric2"):
-    """Emit a warning if the fit residual is large."""
+def _check_fit_quality(residual_norm, b_readings, method_name="parametric2",
+                       model_descr="4-component BON95 model"):
+    """Emit a warning if the fit residual is large relative to readings.
+
+    ``model_descr`` customises the warning text so each parametric family
+    (BON95, FRUIT, ...) can describe its own model.
+    """
     b_norm = np.linalg.norm(b_readings)
     if b_norm > 0:
         relative_residual = residual_norm / b_norm
@@ -32,7 +37,7 @@ def _check_fit_quality(residual_norm, b_readings, method_name="parametric2"):
             warnings.warn(
                 f"{method_name}: large residual "
                 f"({residual_norm:.2e} / {b_norm:.2e} = {relative_residual:.1f}x). "
-                f"The 4-component BON95 model may not represent this spectrum well.",
+                f"The {model_descr} may not represent this spectrum well.",
                 UserWarning,
                 stacklevel=3,
             )
