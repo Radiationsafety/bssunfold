@@ -6,6 +6,10 @@ from numpy.testing import assert_array_less, assert_allclose
 
 from bssunfold import Detector
 from bssunfold.core.unfold_parametric2 import (
+    directed_divergence_iteration,
+    solve_parametric2,
+)
+from bssunfold.core._bon95 import (
     _Fth,
     _Fepi,
     _Fint,
@@ -17,8 +21,8 @@ from bssunfold.core.unfold_parametric2 import (
     solve_bon95_cvxpy,
     solve_bon95_qpsolvers,
     solve_bon95_combined,
-    directed_divergence_iteration,
-    solve_parametric2,
+)
+from bssunfold.core._parametric_shared import (
     _Tth,
     _build_measurement_uncertainties,
     _clean_edge_bins,

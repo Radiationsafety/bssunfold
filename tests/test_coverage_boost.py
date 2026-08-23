@@ -1809,7 +1809,7 @@ class TestParametric2Coverage:
         return A, b, E, ln
 
     def test_bon95_jacobian_degenerate_bounds(self):
-        from bssunfold.core.unfold_parametric2 import (
+        from bssunfold.core._bon95 import (
             _compute_bon95_shape_jacobian,
         )
 
@@ -1817,7 +1817,7 @@ class TestParametric2Coverage:
         params = {"b": 0.5, "Tf": 0.5, "c": 0.5}
         degenerate = {"b": (0.5, 0.5), "Tf": (0.5, 0.5), "c": (0.5, 0.5)}
         with patch(
-            "bssunfold.core.unfold_parametric2._get_bon95_shape_bounds",
+            "bssunfold.core._bon95._get_bon95_shape_bounds",
             return_value=degenerate,
         ):
             J, residual = _compute_bon95_shape_jacobian(
@@ -1827,7 +1827,7 @@ class TestParametric2Coverage:
         assert residual.shape == (4,)
 
     def test_bon95_resolve_cvxpy_solvers_import_error(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_cvxpy_solvers
+        from bssunfold.core._solver_backends import _resolve_cvxpy_solvers
         import builtins
 
         orig_import = builtins.__import__
@@ -1841,14 +1841,14 @@ class TestParametric2Coverage:
             assert _resolve_cvxpy_solvers("default") == ["ECOS"]
 
     def test_bon95_resolve_qpsolver_name_ecos(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
         import qpsolvers
 
         with patch.object(qpsolvers, "available_solvers", ["ecos"]):
             assert _resolve_qpsolver_name("default") == "ecos"
 
     def test_bon95_resolve_qpsolver_name_import_error(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
         import builtins
 
         orig_import = builtins.__import__
@@ -1867,7 +1867,7 @@ class TestParametric2Coverage:
         A, b, E, ln = self._data_bon95()
         exact_spectrum = np.linalg.lstsq(A, b, rcond=None)[0]
         with patch(
-            "bssunfold.core.unfold_parametric2._solve_shape_nls",
+            "bssunfold.core._bon95._solve_shape_nls",
             return_value=(exact_spectrum, 0.0, np.ones(4)),
         ):
             spectrum, success, msg, nfev = solve_bon95_cvxpy(
@@ -1888,7 +1888,7 @@ class TestParametric2Coverage:
         exact_spectrum = np.linalg.lstsq(A, b, rcond=None)[0]
         with patch.object(qpsolvers, "available_solvers", ["osqp", "proxqp"]):
             with patch(
-                "bssunfold.core.unfold_parametric2._solve_shape_nls",
+                "bssunfold.core._bon95._solve_shape_nls",
                 return_value=(exact_spectrum, 0.0, np.ones(4)),
             ):
                 spectrum, success, msg, nfev = solve_bon95_qpsolvers(
@@ -1924,11 +1924,11 @@ class TestParametric2Coverage:
         A, b, E, ln = self._data_bon95()
         dummy = {"b": 1.0, "Tf": 1.0, "c": 1.0}
         with patch(
-            "bssunfold.core.unfold_parametric2.solve_bon95_parametric",
+            "bssunfold.core._bon95.solve_bon95_parametric",
             return_value=(dummy, 1.0, np.ones(4)),
         ):
             with patch(
-                "bssunfold.core.unfold_parametric2.solve_bon95_cvxpy",
+                "bssunfold.core._bon95.solve_bon95_cvxpy",
                 side_effect=ImportError("no cvxpy"),
             ):
                 with pytest.raises(ImportError):
@@ -1940,15 +1940,15 @@ class TestParametric2Coverage:
         A, b, E, ln = self._data_bon95()
         dummy = {"b": 1.0, "Tf": 1.0, "c": 1.0}
         with patch(
-            "bssunfold.core.unfold_parametric2.solve_bon95_parametric",
+            "bssunfold.core._bon95.solve_bon95_parametric",
             return_value=(dummy, 1.0, np.ones(4)),
         ):
             with patch(
-                "bssunfold.core.unfold_parametric2.solve_bon95_cvxpy",
+                "bssunfold.core._bon95.solve_bon95_cvxpy",
                 side_effect=ImportError("no cvxpy"),
             ):
                 with patch(
-                    "bssunfold.core.unfold_parametric2.solve_bon95_qpsolvers",
+                    "bssunfold.core._bon95.solve_bon95_qpsolvers",
                     return_value=(np.ones(len(E)), True, "ok", 1),
                 ):
                     spectrum, success, msg, nfev = solve_bon95_combined(
@@ -3188,14 +3188,14 @@ class TestParametric2SqpSolvers:
         assert spectrum.shape == (15,)
 
     def test_parse_solver_backend(self):
-        from bssunfold.core.unfold_parametric2 import _parse_solver_backend
+        from bssunfold.core._solver_backends import _parse_solver_backend
 
         assert _parse_solver_backend("auto") == ("auto", "default")
         assert _parse_solver_backend("cvxpy:ECOS") == ("cvxpy", "ECOS")
         assert _parse_solver_backend("qpsolvers") == ("qpsolvers", "default")
 
     def test_resolve_cvxpy_solvers(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_cvxpy_solvers
+        from bssunfold.core._solver_backends import _resolve_cvxpy_solvers
 
         solvers = _resolve_cvxpy_solvers("default")
         assert len(solvers) > 0
@@ -3203,21 +3203,21 @@ class TestParametric2SqpSolvers:
         assert solvers[0] == "ECOS"
 
     def test_resolve_qpsolver_name(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
 
         name = _resolve_qpsolver_name("default")
         assert name in ("osqp", "ecos")
         assert _resolve_qpsolver_name("osqp") == "osqp"
 
     def test_bon95_shape_bounds(self):
-        from bssunfold.core.unfold_parametric2 import _get_bon95_shape_bounds
+        from bssunfold.core._bon95 import _get_bon95_shape_bounds
 
         bounds = _get_bon95_shape_bounds()
         assert "b" in bounds
         assert "Tf" in bounds
 
     def test_clamp_bon95_shape(self):
-        from bssunfold.core.unfold_parametric2 import (
+        from bssunfold.core._bon95 import (
             _clamp_bon95_shape,
             _get_bon95_shape_bounds,
         )
