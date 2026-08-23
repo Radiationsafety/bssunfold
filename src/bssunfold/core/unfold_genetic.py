@@ -61,6 +61,7 @@ from typing import Dict, Optional, Any, List, Callable, Tuple
 
 from ._matrix_utils import create_derivative_matrix
 from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._multires import _coarsen_columns, _split_coarse  # re-exported for callers
 
 __all__ = ["solve_genetic", "unfold_genetic"]
 
@@ -376,63 +377,8 @@ def _apply_smoother(
     return s
 
 
-def _coarsen_columns(A: np.ndarray, n_coarse: int) -> np.ndarray:
-    """Merge adjacent response-matrix columns into ``n_coarse`` bins.
-
-    Columns are summed so that a coarse spectrum of bin totals reproduces
-    the same detector readings as the fine one::
-
-        A_coarse[i, k] = sum_{j in bin k} A[i, j]
-
-    Parameters
-    ----------
-    A : np.ndarray
-        Response matrix (m x n).
-    n_coarse : int
-        Number of coarse bins (must be <= n).
-
-    Returns
-    -------
-    np.ndarray
-        Coarse response matrix (m x n_coarse).
-    """
-    m, n = A.shape
-    if n_coarse <= 0 or n_coarse > n:
-        raise ValueError(f"n_coarse must satisfy 0 < n_coarse <= {n}")
-    edges = np.linspace(0, n, n_coarse + 1, dtype=int)
-    A_coarse = np.zeros((m, n_coarse), dtype=float)
-    for k in range(n_coarse):
-        A_coarse[:, k] = np.sum(A[:, edges[k] : edges[k + 1]], axis=1)
-    return A_coarse
-
-
-def _split_coarse(x_coarse: np.ndarray, n: int) -> np.ndarray:
-    """Distribute a coarse-bin-total spectrum back onto the fine grid.
-
-    Each coarse-bin total is spread uniformly across the fine bins it
-    contains, preserving the total fluence.
-
-    Parameters
-    ----------
-    x_coarse : np.ndarray
-        Coarse spectrum of bin totals (n_coarse,).
-    n : int
-        Number of fine bins.
-
-    Returns
-    -------
-    np.ndarray
-        Fine-grid spectrum (n,).
-    """
-    n_coarse = x_coarse.shape[0]
-    edges = np.linspace(0, n, n_coarse + 1, dtype=int)
-    x = np.zeros(n, dtype=float)
-    for k in range(n_coarse):
-        lo, hi = edges[k], edges[k + 1]
-        width = hi - lo
-        if width > 0:
-            x[lo:hi] = x_coarse[k] / width
-    return x
+# _coarsen_columns / _split_coarse are defined in core._multires and
+# re-exported here for backward compatibility (see tests/test_genetic_improvements.py).
 
 
 def _run_numpy_ga(

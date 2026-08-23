@@ -47,6 +47,11 @@ from .unfold_odl_advanced import (
 from .unfold_qubo import unfold_qubo as unfold_qubo_impl
 from .unfold_zfit import unfold_zfit as unfold_zfit_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
+from .unfold_cascade import (
+    unfold_cascade as unfold_cascade_impl,
+    CascadeStage,
+)
+from .unfold_composite import unfold_composite as unfold_composite_impl
 from .unfold_gravel import unfold_gravel as unfold_gravel_impl
 from .unfold_maxed import unfold_maxed as unfold_maxed_impl
 from .unfold_tikhonov_legendre import (
@@ -2052,6 +2057,66 @@ class Detector:
             pipeline=pipeline,
             calculate_errors=calculate_errors,
             verbose=verbose,
+        )
+
+    def unfold_cascade(
+        self,
+        readings: Dict[str, float],
+        cascade_stages: Optional[List[CascadeStage]] = None,
+        calculate_errors: bool = False,
+        verbose: bool = True,
+        save_result: bool = False,
+        multi_resolution: bool = False,
+        coarse_bins: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Cascade unfolding with sequential method refinement.
+
+        Applies unfolding methods in sequence; each stage may use the previous
+        result as an initial guess, a prior/reference spectrum, or a
+        regularization target, and the cascade may stop early when a stage
+        reaches its quality threshold. With ``multi_resolution=True`` the
+        first stage runs on a coarse energy grid and its prolongated solution
+        seeds the fine-grid stages. See
+        :func:`bssunfold.core.unfold_cascade.unfold_cascade`.
+        """
+        return unfold_cascade_impl(
+            self,
+            readings,
+            cascade_stages=cascade_stages,
+            calculate_errors=calculate_errors,
+            verbose=verbose,
+            save_result=save_result,
+            multi_resolution=multi_resolution,
+            coarse_bins=coarse_bins,
+        )
+
+    def unfold_composite(
+        self,
+        readings: Dict[str, float],
+        n_methods: int = 5,
+        timeout_per_method: float = 30.0,
+        save_result: bool = False,
+        spectrum: Optional[np.ndarray] = None,
+        energy: Optional[np.ndarray] = None,
+        method_names: Optional[List[str]] = None,
+        ensemble_weights: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """Adaptive ensemble of unfolding methods with confidence-weighted combination.
+
+        Classifies the unknown spectrum by hardness, runs a pool of suitable
+        individual methods, and combines their results. See
+        :func:`bssunfold.core.unfold_composite.unfold_composite`.
+        """
+        return unfold_composite_impl(
+            self,
+            readings,
+            n_methods=n_methods,
+            timeout_per_method=timeout_per_method,
+            save_result=save_result,
+            spectrum=spectrum,
+            energy=energy,
+            method_names=method_names,
+            ensemble_weights=ensemble_weights,
         )
 
     def unfold_interpret(

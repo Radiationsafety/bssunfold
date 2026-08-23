@@ -103,3 +103,69 @@ def test_unfold_cascade_unknown_method_skipped():
 
 def test_cascaderesult_is_exported_dataclass():
     assert CascadeResult is not None
+
+
+def test_build_coarse_detector_shape_and_readings():
+    from bssunfold.core._multires import (
+        build_coarse_detector,
+        prolongate_spectrum,
+        _coarsen_columns,
+    )
+
+    det, readings = _make_detector_and_readings()
+    coarse = build_coarse_detector(det, 12)
+    assert coarse.n_energy_bins == 12
+    assert coarse.detector_names == det.detector_names
+
+    # The coarse detector's response matrix must equal the column-sum
+    # coarsening of the fine response matrix (the premise of a coarse
+    # pre-solve whose prolongated solution seeds the fine grid).
+    A_fine = np.array([det.sensitivities[d] for d in det.detector_names])
+    A_coarse = np.array([coarse.sensitivities[d] for d in coarse.detector_names])
+    assert np.allclose(A_coarse, _coarsen_columns(A_fine, 12), atol=1e-12)
+
+    # Prolongation preserves total fluence (used as a fine-grid initial guess).
+    rng = np.random.default_rng(3)
+    x_coarse = np.abs(rng.normal(1.0, 0.3, 12)) + 0.1
+    fine_back = prolongate_spectrum(x_coarse, det.n_energy_bins)
+    assert fine_back.shape == (det.n_energy_bins,)
+    assert np.isclose(np.sum(fine_back), np.sum(x_coarse), atol=1e-9)
+
+
+def test_prolongate_preserves_fluence():
+    from bssunfold.core._multires import prolongate_spectrum
+
+    n = 60
+    x_coarse = np.abs(np.random.default_rng(7).normal(1.0, 0.3, 8)) + 0.1
+    fine = prolongate_spectrum(x_coarse, n)
+    assert fine.shape == (n,)
+    # Each fine bin holds a fraction of its coarse total -> sum preserved.
+    assert np.isclose(np.sum(fine), np.sum(x_coarse), atol=1e-9)
+
+
+def test_unfold_cascade_multiresolution_runs():
+    det, readings = _make_detector_and_readings()
+    result = unfold_cascade(
+        det,
+        readings,
+        cascade_stages=create_default_cascade("general"),
+        verbose=False,
+        multi_resolution=True,
+    )
+    assert result["status"] == "OK"
+    assert result["spectrum"] is not None
+    assert len(result["spectrum"]) == det.n_energy_bins
+    assert np.all(np.isfinite(result["spectrum"]))
+
+
+def test_unfold_cascade_explicit_coarse_stage():
+    det, readings = _make_detector_and_readings()
+    stages = [
+        CascadeStage(method="tsvd", use_as_initial=False, coarse=True, coarse_bins=10),
+        CascadeStage(method="landweber", params={"max_iterations": 30}, use_as_initial=True),
+    ]
+    result = unfold_cascade(det, readings, cascade_stages=stages, verbose=False)
+    assert result["status"] in ("OK", "DONE")
+    assert result["spectrum"] is not None
+    assert len(result["spectrum"]) == det.n_energy_bins
+

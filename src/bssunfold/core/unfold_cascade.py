@@ -37,6 +37,7 @@ import signal
 import time
 
 from ..logging_config import get_logger
+from ._multires import build_coarse_detector, prolongate_spectrum
 
 logger = get_logger("cascade")
 
@@ -90,6 +91,13 @@ class CascadeStage:
         Upper bound on internal iterations for iterative methods.
     timeout : float
         Timeout for this stage in seconds.
+    coarse : bool
+        If True, run this stage on a coarse energy grid and prolongate the
+        result back to the fine grid as the prior for the next stage. Useful
+        as a stable, low-frequency first step before fine-grid refinement.
+    coarse_bins : int, optional
+        Number of coarse bins when ``coarse=True``. Defaults to
+        ``max(8, n_energy_bins // 8)``.
     """
 
     method: str
@@ -100,6 +108,8 @@ class CascadeStage:
     quality_threshold: Optional[float] = None
     max_iterations: Optional[int] = None
     timeout: float = 60.0
+    coarse: bool = False
+    coarse_bins: Optional[int] = None
 
 
 @dataclass
@@ -293,6 +303,8 @@ def unfold_cascade(
     calculate_errors: bool = False,
     verbose: bool = True,
     save_result: bool = False,
+    multi_resolution: bool = False,
+    coarse_bins: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Perform cascade unfolding with sequential method refinement.
 
@@ -319,17 +331,34 @@ def unfold_cascade(
         Print progress information.
     save_result : bool
         Persist each stage's result to the detector history.
+    multi_resolution : bool
+        If True, run the first stage on a coarse energy grid and use its
+        prolongated solution as the initial guess for the fine-grid stages.
+        This stabilises ill-conditioned high-resolution inversions by
+        resolving the low-frequency shape first.
+    coarse_bins : int, optional
+        Coarse-grid resolution for ``multi_resolution``. Defaults to
+        ``max(8, n_energy_bins // 8)``.
 
     Returns
     -------
     dict
         Result dictionary with the final ``spectrum`` and metadata
         (``stages_run``, ``method_sequence``, ``convergence_history``,
-        ``quality_metrics``, ``intermediate_results``, ``status``,
-        ``message``).
+         ``quality_metrics``, ``intermediate_results``, ``status``,
+         ``message``).
     """
     if cascade_stages is None:
         cascade_stages = create_default_cascade("general")
+
+    if multi_resolution and cascade_stages:
+        import copy
+
+        _staged = [copy.copy(s) for s in cascade_stages]
+        _staged[0].coarse = True
+        if coarse_bins is not None:
+            _staged[0].coarse_bins = coarse_bins
+        cascade_stages = _staged
 
     start_time = time.time()
     current_spectrum = None
@@ -342,6 +371,8 @@ def unfold_cascade(
         [readings[d] for d in detector.detector_names]
     )
 
+    coarse_cache: Dict[int, Any] = {}
+
     for stage_idx, stage in enumerate(cascade_stages):
         method_name = stage.method
 
@@ -350,7 +381,15 @@ def unfold_cascade(
                 f"Cascade Stage {stage_idx + 1}/{len(cascade_stages)}: {method_name}"
             )
 
-        unfold_func = _get_method(detector, method_name)
+        # Resolve the detector grid (fine or coarse) used by this stage.
+        target_detector = detector
+        if stage.coarse:
+            n_coarse = stage.coarse_bins or max(8, detector.n_energy_bins // 8)
+            if n_coarse not in coarse_cache:
+                coarse_cache[n_coarse] = build_coarse_detector(detector, n_coarse)
+            target_detector = coarse_cache[n_coarse]
+
+        unfold_func = _get_method(target_detector, method_name)
         if unfold_func is None:
             if verbose:
                 logger.warning(f"Method {method_name} not found, skipping")
@@ -360,19 +399,25 @@ def unfold_cascade(
         params["save_result"] = save_result
 
         if current_spectrum is not None and stage.use_as_initial:
-            params["initial_spectrum"] = current_spectrum.copy()
-            if verbose:
-                logger.info("  Using previous result as initial guess")
+            if len(current_spectrum) == target_detector.n_energy_bins:
+                params["initial_spectrum"] = current_spectrum.copy()
+                if verbose:
+                    logger.info("  Using previous result as initial guess")
+            elif verbose:
+                logger.info("  (skipping initial guess: grid mismatch)")
 
         if current_spectrum is not None and stage.use_as_prior:
-            # The bayes family treats initial_spectrum as the prior; other
-            # methods either accept reference_spectrum or ignore the hint.
-            if method_name in ("bayes", "bayes_spline"):
-                params["initial_spectrum"] = current_spectrum.copy()
-            elif "reference_spectrum" in _accepted_params(unfold_func):
-                params["reference_spectrum"] = current_spectrum.copy()
-            if verbose:
-                logger.info("  Using previous result as prior")
+            if len(current_spectrum) == target_detector.n_energy_bins:
+                # The bayes family treats initial_spectrum as the prior; other
+                # methods either accept reference_spectrum or ignore the hint.
+                if method_name in ("bayes", "bayes_spline"):
+                    params["initial_spectrum"] = current_spectrum.copy()
+                elif "reference_spectrum" in _accepted_params(unfold_func):
+                    params["reference_spectrum"] = current_spectrum.copy()
+                if verbose:
+                    logger.info("  Using previous result as prior")
+            elif verbose:
+                logger.info("  (skipping prior: grid mismatch)")
 
         if stage.max_iterations is not None:
             cur = params.get("max_iterations")
@@ -393,7 +438,13 @@ def unfold_cascade(
             stages_run += 1
 
             if "spectrum" in result and result["spectrum"] is not None:
-                current_spectrum = result["spectrum"].copy()
+                raw = result["spectrum"].copy()
+                if stage.coarse:
+                    current_spectrum = prolongate_spectrum(
+                        raw, detector.n_energy_bins
+                    )
+                else:
+                    current_spectrum = raw
 
                 reconstructed_readings = A @ current_spectrum
                 metrics = compute_quality_metrics(
@@ -603,6 +654,8 @@ def unfold_adaptive_cascade(
     calculate_errors: bool = False,
     verbose: bool = True,
     save_result: bool = False,
+    multi_resolution: bool = False,
+    coarse_bins: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Perform adaptive cascade unfolding with dynamic method selection.
 
@@ -625,6 +678,11 @@ def unfold_adaptive_cascade(
         Print progress information.
     save_result : bool
         Persist each stage's result to the detector history.
+    multi_resolution : bool
+        If True, the first adaptive stage runs on a coarse grid and its
+        prolongated solution seeds the fine-grid stages.
+    coarse_bins : int, optional
+        Coarse-grid resolution for ``multi_resolution``.
 
     Returns
     -------
@@ -687,6 +745,8 @@ def unfold_adaptive_cascade(
         calculate_errors=calculate_errors,
         verbose=verbose,
         save_result=save_result,
+        multi_resolution=multi_resolution,
+        coarse_bins=coarse_bins,
     )
 
 

@@ -12,6 +12,7 @@ bssunfold is a Python package for neutron spectrum unfolding using various algor
    interpretation
    examples
    reconst_comparison
+   multires_cascade
 
 Indices and tables
 ==================
@@ -28,16 +29,18 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (36 methods):
+- **Multiple Unfolding Algorithms** (60+ methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD, EPIC (Equal Posterior Information Condition)
-  - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS
+  - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
-  - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation
-  - **Maximum Entropy**: MAXED (primal log-space dual minimisation)
+  - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation, zfit (Poisson likelihood), full Bayesian MCMC (NUTS via pymc)
+  - **Maximum Entropy**: MAXED (primal log-space dual minimisation), IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis)
   - **Statistical Regularisation**: Turchin's method (StatReg), Fortran STREG1 port (Reconst)
-  - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact constraint solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex)
-  - **Pipeline**: Combined approach for chaining multiple methods
-  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
+  - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact constraint solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES, NSGA-II via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired simulated annealing)
+  - **Advanced proximal**: ODL-style Primal-Dual Hybrid Gradient (PDHG) and Douglas-Rachford splitting with TV (pure-NumPy)
+  - **Evolutionary**: MAEO (multi-island NSGA-III / C-TAEA / AGE-MOEA-II / SPEA2 ensemble)
+  - **Pipeline**: Combined (chaining), Cascade (sequential coarse-to-fine multi-resolution), Composite (adaptive ensemble / stacked generalization)
+  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations; hybrid parametric + iterative refinement
 
 - **Numba JIT-Accelerated Iterative Solvers**:
   - ``@njit(cache=True)`` compiled inner loops for Doroshenko, Kaczmarz, MLEM, GRAVEL

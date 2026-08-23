@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 51 unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 60+ unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 51 methods are accessible as instance methods on the
+All 60+ methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -30,7 +30,9 @@ categories:
        A --> I["Parametric"]
        A --> J["Krylov/hybrid"]
        A --> K["EM family"]
-       A --> L["Multi-sphere ratio"]
+        A --> L["Multi-sphere ratio"]
+        A --> M["Advanced proximal"]
+        A --> N["Evolutionary"]
 
        B --> B1["unfold_cvxpy"]
        B --> B2["unfold_qpsolvers"]
@@ -63,10 +65,15 @@ categories:
        L --> L5["unfold_nsduaz"]
        L --> L6["unfold_ferdor"]
 
-       D --> D1["unfold_bayes"]
-       D --> D2["unfold_bayes_spline_regularization"]
+        D --> D1["unfold_bayes"]
+        D --> D2["unfold_bayes_spline_regularization"]
+        D --> D3["unfold_mcmc"]
+        D --> D4["unfold_zfit"]
 
-       E --> E1["unfold_maxed"]
+        E --> E1["unfold_maxed"]
+        E --> E2["unfold_imaxed"]
+        E --> E3["unfold_amaxed"]
+        E --> E4["unfold_amaxed_regularization"]
         F --> F1["unfold_statreg"]
         F --> F2["unfold_reconst"]
 
@@ -78,9 +85,12 @@ categories:
        G --> G6["unfold_cs"]
        G --> G7["unfold_scip"]
        G --> G8["unfold_docplex"]
-       G --> G9["unfold_epic"]
+        G --> G9["unfold_epic"]
+        G --> G10["unfold_qubo"]
 
-       H --> H1["unfold_combined"]
+        H --> H1["unfold_combined"]
+        H --> H2["unfold_cascade"]
+        H --> H3["unfold_composite"]
 
        I --> I1["unfold_parametric"]
        I --> I2["unfold_parametric_cvxpy"]
@@ -89,7 +99,10 @@ categories:
        I --> I5["unfold_parametric2"]
        I --> I6["unfold_fruit_like"]
        I --> I7["unfold_hybrid_parametric"]
-       I --> I8["unfold_bayesian_parametric"]
+        I --> I8["unfold_bayesian_parametric"]
+        M --> M1["unfold_odl_pdhg"]
+        M --> M2["unfold_odl_douglas_rachford"]
+        N --> N1["unfold_maeo"]
 
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
@@ -99,8 +112,10 @@ categories:
        style F fill:#e8f0fe
        style G fill:#e8f0fe
        style H fill:#e8f0fe
-       style I fill:#e8f0fe
-       style J fill:#e8f0fe
+        style I fill:#e8f0fe
+        style J fill:#e8f0fe
+        style M fill:#e8f0fe
+        style N fill:#e8f0fe
 
 Method Reference
 ~~~~~~~~~~~~~~~~
@@ -421,6 +436,72 @@ Method Reference
      - `max_iterations`, `regularization_method`, `regularization`, `noise_level`, `eta`, `reorthogonalization`
      - —
      - Hybrid GMRES: combines GMRES iteration with Tikhonov regularization on projected problem; automatic regularization selection via GCV/discrepancy principle
+   * - 52
+     - ``unfold_imaxed``
+     - MaxEnt
+     - `sigma_factor`, `max_iterations`, `tolerance`
+     - —
+     - Improved MAXED with gradient-based log-space optimization and cross-entropy regularization (Wong 2024)
+   * - 53
+     - ``unfold_amaxed``
+     - MaxEnt
+     - `sigma_factor`, `target_chi2`, `max_iterations`, `tolerance`
+     - —
+     - Alternative MAXED with reversed cross-entropy definition using Lagrangian multipliers (Wong 2024)
+   * - 54
+     - ``unfold_amaxed_regularization``
+     - MaxEnt
+     - `sigma_factor`, `tau`, `max_iterations`, `tolerance`
+     - —
+     - AMAXED with Tikhonov-style simultaneous minimization of chi-squared and cross-entropy (Wong 2024)
+   * - 55
+     - ``unfold_maeo``
+     - Evolutionary
+     - `n_cycles`, `n_gen_per_cycle`, `pop_size`, `algorithms` (nsga3/ctaea/agemoea2/spea2), `lambda_smooth`, `prior_spectrum`, `convergence_assist_ratio`
+     - pymoo
+     - MAEO multi-island ensemble of NSGA-III/C-TAEA/AGE-MOEA-II/SPEA2 with hypervolume-based migration, convergence-assist phase and knee-point selection from the combined Pareto front
+   * - 56
+     - ``unfold_mcmc``
+     - Bayesian
+     - `sigma_prior`, `lambda_prior`, `n_samples`, `tune`, `chains`, `target_accept`, `use_hierarchical`, `progressbar`
+     - pymc, arviz
+     - Full Bayesian unfolding with the NUTS (Hamiltonian Monte Carlo) sampler: mean posterior spectrum, 95% HPD credible intervals, per-bin posterior std and R-hat / ESS convergence diagnostics under `mcmc_stats`
+   * - 57
+     - ``unfold_zfit``
+     - Bayesian
+     - `use_mcmc`, `n_samples`, `regularization`, `smoothness_weight`
+     - zfit, tensorflow
+     - Poisson-likelihood spectrum inference with smoothness/L2 priors via zfit (Minuit) and a SciPy fallback
+   * - 58
+     - ``unfold_qubo``
+     - Optimization
+     - `n_bits`, `max_value`, `regularization`, `annealing_time`, `num_reads`
+     - pyqubo, dwave-neal
+     - Quantum-inspired QUBO formulation: binary-encoded spectrum amplitudes minimized by classical simulated annealing
+   * - 59
+     - ``unfold_odl_pdhg``
+     - Advanced proximal
+     - `tau`, `sigma`, `use_tv`, `tv_weight`, `nonnegativity`, `tolerance`
+     - —
+     - Primal-Dual Hybrid Gradient (Chambolle-Pock) for L2+TV / L2+L2 problems; TV preserves sharp spectral features (pure-NumPy, ODL-independent)
+   * - 60
+     - ``unfold_odl_douglas_rachford``
+     - Advanced proximal
+     - `use_tv`, `tv_weight`, `nonnegativity`, `tolerance`
+     - —
+     - Douglas-Rachford splitting for composite objectives (data fidelity + TV/L2 + non-negativity indicator); pure-NumPy, ODL-independent
+   * - 61
+     - ``unfold_cascade``
+     - Pipeline/Ensemble
+     - `cascade_stages`, `multi_resolution`, `coarse_bins`
+     - —
+     - Sequential multi-method cascade; each stage may use the previous result as an initial guess/prior; with `multi_resolution=True` the first stage runs on a coarse energy grid and its prolongated solution seeds the fine-grid stages
+   * - 62
+     - ``unfold_composite``
+     - Ensemble
+     - `n_methods`, `timeout_per_method`, `method_names`, `ensemble_weights`, `spectrum`, `energy`
+     - —
+     - Adaptive ensemble (stacked generalization): classifies the spectrum by hardness, runs a pool of individual methods and combines their results with confidence-weighted averaging
 
 .. note::
 

@@ -36,7 +36,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (60 methods):
+- **Multiple Unfolding Algorithms** (60+ methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
@@ -305,6 +305,8 @@ graph TD
     G --> G9[unfold_epic]
 
     H --> H1[unfold_combined]
+    H --> H2[unfold_cascade]
+    H --> H3[unfold_composite]
 
     I --> I1[unfold_parametric]
     I --> I2[unfold_parametric_cvxpy]
@@ -391,6 +393,8 @@ graph TD
 | 58 | `unfold_odl_douglas_rachford` | Advanced proximal | `use_tv`, `tv_weight`, `nonnegativity`, `tolerance` | — | Douglas-Rachford splitting for composite objectives (data fidelity + TV/L2 + non-negativity indicator); pure-NumPy, ODL-independent |
 | 59 | `unfold_qubo` | Optimization | `n_bits`, `max_value`, `regularization`, `annealing_time`, `num_reads` | pyqubo, dwave-neal | Quantum-inspired QUBO formulation: binary-encoded spectrum amplitudes minimized by classical simulated annealing |
 | 60 | `unfold_zfit` | Bayesian | `use_mcmc`, `n_samples`, `regularization`, `smoothness_weight` | zfit, tensorflow | Poisson-likelihood spectrum inference with smoothness/L2 priors via zfit (Minuit) and a SciPy fallback |
+| 61 | `unfold_cascade` | Pipeline/Ensemble | `cascade_stages`, `multi_resolution`, `coarse_bins` | — | Sequential multi-method cascade; each stage may use the previous result as an initial guess or a prior, and the cascade may stop early on a quality threshold. With `multi_resolution=True` the first stage runs on a coarse energy grid and its prolongated solution seeds the fine-grid stages |
+| 62 | `unfold_composite` | Ensemble | `n_methods`, `timeout_per_method`, `method_names`, `ensemble_weights`, `spectrum`, `energy` | — | Adaptive ensemble (stacked generalization): classifies the spectrum by hardness, runs a pool of individual methods and combines their results with confidence-weighted averaging |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -718,8 +722,15 @@ bssunfold/
         │   ├── _em_priors.py    # EM prior functions (quadratic, logcosh, etc.)
         │   ├── _matrix_utils.py # SVD, derivative matrix
         │   ├── _montecarlo.py   # MC uncertainty (optimized)
-        │   ├── _numba_jit.py    # Numba JIT inner loops 
-        │   ├── detector.py      # Main Detector class
+│   ├── _numba_jit.py    # Numba JIT inner loops 
+│   ├── _bon95.py        # BON95 parametric family (extracted from unfold_parametric2.py)
+│   ├── _fruit.py        # FRUIT parametric model + NLS fit (extracted from unfold_parametric.py)
+│   ├── _parametric_shared.py # Shared parametric constants/fit helpers
+│   ├── _solver_backends.py  # Shared solver-backend resolution
+│   ├── _interpret_pyopt.py  # Interpretation QP build/solve + perturbations (leaf)
+│   ├── _interpret_report.py # Interpretation result dataclass + report (leaf)
+│   ├── _multires.py     # Coarse-to-fine (multi-resolution) helpers
+│   ├── detector.py      # Main Detector class
         │   ├── dose_calculation.py
         │   ├── regularization.py   # L-curve, GCV, DP
         │   ├── unfold_bayes.py
@@ -729,8 +740,10 @@ bssunfold/
         │   ├── unfold_bunki.py  # BUNKI (SPUNIT) multi-sphere ratio
         │   ├── unfold_bunkiut.py # BUNKI-UT (BON31G) modernized
         │   ├── unfold_cgls.py   # Conjugate Gradient Least Squares
-        │   ├── unfold_combined.py # Sequential multi-method pipeline
-        │   ├── unfold_cs.py     # Compressive sensing (K-SVD + OMP + SL0)
+│   ├── unfold_combined.py # Sequential multi-method pipeline
+│   ├── unfold_cascade.py # Cascade (sequential) multi-method unfolding
+│   ├── unfold_composite.py # Adaptive ensemble (stacked generalization)
+│   ├── unfold_cs.py     # Compressive sensing (K-SVD + OMP + SL0)
         │   ├── unfold_cvxpy.py  # Convex optimization (Tikhonov)
         │   ├── unfold_docplex.py # IBM CPLEX QP solver
         │   ├── unfold_doroshenko.py # Coordinate-update iterative

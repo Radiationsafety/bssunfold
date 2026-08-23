@@ -519,5 +519,31 @@ class TestMLEMUnfolding:
         assert result["montecarlo_samples"] == 5
 
 
+class TestCascadeCompositeWrappers:
+    """Smoke tests for the Detector.unfold_cascade / unfold_composite wrappers."""
+
+    def test_unfold_cascade_wrapper(self, detector, sample_readings):
+        from bssunfold.core.unfold_cascade import CascadeStage
+
+        result = detector.unfold_cascade(
+            sample_readings,
+            cascade_stages=[CascadeStage(method="tsvd")],
+            verbose=False,
+        )
+        assert isinstance(result, dict)
+        assert "spectrum" in result
+        assert result["status"] in ("OK", "DONE", "ERROR", "STOPPED")
+
+    def test_unfold_composite_wrapper(self, detector, sample_readings):
+        result = detector.unfold_composite(
+            sample_readings,
+            method_names=["tsvd"],
+            n_methods=1,
+            timeout_per_method=5.0,
+        )
+        assert isinstance(result, dict)
+        assert "spectrum" in result
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

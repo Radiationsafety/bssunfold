@@ -130,6 +130,8 @@ from .unfold_odl_advanced import (
 )
 from .unfold_qubo import solve_qubo_unfold, unfold_qubo
 from .unfold_zfit import solve_zfit_unfold, unfold_zfit
+from .unfold_cascade import unfold_cascade
+from .unfold_composite import unfold_composite
 
 __all__ = [
     # detector
@@ -244,6 +246,9 @@ __all__ = [
     # zfit Bayesian method
     "solve_zfit_unfold",
     "unfold_zfit",
+    # cascade / composite (ensemble) methods
+    "unfold_cascade",
+    "unfold_composite",
     # interpretation
     "InterpretationResult",
     "build_interpretation_qp",

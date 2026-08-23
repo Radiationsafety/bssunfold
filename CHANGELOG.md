@@ -7,6 +7,60 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.19.0] - 2026-08-23
+
+### Added
+- **Cascade and Composite unfolding wired into the `Detector` API** —
+  `unfold_cascade` / `unfold_composite` are now public `Detector` methods
+  (previously standalone module functions only) and are exported from
+  `bssunfold.core`. Both are covered by wrapper smoke tests in
+  `tests/test_detector.py`.
+  - `unfold_cascade`: sequential multi-method cascade; each stage may use the
+    previous result as an initial guess or a prior, with optional early
+    stopping on a quality threshold.
+  - `unfold_composite`: adaptive ensemble (stacked generalization) that
+    classifies the spectrum by hardness, runs a pool of individual methods,
+    and combines them with confidence-weighted averaging.
+
+- **Multi-resolution (coarse-to-fine) cascades** — true multi-resolution
+  support in the cascade pipeline:
+  - New `multi_resolution` / `coarse_bins` parameters on `unfold_cascade`
+    and `unfold_adaptive_cascade` (and the `Detector.unfold_cascade`
+    wrapper): the first stage runs on a coarse energy grid and its
+    prolongated solution seeds the fine-grid stages.
+  - New `coarse` / `coarse_bins` fields on `CascadeStage` for explicit
+    per-stage coarse-grid pre-solves.
+  - New shared helpers in `core/_multires.py`: `build_coarse_detector`,
+    `prolongate_spectrum`, `_coarsen_columns`, `_split_coarse` (extracted
+    from `unfold_genetic.py`, which re-exports them for backward
+    compatibility). Coarsening sums adjacent response columns so a coarse
+    bin-total spectrum reproduces fine readings; prolongation preserves
+    total fluence.
+  - Assessment note with usage examples, literature context and limitations:
+    `docs/multires_cascade.rst`.
+  - Tests: coarse-response consistency, fluence-preserving prolongation and
+    multi-resolution cascade runs (`tests/test_cascade.py`).
+
+### Documentation
+- README and Sphinx docs synced to the actual method inventory (60+
+  methods): features counts corrected (36 → 60+, 51 → 60+), method
+  reference tables extended to #62 (IMAXED/AMAXED family, MAEO, MCMC,
+  zfit, QUBO, ODL PDHG/Douglas-Rachford, cascade, composite), mermaid
+  diagrams updated, README project structure now lists
+  `unfold_cascade.py` / `unfold_composite.py` and all extracted helper
+  modules (`_bon95.py`, `_fruit.py`, `_parametric_shared.py`,
+  `_solver_backends.py`, `_interpret_pyopt.py`, `_interpret_report.py`,
+  `_multires.py`).
+- `docs/detector.rst`: added 13 missing `autofunction` entries
+  (imaxed/amaxed/amaxed_regularization, fista, hybrid_gmres, mcmc, zfit,
+  qubo, maeo, odl_pdhg, odl_douglas_rachford, cascade, composite).
+
+### Fixed
+- Sphinx build error: broken list-table indentation in the method
+  reference table of `docs/overview.rst` prevented the table from
+  rendering.
+
+
 ## [0.17.3] - 2026-08-22
 
 ### Added
