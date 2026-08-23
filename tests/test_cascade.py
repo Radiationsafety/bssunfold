@@ -3,14 +3,14 @@
 import numpy as np
 import pandas as pd
 
-from bssunfold import Detector, RF_PTB
+from bssunfold import RF_PTB, Detector
 from bssunfold.core.unfold_cascade import (
-    CascadeStage,
     CascadeResult,
+    CascadeStage,
     compute_quality_metrics,
     create_default_cascade,
-    unfold_cascade,
     unfold_adaptive_cascade,
+    unfold_cascade,
 )
 
 
@@ -107,9 +107,9 @@ def test_cascaderesult_is_exported_dataclass():
 
 def test_build_coarse_detector_shape_and_readings():
     from bssunfold.core._multires import (
+        _coarsen_columns,
         build_coarse_detector,
         prolongate_spectrum,
-        _coarsen_columns,
     )
 
     det, readings = _make_detector_and_readings()
@@ -162,7 +162,11 @@ def test_unfold_cascade_explicit_coarse_stage():
     det, readings = _make_detector_and_readings()
     stages = [
         CascadeStage(method="tsvd", use_as_initial=False, coarse=True, coarse_bins=10),
-        CascadeStage(method="landweber", params={"max_iterations": 30}, use_as_initial=True),
+        CascadeStage(
+            method="landweber",
+            params={"max_iterations": 30},
+            use_as_initial=True,
+        ),
     ]
     result = unfold_cascade(det, readings, cascade_stages=stages, verbose=False)
     assert result["status"] in ("OK", "DONE")

@@ -14,8 +14,9 @@ and b_i is background.
 Requires: zfit, tensorflow (or zfit without TF backend)
 """
 
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding
 
@@ -32,7 +33,7 @@ def solve_zfit_unfold(
     random_state: Optional[int] = None,
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using zfit Bayesian inference.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -53,29 +54,29 @@ def solve_zfit_unfold(
         Weight for smoothness prior (default: 0.01).
     random_state : int, optional
         Random seed for reproducibility.
-    
+
     Returns
     -------
     tuple
         (spectrum, iterations, converged)
     """
     try:
-        import zfit
         import tensorflow as tf
+        import zfit
     except ImportError as e:
         raise ImportError(
             "zfit and tensorflow are required for zfit-based unfolding. "
             "Install with: pip install zfit"
         ) from e
-    
+
     if random_state is not None:
         np.random.seed(random_state)
         tf.random.set_seed(random_state)
-    
+
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
     m_len, n_bins = A.shape
-    
+
     # Scale measurements to reasonable counts (if they're small)
     scale_factor = 1.0
     if np.max(b) < 10:
@@ -83,89 +84,101 @@ def solve_zfit_unfold(
         b_scaled = b * scale_factor
     else:
         b_scaled = b
-    
+
     # Define spectrum parameters (one per energy bin)
     params = {}
     for i in range(n_bins):
         init_val = float(x0[i]) if x0 is not None else 0.5
         # Scale initial value
         init_val_scaled = init_val * scale_factor
-        params[f'phi_{i}'] = zfit.Parameter(f'phi_{i}', init_val_scaled, lower=0, upper=1e6)
-    
+        params[f'phi_{i}'] = zfit.Parameter(
+            f'phi_{i}', init_val_scaled, lower=0, upper=1e6
+        )
+
     # Build expected counts model: μ = A @ φ
     def expected_counts(param_values):
         phi = tf.stack([param_values[f'phi_{i}'] for i in range(n_bins)])
         mu = tf.matmul(A, tf.expand_dims(phi, 1))[:, 0]
         return mu
-    
+
     # Negative log-likelihood (Poisson)
     def nll(param_values):
         mu = expected_counts(param_values)
         # Poisson NLL: sum(μ - n*log(μ) + log(n!))
         # We ignore constant term log(n!)
-        nll_poisson = tf.reduce_sum(mu - b_scaled * tf.math.log(tf.clip_by_value(mu, 1e-10, 1e10)))
-        
+        nll_poisson = tf.reduce_sum(
+            mu - b_scaled * tf.math.log(tf.clip_by_value(mu, 1e-10, 1e10))
+        )
+
         # Add regularization (smoothness prior)
         phi = tf.stack([param_values[f'phi_{i}'] for i in range(n_bins)])
-        
+
         # First derivative penalty (smoothness)
         if n_bins > 1:
             diff = phi[1:] - phi[:-1]
             smoothness = tf.reduce_sum(diff ** 2)
         else:
             smoothness = 0.0
-        
+
         # L2 regularization
         l2_reg = tf.reduce_sum(phi ** 2)
-        
-        return nll_poisson + smoothness_weight * smoothness + regularization * l2_reg
-    
+
+        return (
+            nll_poisson
+            + smoothness_weight * smoothness
+            + regularization * l2_reg
+        )
+
     # Create minimizer
     minimizer = zfit.minimize.Minuit(tol=1e-6)
-    
+
     # Run minimization
     param_values = {name: params[name] for name in params}
-    
+
     try:
         result = minimizer.minimize(
-            nll, 
+            nll,
             param_values,
             options={'maxiter': max_iterations}
         )
-        
+
         converged = result.converged
         n_iter = result.niter if hasattr(result, 'niter') else max_iterations
-        
+
         # Extract best-fit values
         spectrum_scaled = np.array([
-            float(result.params[f'phi_{i}']['value']) 
+            float(result.params[f'phi_{i}']['value'])
             for i in range(n_bins)
         ])
-        
+
     except Exception as e:
         # Fallback to simple optimization
         print(f"zfit optimization failed: {e}, using fallback")
         from scipy.optimize import minimize
-        
+
         def scipy_nll(x):
             x_scaled = x * scale_factor
             mu = A @ x_scaled
             mu = np.clip(mu, 1e-10, 1e10)
             nll_poisson = np.sum(mu - b_scaled * np.log(mu))
-            
+
             # Smoothness
             if n_bins > 1:
                 diff = x_scaled[1:] - x_scaled[:-1]
                 smoothness = np.sum(diff ** 2)
             else:
                 smoothness = 0.0
-            
+
             l2_reg = np.sum(x_scaled ** 2)
-            
-            return nll_poisson + smoothness_weight * smoothness + regularization * l2_reg
-        
+
+            return (
+                nll_poisson
+                + smoothness_weight * smoothness
+                + regularization * l2_reg
+            )
+
         x_init = x0 if x0 is not None else np.ones(n_bins) * 0.5
-        
+
         res = minimize(
             scipy_nll,
             x_init,
@@ -173,15 +186,15 @@ def solve_zfit_unfold(
             bounds=[(0, None)] * n_bins,
             options={'maxiter': max_iterations}
         )
-        
+
         spectrum_scaled = res.x
         converged = res.success
         n_iter = res.nit if hasattr(res, 'nit') else max_iterations
-    
+
     # Rescale to original units
     spectrum = spectrum_scaled / scale_factor
     spectrum = np.maximum(spectrum, 0)
-    
+
     return spectrum, n_iter, converged
 
 
@@ -206,7 +219,7 @@ def unfold_zfit(
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Unfold using zfit Bayesian inference.
-    
+
     Parameters
     ----------
     detector_names : List[str]
@@ -245,14 +258,14 @@ def unfold_zfit(
         Save to history (default: False).
     random_state : int, optional
         Random seed.
-    
+
     Returns
     -------
     Dict
         Unfolding results dictionary.
     """
     x0_default = np.ones(n_energy_bins) * 0.5
-    
+
     def solve_wrapper(A, b, **kwargs):
         x_init = kwargs.pop('x0', initial_spectrum)
         return solve_zfit_unfold(
@@ -264,7 +277,7 @@ def unfold_zfit(
             smoothness_weight=smoothness_weight,
             random_state=random_state,
         )
-    
+
     return run_unfolding(
         detector_names=detector_names,
         n_energy_bins=n_energy_bins,

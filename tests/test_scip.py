@@ -7,9 +7,10 @@ and as a module-level function.
 """
 
 import builtins
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch
 
 pytest.importorskip("pyscipopt")
 
@@ -287,8 +288,8 @@ def test_unfold_combined_scip(detector, readings):
 
 def test_platform_check_scip():
     from bssunfold.platform_check import (
-        check_scip_availability,
         SCIP_AVAILABLE,
+        check_scip_availability,
     )
 
     assert isinstance(check_scip_availability(), bool)

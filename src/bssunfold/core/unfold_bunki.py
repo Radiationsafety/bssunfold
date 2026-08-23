@@ -17,10 +17,11 @@ spectrum ``alethnew = aleth * x0`` and on the starting spectrum ``spl = 1``:
 The final spectrum is the inverse transform ``x = spl * x0``.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_bunki", "unfold_bunki"]
 

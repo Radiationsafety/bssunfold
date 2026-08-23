@@ -117,11 +117,13 @@ class _FakeAZ:
 
     @staticmethod
     def rhat(trace):
-        return {"spectrum": _FakeVar(np.zeros(trace.posterior["spectrum"].values.shape[2]))}
+        vals = trace.posterior["spectrum"].values
+        return {"spectrum": _FakeVar(np.zeros(vals.shape[2]))}
 
     @staticmethod
     def ess(trace):
-        return {"spectrum": _FakeVar(np.full(trace.posterior["spectrum"].values.shape[2], 500.0))}
+        vals = trace.posterior["spectrum"].values
+        return {"spectrum": _FakeVar(np.full(vals.shape[2], 500.0))}
 
 
 # ---------------------------------------------------------------------------

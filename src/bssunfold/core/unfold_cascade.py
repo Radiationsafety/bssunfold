@@ -30,11 +30,13 @@ References:
 - Garcia et al., "Cascaded optimization for radiation field reconstruction"
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Callable
-from dataclasses import dataclass, field
 import signal
 import time
+from dataclasses import dataclass, field
+from functools import partial
+from typing import Any, Callable, Dict, List, Optional
+
+import numpy as np
 
 from ..logging_config import get_logger
 from ._multires import build_coarse_detector, prolongate_spectrum
@@ -422,7 +424,9 @@ def unfold_cascade(
         if stage.max_iterations is not None:
             cur = params.get("max_iterations")
             params["max_iterations"] = (
-                min(cur, stage.max_iterations) if cur is not None else stage.max_iterations
+                min(cur, stage.max_iterations)
+                if cur is not None
+                else stage.max_iterations
             )
 
         if stage_idx == len(cascade_stages) - 1 and calculate_errors:
@@ -431,8 +435,10 @@ def unfold_cascade(
             params["calculate_errors"] = False
 
         try:
+            # partial binds unfold_func/params at creation time, so the
+            # deferred call cannot observe later loop iterations (B023).
             result = _run_with_timeout(
-                lambda: unfold_func(readings=readings, **params),
+                partial(unfold_func, readings=readings, **params),
                 stage.timeout,
             )
             stages_run += 1
@@ -478,7 +484,8 @@ def unfold_cascade(
                         if verbose:
                             logger.info(
                                 f"  Quality threshold met "
-                                f"({overall_quality:.3f} >= {stage.quality_threshold}), "
+                                f"({overall_quality:.3f} "
+                                f">= {stage.quality_threshold}), "
                                 f"stopping"
                             )
                         break

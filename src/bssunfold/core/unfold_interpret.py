@@ -43,25 +43,25 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 
 from ._base_unfolder import _build_system, run_unfolding
-from .regularization import (
-    cosine_similarity_selection,
-    select_regularization_parameter,
-)
 from ._interpret_pyopt import (
+    _detector_sensitivity,
+    _make_analyzer,
+    _nonnegativity_relaxation,
     _pyopt,  # noqa: F401  # re-exported; tests reset its lazy cache via this attribute
+    _regularization_sweep,
     _require_pyoptexplain,
     build_interpretation_qp,
-    _make_analyzer,
     solve_interpret,
-    _detector_sensitivity,
-    _regularization_sweep,
-    _nonnegativity_relaxation,
 )
 from ._interpret_report import (
     InterpretationResult,
-    _rows_to_frame,
     _build_metrics,
     _build_report,
+    _rows_to_frame,
+)
+from .regularization import (
+    cosine_similarity_selection,
+    select_regularization_parameter,
 )
 
 __all__ = [

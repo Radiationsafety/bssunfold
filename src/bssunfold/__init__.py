@@ -12,41 +12,40 @@ Backward Compatibility Note:
 
 import importlib.metadata
 
-# Import main classes and constants for backward compatibility
-from .core.detector import Detector
+# Import utility modules for convenience
+from . import core, utils
 from .constants import (
-    ICRP116_COEFF_EFFECTIVE_DOSE,
     ICRP74_COEFF_EFFECTIVE_DOSE,
-    NRB99_2009_COEFF_EFFECTIVE_DOSE,
     ICRP74_COEFF_OPERATIONAL_QUANTITIES,
-    RF_GSF,
-    RF_PTB,
-    RF_LANL,
-    RF_JINR,
-    RF_FERMILAB,
+    ICRP116_COEFF_EFFECTIVE_DOSE,
+    NRB99_2009_COEFF_EFFECTIVE_DOSE,
     RF_EURADOS,
+    RF_FERMILAB,
+    RF_GSF,
     RF_IHEP,
-)
-from .core.dose_calculation import (
-    get_coefficients,
-    interpolate_coefficients,
-    DOSE_COEFFICIENTS_REGISTRY,
+    RF_JINR,
+    RF_LANL,
+    RF_PTB,
 )
 
-# Import utility modules for convenience
-from . import utils
-from . import core
-from .utils.comparison import compare_spectra
+# Import main classes and constants for backward compatibility
+from .core.detector import Detector
+from .core.dose_calculation import (
+    DOSE_COEFFICIENTS_REGISTRY,
+    get_coefficients,
+    interpolate_coefficients,
+)
+from .logging_config import get_logger, setup_logging
 from .platform_check import (
-    is_windows,
-    is_unix,
     JAX_AVAILABLE,
     PROXSUITE_AVAILABLE,
     QPSOLVERS_EXTRA_AVAILABLE,
     get_available_solvers,
     get_recommended_solver,
+    is_unix,
+    is_windows,
 )
-from .logging_config import setup_logging, get_logger
+from .utils.comparison import compare_spectra
 
 __all__ = [
     # Main class

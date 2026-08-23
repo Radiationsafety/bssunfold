@@ -81,7 +81,7 @@ def _compute_log_steps(energy: np.ndarray) -> np.ndarray:
         Logarithmic steps (ln(E_{i+1}/E_{i}) approximation).
     """
     try:
-        from ..core._numba_jit import _compute_log_steps_jit, NUMBA_AVAILABLE
+        from ..core._numba_jit import NUMBA_AVAILABLE, _compute_log_steps_jit
 
         if NUMBA_AVAILABLE:
             return _compute_log_steps_jit(np.asarray(energy, dtype=np.float64))
@@ -457,7 +457,7 @@ def anderson_darling(p: np.ndarray, q: np.ndarray) -> float:
 
     Returns 0.0 if either input is constant (all identical values).
     """
-    from scipy.stats import anderson_ksamp, PermutationMethod
+    from scipy.stats import PermutationMethod, anderson_ksamp
 
     p_arr = np.asarray(p, dtype=float)
     q_arr = np.asarray(q, dtype=float)
@@ -518,7 +518,8 @@ def fluence_difference_percent(
 ) -> float:
     """Relative difference in total fluence between two spectra (%).
 
-    As used in EURADOS comparison: Δ(%) = 100 * (Q_participant - Q_reference) / Q_reference
+    As used in EURADOS comparison:
+    Δ(%) = 100 * (Q_participant - Q_reference) / Q_reference
 
     Parameters
     ----------
@@ -939,7 +940,7 @@ def dose_weighted_error(
     ln_steps = _compute_log_steps(e)
 
     try:
-        from ..core._numba_jit import _dose_weighted_mse_jit, NUMBA_AVAILABLE
+        from ..core._numba_jit import NUMBA_AVAILABLE, _dose_weighted_mse_jit
 
         if NUMBA_AVAILABLE:
             return float(_dose_weighted_mse_jit(s1, s2, cc, ln_steps))

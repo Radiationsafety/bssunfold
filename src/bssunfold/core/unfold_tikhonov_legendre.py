@@ -4,11 +4,12 @@ This module provides the core solve_tikhonov_legendre solver and the
 unfold_tikhonov_legendre wrapper for use with the Detector class.
 """
 
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 from numpy.polynomial.legendre import Legendre
-from typing import Dict, Optional, Any, List
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 
 __all__ = ["solve_tikhonov_legendre", "unfold_tikhonov_legendre"]

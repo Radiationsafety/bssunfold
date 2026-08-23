@@ -12,8 +12,9 @@ duplication across all unfold_* methods in the Detector class. It handles:
 7. Result saving
 """
 
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Callable, Dict, Optional, Any, List, Tuple
 
 from ..logging_config import get_logger
 from ._montecarlo import monte_carlo_uncertainty

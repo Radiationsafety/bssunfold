@@ -14,10 +14,11 @@ Wong, O. (2024). Modernising neutron spectrum unfolding for fusion applications.
 PhD Thesis, Sheffield Hallam University. https://shura.shu.ac.uk/36014/
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_amaxed_regularization", "unfold_amaxed_regularization"]
 
@@ -33,10 +34,10 @@ def solve_amaxed_regularization(
     line_search_tol: float = 1e-6,
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using AMAXED-Regularization.
-    
+
     Uses Tikhonov-style regularization to simultaneously minimize chi-squared
     and cross-entropy without requiring a fixed target chi-squared value.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -56,24 +57,24 @@ def solve_amaxed_regularization(
         Gradient convergence tolerance (default: 1e-8).
     line_search_tol : float, optional
         Line search tolerance (default: 1e-6).
-    
+
     Returns
     -------
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
     m, n = A.shape
-    
+
     # Positivity floor for iterates (absolute; avoids inf in Hessian terms)
     phi_floor = 1e-12
-    
+
     # Reference spectrum (strictly positive)
     phi_0 = np.maximum(np.asarray(x0, dtype=float), 1e-300)
     phi_0_sum = np.sum(phi_0)
-    
+
     # Normalize reference spectrum
     phi_0_norm = phi_0 / phi_0_sum
-    
+
     # Work on the normalized simplex: scale the measurements by the same
     # factor so A @ (phi / phi_0_sum) == b / phi_0_sum is reachable. Without
     # this scaling the chi-squared term is evaluated against an inconsistent
@@ -82,71 +83,71 @@ def solve_amaxed_regularization(
     b_safe = np.maximum(b_work, 1e-300)
     sigma = sigma_factor * b_safe
     S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
-    
+
     # Initialize solution
     phi_sol = phi_0_norm.copy()
-    
+
     def objective(phi_sol: np.ndarray):
         """Loss function L = tau * D_KL(phi || phi_0_norm) + chi^2."""
         p = np.maximum(phi_sol, phi_floor)
         residual = A @ p - b_work
         kl = np.sum(p * (np.log(p / phi_0_norm + 1e-300)) - p + phi_0_norm)
         return tau * kl + residual @ S_b @ residual
-    
+
     def compute_objective_and_gradients(phi_sol: np.ndarray):
         """Compute loss function and gradient for AMAXED-Regularization.
-        
+
         Loss function: L = tau * D_KL(phi || phi_0) + 0.5 * chi^2
-        
+
         where D_KL is the Kullback-Leibler divergence.
         """
         phi_sol_safe = np.maximum(phi_sol, phi_floor)
-        
+
         # Forward model
         R_phi = A @ phi_sol_safe
         residual = R_phi - b_work
-        
+
         # KL divergence gradient (cross-entropy term)
         # d/dphi [phi * log(phi/phi_0) - phi + phi_0] = log(phi/phi_0)
         kl_grad = np.log(phi_sol_safe / phi_0_norm + 1e-300)
-        
+
         # Chi-squared gradient
         chi2_grad = 2 * A.T @ (S_b @ residual)
-        
+
         # Combined gradient
         grad = tau * kl_grad + chi2_grad
-        
+
         return grad
-    
+
     def compute_Hessian(phi_sol: np.ndarray):
         """Compute Hessian matrix for Newton's method."""
         phi_sol_safe = np.maximum(phi_sol, phi_floor)
-        
+
         # KL divergence Hessian: diag(1/phi)
         kl_hess = np.diag(1.0 / (phi_sol_safe + 1e-300))
-        
+
         # Chi-squared Hessian: 2 * A^T S_b A
         chi2_hess = 2 * A.T @ S_b @ A
-        
+
         # Combined Hessian
         Hessian = tau * kl_hess + chi2_hess
-        
+
         return Hessian
-    
+
     # Newton iteration with backtracking (Armijo) line search
     grad_norm = np.inf
-    
+
     for iteration in range(max_iterations):
         grad = compute_objective_and_gradients(phi_sol)
-        
+
         # Check convergence
         grad_norm = np.linalg.norm(grad)
         if grad_norm < tolerance:
             break
-        
+
         # Compute Hessian
         Hessian = compute_Hessian(phi_sol)
-        
+
         # Solve for Newton direction
         try:
             delta_phi = np.linalg.solve(Hessian, -grad)
@@ -155,7 +156,7 @@ def solve_amaxed_regularization(
             reg_param = 1e-6 * np.max(np.abs(np.diag(Hessian)))
             Hessian_reg = Hessian + reg_param * np.eye(n)
             delta_phi = np.linalg.solve(Hessian_reg, -grad)
-        
+
         # Backtracking line search on the objective value
         base_obj = objective(phi_sol)
         slope = float(np.dot(grad, delta_phi))
@@ -170,16 +171,16 @@ def solve_amaxed_regularization(
         if not accepted:
             # Damped fallback step to keep making progress
             beta = 0.01
-        
+
         # Update solution (positivity enforced via the floor)
         phi_sol = np.maximum(phi_sol + beta * delta_phi, phi_floor)
-    
+
     # Scale back to original magnitude
     phi_sol = phi_sol * phi_0_sum
-    
+
     iterations = iteration + 1
     converged = grad_norm < tolerance
-    
+
     return phi_sol, iterations, converged
 
 
@@ -204,10 +205,10 @@ def unfold_amaxed_regularization(
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Unfold neutron spectrum using the AMAXED-Regularization algorithm.
-    
+
     This method combines the advantages of AMAXED with Tikhonov regularization,
     providing stable convergence without requiring manual chi-squared tuning.
-    
+
     Parameters
     ----------
     detector_names : List[str]
@@ -247,7 +248,7 @@ def unfold_amaxed_regularization(
         Save result to history (default: True).
     random_state : int, optional
         Random seed for reproducibility.
-    
+
     Returns
     -------
     Dict[str, Any]
@@ -257,7 +258,7 @@ def unfold_amaxed_regularization(
         x0_ref = np.asarray(initial_spectrum, dtype=float)
     else:
         x0_ref = np.ones(n_energy_bins)
-    
+
     return run_unfolding(
         detector_names=detector_names,
         n_energy_bins=n_energy_bins,

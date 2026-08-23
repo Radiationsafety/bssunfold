@@ -16,11 +16,12 @@ which implements the same SPUNIT scheme; the Detector-facing entry point is
 ``Detector.unfold_rebunki``.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from .unfold_bunki import solve_bunki
-from ._base_unfolder import run_unfolding, make_solve_wrapper
 
 __all__ = ["solve_rebunki", "unfold_rebunki"]
 

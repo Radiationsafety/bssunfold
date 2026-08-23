@@ -6,23 +6,22 @@ from numpy.testing import assert_almost_equal, assert_array_less
 
 from bssunfold import Detector
 from bssunfold.core.unfold_parametric import (
-    parametric_model,
-    solve_parametric,
-    solve_parametric_cvxpy,
-    solve_parametric_qpsolvers,
-    solve_parametric_combined,
-    _T0,
-    _Ed,
-    _THERMAL_MAX,
     _FAST_MIN,
+    _PARAM_NAMES,
+    _T0,
+    _THERMAL_MAX,
     _compute_jacobian,
+    _Ed,
+    _find_initial_params,
     _get_initial_params,
     _get_param_bounds,
-    _PARAM_NAMES,
-    _find_initial_params,
     _parse_solver_backend,
+    parametric_model,
+    solve_parametric,
+    solve_parametric_combined,
+    solve_parametric_cvxpy,
+    solve_parametric_qpsolvers,
 )
-
 
 # ─── Fixtures ─────────────────────────────────────────────────────
 

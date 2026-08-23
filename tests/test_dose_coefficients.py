@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 
 from bssunfold import (
-    Detector,
-    ICRP116_COEFF_EFFECTIVE_DOSE,
     ICRP74_COEFF_EFFECTIVE_DOSE,
-    NRB99_2009_COEFF_EFFECTIVE_DOSE,
     ICRP74_COEFF_OPERATIONAL_QUANTITIES,
+    ICRP116_COEFF_EFFECTIVE_DOSE,
+    NRB99_2009_COEFF_EFFECTIVE_DOSE,
+    Detector,
     get_coefficients,
     interpolate_coefficients,
 )
@@ -16,7 +16,6 @@ from bssunfold.core.dose_calculation import (
     DOSE_COEFFICIENTS_REGISTRY,
     calculate_dose_rates,
 )
-
 
 # ---------------------------------------------------------------------------
 # Constants structure tests

@@ -6,8 +6,9 @@ MLEM solver for use with the Detector class.
 Requires the 'odl' package to be installed.
 """
 
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, Optional, Any, List
 
 from ._base_unfolder import run_unfolding
 

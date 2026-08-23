@@ -24,10 +24,11 @@ module adapts the ADMM scheme to the 1D Bonner-sphere spectrum unfolding
 problem.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 
 __all__ = ["solve_tikhonov_tv", "unfold_tikhonov_tv"]

@@ -4,13 +4,13 @@ Tests for error injection, performance, application of all options
 in methods, edge cases, and fallback implementations.
 """
 
+import warnings
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
-import warnings
-from unittest.mock import patch
 from numpy.testing import assert_almost_equal
-
 
 # ============================================================================
 # _matrix_utils.py (22% -> 100%)
@@ -198,6 +198,7 @@ class TestRegularization:
 
     def test_lcurve_pytikhonov_none_lambda(self, ab):
         import pytikhonov
+
         from bssunfold.core.regularization import lcurve_selection
 
         A, b = ab
@@ -209,6 +210,7 @@ class TestRegularization:
 
     def test_gcv_pytikhonov_none_lambda(self, ab):
         import pytikhonov
+
         from bssunfold.core.regularization import gcv_selection
 
         A, b = ab
@@ -220,6 +222,7 @@ class TestRegularization:
 
     def test_dp_pytikhonov_none_lambda(self, ab):
         import pytikhonov
+
         from bssunfold.core.regularization import (
             discrepancy_principle_selection,
         )
@@ -235,6 +238,7 @@ class TestRegularization:
 
     def test_dp_pytikhonov_noise_var_none(self, ab):
         import pytikhonov
+
         from bssunfold.core.regularization import (
             discrepancy_principle_selection,
         )
@@ -796,8 +800,9 @@ class TestPlotting:
         plt.close(fig)
 
     def test_plot_spectrum_with_ax(self):
-        from bssunfold.utils.plotting import plot_spectrum
         import matplotlib.pyplot as plt
+
+        from bssunfold.utils.plotting import plot_spectrum
 
         E = np.array([0.1, 0.2, 0.5, 1.0])
         spec = np.array([1.0, 2.0, 3.0, 4.0])
@@ -848,8 +853,9 @@ class TestPlotting:
         plt.close(fig)
 
     def test_plot_response_functions_with_ax(self):
-        from bssunfold.utils.plotting import plot_response_functions
         import matplotlib.pyplot as plt
+
+        from bssunfold.utils.plotting import plot_response_functions
 
         E = np.array([0.1, 0.2, 0.5, 1.0])
         sens = {"det1": np.array([1.0, 2.0, 3.0, 4.0])}
@@ -977,8 +983,9 @@ class TestPlotting:
         plt.close(fig)
 
     def test_plot_residuals_with_ax(self):
-        from bssunfold.utils.plotting import plot_residuals
         import matplotlib.pyplot as plt
+
+        from bssunfold.utils.plotting import plot_residuals
 
         measured = np.array([1.0, 2.0, 3.0])
         calculated = np.array([0.9, 2.1, 2.8])
@@ -1092,8 +1099,9 @@ class TestPlotting:
         plt.close(fig)
 
     def test_plot_with_uncertainty_with_ax(self):
-        from bssunfold.utils.plotting import plot_with_uncertainty
         import matplotlib.pyplot as plt
+
+        from bssunfold.utils.plotting import plot_with_uncertainty
 
         E = np.array([0.1, 0.2, 0.5, 1.0])
         spec = np.array([1.0, 2.0, 3.0, 4.0])
@@ -1307,8 +1315,9 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
 
     def test_solve_qpsolvers_unavailable_solver(self):
-        from bssunfold.core import solve_qpsolvers
         from qpsolvers import available_solvers
+
+        from bssunfold.core import solve_qpsolvers
 
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
@@ -2089,15 +2098,17 @@ class TestPlatformCheck:
 
 class TestLoggingConfig:
     def test_setup_logging_custom_format(self):
-        from bssunfold.logging_config import setup_logging
         import logging
+
+        from bssunfold.logging_config import setup_logging
 
         logger = setup_logging(level=logging.DEBUG, format_string="%(message)s")
         assert logger.level == logging.DEBUG
 
     def test_setup_logging_with_handler(self):
-        from bssunfold.logging_config import setup_logging
         import logging
+
+        from bssunfold.logging_config import setup_logging
 
         logger = setup_logging(level=logging.INFO, use_handler=True)
         assert logger.level == logging.INFO
@@ -2393,8 +2404,8 @@ class TestDoseCalculationCoverage:
 
     def test_build_registry_already_populated(self):
         from bssunfold.core.dose_calculation import (
-            _build_registry,
             DOSE_COEFFICIENTS_REGISTRY,
+            _build_registry,
         )
 
         DOSE_COEFFICIENTS_REGISTRY.clear()
@@ -2543,8 +2554,8 @@ class TestComparisonCoverage:
         assert peak_width_error(s, s, e) == 0.0
 
     def test_compute_log_steps_numba_path(self):
-        from bssunfold.utils.comparison import _compute_log_steps
         import bssunfold.core._numba_jit as nj
+        from bssunfold.utils.comparison import _compute_log_steps
 
         energy = np.array([1e-3, 1e-2, 1e-1, 1.0])
         with patch.object(nj, "NUMBA_AVAILABLE", True):
@@ -2555,8 +2566,8 @@ class TestComparisonCoverage:
         assert result.shape == (4,)
 
     def test_dose_weighted_error_numba_path(self):
-        from bssunfold.utils.comparison import dose_weighted_error
         import bssunfold.core._numba_jit as nj
+        from bssunfold.utils.comparison import dose_weighted_error
 
         s1 = np.ones(4)
         s2 = np.ones(4) * 0.5

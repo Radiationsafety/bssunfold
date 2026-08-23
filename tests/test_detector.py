@@ -1,9 +1,10 @@
-import pytest
+import os
+import sys
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
-from unittest.mock import patch
-import sys
-import os
+import pytest
 
 # Добавляем src в путь для импорта
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

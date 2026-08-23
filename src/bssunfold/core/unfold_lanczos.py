@@ -8,10 +8,11 @@ is selected automatically on the small projected problem via Generalized
 Cross Validation (GCV). No a-priori spectrum is required.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_lanczos", "unfold_lanczos"]
 

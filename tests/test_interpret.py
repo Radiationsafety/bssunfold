@@ -8,9 +8,10 @@ cover the QP construction (:func:`build_interpretation_qp`), the core solver
 """
 
 import builtins
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch
 
 pytest.importorskip("pyoptexplain")
 
@@ -349,9 +350,9 @@ def test_unfold_interpret_tolerance_full_lanl():
     ``iteration_limit`` on the 11-sphere RF_LANL problem; relaxing the
     tolerance must yield an optimal solution instead of a RuntimeError.
     """
-    from bssunfold import RF_LANL
-
     import pandas as pd
+
+    from bssunfold import RF_LANL
 
     det = Detector(RF_LANL)
     ref = pd.read_csv(

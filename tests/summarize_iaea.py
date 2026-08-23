@@ -4,9 +4,10 @@
 Usage: python summarize_iaea.py
 """
 
-import pandas as pd
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 REPORT_DIR = Path(__file__).parent
 

@@ -8,9 +8,10 @@ regularization variants and error handling.
 """
 
 import builtins
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch
 
 from bssunfold import Detector
 

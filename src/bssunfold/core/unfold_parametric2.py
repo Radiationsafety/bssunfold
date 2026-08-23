@@ -31,26 +31,27 @@ After parametric fitting, the result is refined by directed-divergence
 (I-divergence / Itakura-Saito) iterations.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, _build_system
+import numpy as np
+
+from ._base_unfolder import _build_system, run_unfolding
+from ._bon95 import (
+    _DEFAULT_B_RANGE,
+    _DEFAULT_C_RANGE,
+    _DEFAULT_TF_RANGE,
+    bon95_spectrum,
+    solve_bon95_combined,
+    solve_bon95_cvxpy,
+    solve_bon95_parametric,
+    solve_bon95_qpsolvers,
+)
 from ._matrix_utils import compute_log_steps
 from ._parametric_shared import (
-    _Tth,
+    _build_measurement_uncertainties,
     _check_fit_quality,
     _clean_edge_bins,
-    _build_measurement_uncertainties,
-)
-from ._bon95 import (
-    bon95_spectrum,
-    _DEFAULT_B_RANGE,
-    _DEFAULT_TF_RANGE,
-    _DEFAULT_C_RANGE,
-    solve_bon95_parametric,
-    solve_bon95_cvxpy,
-    solve_bon95_qpsolvers,
-    solve_bon95_combined,
+    _Tth,
 )
 
 __all__ = [

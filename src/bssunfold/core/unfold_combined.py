@@ -5,8 +5,9 @@ of unfolding methods sequentially, optionally using the result of each method
 as the initial guess for the next.
 """
 
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, Optional, Any, List
 
 from ..logging_config import get_logger
 
@@ -59,31 +60,31 @@ def unfold_combined(
     Dict
         Dictionary with unfolding results.
     """
-    from .unfold_cvxpy import unfold_cvxpy
-    from .unfold_landweber import unfold_landweber
-    from .unfold_mlem import unfold_mlem
-    from .unfold_mlem_odl import unfold_mlem_odl
-    from .unfold_qpsolvers import unfold_qpsolvers
-    from .unfold_mystic import unfold_mystic
-    from .unfold_genetic import unfold_genetic
-    from .unfold_doroshenko import unfold_doroshenko
-    from .unfold_kaczmarz import unfold_kaczmarz
-    from .unfold_lmfit import unfold_lmfit
-    from .unfold_smt import unfold_smt
-    from .unfold_scip import unfold_scip
-    from .unfold_docplex import unfold_docplex
-    from .unfold_epic import unfold_epic
-    from .unfold_lanczos import unfold_lanczos
-    from .unfold_cgls import unfold_cgls
-    from .unfold_gks import unfold_gks
-    from .unfold_tikhonov_tv import unfold_tikhonov_tv
-    from .unfold_sandii import unfold_sandii
+    from .unfold_bsrem import unfold_bsrem
     from .unfold_bunki import unfold_bunki
     from .unfold_bunkiut import unfold_bunkiut
-    from .unfold_osem import unfold_osem
+    from .unfold_cgls import unfold_cgls
+    from .unfold_cvxpy import unfold_cvxpy
+    from .unfold_docplex import unfold_docplex
+    from .unfold_doroshenko import unfold_doroshenko
+    from .unfold_epic import unfold_epic
+    from .unfold_genetic import unfold_genetic
+    from .unfold_gks import unfold_gks
+    from .unfold_kaczmarz import unfold_kaczmarz
+    from .unfold_lanczos import unfold_lanczos
+    from .unfold_landweber import unfold_landweber
+    from .unfold_lmfit import unfold_lmfit
     from .unfold_mapem import unfold_mapem
-    from .unfold_bsrem import unfold_bsrem
+    from .unfold_mlem import unfold_mlem
+    from .unfold_mlem_odl import unfold_mlem_odl
+    from .unfold_mystic import unfold_mystic
+    from .unfold_osem import unfold_osem
+    from .unfold_qpsolvers import unfold_qpsolvers
+    from .unfold_sandii import unfold_sandii
     from .unfold_sart import unfold_sart
+    from .unfold_scip import unfold_scip
+    from .unfold_smt import unfold_smt
+    from .unfold_tikhonov_tv import unfold_tikhonov_tv
 
     current_spectrum = None
     intermediate_results = {}

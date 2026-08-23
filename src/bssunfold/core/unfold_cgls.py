@@ -14,10 +14,11 @@ License) and its Python port in the TRIPs-Py library by Mirjeta Pasha
 and Silvia Gazzola (Apache-2.0).
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import make_regularization_operator
 
 __all__ = ["solve_cgls", "unfold_cgls"]

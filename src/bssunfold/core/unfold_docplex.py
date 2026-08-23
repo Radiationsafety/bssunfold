@@ -11,13 +11,13 @@ bodies.
 """
 
 import warnings
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-from typing import Dict, Optional, Any, List
 
+from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 from .regularization import resolve_regularization_parameter
-from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = ["solve_docplex", "unfold_docplex"]
 

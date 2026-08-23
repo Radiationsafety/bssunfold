@@ -11,10 +11,11 @@ where ``m`` indexes the detector subset. With ``n_subsets=1`` the update
 reduces exactly to standard MLEM.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_osem", "unfold_osem"]
 

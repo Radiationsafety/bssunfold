@@ -10,10 +10,11 @@ Technique). The parametric model consists of:
 Reference: Bedogni et al., Nucl. Instrum. Methods A 580, 1301-1309 (2007)
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, _build_system
+import numpy as np
+
+from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_fruit_like", "unfold_fruit_like"]

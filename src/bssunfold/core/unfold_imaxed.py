@@ -12,10 +12,11 @@ Wong, O. (2024). Modernising neutron spectrum unfolding for fusion applications.
 PhD Thesis, Sheffield Hallam University. https://shura.shu.ac.uk/36014/
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_imaxed", "unfold_imaxed"]
 
@@ -30,10 +31,10 @@ def solve_imaxed(
     line_search_tol: float = 1e-6,
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using IMAXED (Improved MAXED).
-    
+
     Uses gradient-based optimization with cross-entropy regularization
     for stable and reliable convergence.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -50,54 +51,54 @@ def solve_imaxed(
         Gradient convergence tolerance (default: 1e-8).
     line_search_tol : float, optional
         Line search tolerance (default: 1e-6).
-    
+
     Returns
     -------
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
     from scipy.optimize import minimize
-    
+
     m, n = A.shape
-    
+
     # Measurement uncertainties
     b_safe = np.maximum(b, 1e-300)
     sigma = sigma_factor * b_safe
     S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
-    
+
     # Reference spectrum (strictly positive)
     phi_0 = np.maximum(x0, 1e-300)
-    
+
     def objective_and_gradient(y: np.ndarray):
         """Compute objective and gradient in log-space."""
         x = np.exp(y)
-        
+
         # Forward model
         Ax = A @ x
         residual = Ax - b
-        
+
         # Chi-squared term
         chi2 = 0.5 * residual @ S_b @ residual
-        
+
         # Cross-entropy regularization (relative to prior)
         log_phi_0 = np.log(phi_0)
         entropy = np.sum(x * (np.log(x + 1e-300) - log_phi_0) - x + phi_0)
-        
+
         # Total objective
         f = chi2 + entropy
-        
+
         # Gradient
         AT_Sb_res = A.T @ (S_b @ residual)
         grad_x = AT_Sb_res + np.log(x + 1e-300) - log_phi_0
-        
+
         # Gradient in y-space: df/dy = x * df/dx
         grad_y = x * grad_x
-        
+
         return f, grad_y
-    
+
     # Initial point in log-space
     y0 = np.log(phi_0)
-    
+
     # Optimize using L-BFGS-B
     result = minimize(
         objective_and_gradient,
@@ -106,11 +107,11 @@ def solve_imaxed(
         method="L-BFGS-B",
         options={"maxiter": max_iterations, "gtol": tolerance, "ftol": 0},
     )
-    
+
     x_opt = np.exp(result.x)
     iterations = result.nit if hasattr(result, "nit") else 0
     converged = result.success or result.status == 0
-    
+
     return x_opt, iterations, converged
 
 
@@ -134,7 +135,7 @@ def unfold_imaxed(
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Unfold neutron spectrum using the IMAXED algorithm.
-    
+
     Parameters
     ----------
     detector_names : List[str]
@@ -171,7 +172,7 @@ def unfold_imaxed(
         Save result to history (default: True).
     random_state : int, optional
         Random seed for reproducibility.
-    
+
     Returns
     -------
     Dict[str, Any]
@@ -181,7 +182,7 @@ def unfold_imaxed(
         x0_ref = np.asarray(initial_spectrum, dtype=float)
     else:
         x0_ref = np.ones(n_energy_bins)
-    
+
     return run_unfolding(
         detector_names=detector_names,
         n_energy_bins=n_energy_bins,

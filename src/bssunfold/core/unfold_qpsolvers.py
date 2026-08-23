@@ -5,14 +5,14 @@ wrapper with various regularization selection methods.
 """
 
 import warnings
-import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
 
+import numpy as np
 from scipy.sparse import csc_matrix
 
+from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import build_smoothness_penalty
 from .regularization import resolve_regularization_parameter
-from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
 

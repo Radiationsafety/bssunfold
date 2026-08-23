@@ -6,8 +6,9 @@ NRB99-2009, etc.).
 """
 
 import logging
-import numpy as np
 from typing import Dict, Optional
+
+import numpy as np
 
 __all__ = [
     "calculate_dose_rates",
@@ -32,10 +33,10 @@ def _build_registry() -> None:
         return
 
     from ..constants import (
-        ICRP116_COEFF_EFFECTIVE_DOSE,
         ICRP74_COEFF_EFFECTIVE_DOSE,
-        NRB99_2009_COEFF_EFFECTIVE_DOSE,
         ICRP74_COEFF_OPERATIONAL_QUANTITIES,
+        ICRP116_COEFF_EFFECTIVE_DOSE,
+        NRB99_2009_COEFF_EFFECTIVE_DOSE,
     )
 
     DOSE_COEFFICIENTS_REGISTRY.update(
@@ -80,7 +81,8 @@ def get_coefficients(name: str) -> Dict[str, np.ndarray]:
         - ``"ICRP116"``: ICRP-116 effective dose (AP, PA, LLAT, RLAT, ISO, ROT)
         - ``"ICRP74_effective"``: ICRP-74 effective dose (AP, PA, RLAT, ROT, ISO)
         - ``"NRB99_2009_effective"``: NRB99-2009 effective dose (AP, ISO)
-        - ``"ICRP74_operational"``: ICRP-74 operational quantities (ADE, PDE0, PDE45, PDE60, PDE75)
+        - ``"ICRP74_operational"``: ICRP-74 operational quantities
+          (ADE, PDE0, PDE45, PDE60, PDE75)
 
     Returns
     -------

@@ -12,9 +12,11 @@ References:
 - Reginatto et al., "Sequential Bayesian approach for neutron spectrum unfolding"
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List
 import signal
+from functools import partial
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 
 from ..logging_config import get_logger
 from ..utils.comparison import cosine_similarity
@@ -117,7 +119,9 @@ def _run_with_timeout(fn: Any, timeout: float) -> Any:
         signal.signal(signal.SIGALRM, old_handler)
 
 
-def compute_spectrum_features(spectrum: np.ndarray, energy: np.ndarray) -> Dict[str, float]:
+def compute_spectrum_features(
+    spectrum: np.ndarray, energy: np.ndarray
+) -> Dict[str, float]:
     """Compute simple discriminating features of a spectrum.
 
     Parameters
@@ -250,8 +254,10 @@ def unfold_composite(
             messages[name] = "unknown method"
             continue
         try:
+            # partial binds func at creation time, so the deferred call
+            # cannot observe later loop iterations (B023).
             result = _run_with_timeout(
-                lambda: func(readings=readings, save_result=save_result),
+                partial(func, readings=readings, save_result=save_result),
                 timeout_per_method,
             )
             spec = result.get("spectrum") if isinstance(result, dict) else None

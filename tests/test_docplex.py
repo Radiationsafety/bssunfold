@@ -7,9 +7,10 @@ module-level function.
 """
 
 import builtins
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch
 
 pytest.importorskip("docplex")
 pytest.importorskip("cplex")
@@ -299,8 +300,8 @@ def test_unfold_combined_docplex(detector, readings):
 
 def test_platform_check_docplex():
     from bssunfold.platform_check import (
-        check_docplex_availability,
         DOCPLEX_AVAILABLE,
+        check_docplex_availability,
     )
 
     assert isinstance(check_docplex_availability(), bool)

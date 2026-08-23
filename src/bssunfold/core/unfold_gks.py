@@ -15,10 +15,11 @@ Ugwu (Apache-2.0), which itself is a Python port of the GKS method from
 the IR Tools package of Gazzola, Hansen and Nagy (3-Clause BSD License).
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import make_regularization_operator
 
 __all__ = ["solve_gks", "unfold_gks"]

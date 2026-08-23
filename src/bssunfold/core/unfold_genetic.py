@@ -55,12 +55,12 @@ deterministic methods (landweber, cvxpy, MLEM) the optimizer:
 """
 
 import warnings
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from typing import Dict, Optional, Any, List, Callable, Tuple
 
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
-from ._base_unfolder import run_unfolding, make_solve_wrapper
 from ._multires import _coarsen_columns, _split_coarse  # re-exported for callers
 
 __all__ = ["solve_genetic", "unfold_genetic"]
@@ -104,7 +104,7 @@ _SOLVER_ALIASES = {
 def _import_mealpy():
     """Import the MEALPY modules, raising a helpful ImportError if missing."""
     try:
-        from mealpy import FloatVar, PSO, GA, DE, ES, EP, ABC, GWO
+        from mealpy import ABC, DE, EP, ES, GA, GWO, PSO, FloatVar
     except ImportError as e:
         raise ImportError(_IMPORT_ERROR_MSG) from e
     return FloatVar, PSO, GA, DE, ES, EP, ABC, GWO

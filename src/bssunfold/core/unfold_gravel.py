@@ -4,11 +4,12 @@ This module provides the core solve_gravel solver and the unfold_gravel
 wrapper for use with the Detector class.
 """
 
-import numpy as np
-from numpy import log, exp
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+from numpy import exp, log
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_gravel", "unfold_gravel"]
 
@@ -55,7 +56,7 @@ def solve_gravel(
     b_valid = b[valid]
 
     try:
-        from ._numba_jit import _gravel_inner, NUMBA_AVAILABLE
+        from ._numba_jit import NUMBA_AVAILABLE, _gravel_inner
 
         if NUMBA_AVAILABLE:
             return _gravel_inner(

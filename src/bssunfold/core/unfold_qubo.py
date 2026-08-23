@@ -1,14 +1,14 @@
 """QUBO-based neutron spectrum unfolding using quantum-inspired annealing.
 
-This module implements a QUBO (Quadratic Unconstrained Binary Optimization) 
-formulation of the neutron spectrum unfolding problem, solvable with 
+This module implements a QUBO (Quadratic Unconstrained Binary Optimization)
+formulation of the neutron spectrum unfolding problem, solvable with
 quantum-inspired simulated annealing (D-Wave Neal) or other QUBO solvers.
 
 The approach discretizes the spectrum into binary variables and formulates
 the unfolding as:
 
     min_x ||Ax - b||^2 + λ * R(x)
-    
+
 subject to x >= 0,
 
 where the spectrum is represented in binary encoding for QUBO compatibility.
@@ -16,19 +16,20 @@ where the spectrum is represented in binary encoding for QUBO compatibility.
 Requires: pyqubo, dwave-neal
 """
 
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding
 
 
 def _spectrum_to_binary(
-    spectrum: np.ndarray, 
+    spectrum: np.ndarray,
     n_bits: int = 8,
     max_value: Optional[float] = None
 ) -> np.ndarray:
     """Convert continuous spectrum to binary representation.
-    
+
     Parameters
     ----------
     spectrum : np.ndarray
@@ -37,7 +38,7 @@ def _spectrum_to_binary(
         Number of bits per energy bin.
     max_value : float, optional
         Maximum value for scaling. If None, uses max(spectrum).
-    
+
     Returns
     -------
     np.ndarray
@@ -47,21 +48,21 @@ def _spectrum_to_binary(
         max_value = np.max(spectrum)
     if max_value <= 0:
         max_value = 1.0
-    
+
     # Normalize to [0, 1]
     normalized = np.clip(spectrum / max_value, 0, 1)
-    
+
     # Convert to binary
     n_bins = len(spectrum)
     binary = np.zeros(n_bins * n_bits, dtype=int)
-    
+
     for i in range(n_bins):
         val = normalized[i]
         for j in range(n_bits):
             bit = int(val * 2)
             binary[i * n_bits + j] = bit
             val = (val * 2) % 1
-    
+
     return binary
 
 
@@ -72,7 +73,7 @@ def _binary_to_spectrum(
     max_value: float = 1.0
 ) -> np.ndarray:
     """Convert binary representation back to continuous spectrum.
-    
+
     Parameters
     ----------
     binary : np.ndarray
@@ -83,20 +84,20 @@ def _binary_to_spectrum(
         Number of bits per energy bin.
     max_value : float
         Maximum value for scaling.
-    
+
     Returns
     -------
     np.ndarray
         Continuous spectrum of shape (n_bins,).
     """
     spectrum = np.zeros(n_bins)
-    
+
     for i in range(n_bins):
         val = 0.0
         for j in range(n_bits):
             val += binary[i * n_bits + j] * (2 ** -(j + 1))
         spectrum[i] = val * max_value
-    
+
     return np.maximum(spectrum, 0)
 
 
@@ -113,7 +114,7 @@ def solve_qubo_unfold(
     random_state: Optional[int] = None,
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using QUBO formulation with simulated annealing.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -136,28 +137,28 @@ def solve_qubo_unfold(
         Number of independent reads (default: 10).
     random_state : int, optional
         Random seed for reproducibility.
-    
+
     Returns
     -------
     tuple
         (spectrum, iterations, converged)
     """
     try:
-        from pyqubo import Array, Binary
         import dwave.samplers as ds
+        from pyqubo import Array, Binary
     except ImportError as e:
         raise ImportError(
             "pyqubo and dwave-neal are required for QUBO unfolding. "
             "Install with: pip install pyqubo dwave-neal"
         ) from e
-    
+
     if random_state is not None:
         np.random.seed(random_state)
-    
+
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
     m_len, n_bins = A.shape
-    
+
     # Estimate max value if not provided
     if max_value is None:
         if x0 is not None:
@@ -169,20 +170,20 @@ def solve_qubo_unfold(
                 max_value = float(np.max(np.abs(x_est))) * 2
             except Exception:
                 max_value = 1.0
-        
+
         if max_value <= 0:
             max_value = 1.0
-    
+
     # Total number of binary variables
     n_binary = n_bins * n_bits
-    
+
     # Create binary variables
     qubits = Array([Binary(f'x[{i}]') for i in range(n_binary)])
-    
+
     # Build QUBO objective: ||A * x_binary - b||^2
     # First, create transformation matrix from binary to continuous
     # x_cont[i] = sum_j (binary[i*n_bits + j] * 2^-(j+1)) * max_value
-    
+
     # Binary-to-continuous transformation: x_cont = T @ qubits, where
     # T[i, i*n_bits + j] = 2^-(j+1) * max_value. The spectrum has n_bins
     # entries, each encoded with n_bits qubits, so T is (n_bins, n_binary).
@@ -195,56 +196,59 @@ def solve_qubo_unfold(
     # A @ (T @ qubits) = (A @ T) @ qubits, so A_scaled = A @ T (shape
     # m_len x n_binary), consistent with _binary_to_spectrum's decoder.
     A_scaled = A @ T
-    
+
     # Objective: ||A_scaled @ qubits - b||^2
-    # = qubits.T @ (A_scaled.T @ A_scaled) @ qubits - 2 * b.T @ A_scaled @ qubits + b.T @ b
-    
+    # = qubits.T @ (A_scaled.T @ A_scaled) @ qubits
+    #   - 2 * b.T @ A_scaled @ qubits + b.T @ b
+
     Q_matrix = A_scaled.T @ A_scaled
     linear_term = -2 * (b.T @ A_scaled)
-    
+
     # Add regularization term (encourages sparsity/smoothness)
     # Simple L2-like penalty on binary variables
     reg_matrix = regularization * np.eye(n_binary)
     Q_matrix += reg_matrix
-    
+
     # Build Hamiltonian using PyQUBO
     hamiltonian = 0.0
-    
+
     # Quadratic terms
     for i in range(n_binary):
         for j in range(i + 1, n_binary):
             if abs(Q_matrix[i, j]) > 1e-10:
                 hamiltonian += Q_matrix[i, j] * qubits[i] * qubits[j]
-    
+
     # Linear terms
     for i in range(n_binary):
         qubo_linear = float(Q_matrix[i, i]) + float(linear_term[i])
         hamiltonian += qubo_linear * qubits[i]
-    
+
     # Compile to QUBO
     model = hamiltonian.compile()
     qubo, offset = model.to_qubo()
-    
+
     # Solve with simulated annealing
     sampler = ds.SimulatedAnnealingSampler()
-    
+
     response = sampler.sample_qubo(
         qubo,
         num_reads=num_reads,
         num_sweeps=annealing_time,
         seed=random_state,
     )
-    
+
     # Get best solution
     best_sample = response.first.sample
-    
+
     # Convert binary solution back to continuous
-    binary_solution = np.array([best_sample[f'x[{i}]'] for i in range(n_binary)], dtype=float)
+    binary_solution = np.array(
+        [best_sample[f'x[{i}]'] for i in range(n_binary)], dtype=float
+    )
     spectrum = _binary_to_spectrum(binary_solution, n_bins, n_bits, max_value)
-    
+
     # Ensure non-negativity
     spectrum = np.maximum(spectrum, 0)
-    
+
     converged = response.first.energy < float('inf')
     return spectrum, max_iterations, converged
 
@@ -271,7 +275,7 @@ def unfold_qubo(
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Unfold using QUBO formulation with quantum-inspired annealing.
-    
+
     Parameters
     ----------
     detector_names : List[str]
@@ -312,14 +316,14 @@ def unfold_qubo(
         Save to history (default: False).
     random_state : int, optional
         Random seed.
-    
+
     Returns
     -------
     Dict
         Unfolding results dictionary.
     """
     x0_default = np.ones(n_energy_bins) * 0.5
-    
+
     def solve_wrapper(A, b, **kwargs):
         x_init = kwargs.pop('x0', initial_spectrum)
         return solve_qubo_unfold(
@@ -332,7 +336,7 @@ def unfold_qubo(
             num_reads=num_reads,
             random_state=random_state,
         )
-    
+
     return run_unfolding(
         detector_names=detector_names,
         n_energy_bins=n_energy_bins,

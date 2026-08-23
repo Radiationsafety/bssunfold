@@ -4,10 +4,11 @@ This module provides the core solve_landweber solver and the unfold_landweber
 wrapper for use with the Detector class.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_landweber", "unfold_landweber"]
 

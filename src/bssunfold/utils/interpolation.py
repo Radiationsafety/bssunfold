@@ -4,10 +4,11 @@ This module provides functions for interpolating spectra onto different
 energy grids using PCHIP interpolation.
 """
 
+from typing import Dict, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 from scipy.interpolate import PchipInterpolator as pchip
-from typing import Union, Dict, Optional, Tuple
 
 __all__ = [
     "interpolate_spectrum",

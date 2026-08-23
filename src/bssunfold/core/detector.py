@@ -4,16 +4,18 @@ This module contains the main Detector class which provides methods for
 neutron spectrum unfolding using various algorithms.
 """
 
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from typing import Dict, Optional, List, Tuple, Any, Union, Callable
 
 from ..constants import RF_GSF
 from ..logging_config import get_logger
-from ..utils.validators import validate_readings
 from ..utils.interpolation import discretize_spectra
 from ..utils.plotting import plot_with_uncertainty
+from ..utils.validators import validate_readings
+from ._base_unfolder import _build_system
 from .dose_calculation import (
     calculate_dose_rates,
     get_coefficients,
@@ -21,88 +23,95 @@ from .dose_calculation import (
 )
 from .regularization import (
     compare_regularization_methods as compare_reg_util,
+)
+from .regularization import (
     randomization_experiment as rand_exp_util,
 )
-from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
-from .unfold_landweber import unfold_landweber as unfold_landweber_impl
-from .unfold_mlem import unfold_mlem as unfold_mlem_impl
-from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
-from .unfold_mystic import unfold_mystic as unfold_mystic_impl
-from .unfold_genetic import unfold_genetic as unfold_genetic_impl
-from .unfold_reconst import unfold_reconst as unfold_reconst_impl
-from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
-from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
-from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
-from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
-from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
-from .unfold_imaxed import unfold_imaxed as unfold_imaxed_impl
 from .unfold_amaxed import unfold_amaxed as unfold_amaxed_impl
 from .unfold_amaxed_regularization import (
     unfold_amaxed_regularization as unfold_amaxed_regularization_impl,
-)
-from .unfold_odl_advanced import (
-    unfold_odl_pdhg as unfold_odl_pdhg_impl,
-    unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
-)
-from .unfold_qubo import unfold_qubo as unfold_qubo_impl
-from .unfold_zfit import unfold_zfit as unfold_zfit_impl
-from .unfold_combined import unfold_combined as unfold_combined_impl
-from .unfold_cascade import (
-    unfold_cascade as unfold_cascade_impl,
-    CascadeStage,
-)
-from .unfold_composite import unfold_composite as unfold_composite_impl
-from .unfold_gravel import unfold_gravel as unfold_gravel_impl
-from .unfold_maxed import unfold_maxed as unfold_maxed_impl
-from .unfold_tikhonov_legendre import (
-    unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
 )
 from .unfold_bayes import unfold_bayes as unfold_bayes_impl
 from .unfold_bayes_spline_regularization import (
     unfold_bayes_spline_regularization as unfold_bayes_spline_impl,
 )
-from .unfold_statreg import unfold_statreg as unfold_statreg_impl
-from .unfold_scipy_direct_method import (
-    unfold_scipy_direct_method as unfold_scipy_direct_impl,
-)
-from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
-from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
-from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
-from .unfold_hybrid_parametric import (
-    unfold_hybrid_parametric as unfold_hybrid_parametric_impl,
-)
 from .unfold_bayesian_parametric import (
     unfold_bayesian_parametric as unfold_bayesian_parametric_impl,
 )
-from .unfold_parametric import unfold_parametric as unfold_parametric_impl
-from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
-from .unfold_smt import unfold_smt as unfold_smt_impl
-from .unfold_scip import unfold_scip as unfold_scip_impl
-from .unfold_docplex import unfold_docplex as unfold_docplex_impl
-from .unfold_cs import unfold_cs as unfold_cs_impl
-from .unfold_epic import unfold_epic as unfold_epic_impl
-from .unfold_cgls import unfold_cgls as unfold_cgls_impl
-from .unfold_gks import unfold_gks as unfold_gks_impl
-from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
-from .unfold_sandii import unfold_sandii as unfold_sandii_impl
+from .unfold_bsrem import unfold_bsrem as unfold_bsrem_impl
 from .unfold_bunki import unfold_bunki as unfold_bunki_impl
 from .unfold_bunkiut import unfold_bunkiut as unfold_bunkiut_impl
+from .unfold_cascade import (
+    CascadeStage,
+)
+from .unfold_cascade import (
+    unfold_cascade as unfold_cascade_impl,
+)
+from .unfold_cgls import unfold_cgls as unfold_cgls_impl
+from .unfold_combined import unfold_combined as unfold_combined_impl
+from .unfold_composite import unfold_composite as unfold_composite_impl
+from .unfold_cs import unfold_cs as unfold_cs_impl
+from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
+from .unfold_docplex import unfold_docplex as unfold_docplex_impl
+from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
+from .unfold_epic import unfold_epic as unfold_epic_impl
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
-from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
-from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
-from .unfold_osem import unfold_osem as unfold_osem_impl
-from .unfold_mapem import unfold_mapem as unfold_mapem_impl
-from .unfold_bsrem import unfold_bsrem as unfold_bsrem_impl
-from .unfold_sart import unfold_sart as unfold_sart_impl
-from ._base_unfolder import _build_system
+from .unfold_fista import unfold_fista as unfold_fista_impl
+from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
+from .unfold_genetic import unfold_genetic as unfold_genetic_impl
+from .unfold_gks import unfold_gks as unfold_gks_impl
+from .unfold_gravel import unfold_gravel as unfold_gravel_impl
+from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
+from .unfold_hybrid_parametric import (
+    unfold_hybrid_parametric as unfold_hybrid_parametric_impl,
+)
+from .unfold_imaxed import unfold_imaxed as unfold_imaxed_impl
 from .unfold_interpret import (
     interpret_qp as interpret_qp_impl,
+)
+from .unfold_interpret import (
     unfold_interpret as unfold_interpret_impl,
 )
-from .unfold_fista import unfold_fista as unfold_fista_impl
-from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
-from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
+from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
+from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
+from .unfold_landweber import unfold_landweber as unfold_landweber_impl
+from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
 from .unfold_maeo import unfold_maeo as unfold_maeo_impl
+from .unfold_mapem import unfold_mapem as unfold_mapem_impl
+from .unfold_maxed import unfold_maxed as unfold_maxed_impl
+from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
+from .unfold_mlem import unfold_mlem as unfold_mlem_impl
+from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
+from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
+from .unfold_mystic import unfold_mystic as unfold_mystic_impl
+from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
+from .unfold_odl_advanced import (
+    unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
+)
+from .unfold_odl_advanced import (
+    unfold_odl_pdhg as unfold_odl_pdhg_impl,
+)
+from .unfold_osem import unfold_osem as unfold_osem_impl
+from .unfold_parametric import unfold_parametric as unfold_parametric_impl
+from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
+from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
+from .unfold_qubo import unfold_qubo as unfold_qubo_impl
+from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
+from .unfold_reconst import unfold_reconst as unfold_reconst_impl
+from .unfold_sandii import unfold_sandii as unfold_sandii_impl
+from .unfold_sart import unfold_sart as unfold_sart_impl
+from .unfold_scip import unfold_scip as unfold_scip_impl
+from .unfold_scipy_direct_method import (
+    unfold_scipy_direct_method as unfold_scipy_direct_impl,
+)
+from .unfold_smt import unfold_smt as unfold_smt_impl
+from .unfold_statreg import unfold_statreg as unfold_statreg_impl
+from .unfold_tikhonov_legendre import (
+    unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
+)
+from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
+from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
+from .unfold_zfit import unfold_zfit as unfold_zfit_impl
 
 __all__ = ["Detector"]
 
@@ -1974,7 +1983,8 @@ class Detector:
         EPIC_bool : np.ndarray, optional
             Boolean mask of which parameters are subject to the EPIC.
         V : np.ndarray, optional
-            Matrix mapping the searched betas to the regularization rows, beta = V @ y (shape (H.shape[0], len(y))).
+            Matrix mapping the searched betas to the regularization rows,
+            beta = V @ y (shape (H.shape[0], len(y))).
         LSQpar : dict, optional
             Tuning parameters for the nonlinear least-squares solver.
         calculate_errors : bool, optional
@@ -2755,7 +2765,8 @@ class Detector:
         save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Unfold neutron spectrum using Bayesian iterative unfolding with spline regularization.
+        """Unfold neutron spectrum using Bayesian iterative unfolding with
+        spline regularization.
 
         Parameters
         ----------
@@ -2831,7 +2842,8 @@ class Detector:
         initial_spectrum : Optional[np.ndarray], optional
             Initial spectrum guess.
         unfoldermethod : str, optional
-            Regularization method: 'EmpiricalBayes' or 'User' (default: 'EmpiricalBayes').
+            Regularization method: 'EmpiricalBayes' or 'User'
+            (default: 'EmpiricalBayes').
         regularization : float, optional
             Regularization parameter for 'User' method.
         basis_name : str, optional

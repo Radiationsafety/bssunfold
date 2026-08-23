@@ -12,10 +12,11 @@ The log transform y_i = ln(x_i) ensures positivity and good numerical
 conditioning.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_maxed", "unfold_maxed"]
 

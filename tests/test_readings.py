@@ -1,6 +1,7 @@
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
+
 from src.bssunfold import RF_LANL, Detector
 
 # Тестовый спектр в новом формате
@@ -132,7 +133,8 @@ class TestDetectorWithDictSpectrum:
         for key, expected_value in expected_eff_readings.items():
             actual_value = eff_readings[key]
             assert actual_value == pytest.approx(expected_value, rel=1e-10), (
-                f"Несоответствие для {key}: ожидалось {expected_value}, получено {actual_value}"
+                f"Несоответствие для {key}: ожидалось {expected_value}, "
+                f"получено {actual_value}"
             )
 
     def test_get_effective_readings_with_dataframe_spectrum(

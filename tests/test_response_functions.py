@@ -1,17 +1,19 @@
-"""Tests for built-in response function datasets (RF_GSF, RF_PTB, RF_LANL, RF_JINR, RF_FERMILAB, RF_EURADOS, RF_IHEP)."""
+"""Tests for built-in response function datasets
+(RF_GSF, RF_PTB, RF_LANL, RF_JINR, RF_FERMILAB, RF_EURADOS, RF_IHEP).
+"""
 
 import pytest
-from bssunfold.constants import (
-    RF_GSF,
-    RF_PTB,
-    RF_LANL,
-    RF_JINR,
-    RF_FERMILAB,
-    RF_EURADOS,
-    RF_IHEP,
-)
-from bssunfold import Detector
 
+from bssunfold import Detector
+from bssunfold.constants import (
+    RF_EURADOS,
+    RF_FERMILAB,
+    RF_GSF,
+    RF_IHEP,
+    RF_JINR,
+    RF_LANL,
+    RF_PTB,
+)
 
 ALL_RFS = {
     "RF_GSF": RF_GSF,
@@ -50,7 +52,8 @@ class TestRFStructuralIntegrity:
         e = rf["E_MeV"]
         for i in range(1, len(e)):
             assert e[i] > e[i - 1], (
-                f"{name} energy not strictly monotonic at index {i}: {e[i - 1]} >= {e[i]}"
+                f"{name} energy not strictly monotonic at index {i}: "
+                f"{e[i - 1]} >= {e[i]}"
             )
 
     @pytest.mark.parametrize("name", ALL_RFS.keys())

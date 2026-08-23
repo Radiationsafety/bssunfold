@@ -8,12 +8,13 @@ penalized least-squares objective.
 """
 
 import warnings
-import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
 
+import numpy as np
+
+from ._base_unfolder import _build_system, make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 from .regularization import select_regularization_parameter
-from ._base_unfolder import run_unfolding, make_solve_wrapper, _build_system
 
 __all__ = ["solve_mystic", "unfold_mystic"]
 
@@ -23,7 +24,7 @@ _SUPPORTED_SOLVERS = ("fmin", "fmin_powell", "diffev", "diffev2")
 
 def _solver_function(solver: str):
     """Import and return the mystic minimal-interface solver callable."""
-    from mystic.solvers import fmin, fmin_powell, diffev, diffev2
+    from mystic.solvers import diffev, diffev2, fmin, fmin_powell
 
     solver_functions = {
         "fmin": fmin,

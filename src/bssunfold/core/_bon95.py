@@ -7,20 +7,22 @@ come from ``_parametric_shared``; solver-backend resolution comes from
 """
 
 
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Dict, Optional, List, Tuple
 
 from ._parametric_shared import (
-    logger,
-    _Tth,
     _check_fit_quality,
     _clean_edge_bins,
+    _Tth,
+    logger,
 )
 from ._solver_backends import (
     _parse_solver_backend,
     _resolve_cvxpy_solvers,
     _resolve_qpsolver_name,
 )
+
 # ------------------------------------------------------------------ #
 #  BON95 parametric model
 # ------------------------------------------------------------------ #

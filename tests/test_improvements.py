@@ -13,72 +13,71 @@ import pytest
 from numpy.testing import assert_almost_equal, assert_array_almost_equal
 
 from bssunfold import Detector
+from bssunfold.core._matrix_utils import (
+    build_tikhonov_system,
+    compute_svd_components,
+    create_derivative_matrix,
+)
+from bssunfold.core._montecarlo import _add_noise, monte_carlo_uncertainty
+from bssunfold.core.dose_calculation import (
+    calculate_dose_rates,
+    get_coefficients,
+    get_icrp116_coefficients,
+    interpolate_coefficients,
+)
 from bssunfold.utils.comparison import (
-    total_flux_ratio,
     _compute_log_steps,
-    cosine_similarity,
-    kl_divergence,
-    cross_entropy,
-    entropy,
-    mean_squared_error,
-    root_mean_squared_error,
-    mean_absolute_error,
-    mape,
-    r2_score,
-    max_error,
-    median_absolute_error,
-    pearson_r,
-    spearman_r,
-    wasserstein_dist,
-    energy_dist,
     chi_squared,
-    g_test,
-    freeman_tukey,
+    compare_multiple,
+    compare_spectra,
+    cosine_similarity,
     cressie_read,
-    spectral_shape_similarity,
-    fluence_difference_percent,
-    dose_difference_percent,
-    fluence_averaged_energy_diff,
+    cross_entropy,
     dose_averaged_energy_diff,
+    dose_difference_percent,
+    dose_weighted_error,
+    energy_dist,
+    entropy,
+    fluence_averaged_energy_diff,
+    fluence_difference_percent,
+    freeman_tukey,
+    g_test,
+    kl_divergence,
+    mape,
+    max_error,
+    mean_absolute_error,
+    mean_squared_error,
+    median_absolute_error,
     peak_location_error,
     peak_width_error,
-    dose_weighted_error,
+    pearson_r,
+    r2_score,
     response_matrix_consistency,
-    compare_spectra,
-    compare_multiple,
-)
-from bssunfold.utils.validators import (
-    validate_readings,
-    validate_energy_grid,
-    validate_spectrum,
-    validate_response_matrix,
+    root_mean_squared_error,
+    spearman_r,
+    spectral_shape_similarity,
+    total_flux_ratio,
+    wasserstein_dist,
 )
 from bssunfold.utils.converters import (
+    convert_sensitivities_to_matrix,
     convert_to_dataframe,
     convert_to_dict,
-    convert_sensitivities_to_matrix,
     extract_detector_names,
     round_to_sigfig,
 )
 from bssunfold.utils.interpolation import (
-    interpolate_spectrum,
-    discretize_spectra,
-    resample_to_log_grid,
     _handle_extrapolation,
+    discretize_spectra,
+    interpolate_spectrum,
+    resample_to_log_grid,
 )
-from bssunfold.core._matrix_utils import (
-    create_derivative_matrix,
-    build_tikhonov_system,
-    compute_svd_components,
+from bssunfold.utils.validators import (
+    validate_energy_grid,
+    validate_readings,
+    validate_response_matrix,
+    validate_spectrum,
 )
-from bssunfold.core._montecarlo import monte_carlo_uncertainty, _add_noise
-from bssunfold.core.dose_calculation import (
-    calculate_dose_rates,
-    get_coefficients,
-    interpolate_coefficients,
-    get_icrp116_coefficients,
-)
-
 
 # ─── Fixtures ──────────────────────────────────────────────────────
 

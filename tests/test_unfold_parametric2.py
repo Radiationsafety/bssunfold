@@ -2,32 +2,31 @@
 
 import numpy as np
 import pytest
-from numpy.testing import assert_array_less, assert_allclose
+from numpy.testing import assert_allclose, assert_array_less
 
 from bssunfold import Detector
+from bssunfold.core._bon95 import (
+    _Fepi,
+    _Ff,
+    _Fint,
+    _Fth,
+    _solve_linear_coefficients,
+    bon95_model,
+    bon95_spectrum,
+    solve_bon95_combined,
+    solve_bon95_cvxpy,
+    solve_bon95_parametric,
+    solve_bon95_qpsolvers,
+)
+from bssunfold.core._parametric_shared import (
+    _build_measurement_uncertainties,
+    _clean_edge_bins,
+    _Tth,
+)
 from bssunfold.core.unfold_parametric2 import (
     directed_divergence_iteration,
     solve_parametric2,
 )
-from bssunfold.core._bon95 import (
-    _Fth,
-    _Fepi,
-    _Fint,
-    _Ff,
-    bon95_model,
-    bon95_spectrum,
-    _solve_linear_coefficients,
-    solve_bon95_parametric,
-    solve_bon95_cvxpy,
-    solve_bon95_qpsolvers,
-    solve_bon95_combined,
-)
-from bssunfold.core._parametric_shared import (
-    _Tth,
-    _build_measurement_uncertainties,
-    _clean_edge_bins,
-)
-
 
 # ─── Fixtures ─────────────────────────────────────────────────────
 

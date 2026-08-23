@@ -4,10 +4,11 @@ This module provides the core solve_doroshenko solver and the unfold_doroshenko
 wrapper for use with the Detector class.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_doroshenko", "unfold_doroshenko"]
 
@@ -49,7 +50,7 @@ def solve_doroshenko(
     denominator_cache = np.sum(A * A, axis=0) + regularization
 
     try:
-        from ._numba_jit import _doroshenko_inner, NUMBA_AVAILABLE
+        from ._numba_jit import NUMBA_AVAILABLE, _doroshenko_inner
 
         if NUMBA_AVAILABLE:
             return _doroshenko_inner(

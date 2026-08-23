@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+
+
 @dataclass
 class InterpretationResult:
     """Output of :func:`interpret_qp`.

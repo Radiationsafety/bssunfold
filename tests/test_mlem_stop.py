@@ -7,7 +7,6 @@ import pytest
 from bssunfold import Detector
 from bssunfold.core import solve_mlem_stop, unfold_mlem_stop
 
-
 # ---------------------------------------------------------------------------
 # Core solver tests
 # ---------------------------------------------------------------------------

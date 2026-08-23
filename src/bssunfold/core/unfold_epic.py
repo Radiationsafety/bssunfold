@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from scipy.optimize import least_squares, nnls
 
-from ._base_unfolder import run_unfolding, _build_system
+from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 
 __all__ = ["solve_epic", "unfold_epic"]
@@ -456,7 +456,8 @@ def solve_epic(
     EPIC_bool : np.ndarray, optional
         Boolean mask of which parameters are subject to the EPIC.
     V : np.ndarray, optional
-        Matrix mapping the searched betas to the regularization rows, beta = V @ y (shape (H.shape[0], len(y))).
+        Matrix mapping the searched betas to the regularization rows,
+        beta = V @ y (shape (H.shape[0], len(y))).
     LSQpar : dict, optional
         Tuning parameters for the nonlinear least-squares solver.
 
@@ -573,7 +574,8 @@ def unfold_epic(
     EPIC_bool : np.ndarray, optional
         Boolean mask of which parameters are subject to the EPIC.
     V : np.ndarray, optional
-        Matrix mapping the searched betas to the regularization rows, beta = V @ y (shape (H.shape[0], len(y))).
+        Matrix mapping the searched betas to the regularization rows,
+        beta = V @ y (shape (H.shape[0], len(y))).
     LSQpar : dict, optional
         Tuning parameters for the nonlinear least-squares solver.
     calculate_errors : bool, optional

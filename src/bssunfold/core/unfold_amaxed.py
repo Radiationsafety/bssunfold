@@ -12,10 +12,11 @@ Wong, O. (2024). Modernising neutron spectrum unfolding for fusion applications.
 PhD Thesis, Sheffield Hallam University. https://shura.shu.ac.uk/36014/
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_amaxed", "unfold_amaxed"]
 
@@ -31,9 +32,9 @@ def solve_amaxed(
     line_search_tol: float = 1e-6,
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using AMAXED (Alternative MAXED).
-    
+
     Uses reversed cross-entropy definition with Newton's method and line search.
-    
+
     Parameters
     ----------
     A : np.ndarray
@@ -52,24 +53,24 @@ def solve_amaxed(
         Gradient convergence tolerance (default: 1e-8).
     line_search_tol : float, optional
         Line search tolerance (default: 1e-6).
-    
+
     Returns
     -------
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
     m, n = A.shape
-    
+
     # Positivity floor for iterates (absolute; avoids inf in Hessian terms)
     phi_floor = 1e-12
-    
+
     # Reference spectrum (strictly positive)
     phi_0 = np.maximum(np.asarray(x0, dtype=float), 1e-300)
     phi_0_sum = np.sum(phi_0)
-    
+
     # Normalize reference spectrum
     phi_0_norm = phi_0 / phi_0_sum
-    
+
     # Work on the normalized simplex: scale the measurements by the same
     # factor so A @ (phi / phi_0_sum) == b / phi_0_sum is reachable. Without
     # this scaling the chi-squared term is evaluated against an inconsistent
@@ -78,81 +79,81 @@ def solve_amaxed(
     b_safe = np.maximum(b_work, 1e-300)
     sigma = sigma_factor * b_safe
     S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
-    
+
     # Compute target chi-squared if not provided
     if target_chi2 is None:
         # Expected value of a chi-squared distributed residual vector
         # with m measurements
         target_chi2 = float(m)
-    
+
     Omega = target_chi2
-    
+
     # Initialize solution and Lagrange multiplier
     phi_sol = phi_0_norm.copy()
     mu = 1.0  # Initial Lagrange multiplier
-    
+
     def compute_Lagrangian_gradients(phi_sol: np.ndarray, mu: float):
         """Compute Lagrangian function gradients (Equations C.7, C.8)."""
         phi_sol_safe = np.maximum(phi_sol, phi_floor)
         phi_sol_sum = np.sum(phi_sol_safe)
-        
+
         # Precompute terms
         a = b_work @ S_b @ A  # Shape (n,)
         R_phi = A @ phi_sol_safe
         residual = R_phi - b_work
         b_term = phi_sol_safe @ (A.T @ S_b @ A)  # Shape (n,)
-        
+
         # Gradient w.r.t. phi_sol (Equation C.7)
         ones_n = np.ones(n)
-        grad_phi = (ones_n / phi_sol_sum - phi_0_norm / phi_sol_safe + 
+        grad_phi = (ones_n / phi_sol_sum - phi_0_norm / phi_sol_safe +
                     2 * mu * (b_term - a))
-        
+
         # Gradient w.r.t. mu (chi-squared constraint)
         grad_mu = residual @ S_b @ residual - Omega
-        
+
         return grad_phi, grad_mu
-    
+
     def compute_Hessian(phi_sol: np.ndarray, mu: float):
         """Compute Hessian matrix (Equation C.8)."""
         phi_sol_safe = np.maximum(phi_sol, phi_floor)
         phi_sol_sum = np.sum(phi_sol_safe)
-        
+
         # Precompute terms
         a = b_work @ S_b @ A
         b_term = phi_sol_safe @ (A.T @ S_b @ A)
-        
+
         # Second derivative blocks
         ones_outer = np.outer(np.ones(n), np.ones(n))
         diag_term = np.diag(phi_0_norm / (phi_sol_safe ** 2))
-        
+
         H_phi_phi = -ones_outer / (phi_sol_sum ** 2) + diag_term + \
                     2 * mu * (A.T @ S_b @ A)
-        
+
         H_phi_mu = 2 * (b_term - a)
         H_mu_mu = np.array([[0.0]])
-        
+
         # Assemble full Hessian
         H_top = np.column_stack([H_phi_phi, H_phi_mu])
         H_bottom = np.hstack([H_phi_mu.reshape(1, -1), H_mu_mu])
         Hessian = np.vstack([H_top, H_bottom])
-        
+
         return Hessian
-    
+
     # Newton iteration with backtracking line search on the KKT residual
     grad_norm = np.inf
-    
+
     for iteration in range(max_iterations):
         grad_phi, grad_mu = compute_Lagrangian_gradients(phi_sol, mu)
         state_grad = np.concatenate([grad_phi, [grad_mu]])
-        
+
         # Check convergence
         grad_norm = np.linalg.norm(state_grad)
         if grad_norm < tolerance:
             break
-        
+
         # Compute Hessian
         Hessian = compute_Hessian(phi_sol, mu)
-        
+
         # Solve for Newton direction
         try:
             delta_state = np.linalg.solve(Hessian, -state_grad)
@@ -161,16 +162,24 @@ def solve_amaxed(
             reg_param = 1e-6 * np.max(np.abs(np.diag(Hessian)))
             Hessian_reg = Hessian + reg_param * np.eye(n + 1)
             delta_state = np.linalg.solve(Hessian_reg, -state_grad)
-        
+
         delta_phi = delta_state[:n]
         delta_mu = delta_state[n]
-        
-        def kkt_residual(beta):
-            new_phi = np.maximum(phi_sol + beta * delta_phi, phi_floor)
-            new_mu = mu + beta * delta_mu
+
+        # Bind current loop state explicitly so the closure cannot observe
+        # later iterations' variables (flake8-bugbear B023).
+        def kkt_residual(
+            beta,
+            phi_cur=phi_sol,
+            d_phi=delta_phi,
+            mu_cur=mu,
+            d_mu=delta_mu,
+        ):
+            new_phi = np.maximum(phi_cur + beta * d_phi, phi_floor)
+            new_mu = mu_cur + beta * d_mu
             g_phi, g_mu = compute_Lagrangian_gradients(new_phi, new_mu)
             return np.sqrt(np.dot(g_phi, g_phi) + g_mu * g_mu)
-        
+
         # Backtracking line search: accept the step only if it reduces the
         # norm of the KKT residual (sufficient-decrease condition).
         beta = 1.0
@@ -183,17 +192,17 @@ def solve_amaxed(
         if not accepted:
             # Damped fallback step to keep making progress
             beta = 0.01
-        
+
         # Update state
         phi_sol = np.maximum(phi_sol + beta * delta_phi, phi_floor)
         mu = mu + beta * delta_mu
-    
+
     # Scale back to original magnitude
     phi_sol = phi_sol * phi_0_sum
-    
+
     iterations = iteration + 1
     converged = bool(grad_norm < tolerance)
-    
+
     return phi_sol, iterations, converged
 
 
@@ -218,7 +227,7 @@ def unfold_amaxed(
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Unfold neutron spectrum using the AMAXED algorithm.
-    
+
     Parameters
     ----------
     detector_names : List[str]
@@ -257,7 +266,7 @@ def unfold_amaxed(
         Save result to history (default: True).
     random_state : int, optional
         Random seed for reproducibility.
-    
+
     Returns
     -------
     Dict[str, Any]
@@ -267,7 +276,7 @@ def unfold_amaxed(
         x0_ref = np.asarray(initial_spectrum, dtype=float)
     else:
         x0_ref = np.ones(n_energy_bins)
-    
+
     return run_unfolding(
         detector_names=detector_names,
         n_energy_bins=n_energy_bins,

@@ -11,8 +11,9 @@ Douglas-Rachford solvers break on translated data terms). No external solver
  packages are required.
 """
 
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
 
 from ._base_unfolder import run_unfolding
 

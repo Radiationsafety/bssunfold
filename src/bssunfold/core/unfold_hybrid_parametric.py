@@ -8,10 +8,11 @@ The parametric model provides a physically motivated initial guess,
 which is then refined using iterative methods to better fit the data.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, _build_system
+import numpy as np
+
+from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_hybrid_parametric", "unfold_hybrid_parametric"]

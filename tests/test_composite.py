@@ -4,14 +4,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bssunfold import Detector, RF_PTB
+from bssunfold import RF_PTB, Detector
 from bssunfold.core.unfold_composite import (
-    METHOD_DISPATCH,
     DEFAULT_BIN_METHODS,
     DEFAULT_ENSEMBLE_WEIGHTS,
-    unfold_composite,
-    compute_spectrum_features,
+    METHOD_DISPATCH,
     classify_spectrum_by_hardness,
+    compute_spectrum_features,
+    unfold_composite,
 )
 
 
@@ -83,7 +83,10 @@ def test_unfold_composite_all_methods_fail():
     det, readings = _make_detector_and_readings()
     # None of these map to real methods -> all skipped
     result = unfold_composite(
-        det, readings, method_names=["not_a_method", "also_fake"], timeout_per_method=5.0
+        det,
+        readings,
+        method_names=["not_a_method", "also_fake"],
+        timeout_per_method=5.0,
     )
     assert result["status"] == "ERROR"
     assert result["spectrum"] is None

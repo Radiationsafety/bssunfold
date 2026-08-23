@@ -1,6 +1,7 @@
-import pytest
 import pandas as pd
-from src.bssunfold import Detector, RF_GSF  # Импортируем из вашего модуля
+import pytest
+
+from src.bssunfold import RF_GSF, Detector  # Импортируем из вашего модуля
 
 # Тестовые данные
 EXPECTED_RESULT = {
@@ -45,7 +46,8 @@ def test_unfold_mlem_odl_returns_correct_doserates(detector):
 
     # Проверка ключей
     assert set(doserates.keys()) == set(EXPECTED_RESULT.keys()), (
-        f"Ключи doserates не совпадают: {set(doserates.keys())} != {set(EXPECTED_RESULT.keys())}"
+        f"Ключи doserates не совпадают: {set(doserates.keys())} "
+        f"!= {set(EXPECTED_RESULT.keys())}"
     )
 
     # Проверка значений с определенной точностью

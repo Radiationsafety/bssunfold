@@ -18,10 +18,11 @@ of detectors (``chi_fac=1``) or when the maximum relative change of the
 spectrum drops below ``tolerance`` (``chi_fac=0``).
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_sandii", "unfold_sandii"]
 

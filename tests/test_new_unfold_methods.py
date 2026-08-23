@@ -11,8 +11,8 @@ import pytest
 
 from bssunfold import Detector
 from bssunfold.core import (
-    solve_odl_pdhg,
     solve_odl_douglas_rachford,
+    solve_odl_pdhg,
 )
 
 

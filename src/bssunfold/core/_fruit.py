@@ -10,12 +10,11 @@ Public surface: :func:`parametric_model`, :func:`solve_parametric`.
 """
 
 import logging
-
-import numpy as np
 from typing import Dict, Optional, Tuple
 
-from ._parametric_shared import _check_fit_quality as _check_fit_quality_shared
+import numpy as np
 
+from ._parametric_shared import _check_fit_quality as _check_fit_quality_shared
 
 __all__ = ["parametric_model", "solve_parametric"]
 # Fixed constants from the papers / FRUIT code

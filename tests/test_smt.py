@@ -8,10 +8,11 @@ and as a module-level function.
 """
 
 import builtins
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 import z3
-from unittest.mock import patch
 
 pytest.importorskip("z3")
 
@@ -372,12 +373,12 @@ def test_unfold_smt_exported(detector):
 def test_core_exports():
     """SMT solvers are exported from bssunfold.core."""
     from bssunfold.core import (
-        solve_smt,
-        unfold_smt,
         solve_integer_linear_eqs,
         solve_integer_linear_eqs_all,
         solve_rational_linear_eqs,
         solve_rational_linear_eqs_all,
+        solve_smt,
+        unfold_smt,
     )
 
     assert solve_smt is not None

@@ -8,8 +8,7 @@ uv run pytest tests/         # run all 1404 tests
 uv run pytest -v --tb=short  # verbose, short traceback
 uv run pytest tests/test_coverage.py  # primary coverage test file
 uv run pytest --cov=src/bssunfold --cov-report=term-missing --cov-fail-under=95
-uv run ruff check src/ tests/
-uv run flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+uv run ruff check src/ tests/  # sole linter (E,F,W,I,B); replaces flake8/black/autopep8
 uv run bandit -r src/bssunfold                 # static security scan (src is clean)
 uv run pip-audit --skip-editable -s osv -f json  # dependency vuln scan (needs network; -s osv dedupes)
 uv run python tools/run_dynapyt.py             # DynaPyt dynamic analysis (BranchCoverage over a fast subset)

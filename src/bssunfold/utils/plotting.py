@@ -4,9 +4,10 @@ This module provides functions for visualizing spectra, response functions,
 and unfolding results.
 """
 
-import numpy as np
+from typing import Dict, List, Optional, Tuple
+
 import matplotlib.pyplot as plt
-from typing import Optional, Dict, List, Tuple
+import numpy as np
 
 __all__ = [
     "plot_spectrum",

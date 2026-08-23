@@ -22,33 +22,33 @@ with constraint: P_th + P_epi + P_f = 1  (P_f = 1 - P_th - P_epi)
 """
 
 import logging
-import numpy as np
 from typing import Any, Dict, List, Optional
 
-from ._base_unfolder import run_unfolding, _build_system
+import numpy as np
+
+from ._base_unfolder import _build_system, run_unfolding
+from ._fruit import (
+    _FAST_MIN,  # noqa: F401  (re-exported for test compatibility)
+    _PARAM_NAMES,
+    _T0,
+    _THERMAL_MAX,  # noqa: F401  (re-exported for test compatibility)
+    _check_fit_quality,
+    _clamp_params,
+    _compute_jacobian,
+    _Ed,
+    _find_initial_params,
+    _gcv_select_alpha,  # noqa: F401  (re-exported for test compatibility)
+    _get_initial_params,  # noqa: F401  (re-exported for test compatibility)
+    _get_param_bounds,
+    _residuals,  # noqa: F401  (re-exported for test compatibility)
+    parametric_model,
+    solve_parametric,
+)
 from ._matrix_utils import compute_log_steps
 from ._solver_backends import (
     _parse_solver_backend,
     _resolve_cvxpy_solvers,
     _resolve_qpsolver_name,
-)
-
-from ._fruit import (
-    parametric_model,
-    solve_parametric,
-    _residuals,  # noqa: F401  (re-exported for test compatibility)
-    _get_initial_params,  # noqa: F401  (re-exported for test compatibility)
-    _get_param_bounds,
-    _clamp_params,
-    _compute_jacobian,
-    _find_initial_params,
-    _gcv_select_alpha,  # noqa: F401  (re-exported for test compatibility)
-    _check_fit_quality,
-    _T0,
-    _Ed,
-    _PARAM_NAMES,
-    _THERMAL_MAX,  # noqa: F401  (re-exported for test compatibility)
-    _FAST_MIN,  # noqa: F401  (re-exported for test compatibility)
 )
 
 logger = logging.getLogger(__name__)
@@ -560,7 +560,8 @@ def solve_parametric_combined(
             from qpsolvers import available_solvers, solve_qp
         except ImportError as e:
             raise ImportError(
-                "qpsolvers is required for combined. Install with: pip install qpsolvers"
+                "qpsolvers is required for combined. "
+                "Install with: pip install qpsolvers"
             ) from e
 
         from scipy.sparse import csc_matrix

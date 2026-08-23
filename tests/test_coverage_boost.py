@@ -5,11 +5,11 @@ coverage from 83% to 91%+.
 """
 
 import sys
+import warnings
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
-import warnings
-from unittest.mock import patch, MagicMock
-
 
 # ============================================================================
 # Fixtures
@@ -227,8 +227,9 @@ class TestNumbaJitFallback:
 
 class TestPlatformCheck:
     def test_check_jax_availability_import_error(self):
-        import bssunfold.platform_check as pc
         import builtins
+
+        import bssunfold.platform_check as pc
 
         orig_import = builtins.__import__
 
@@ -243,8 +244,9 @@ class TestPlatformCheck:
         assert pc.JAX_AVAILABLE is False
 
     def test_check_proxsuite_availability_import_error(self):
-        import bssunfold.platform_check as pc
         import builtins
+
+        import bssunfold.platform_check as pc
 
         orig_import = builtins.__import__
 
@@ -259,8 +261,9 @@ class TestPlatformCheck:
         assert pc.PROXSUITE_AVAILABLE is False
 
     def test_check_qpsolvers_extra_import_error(self):
-        import bssunfold.platform_check as pc
         import builtins
+
+        import bssunfold.platform_check as pc
 
         orig_import = builtins.__import__
 
@@ -541,8 +544,8 @@ class TestComparisonUncovered:
 
     def test_dose_metrics_with_dict_cc_ade(self):
         from bssunfold.utils.comparison import (
-            dose_averaged_energy,
             ambient_dose_equivalent_rate,
+            dose_averaged_energy,
         )
 
         e = np.logspace(-6, 1, 5)
@@ -1541,6 +1544,7 @@ class TestParametricCoverage:
 
     def test_residuals_reg_without_initial_vec(self):
         from lmfit import Parameters
+
         from bssunfold.core.unfold_parametric import _residuals
 
         A, b, E, ln = self._data()
@@ -1649,8 +1653,9 @@ class TestParametricCoverage:
         assert isinstance(alpha, float)
 
     def test_resolve_cvxpy_solvers_import_error(self):
-        from bssunfold.core.unfold_parametric import _resolve_cvxpy_solvers
         import builtins
+
+        from bssunfold.core.unfold_parametric import _resolve_cvxpy_solvers
 
         orig_import = builtins.__import__
 
@@ -1663,15 +1668,17 @@ class TestParametricCoverage:
             assert _resolve_cvxpy_solvers("default") == ["ECOS"]
 
     def test_resolve_qpsolver_name_ecos(self):
-        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
 
         with patch.object(qpsolvers, "available_solvers", ["ecos"]):
             assert _resolve_qpsolver_name("default") == "ecos"
 
     def test_resolve_qpsolver_name_import_error(self):
-        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
         import builtins
+
+        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
 
         orig_import = builtins.__import__
 
@@ -1684,8 +1691,9 @@ class TestParametricCoverage:
             assert _resolve_qpsolver_name("default") == "osqp"
 
     def test_solve_parametric_qpsolvers_solver_fallback(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
 
         A, b, E, ln = self._data()
         with patch.object(qpsolvers, "available_solvers", ["osqp", "proxqp"]):
@@ -1696,8 +1704,9 @@ class TestParametricCoverage:
         assert spectrum.shape == (len(E),)
 
     def test_solve_parametric_qpsolvers_no_solver(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
 
         A, b, E, ln = self._data()
         with patch.object(qpsolvers, "available_solvers", ["proxqp"]):
@@ -1707,8 +1716,9 @@ class TestParametricCoverage:
                 )
 
     def test_solve_parametric_qpsolvers_no_bounds(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
 
         A, b, E, ln = self._data()
         all_none = {
@@ -1729,8 +1739,9 @@ class TestParametricCoverage:
         assert spectrum.shape == (len(E),)
 
     def test_combined_auto_fallback_to_qpsolvers(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_combined
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_combined
 
         A, b, E, ln = self._data()
         dummy_spectrum = np.linspace(0.5, 2.0, len(E))
@@ -1779,8 +1790,9 @@ class TestParametricCoverage:
                     )
 
     def test_combined_qpsolvers_no_solver(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_combined
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_combined
 
         A, b, E, ln = self._data()
         dummy_spectrum = np.linspace(0.5, 2.0, len(E))
@@ -1827,8 +1839,9 @@ class TestParametric2Coverage:
         assert residual.shape == (4,)
 
     def test_bon95_resolve_cvxpy_solvers_import_error(self):
-        from bssunfold.core._solver_backends import _resolve_cvxpy_solvers
         import builtins
+
+        from bssunfold.core._solver_backends import _resolve_cvxpy_solvers
 
         orig_import = builtins.__import__
 
@@ -1841,15 +1854,17 @@ class TestParametric2Coverage:
             assert _resolve_cvxpy_solvers("default") == ["ECOS"]
 
     def test_bon95_resolve_qpsolver_name_ecos(self):
-        from bssunfold.core._solver_backends import _resolve_qpsolver_name
         import qpsolvers
+
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
 
         with patch.object(qpsolvers, "available_solvers", ["ecos"]):
             assert _resolve_qpsolver_name("default") == "ecos"
 
     def test_bon95_resolve_qpsolver_name_import_error(self):
-        from bssunfold.core._solver_backends import _resolve_qpsolver_name
         import builtins
+
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
 
         orig_import = builtins.__import__
 
@@ -1881,8 +1896,9 @@ class TestParametric2Coverage:
         assert spectrum.shape == (len(E),)
 
     def test_solve_bon95_qpsolvers_solver_fallback(self):
-        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
 
         A, b, E, ln = self._data_bon95()
         exact_spectrum = np.linalg.lstsq(A, b, rcond=None)[0]
@@ -1903,8 +1919,9 @@ class TestParametric2Coverage:
         assert spectrum.shape == (len(E),)
 
     def test_solve_bon95_qpsolvers_no_solver(self):
-        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
 
         A, b, E, ln = self._data_bon95()
         with patch.object(qpsolvers, "available_solvers", ["proxqp"]):
@@ -2234,7 +2251,8 @@ class TestLmfitX0FromKwargs:
 
 
 class TestParametricSqpSolvers:
-    """Test solve_parametric_cvxpy, solve_parametric_qpsolvers, solve_parametric_combined
+    """Test solve_parametric_cvxpy, solve_parametric_qpsolvers and
+    solve_parametric_combined
     with real data to exercise the full SQP code paths."""
 
     def _make_data(self, n_det=6, n_energy=15):
@@ -2798,8 +2816,9 @@ class TestParametricSqpSolvers:
             )
 
     def test_residuals_with_alpha(self):
-        from bssunfold.core.unfold_parametric import _residuals
         import lmfit
+
+        from bssunfold.core.unfold_parametric import _residuals
 
         E = np.logspace(-6, 1, 15)
         log_steps = np.ones(15) * 0.1
@@ -2825,8 +2844,9 @@ class TestParametricSqpSolvers:
         assert result.shape[0] == 6 + 6
 
     def test_residuals_no_alpha(self):
-        from bssunfold.core.unfold_parametric import _residuals
         import lmfit
+
+        from bssunfold.core.unfold_parametric import _residuals
 
         E = np.logspace(-6, 1, 15)
         log_steps = np.ones(15) * 0.1
