@@ -635,8 +635,11 @@ calculations. The default is ICRP-116 effective dose.
 Spectrum Comparison Metrics
 ---------------------------
 
-25 metrics organised into 7 categories. All implemented with pure
-NumPy/SciPy.
+41 metrics organised into 9 categories: 27 simple pairwise metrics
+(entropy, distribution, correlation, error, similarity, chi-squared,
+statistical) implemented with pure NumPy/SciPy, plus EURADOS-style
+integral quantities and spectral diagnostics that are computed
+automatically when an energy grid is available (Gomez-Ros et al. 2022).
 
 .. mermaid::
 
@@ -648,6 +651,8 @@ NumPy/SciPy.
        A --> F["Similarity"]
        A --> G["Chi-squared"]
        A --> H["Statistical"]
+       A --> I["Integral"]
+       A --> J["Spectral Diagnostics"]
 
        B --> B1["kl_divergence"]
        B --> B2["cross_entropy"]
@@ -670,6 +675,8 @@ NumPy/SciPy.
 
        F --> F1["cosine_similarity"]
        F --> F2["mmd_rbf"]
+       F --> F3["total_flux_ratio"]
+       F --> F4["spectral_shape_similarity"]
 
        G --> G1["chi_squared"]
        G --> G2["g_test"]
@@ -680,6 +687,22 @@ NumPy/SciPy.
        H --> H2["wilcoxon_test"]
        H --> H3["mannwhitneyu_test"]
        H --> H4["standardized_mean_difference"]
+
+       I --> I1["fluence_averaged_energy"]
+       I --> I2["energy_group_fluence"]
+       I --> I3["dose_averaged_energy"]
+       I --> I4["ambient_dose_equivalent_rate"]
+
+       J --> J1["fluence_difference_percent"]
+       J --> J2["energy_group_fluence_diff"]
+       J --> J3["dose_difference_percent"]
+       J --> J4["fluence_averaged_energy_diff"]
+       J --> J5["dose_averaged_energy_diff"]
+       J --> J6["log_lethargy_correlation"]
+       J --> J7["peak_location_error"]
+       J --> J8["peak_width_error"]
+       J --> J9["dose_weighted_error"]
+       J --> J10["response_matrix_consistency"]
 
        style A fill:#4a90d9,color:#fff
 
@@ -762,6 +785,14 @@ Metrics Reference
      - ``mmd_rbf``
      - Maximum Mean Discrepancy (RBF kernel)
      - [0, ∞)
+   * -
+     - ``total_flux_ratio``
+     - Ratio of total fluxes sum(p)/sum(q)
+     - (0, ∞)
+   * -
+     - ``spectral_shape_similarity``
+     - Similarity of normalized spectral shapes
+     - [0, 1]
    * - Chi-squared
      - ``chi_squared``
      - Pearson's chi-squared statistic
@@ -794,6 +825,66 @@ Metrics Reference
      - ``standardized_mean_difference``
      - Cohen's d (standardized mean difference)
      - (-∞, ∞)
+   * - EURADOS Integral
+     - ``fluence_averaged_energy``
+     - Fluence-averaged energy ⟨E⟩, single spectrum (MeV)
+     - [0, ∞)
+   * -
+     - ``energy_group_fluence``
+     - Fluence rate per energy group (thermal/epithermal/fast), single spectrum
+     - [0, ∞)
+   * -
+     - ``dose_averaged_energy``
+     - H*(10)-averaged energy ⟨E⟩_H, single spectrum (MeV)
+     - [0, ∞)
+   * -
+     - ``ambient_dose_equivalent_rate``
+     - Ambient dose equivalent rate H*(10), single spectrum
+     - [0, ∞)
+   * - Spectral Diagnostics
+     - ``fluence_difference_percent``
+     - Relative difference in total fluence (%)
+     - [0, ∞)
+   * -
+     - ``energy_group_fluence_diff``
+     - Fluence rate difference per energy group (%)
+     - [0, ∞)
+   * -
+     - ``dose_difference_percent``
+     - Relative difference in ambient dose equivalent H*(10) (%)
+     - [0, ∞)
+   * -
+     - ``fluence_averaged_energy_diff``
+     - Difference in fluence-averaged energy (%)
+     - [0, ∞)
+   * -
+     - ``dose_averaged_energy_diff``
+     - Difference in H*(10)-averaged energy (%)
+     - [0, ∞)
+   * -
+     - ``log_lethargy_correlation``
+     - Pearson correlation in log(E)·Φ(E) coordinates
+     - [-1, 1]
+   * -
+     - ``peak_location_error``
+     - Relative error in peak location (%)
+     - [0, ∞)
+   * -
+     - ``peak_width_error``
+     - Relative error in FWHM (%)
+     - [0, ∞)
+   * -
+     - ``dose_weighted_error``
+     - Dose-weighted mean squared error
+     - [0, ∞)
+   * -
+     - ``response_matrix_consistency``
+     - Consistency of unfolded spectrum with measured readings (χ²)
+     - [0, ∞)
+
+The 27 simple metrics are always available. The EURADOS integral quantities
+and spectral diagnostics additionally require an energy grid and, for the
+dose-related entries, the packaged ICRP-116 conversion coefficients.
 
 
 Performance
