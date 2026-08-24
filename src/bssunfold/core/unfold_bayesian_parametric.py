@@ -15,10 +15,11 @@ The Bayesian framework provides:
 - Model comparison metrics
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, _build_system
+import numpy as np
+
+from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import compute_log_steps
 
 __all__ = ["solve_bayesian_parametric", "unfold_bayesian_parametric"]

@@ -2,10 +2,11 @@
 unfolding methods.
 """
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
-from pathlib import Path
 
 from bssunfold.utils.interpolation import interpolate_spectrum
 
@@ -911,7 +912,7 @@ class TestFirstBinZero:
         ],
     )
     def test_first_bin_zero(self, detector_cfg, method):
-        from bssunfold import Detector, RF_PTB, RF_LANL
+        from bssunfold import RF_LANL, RF_PTB, Detector
 
         if detector_cfg == "GSF":
             det = Detector()

@@ -4,9 +4,10 @@ This module provides methods for selecting optimal regularization parameters
 using various heuristics: L-curve, GCV, Discrepancy Principle.
 """
 
-import numpy as np
 import warnings
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 from ._matrix_utils import compute_svd_components
 

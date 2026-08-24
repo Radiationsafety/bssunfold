@@ -29,19 +29,89 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-try:
-    import arviz as az
-    import pymc as pm
-
-    PYMC_AVAILABLE = True
-except ImportError:
-    PYMC_AVAILABLE = False
-    az = None
-    pm = None
-
 from ._base_unfolder import run_unfolding
 
 __all__ = ["solve_bayesian_mcmc", "unfold_mcmc"]
+
+# ---------------------------------------------------------------------------
+# Lazy PyMC/ArviZ loading (PEP 562 module __getattr__)
+#
+# ``pymc``/``arviz`` are heavy (PyTensor JIT compilation machinery, several
+# seconds of import time).  Importing them eagerly at module scope made every
+# ``import bssunfold`` pay that cost even for users who never touch MCMC.
+# Instead they are imported on first attribute access.  The historical
+# module-level names (``pm``, ``az``, ``PYMC_AVAILABLE``) keep working: tests
+# monkeypatch them directly and the loader caches results in the module
+# namespace so repeated lookups are free.
+# ---------------------------------------------------------------------------
+
+_pm = None
+_az = None
+_pymc_checked = False
+
+
+def _load_pymc() -> Any:
+    """Import pymc/arviz on first use; cache result in the module globals.
+
+    Returns
+    -------
+    Tuple[Optional[Any], Optional[Any]]
+        The ``(pm, az)`` modules, or ``(None, None)`` when unavailable.
+    """
+    global _pm, _az, _pymc_checked
+    if not _pymc_checked:
+        try:
+            import arviz as _az_mod
+            import pymc as _pm_mod
+
+            _pm, _az = _pm_mod, _az_mod
+        except ImportError:
+            _pm, _az = None, None
+        _pymc_checked = True
+    return _pm, _az
+
+
+def __getattr__(name: str) -> Any:
+    if name == "pm":
+        pm_mod, _ = _load_pymc()
+        globals()["pm"] = pm_mod
+        return pm_mod
+    if name == "az":
+        _, az_mod = _load_pymc()
+        globals()["az"] = az_mod
+        return az_mod
+    if name == "PYMC_AVAILABLE":
+        pm_mod, _ = _load_pymc()
+        available = pm_mod is not None
+        globals()["PYMC_AVAILABLE"] = available
+        return available
+    raise AttributeError(
+        f"module {__name__!r} has no attribute {name!r}"
+    )
+
+
+def _resolve_backends() -> Tuple[Any, Any]:
+    """Return the currently active ``(pm, az)`` modules.
+
+    Reads the module namespace first so that externally patched stand-ins
+    (e.g. test doubles) take precedence over the lazily imported real
+    packages; otherwise triggers :func:`_load_pymc` and caches the result.
+    """
+    g = globals()
+    if "pm" not in g or "az" not in g:
+        _load_pymc()
+        g.setdefault("pm", _pm)
+        g.setdefault("az", _az)
+    return g["pm"], g["az"]
+
+
+def _check_pymc_available() -> bool:
+    """Report PyMC availability, honoring an externally patched flag."""
+    g = globals()
+    if "PYMC_AVAILABLE" in g:
+        return bool(g["PYMC_AVAILABLE"])
+    pm_mod, _ = _resolve_backends()
+    return pm_mod is not None
 
 
 def _ou_correlation_cholesky(n_bins: int, lengthscale: float) -> np.ndarray:
@@ -161,6 +231,7 @@ def _run_nuts_pymc(
     the only return type).  We first try the richest argument set and retry
     without the legacy keyword when the installed version rejects it.
     """
+    pm, _ = _resolve_backends()
     kwargs = {
         "draws": n_samples,
         "tune": tune,
@@ -280,7 +351,8 @@ def solve_bayesian_mcmc(
     RuntimeError
         If MCMC sampling fails.
     """
-    if not PYMC_AVAILABLE:
+    pm, az = _resolve_backends()
+    if not _check_pymc_available():
         raise ImportError(
             "PyMC and ArviZ are required for MCMC unfolding. "
             "Install them with: pip install pymc arviz"
@@ -347,7 +419,7 @@ def solve_bayesian_mcmc(
             progressbar=progressbar,
         )
     except Exception as e:
-        raise RuntimeError(f"MCMC sampling failed: {str(e)}")
+        raise RuntimeError(f"MCMC sampling failed: {str(e)}") from e
 
     # Extract posterior samples for spectrum
     samples = np.asarray(trace.posterior["spectrum"].values, dtype=float)
@@ -549,7 +621,7 @@ def unfold_mcmc(
     unfold_bayes : Bayesian iterative unfolding (D'Agostini)
     unfold_bayesian_parametric : Bayesian parametric model with MCMC
     """
-    if not PYMC_AVAILABLE:
+    if not _check_pymc_available():
         raise ImportError(
             "PyMC and ArviZ are required for MCMC unfolding. "
             "Install them with: pip install pymc arviz"

@@ -5,8 +5,9 @@ results via Monte-Carlo simulation, eliminating code duplication across the
 various unfold_* methods in the Detector class.
 """
 
+from typing import Any, Callable, Dict, Optional
+
 import numpy as np
-from typing import Callable, Dict, Optional, Any
 
 
 def monte_carlo_uncertainty(

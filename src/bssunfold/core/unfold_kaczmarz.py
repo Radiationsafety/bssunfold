@@ -4,10 +4,11 @@ This module provides the core solve_kaczmarz solver and the unfold_kaczmarz
 wrapper for use with the Detector class.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_kaczmarz", "unfold_kaczmarz"]
 
@@ -53,7 +54,7 @@ def solve_kaczmarz(
     row_norms_sq = np.sum(A * A, axis=1)
 
     try:
-        from ._numba_jit import _kaczmarz_inner, NUMBA_AVAILABLE
+        from ._numba_jit import NUMBA_AVAILABLE, _kaczmarz_inner
 
         if NUMBA_AVAILABLE:
             return _kaczmarz_inner(

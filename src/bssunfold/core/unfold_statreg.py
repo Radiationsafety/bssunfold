@@ -10,10 +10,11 @@ Regularisation parameter α is selected either by the user or automatically
 via the L-curve heuristic (maximum curvature).
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 
 __all__ = ["solve_statreg", "unfold_statreg"]

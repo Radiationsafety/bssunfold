@@ -21,11 +21,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from bssunfold import Detector, RF_PTB, RF_LANL
-from bssunfold.utils.comparison import wasserstein_dist, r2_score
-from bssunfold.utils.plotting import plot_comparison
-from bssunfold.utils.converters import round_to_sigfig
+from bssunfold import RF_LANL, RF_PTB, Detector
 from bssunfold.core.dose_calculation import calculate_dose_rates
+from bssunfold.utils.comparison import r2_score, wasserstein_dist
+from bssunfold.utils.converters import round_to_sigfig
+from bssunfold.utils.plotting import plot_comparison
 
 warnings.filterwarnings("ignore")
 

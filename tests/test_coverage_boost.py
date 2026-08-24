@@ -5,11 +5,13 @@ coverage from 83% to 91%+.
 """
 
 import sys
+import warnings
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
-import warnings
-from unittest.mock import patch, MagicMock
 
+from tests.conftest import block_import
 
 # ============================================================================
 # Fixtures
@@ -175,20 +177,12 @@ class TestNumbaJitFallback:
 
         Returns (module, cleanup) where cleanup restores sys.modules.
         """
-        import builtins
         import importlib
 
         saved_numba = sys.modules.get("numba")
         saved_njit = sys.modules.get("bssunfold.core._numba_jit")
         sys.modules.pop("numba", None)
         sys.modules.pop("bssunfold.core._numba_jit", None)
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "numba":
-                raise ImportError("mocked numba")
-            return orig_import(name, *args, **kwargs)
 
         def cleanup():
             if saved_numba is not None:
@@ -201,7 +195,7 @@ class TestNumbaJitFallback:
                 sys.modules.pop("bssunfold.core._numba_jit", None)
 
         try:
-            with patch("builtins.__import__", side_effect=mock_import):
+            with block_import("numba"):
                 mod = importlib.import_module("bssunfold.core._numba_jit")
         except BaseException:
             cleanup()
@@ -228,48 +222,24 @@ class TestNumbaJitFallback:
 class TestPlatformCheck:
     def test_check_jax_availability_import_error(self):
         import bssunfold.platform_check as pc
-        import builtins
 
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "jax":
-                raise ImportError("mocked jax")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("jax"):
             result = pc.check_jax_availability()
         assert result is False
         assert pc.JAX_AVAILABLE is False
 
     def test_check_proxsuite_availability_import_error(self):
         import bssunfold.platform_check as pc
-        import builtins
 
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "proxsuite":
-                raise ImportError("mocked proxsuite")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("proxsuite"):
             result = pc.check_proxsuite_availability()
         assert result is False
         assert pc.PROXSUITE_AVAILABLE is False
 
     def test_check_qpsolvers_extra_import_error(self):
         import bssunfold.platform_check as pc
-        import builtins
 
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "qpsolvers":
-                raise ImportError("mocked qpsolvers")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("qpsolvers"):
             result = pc.check_qpsolvers_extra_availability()
         assert result is False
         assert pc.QPSOLVERS_EXTRA_AVAILABLE is False
@@ -541,8 +511,8 @@ class TestComparisonUncovered:
 
     def test_dose_metrics_with_dict_cc_ade(self):
         from bssunfold.utils.comparison import (
-            dose_averaged_energy,
             ambient_dose_equivalent_rate,
+            dose_averaged_energy,
         )
 
         e = np.logspace(-6, 1, 5)
@@ -936,16 +906,7 @@ class TestFruitLike:
         b = np.ones(3)
         E = np.logspace(-6, 1, 5)
         ln = np.ones(5)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "lmfit":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("lmfit"):
             with pytest.raises(ImportError, match="lmfit is required"):
                 solve_fruit_like(A, b, E, ln)
 
@@ -1023,16 +984,7 @@ class TestCvxpy:
 
         A = np.random.rand(3, 5)
         b = np.ones(3)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "cvxpy":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("cvxpy"):
             with pytest.raises(ImportError, match="cvxpy is required"):
                 _solve_cvxpy_problem(A, b, alpha=1e-4)
 
@@ -1119,16 +1071,7 @@ class TestQpsolvers:
 
         A = np.random.rand(3, 5)
         b = np.ones(3)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "qpsolvers":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("qpsolvers"):
             with pytest.raises(ImportError, match="qpsolvers is required"):
                 solve_qpsolvers(A, b, alpha=1e-4)
 
@@ -1283,16 +1226,7 @@ class TestRegularizationFallbacks:
         np.random.seed(42)
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "pytikhonov":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("pytikhonov"):
             alpha = lcurve_selection(A, b, n_alphas=20)
         assert alpha > 0
 
@@ -1302,16 +1236,7 @@ class TestRegularizationFallbacks:
         np.random.seed(42)
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "pytikhonov":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("pytikhonov"):
             alpha = gcv_selection(A, b, n_alphas=20)
         assert alpha > 0
 
@@ -1323,16 +1248,7 @@ class TestRegularizationFallbacks:
         np.random.seed(42)
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "pytikhonov":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("pytikhonov"):
             alpha = discrepancy_principle_selection(A, b, n_alphas=20)
         assert alpha > 0
 
@@ -1351,16 +1267,7 @@ class TestRegularizationFallbacks:
 
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "pytikhonov":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("pytikhonov"):
             with pytest.raises(ImportError, match="pytikhonov is required"):
                 compare_regularization_methods(A, b)
 
@@ -1369,16 +1276,7 @@ class TestRegularizationFallbacks:
 
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "pytikhonov":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("pytikhonov"):
             with pytest.raises(ImportError, match="pytikhonov is required"):
                 randomization_experiment(A, b)
 
@@ -1395,16 +1293,7 @@ class TestLmfit:
         A = np.random.rand(3, 5)
         b = np.ones(3)
         x0 = np.ones(5)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "lmfit":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("lmfit"):
             with pytest.raises(ImportError, match="lmfit is required"):
                 solve_lmfit(A, b, x0)
 
@@ -1431,16 +1320,7 @@ class TestParametric:
         b = np.ones(5)
         E = np.logspace(-6, 1, 20)
         ln = np.ones(20)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "lmfit":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("lmfit"):
             with pytest.raises(ImportError, match="lmfit is required"):
                 solve_parametric(A, b, E, ln)
 
@@ -1451,16 +1331,7 @@ class TestParametric:
         b = np.ones(5)
         E = np.logspace(-6, 1, 20)
         ln = np.ones(20)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "cvxpy":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("cvxpy"):
             with pytest.raises(ImportError, match="cvxpy is required"):
                 solve_parametric_cvxpy(A, b, E, ln)
 
@@ -1471,16 +1342,7 @@ class TestParametric:
         b = np.ones(5)
         E = np.logspace(-6, 1, 20)
         ln = np.ones(20)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "qpsolvers":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("qpsolvers"):
             with pytest.raises(ImportError, match="qpsolvers is required"):
                 solve_parametric_qpsolvers(A, b, E, ln)
 
@@ -1491,16 +1353,7 @@ class TestParametric:
         b = np.ones(5)
         E = np.logspace(-6, 1, 20)
         ln = np.ones(20)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name in ("cvxpy", "lmfit"):
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("cvxpy", "lmfit"):
             with pytest.raises(ImportError):
                 solve_parametric_combined(A, b, E, ln, solver_backend="cvxpy")
 
@@ -1511,16 +1364,7 @@ class TestParametric:
         b = np.ones(5)
         E = np.logspace(-6, 1, 20)
         ln = np.ones(20)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name in ("qpsolvers", "lmfit"):
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("qpsolvers", "lmfit"):
             with pytest.raises(ImportError):
                 solve_parametric_combined(
                     A, b, E, ln, solver_backend="qpsolvers"
@@ -1541,6 +1385,7 @@ class TestParametricCoverage:
 
     def test_residuals_reg_without_initial_vec(self):
         from lmfit import Parameters
+
         from bssunfold.core.unfold_parametric import _residuals
 
         A, b, E, ln = self._data()
@@ -1635,57 +1480,34 @@ class TestParametricCoverage:
         ln = np.ones(10)
         A = np.random.rand(4, 10)
         b = np.random.rand(4)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "bssunfold.core.regularization":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("bssunfold.core.regularization"):
             alpha = _gcv_select_alpha(A, b, E, ln, _get_initial_params(None))
         assert isinstance(alpha, float)
 
     def test_resolve_cvxpy_solvers_import_error(self):
         from bssunfold.core.unfold_parametric import _resolve_cvxpy_solvers
-        import builtins
 
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "cvxpy":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("cvxpy"):
             assert _resolve_cvxpy_solvers("default") == ["ECOS"]
 
     def test_resolve_qpsolver_name_ecos(self):
-        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
 
         with patch.object(qpsolvers, "available_solvers", ["ecos"]):
             assert _resolve_qpsolver_name("default") == "ecos"
 
     def test_resolve_qpsolver_name_import_error(self):
         from bssunfold.core.unfold_parametric import _resolve_qpsolver_name
-        import builtins
 
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "qpsolvers":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("qpsolvers"):
             assert _resolve_qpsolver_name("default") == "osqp"
 
     def test_solve_parametric_qpsolvers_solver_fallback(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
 
         A, b, E, ln = self._data()
         with patch.object(qpsolvers, "available_solvers", ["osqp", "proxqp"]):
@@ -1696,8 +1518,9 @@ class TestParametricCoverage:
         assert spectrum.shape == (len(E),)
 
     def test_solve_parametric_qpsolvers_no_solver(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
 
         A, b, E, ln = self._data()
         with patch.object(qpsolvers, "available_solvers", ["proxqp"]):
@@ -1707,8 +1530,9 @@ class TestParametricCoverage:
                 )
 
     def test_solve_parametric_qpsolvers_no_bounds(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
 
         A, b, E, ln = self._data()
         all_none = {
@@ -1729,25 +1553,18 @@ class TestParametricCoverage:
         assert spectrum.shape == (len(E),)
 
     def test_combined_auto_fallback_to_qpsolvers(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_combined
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_combined
 
         A, b, E, ln = self._data()
         dummy_spectrum = np.linspace(0.5, 2.0, len(E))
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "cvxpy":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
 
         with patch(
             "bssunfold.core.unfold_parametric.solve_parametric",
             return_value=(dummy_spectrum, True, "ok", 1),
         ):
-            with patch("builtins.__import__", side_effect=mock_import):
+            with block_import("cvxpy"):
                 with patch.object(qpsolvers, "solve_qp", return_value=None):
                     spectrum, success, msg, nfev = solve_parametric_combined(
                         A, b, E, ln, solver_backend="auto"
@@ -1759,28 +1576,21 @@ class TestParametricCoverage:
 
         A, b, E, ln = self._data()
         dummy_spectrum = np.linspace(0.5, 2.0, len(E))
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "cvxpy":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
 
         with patch(
             "bssunfold.core.unfold_parametric.solve_parametric",
             return_value=(dummy_spectrum, True, "ok", 1),
         ):
-            with patch("builtins.__import__", side_effect=mock_import):
+            with block_import("cvxpy"):
                 with pytest.raises(ImportError, match="cvxpy is required"):
                     solve_parametric_combined(
                         A, b, E, ln, solver_backend="cvxpy"
                     )
 
     def test_combined_qpsolvers_no_solver(self):
-        from bssunfold.core.unfold_parametric import solve_parametric_combined
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric import solve_parametric_combined
 
         A, b, E, ln = self._data()
         dummy_spectrum = np.linspace(0.5, 2.0, len(E))
@@ -1809,7 +1619,7 @@ class TestParametric2Coverage:
         return A, b, E, ln
 
     def test_bon95_jacobian_degenerate_bounds(self):
-        from bssunfold.core.unfold_parametric2 import (
+        from bssunfold.core._bon95 import (
             _compute_bon95_shape_jacobian,
         )
 
@@ -1817,7 +1627,7 @@ class TestParametric2Coverage:
         params = {"b": 0.5, "Tf": 0.5, "c": 0.5}
         degenerate = {"b": (0.5, 0.5), "Tf": (0.5, 0.5), "c": (0.5, 0.5)}
         with patch(
-            "bssunfold.core.unfold_parametric2._get_bon95_shape_bounds",
+            "bssunfold.core._bon95._get_bon95_shape_bounds",
             return_value=degenerate,
         ):
             J, residual = _compute_bon95_shape_jacobian(
@@ -1827,38 +1637,23 @@ class TestParametric2Coverage:
         assert residual.shape == (4,)
 
     def test_bon95_resolve_cvxpy_solvers_import_error(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_cvxpy_solvers
-        import builtins
+        from bssunfold.core._solver_backends import _resolve_cvxpy_solvers
 
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "cvxpy":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("cvxpy"):
             assert _resolve_cvxpy_solvers("default") == ["ECOS"]
 
     def test_bon95_resolve_qpsolver_name_ecos(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
         import qpsolvers
+
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
 
         with patch.object(qpsolvers, "available_solvers", ["ecos"]):
             assert _resolve_qpsolver_name("default") == "ecos"
 
     def test_bon95_resolve_qpsolver_name_import_error(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
-        import builtins
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
 
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "qpsolvers":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("qpsolvers"):
             assert _resolve_qpsolver_name("default") == "osqp"
 
     def test_solve_bon95_cvxpy_converged(self):
@@ -1867,7 +1662,7 @@ class TestParametric2Coverage:
         A, b, E, ln = self._data_bon95()
         exact_spectrum = np.linalg.lstsq(A, b, rcond=None)[0]
         with patch(
-            "bssunfold.core.unfold_parametric2._solve_shape_nls",
+            "bssunfold.core._bon95._solve_shape_nls",
             return_value=(exact_spectrum, 0.0, np.ones(4)),
         ):
             spectrum, success, msg, nfev = solve_bon95_cvxpy(
@@ -1881,14 +1676,15 @@ class TestParametric2Coverage:
         assert spectrum.shape == (len(E),)
 
     def test_solve_bon95_qpsolvers_solver_fallback(self):
-        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
 
         A, b, E, ln = self._data_bon95()
         exact_spectrum = np.linalg.lstsq(A, b, rcond=None)[0]
         with patch.object(qpsolvers, "available_solvers", ["osqp", "proxqp"]):
             with patch(
-                "bssunfold.core.unfold_parametric2._solve_shape_nls",
+                "bssunfold.core._bon95._solve_shape_nls",
                 return_value=(exact_spectrum, 0.0, np.ones(4)),
             ):
                 spectrum, success, msg, nfev = solve_bon95_qpsolvers(
@@ -1903,8 +1699,9 @@ class TestParametric2Coverage:
         assert spectrum.shape == (len(E),)
 
     def test_solve_bon95_qpsolvers_no_solver(self):
-        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
         import qpsolvers
+
+        from bssunfold.core.unfold_parametric2 import solve_bon95_qpsolvers
 
         A, b, E, ln = self._data_bon95()
         with patch.object(qpsolvers, "available_solvers", ["proxqp"]):
@@ -1924,11 +1721,11 @@ class TestParametric2Coverage:
         A, b, E, ln = self._data_bon95()
         dummy = {"b": 1.0, "Tf": 1.0, "c": 1.0}
         with patch(
-            "bssunfold.core.unfold_parametric2.solve_bon95_parametric",
+            "bssunfold.core._bon95.solve_bon95_parametric",
             return_value=(dummy, 1.0, np.ones(4)),
         ):
             with patch(
-                "bssunfold.core.unfold_parametric2.solve_bon95_cvxpy",
+                "bssunfold.core._bon95.solve_bon95_cvxpy",
                 side_effect=ImportError("no cvxpy"),
             ):
                 with pytest.raises(ImportError):
@@ -1940,15 +1737,15 @@ class TestParametric2Coverage:
         A, b, E, ln = self._data_bon95()
         dummy = {"b": 1.0, "Tf": 1.0, "c": 1.0}
         with patch(
-            "bssunfold.core.unfold_parametric2.solve_bon95_parametric",
+            "bssunfold.core._bon95.solve_bon95_parametric",
             return_value=(dummy, 1.0, np.ones(4)),
         ):
             with patch(
-                "bssunfold.core.unfold_parametric2.solve_bon95_cvxpy",
+                "bssunfold.core._bon95.solve_bon95_cvxpy",
                 side_effect=ImportError("no cvxpy"),
             ):
                 with patch(
-                    "bssunfold.core.unfold_parametric2.solve_bon95_qpsolvers",
+                    "bssunfold.core._bon95.solve_bon95_qpsolvers",
                     return_value=(np.ones(len(E)), True, "ok", 1),
                 ):
                     spectrum, success, msg, nfev = solve_bon95_combined(
@@ -2171,16 +1968,7 @@ class TestParametric2:
         b = np.ones(3)
         E = np.logspace(-6, 1, 10)
         ln = np.ones(10)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "qpsolvers":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("qpsolvers"):
             with pytest.raises(ImportError, match="qpsolvers is required"):
                 solve_bon95_qpsolvers(A, b, E, ln)
 
@@ -2191,16 +1979,7 @@ class TestParametric2:
         b = np.ones(3)
         E = np.logspace(-6, 1, 10)
         ln = np.ones(10)
-        import builtins
-
-        orig_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "cvxpy":
-                raise ImportError("mocked")
-            return orig_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("cvxpy"):
             with pytest.raises(ImportError, match="cvxpy is required"):
                 solve_bon95_cvxpy(A, b, E, ln)
 
@@ -2234,7 +2013,8 @@ class TestLmfitX0FromKwargs:
 
 
 class TestParametricSqpSolvers:
-    """Test solve_parametric_cvxpy, solve_parametric_qpsolvers, solve_parametric_combined
+    """Test solve_parametric_cvxpy, solve_parametric_qpsolvers and
+    solve_parametric_combined
     with real data to exercise the full SQP code paths."""
 
     def _make_data(self, n_det=6, n_energy=15):
@@ -2798,8 +2578,9 @@ class TestParametricSqpSolvers:
             )
 
     def test_residuals_with_alpha(self):
-        from bssunfold.core.unfold_parametric import _residuals
         import lmfit
+
+        from bssunfold.core.unfold_parametric import _residuals
 
         E = np.logspace(-6, 1, 15)
         log_steps = np.ones(15) * 0.1
@@ -2825,8 +2606,9 @@ class TestParametricSqpSolvers:
         assert result.shape[0] == 6 + 6
 
     def test_residuals_no_alpha(self):
-        from bssunfold.core.unfold_parametric import _residuals
         import lmfit
+
+        from bssunfold.core.unfold_parametric import _residuals
 
         E = np.logspace(-6, 1, 15)
         log_steps = np.ones(15) * 0.1
@@ -3188,14 +2970,14 @@ class TestParametric2SqpSolvers:
         assert spectrum.shape == (15,)
 
     def test_parse_solver_backend(self):
-        from bssunfold.core.unfold_parametric2 import _parse_solver_backend
+        from bssunfold.core._solver_backends import _parse_solver_backend
 
         assert _parse_solver_backend("auto") == ("auto", "default")
         assert _parse_solver_backend("cvxpy:ECOS") == ("cvxpy", "ECOS")
         assert _parse_solver_backend("qpsolvers") == ("qpsolvers", "default")
 
     def test_resolve_cvxpy_solvers(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_cvxpy_solvers
+        from bssunfold.core._solver_backends import _resolve_cvxpy_solvers
 
         solvers = _resolve_cvxpy_solvers("default")
         assert len(solvers) > 0
@@ -3203,21 +2985,21 @@ class TestParametric2SqpSolvers:
         assert solvers[0] == "ECOS"
 
     def test_resolve_qpsolver_name(self):
-        from bssunfold.core.unfold_parametric2 import _resolve_qpsolver_name
+        from bssunfold.core._solver_backends import _resolve_qpsolver_name
 
         name = _resolve_qpsolver_name("default")
         assert name in ("osqp", "ecos")
         assert _resolve_qpsolver_name("osqp") == "osqp"
 
     def test_bon95_shape_bounds(self):
-        from bssunfold.core.unfold_parametric2 import _get_bon95_shape_bounds
+        from bssunfold.core._bon95 import _get_bon95_shape_bounds
 
         bounds = _get_bon95_shape_bounds()
         assert "b" in bounds
         assert "Tf" in bounds
 
     def test_clamp_bon95_shape(self):
-        from bssunfold.core.unfold_parametric2 import (
+        from bssunfold.core._bon95 import (
             _clamp_bon95_shape,
             _get_bon95_shape_bounds,
         )

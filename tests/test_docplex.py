@@ -6,15 +6,16 @@ dev group. These tests cover the ``solve_docplex`` core solver and the
 module-level function.
 """
 
-import builtins
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch
 
 pytest.importorskip("docplex")
 pytest.importorskip("cplex")
 
 from bssunfold import Detector  # noqa: E402
+from tests.conftest import block_import  # noqa: E402
 
 
 @pytest.fixture
@@ -30,18 +31,6 @@ def readings(detector):
 @pytest.fixture
 def initial(detector):
     return np.ones(detector.n_energy_bins)
-
-
-def _mock_no_module(name):
-    """Build a builtins.__import__ patch that blocks ``name`` imports."""
-    original_import = builtins.__import__
-
-    def mock(_name, *args, **kwargs):
-        if _name == name or _name.startswith(name + "."):
-            raise ImportError(f"No module named '{name}'")
-        return original_import(_name, *args, **kwargs)
-
-    return patch("builtins.__import__", side_effect=mock)
 
 
 class TestSolveDocplex:
@@ -118,14 +107,14 @@ class TestSolveDocplex:
     def test_import_error_docplex(self):
         from bssunfold.core.unfold_docplex import solve_docplex
 
-        with _mock_no_module("docplex"):
+        with block_import("docplex"):
             with pytest.raises(ImportError, match="docplex"):
                 solve_docplex(np.ones((1, 2)), np.ones(1))
 
     def test_import_error_cplex_engine(self):
         from bssunfold.core.unfold_docplex import solve_docplex
 
-        with _mock_no_module("cplex"):
+        with block_import("cplex"):
             with pytest.raises(ImportError, match="cplex"):
                 solve_docplex(np.ones((1, 2)), np.ones(1))
 
@@ -299,8 +288,8 @@ def test_unfold_combined_docplex(detector, readings):
 
 def test_platform_check_docplex():
     from bssunfold.platform_check import (
-        check_docplex_availability,
         DOCPLEX_AVAILABLE,
+        check_docplex_availability,
     )
 
     assert isinstance(check_docplex_availability(), bool)

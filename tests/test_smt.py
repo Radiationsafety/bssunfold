@@ -7,15 +7,16 @@ solver and the ``unfold_smt`` wrapper exposed both on the ``Detector`` class
 and as a module-level function.
 """
 
-import builtins
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 import z3
-from unittest.mock import patch
 
 pytest.importorskip("z3")
 
 from bssunfold import Detector  # noqa: E402
+from tests.conftest import block_import  # noqa: E402
 
 
 @pytest.fixture
@@ -278,14 +279,7 @@ def test_solve_smt_import_error():
     """Missing z3 raises a helpful ImportError."""
     from bssunfold.core.unfold_smt import solve_smt
 
-    orig_import = builtins.__import__
-
-    def mock_import(name, *args, **kwargs):
-        if name == "z3" or name.startswith("z3."):
-            raise ImportError("z3 not installed")
-        return orig_import(name, *args, **kwargs)
-
-    with patch("builtins.__import__", side_effect=mock_import):
+    with block_import("z3"):
         with pytest.raises(ImportError, match="z3-solver is required"):
             solve_smt(np.eye(3), np.ones(3))
 
@@ -294,14 +288,7 @@ def test_exact_solvers_import_error():
     """Missing z3 raises a helpful ImportError in the ported solvers."""
     from bssunfold.core.unfold_smt import solve_integer_linear_eqs
 
-    orig_import = builtins.__import__
-
-    def mock_import(name, *args, **kwargs):
-        if name == "z3" or name.startswith("z3."):
-            raise ImportError("z3 not installed")
-        return orig_import(name, *args, **kwargs)
-
-    with patch("builtins.__import__", side_effect=mock_import):
+    with block_import("z3"):
         with pytest.raises(ImportError, match="z3-solver is required"):
             solve_integer_linear_eqs([[1]], [1])
 
@@ -372,12 +359,12 @@ def test_unfold_smt_exported(detector):
 def test_core_exports():
     """SMT solvers are exported from bssunfold.core."""
     from bssunfold.core import (
-        solve_smt,
-        unfold_smt,
         solve_integer_linear_eqs,
         solve_integer_linear_eqs_all,
         solve_rational_linear_eqs,
         solve_rational_linear_eqs_all,
+        solve_smt,
+        unfold_smt,
     )
 
     assert solve_smt is not None

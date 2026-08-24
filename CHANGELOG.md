@@ -7,6 +7,145 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.19.0] - 2026-08-23
+
+### Added
+- **Cascade and Composite unfolding wired into the `Detector` API** —
+  `unfold_cascade` / `unfold_composite` are now public `Detector` methods
+  (previously standalone module functions only) and are exported from
+  `bssunfold.core`. Both are covered by wrapper smoke tests in
+  `tests/test_detector.py`.
+  - `unfold_cascade`: sequential multi-method cascade; each stage may use the
+    previous result as an initial guess or a prior, with optional early
+    stopping on a quality threshold.
+  - `unfold_composite`: adaptive ensemble (stacked generalization) that
+    classifies the spectrum by hardness, runs a pool of individual methods,
+    and combines them with confidence-weighted averaging.
+
+- **Multi-resolution (coarse-to-fine) cascades** — true multi-resolution
+  support in the cascade pipeline:
+  - New `multi_resolution` / `coarse_bins` parameters on `unfold_cascade`
+    and `unfold_adaptive_cascade` (and the `Detector.unfold_cascade`
+    wrapper): the first stage runs on a coarse energy grid and its
+    prolongated solution seeds the fine-grid stages.
+  - New `coarse` / `coarse_bins` fields on `CascadeStage` for explicit
+    per-stage coarse-grid pre-solves.
+  - New shared helpers in `core/_multires.py`: `build_coarse_detector`,
+    `prolongate_spectrum`, `_coarsen_columns`, `_split_coarse` (extracted
+    from `unfold_genetic.py`, which re-exports them for backward
+    compatibility). Coarsening sums adjacent response columns so a coarse
+    bin-total spectrum reproduces fine readings; prolongation preserves
+    total fluence.
+  - Assessment note with usage examples, literature context and limitations:
+    `docs/multires_cascade.rst`.
+  - Tests: coarse-response consistency, fluence-preserving prolongation and
+    multi-resolution cascade runs (`tests/test_cascade.py`).
+
+### Documentation
+- README and Sphinx docs synced to the actual method inventory (60+
+  methods): features counts corrected (36 → 60+, 51 → 60+), method
+  reference tables extended to #62 (IMAXED/AMAXED family, MAEO, MCMC,
+  zfit, QUBO, ODL PDHG/Douglas-Rachford, cascade, composite), mermaid
+  diagrams updated, README project structure now lists
+  `unfold_cascade.py` / `unfold_composite.py` and all extracted helper
+  modules (`_bon95.py`, `_fruit.py`, `_parametric_shared.py`,
+  `_solver_backends.py`, `_interpret_pyopt.py`, `_interpret_report.py`,
+  `_multires.py`).
+- `docs/detector.rst`: added 13 missing `autofunction` entries
+  (imaxed/amaxed/amaxed_regularization, fista, hybrid_gmres, mcmc, zfit,
+  qubo, maeo, odl_pdhg, odl_douglas_rachford, cascade, composite).
+
+### Fixed
+- Sphinx build error: broken list-table indentation in the method
+  reference table of `docs/overview.rst` prevented the table from
+  rendering.
+
+
+## [0.18.0] - 2026-08-22
+
+### Added
+- **ODL Advanced regularization methods** — new `unfold_odl_pdhg()` and
+  `unfold_odl_douglas_rachford()` methods for advanced proximal optimization:
+  - **PDHG (Primal-Dual Hybrid Gradient / Chambolle-Pock)** — efficient
+    first-order method for non-smooth convex optimization with TV (Total
+    Variation) regularization
+  - **Douglas-Rachford Splitting** — operator splitting method for problems
+    with composite objectives
+  - Better preservation of sharp spectral boundaries compared to standard
+    Tikhonov smoothness
+  - **Implemented in pure NumPy** (no ODL dependency). ODL 1.0's own
+    `odl.solvers.pdhg` / `douglas_rachford_pd` break on translated data terms,
+    so the algorithms follow the ODL formulation but are self-contained.
+  - No optional dependency required for these two methods.
+  - Tests: `tests/test_new_unfold_methods.py` (class `TestODLSolvers`)
+
+- **QUBO Quantum-Inspired Annealing** — new `unfold_qubo()` method implementing
+  quantum-inspired optimization via Quadratic Unconstrained Binary Optimization:
+  - Binary discretization of spectrum amplitudes with multi-bit precision
+  - Simulated annealing solver adapted from D-Wave QUBO formulation
+  - Effective for non-convex landscapes and discrete spectrum reconstruction
+  - No quantum hardware required — classical simulated annealing backend
+  - Optional dependency: `bssunfold[qubo]` (`pyqubo>=1.4.0`, `dwave-neal>=0.6.0`)
+  - Tests: `tests/test_new_unfold_methods.py` (class `TestQUBOBackend`)
+
+- **zfit Bayesian Inference** — new `unfold_zfit()` method using the zfit library
+  for likelihood-based Bayesian spectrum reconstruction:
+  - Poissonian likelihood model for detector readings
+  - MCMC sampling via zfit's minimizers (Minuit, scipy)
+  - Automatic uncertainty quantification from posterior samples
+  - Compatible with zfit ecosystem for extended statistical analysis
+  - Optional dependency: `bssunfold[zfit]` (`zfit>=0.10.0`, `tensorflow>=2.15.0`)
+  - Tests: `tests/test_new_unfold_methods.py` (class `TestZfitBackend`)
+
+- **MAEO (Multi-Algorithm Evolutionary Optimization)** — new `unfold_maeo()`
+  method implementing ensemble evolutionary optimization:
+  - Combines 4 multi-objective algorithms: NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2
+  - Multi-cycle evolution with convergence assistance mechanism
+  - Hypervolume-based quality tracking across generations
+  - Prior spectrum integration for informed initialization
+  - Non-negativity constraints enforced throughout evolution
+  - Reproducible results via deterministic random seeding
+  - Optional dependency: `bssunfold[pymoo]` (`pymoo>=0.6.0`, `numba>=0.65.1`)
+  - Tests: `tests/test_maeo.py` (8 comprehensive test cases)
+
+- **Integration with external libraries**:
+  - ODL (Operator Discretization Library) for advanced proximal algorithms
+  - zfit for likelihood-based Bayesian inference
+  - QUBO formulation inspired by quantum annealing approaches
+  - pymoo for multi-objective evolutionary optimization
+
+### Changed
+- Updated method count from 51 to 55 unfolding algorithms
+- Enhanced documentation with new method categories in README.md and Sphinx docs
+
+
+## [0.17.3] - 2026-08-22
+
+### Added
+- **IMAXED, AMAXED, and AMAXED-Regularization unfolding methods** — new algorithms
+  from Wong's 2024 PhD thesis "Modernising neutron spectrum unfolding for fusion
+  applications" (Sheffield Hallam University). These methods use cross-entropy
+  regularization with Newton-type optimization and line search for improved
+  convergence and stability.
+  - `unfold_imaxed` / `solve_imaxed`: Improved MAXED using gradient-based
+    optimization in log-space with cross-entropy regularization relative to
+    a prior spectrum. Provides faster convergence than standard MAXED.
+  - `unfold_amaxed` / `solve_amaxed`: Alternative MAXED with reversed
+    cross-entropy definition, using Lagrangian multipliers to enforce
+    chi-squared constraints.
+  - `unfold_amaxed_regularization` / `solve_amaxed_regularization`: AMAXED
+    with Tikhonov-style simultaneous minimization of chi-squared and
+    cross-entropy, eliminating the need for manual chi-squared tuning.
+    This method showed best performance in the thesis for fusion neutron
+    spectrum unfolding.
+  - All methods support Monte Carlo uncertainty propagation and are
+    compatible with the existing Detector API.
+  - Tests: `tests/test_wong2024_methods.py` (basic functionality, noise
+    robustness, and comparison tests).
+  - Reference: Wong, O. (2024). Modernising neutron spectrum unfolding for
+    fusion applications. PhD Thesis. https://shura.shu.ac.uk/36014/
+
+
 ## [0.17.2] - 2026-08-19
 
 ### Added

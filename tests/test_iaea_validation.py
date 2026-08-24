@@ -9,18 +9,19 @@ For each detector type (GSF, PTB, LANL) and each reference spectrum:
 """
 
 import csv
-import pytest
+import logging
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import logging
+import pytest
 
-from bssunfold import Detector, RF_PTB, RF_LANL
+from bssunfold import RF_LANL, RF_PTB, Detector
 from bssunfold.utils.comparison import (
-    compare_spectra,
     _METRIC_FUNCTIONS,
     _METRIC_FUNCTIONS_WITH_PARAMS,
     _SINGLE_SPECTRUM_METRICS,
+    compare_spectra,
 )
 
 logger = logging.getLogger("iaea_validation")
@@ -202,7 +203,7 @@ def _check_warnings(metrics):
 
 @pytest.mark.parametrize("detector_type", ["GSF", "PTB", "LANL"])
 def test_iaea_validation(detector_type, reference_data):
-    """Run all unfolding methods against all 20 IAEA reference spectra for a given detector."""
+    """Run all unfolding methods against all 20 IAEA reference spectra."""
     detector = DETECTOR_CONFIGS[detector_type]()
     ref_energy = reference_data["E_MeV"].values
     detector_energy = detector.E_MeV
@@ -287,7 +288,8 @@ def test_iaea_validation(detector_type, reference_data):
     logger.info(f"\n{'=' * 80}")
     logger.info(f"IAEA Validation Report: {detector_type}")
     logger.info(
-        f"Detector: {detector.n_detectors} spheres, {detector.n_energy_bins} energy bins"
+        f"Detector: {detector.n_detectors} spheres, "
+        f"{detector.n_energy_bins} energy bins"
     )
     logger.info(f"Reference spectra: {len(spectrum_names)}")
     logger.info(f"Methods tested: {result_df['method'].nunique()}")
@@ -300,7 +302,8 @@ def test_iaea_validation(detector_type, reference_data):
     n_err = result_df["status"].str.startswith("ERROR").sum()
 
     logger.info(
-        f"Total: {n_total} | OK: {n_ok} | WARN: {n_warn} | SKIP: {n_skip} | ERR: {n_err}"
+        f"Total: {n_total} | OK: {n_ok} | WARN: {n_warn} | "
+        f"SKIP: {n_skip} | ERR: {n_err}"
     )
 
     if n_warn > 0:
@@ -313,7 +316,8 @@ def test_iaea_validation(detector_type, reference_data):
                 if m in warn_df.columns
             )
             logger.warning(
-                f"  {r['spectrum']:30s} | {r['method']:20s} | {r['status']:50s} | {extra}"
+                f"  {r['spectrum']:30s} | {r['method']:20s} "
+                f"| {r['status']:50s} | {extra}"
             )
 
     if n_err > 0:

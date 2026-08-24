@@ -5,10 +5,11 @@ The response matrix is column-normalised so the algorithm works in
 effective-count space, then the result is rescaled to physical units.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_bayes", "unfold_bayes"]
 

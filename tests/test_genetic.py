@@ -7,12 +7,13 @@ module-level function, including all supported meta-heuristic solvers,
 regularization variants and error handling.
 """
 
-import builtins
-import numpy as np
-import pytest
 from unittest.mock import patch
 
+import numpy as np
+import pytest
+
 from bssunfold import Detector
+from tests.conftest import block_import
 
 SOLVERS = ["pso", "ga", "de", "es", "ep", "abc", "gwo", "cmaes"]
 
@@ -295,14 +296,7 @@ def test_solve_genetic_import_error():
     A = np.eye(3)
     b = np.ones(3)
 
-    orig_import = builtins.__import__
-
-    def mock_import(name, *args, **kwargs):
-        if name == "mealpy" or name.startswith("mealpy."):
-            raise ImportError("mealpy not installed")
-        return orig_import(name, *args, **kwargs)
-
-    with patch("builtins.__import__", side_effect=mock_import):
+    with block_import("mealpy"):
         with pytest.raises(ImportError, match="mealpy is required"):
             solve_genetic(A, b)
 

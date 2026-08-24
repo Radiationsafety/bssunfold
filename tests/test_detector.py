@@ -1,9 +1,10 @@
-import pytest
+import os
+import sys
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
-from unittest.mock import patch
-import sys
-import os
+import pytest
 
 # Добавляем src в путь для импорта
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -517,6 +518,32 @@ class TestMLEMUnfolding:
         assert "spectrum_uncert_std" in result
         assert "montecarlo_samples" in result
         assert result["montecarlo_samples"] == 5
+
+
+class TestCascadeCompositeWrappers:
+    """Smoke tests for the Detector.unfold_cascade / unfold_composite wrappers."""
+
+    def test_unfold_cascade_wrapper(self, detector, sample_readings):
+        from bssunfold.core.unfold_cascade import CascadeStage
+
+        result = detector.unfold_cascade(
+            sample_readings,
+            cascade_stages=[CascadeStage(method="tsvd")],
+            verbose=False,
+        )
+        assert isinstance(result, dict)
+        assert "spectrum" in result
+        assert result["status"] in ("OK", "DONE", "ERROR", "STOPPED")
+
+    def test_unfold_composite_wrapper(self, detector, sample_readings):
+        result = detector.unfold_composite(
+            sample_readings,
+            method_names=["tsvd"],
+            n_methods=1,
+            timeout_per_method=5.0,
+        )
+        assert isinstance(result, dict)
+        assert "spectrum" in result
 
 
 if __name__ == "__main__":

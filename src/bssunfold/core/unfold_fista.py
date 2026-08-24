@@ -6,8 +6,10 @@ for solving regularized least squares problems with constraints.
 Based on IRtools IRfista.m by Silvia Gazzola et al.
 """
 
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, Optional, Any, List
+
 from ..logging_config import get_logger
 
 logger = get_logger("unfold_fista")

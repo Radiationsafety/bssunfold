@@ -8,7 +8,8 @@ priors, and a floor clamp that prevents spectrum bins from being locked at
 zero:
 
     x^{n+1} = x^n + alpha(n)/(omega_m * A^T 1 + eps)
-                  * ( A_m^T ( b_m/(A_m x^n + eps) ) - A_m^T 1 - omega_m * beta * grad V(x^n) )
+                  * ( A_m^T ( b_m/(A_m x^n + eps) ) - A_m^T 1
+                      - omega_m * beta * grad V(x^n) )
 
 where ``m`` indexes the detector subset, ``omega_m`` is the subset fraction
 and ``V`` is a nearest-neighbour prior over the energy axis (see
@@ -16,10 +17,11 @@ and ``V`` is a nearest-neighbour prior over the energy axis (see
 is clamped to be at least ``addition_after_iteration``.
 """
 
-import numpy as np
-from typing import Callable, Dict, Optional, Any, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._em_priors import prior_gradient
 
 __all__ = ["solve_bsrem", "unfold_bsrem"]

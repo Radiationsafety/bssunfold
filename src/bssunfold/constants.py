@@ -2866,7 +2866,8 @@ RF_LANL = {
 
 """JINR BSS response functions.
 Source: Joint Institute for Nuclear Research (Dubna, Russia).
-Detectors: 0in, Cd0in (cadmium-covered), 2in, 3in, 5in, 8in, 10in, 12in, 10inPb (lead-shielded).
+Detectors: 0in, Cd0in (cadmium-covered), 2in, 3in, 5in, 8in, 10in, 12in,
+10inPb (lead-shielded).
 Energy range: 1e-9 to 631 MeV (60 bins)."""
 RF_JINR = {
     "E_MeV": [
@@ -4059,8 +4060,8 @@ RF_FERMILAB = {
 
 
 """EURADOS BSS response functions.
-Source: European Radiation Dosimetry Group (EURADOS) round-robin exercise.
-Detectors: 0in, 2in, Cd2in (cadmium-covered), 3in, 3.5in, 4in, 4.5in, 5in, 6in, 7in, 8in, 10in, 12in.
+Detectors: 0in, 2in, Cd2in (cadmium-covered), 3in, 3.5in, 4in, 4.5in,
+5in, 6in, 7in, 8in, 10in, 12in.
 Energy range: 1e-9 to 20 MeV (105 bins, ~1/8-decade spacing).
 NOTE: Narrower energy range than other RF datasets (max 20 MeV vs 631 MeV)."""
 RF_EURADOS = {

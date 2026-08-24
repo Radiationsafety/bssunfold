@@ -9,10 +9,10 @@ import pandas as pd
 import pytest
 
 from bssunfold.core.unfold_cs import (
-    solve_omp,
-    solve_ksvd,
-    solve_sl0,
     solve_cs,
+    solve_ksvd,
+    solve_omp,
+    solve_sl0,
     unfold_cs,
 )
 

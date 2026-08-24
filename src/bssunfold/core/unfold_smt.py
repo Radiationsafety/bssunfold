@@ -10,11 +10,11 @@ both single and multiple solution variants, plus the ``solve_smt`` /
 
 import fractions
 import warnings
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-from typing import Dict, Optional, Any, List
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = [
     "solve_integer_linear_eqs",

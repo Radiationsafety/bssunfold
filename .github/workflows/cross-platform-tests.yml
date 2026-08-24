@@ -47,10 +47,11 @@ jobs:
       run: uv run pip list
       shell: bash
 
-    - name: Lint with flake8
-      run: |
-        uv run flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        uv run flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Lint with ruff
+      # E9/F63/F7/F82 (syntax & error-level checks) are included in the
+      # project's ruff rule set ("E", "F"); the strict gate also lives in
+      # python-package.yml. Kept here so every matrix job fails fast.
+      run: uv run ruff check --output-format=github src/ tests/
       shell: bash
 
     - name: Test with pytest

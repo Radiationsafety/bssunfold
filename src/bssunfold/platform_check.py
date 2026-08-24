@@ -5,7 +5,7 @@ and proxsuite which are not available on Windows.
 """
 
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
 
 __all__ = [
     "is_windows",
@@ -133,8 +133,8 @@ def check_docplex_availability() -> bool:
     """
     global DOCPLEX_AVAILABLE
     try:
-        import docplex  # noqa: F401  # pylint: disable=unused-import
         import cplex  # noqa: F401  # pylint: disable=unused-import
+        import docplex  # noqa: F401  # pylint: disable=unused-import
 
         DOCPLEX_AVAILABLE = True
         return True

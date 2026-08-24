@@ -17,13 +17,13 @@ import numpy as np
 import pandas as pd
 
 from bssunfold import (
-    Detector,
-    RF_PTB,
-    RF_LANL,
-    RF_JINR,
-    RF_FERMILAB,
     RF_EURADOS,
+    RF_FERMILAB,
     RF_IHEP,
+    RF_JINR,
+    RF_LANL,
+    RF_PTB,
+    Detector,
 )
 from bssunfold.core.dose_calculation import calculate_dose_rates
 

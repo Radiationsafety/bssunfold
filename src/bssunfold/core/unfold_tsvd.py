@@ -4,11 +4,12 @@ This module provides the core solve_tsvd solver and the unfold_tsvd
 wrapper for use with the Detector class.
 """
 
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, Optional, Any, List
 from scipy.linalg import svd
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_tsvd", "unfold_tsvd"]
 

@@ -4,10 +4,11 @@ This module provides the core solve_scipy_direct solver and the
 unfold_scipy_direct_method wrapper for use with the Detector class.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_scipy_direct", "unfold_scipy_direct_method"]
 
@@ -44,17 +45,17 @@ def solve_scipy_direct(
         Unfolded spectrum (n,).
     """
     from scipy.sparse.linalg import (
+        bicgstab,
         cg,
         cgs,
-        bicgstab,
+        gcrotmk,
         gmres,
         lgmres,
+        lsmr,
+        lsqr,
         minres,
-        gcrotmk,
         qmr,
         tfqmr,
-        lsqr,
-        lsmr,
     )
 
     AT_A = A.T @ A

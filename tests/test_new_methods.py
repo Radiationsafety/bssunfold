@@ -1,8 +1,7 @@
 """Tests for new unfolding methods added from addons/."""
 
-import pytest
 import numpy as np
-
+import pytest
 
 # ============================================================================
 # Test solve_gravel

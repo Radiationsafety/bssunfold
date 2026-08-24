@@ -6,23 +6,22 @@ from numpy.testing import assert_almost_equal
 
 from bssunfold import Detector
 from bssunfold.utils.comparison import (
-    fluence_difference_percent,
-    energy_group_fluence_diff,
-    dose_difference_percent,
-    fluence_averaged_energy_diff,
-    dose_averaged_energy_diff,
-    fluence_averaged_energy,
-    energy_group_fluence,
-    dose_averaged_energy,
     ambient_dose_equivalent_rate,
-    spectral_shape_similarity,
+    dose_averaged_energy,
+    dose_averaged_energy_diff,
+    dose_difference_percent,
+    dose_weighted_error,
+    energy_group_fluence,
+    energy_group_fluence_diff,
+    fluence_averaged_energy,
+    fluence_averaged_energy_diff,
+    fluence_difference_percent,
     log_lethargy_correlation,
     peak_location_error,
     peak_width_error,
-    dose_weighted_error,
     response_matrix_consistency,
+    spectral_shape_similarity,
 )
-
 
 # ─── Fixtures ─────────────────────────────────────────────────────
 

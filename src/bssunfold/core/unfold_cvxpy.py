@@ -6,12 +6,13 @@ wrapper with regularization selection for use with the Detector class.
 
 import logging
 import warnings
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, Optional, Any, List
 
 from ..platform_check import get_recommended_solver
+from ._base_unfolder import _build_system, make_solve_wrapper, run_unfolding
 from .regularization import select_regularization_parameter
-from ._base_unfolder import run_unfolding, make_solve_wrapper, _build_system
 
 __all__ = ["solve_cvxpy", "unfold_cvxpy"]
 

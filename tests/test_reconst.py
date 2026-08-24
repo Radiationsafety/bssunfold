@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-
 # ============================================================================
 # Low-level helpers
 # ============================================================================
@@ -83,8 +82,8 @@ class TestBuildSystemMatrix:
 
     def test_symmetric(self):
         from bssunfold.core.unfold_reconst import (
-            _build_system_matrix,
             _build_omo_matrix,
+            _build_system_matrix,
         )
 
         n = 8
@@ -98,7 +97,7 @@ class TestBuildSystemMatrix:
 
 class TestReg1:
     def test_ich_gt0_returns_inverse(self):
-        from bssunfold.core.unfold_reconst import _reg1, _build_system_matrix
+        from bssunfold.core.unfold_reconst import _build_system_matrix, _reg1
 
         n = 5
         np.random.seed(1)
@@ -124,7 +123,7 @@ class TestReg1:
         assert D.shape == (n, n)
 
     def test_matches_numpy_solve(self):
-        from bssunfold.core.unfold_reconst import _reg1, _build_system_matrix
+        from bssunfold.core.unfold_reconst import _build_system_matrix, _reg1
 
         n = 4
         np.random.seed(99)
@@ -409,8 +408,8 @@ class TestExports:
 class TestComputeOmega:
     def test_returns_finite(self):
         from bssunfold.core.unfold_reconst import (
-            _compute_omega,
             _build_omo_matrix,
+            _compute_omega,
         )
 
         n = 6

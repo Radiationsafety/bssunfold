@@ -4,16 +4,18 @@ This module contains the main Detector class which provides methods for
 neutron spectrum unfolding using various algorithms.
 """
 
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from typing import Dict, Optional, List, Tuple, Any, Union, Callable
 
 from ..constants import RF_GSF
 from ..logging_config import get_logger
-from ..utils.validators import validate_readings
 from ..utils.interpolation import discretize_spectra
 from ..utils.plotting import plot_with_uncertainty
+from ..utils.validators import validate_readings
+from ._base_unfolder import _build_system
 from .dose_calculation import (
     calculate_dose_rates,
     get_coefficients,
@@ -21,71 +23,95 @@ from .dose_calculation import (
 )
 from .regularization import (
     compare_regularization_methods as compare_reg_util,
+)
+from .regularization import (
     randomization_experiment as rand_exp_util,
 )
-from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
-from .unfold_landweber import unfold_landweber as unfold_landweber_impl
-from .unfold_mlem import unfold_mlem as unfold_mlem_impl
-from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
-from .unfold_mystic import unfold_mystic as unfold_mystic_impl
-from .unfold_genetic import unfold_genetic as unfold_genetic_impl
-from .unfold_reconst import unfold_reconst as unfold_reconst_impl
-from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
-from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
-from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
-from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
-from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
-from .unfold_combined import unfold_combined as unfold_combined_impl
-from .unfold_gravel import unfold_gravel as unfold_gravel_impl
-from .unfold_maxed import unfold_maxed as unfold_maxed_impl
-from .unfold_tikhonov_legendre import (
-    unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
+from .unfold_amaxed import unfold_amaxed as unfold_amaxed_impl
+from .unfold_amaxed_regularization import (
+    unfold_amaxed_regularization as unfold_amaxed_regularization_impl,
 )
 from .unfold_bayes import unfold_bayes as unfold_bayes_impl
 from .unfold_bayes_spline_regularization import (
     unfold_bayes_spline_regularization as unfold_bayes_spline_impl,
 )
-from .unfold_statreg import unfold_statreg as unfold_statreg_impl
-from .unfold_scipy_direct_method import (
-    unfold_scipy_direct_method as unfold_scipy_direct_impl,
-)
-from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
-from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
-from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
-from .unfold_hybrid_parametric import (
-    unfold_hybrid_parametric as unfold_hybrid_parametric_impl,
-)
 from .unfold_bayesian_parametric import (
     unfold_bayesian_parametric as unfold_bayesian_parametric_impl,
 )
-from .unfold_parametric import unfold_parametric as unfold_parametric_impl
-from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
-from .unfold_smt import unfold_smt as unfold_smt_impl
-from .unfold_scip import unfold_scip as unfold_scip_impl
-from .unfold_docplex import unfold_docplex as unfold_docplex_impl
-from .unfold_cs import unfold_cs as unfold_cs_impl
-from .unfold_epic import unfold_epic as unfold_epic_impl
-from .unfold_cgls import unfold_cgls as unfold_cgls_impl
-from .unfold_gks import unfold_gks as unfold_gks_impl
-from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
-from .unfold_sandii import unfold_sandii as unfold_sandii_impl
+from .unfold_bsrem import unfold_bsrem as unfold_bsrem_impl
 from .unfold_bunki import unfold_bunki as unfold_bunki_impl
 from .unfold_bunkiut import unfold_bunkiut as unfold_bunkiut_impl
+from .unfold_cascade import (
+    CascadeStage,
+)
+from .unfold_cascade import (
+    unfold_cascade as unfold_cascade_impl,
+)
+from .unfold_cgls import unfold_cgls as unfold_cgls_impl
+from .unfold_combined import unfold_combined as unfold_combined_impl
+from .unfold_composite import unfold_composite as unfold_composite_impl
+from .unfold_cs import unfold_cs as unfold_cs_impl
+from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
+from .unfold_docplex import unfold_docplex as unfold_docplex_impl
+from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
+from .unfold_epic import unfold_epic as unfold_epic_impl
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
-from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
-from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
-from .unfold_osem import unfold_osem as unfold_osem_impl
-from .unfold_mapem import unfold_mapem as unfold_mapem_impl
-from .unfold_bsrem import unfold_bsrem as unfold_bsrem_impl
-from .unfold_sart import unfold_sart as unfold_sart_impl
-from ._base_unfolder import _build_system
+from .unfold_fista import unfold_fista as unfold_fista_impl
+from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
+from .unfold_genetic import unfold_genetic as unfold_genetic_impl
+from .unfold_gks import unfold_gks as unfold_gks_impl
+from .unfold_gravel import unfold_gravel as unfold_gravel_impl
+from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
+from .unfold_hybrid_parametric import (
+    unfold_hybrid_parametric as unfold_hybrid_parametric_impl,
+)
+from .unfold_imaxed import unfold_imaxed as unfold_imaxed_impl
 from .unfold_interpret import (
     interpret_qp as interpret_qp_impl,
+)
+from .unfold_interpret import (
     unfold_interpret as unfold_interpret_impl,
 )
-from .unfold_fista import unfold_fista as unfold_fista_impl
-from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
+from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
+from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
+from .unfold_landweber import unfold_landweber as unfold_landweber_impl
+from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
+from .unfold_maeo import unfold_maeo as unfold_maeo_impl
+from .unfold_mapem import unfold_mapem as unfold_mapem_impl
+from .unfold_maxed import unfold_maxed as unfold_maxed_impl
 from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
+from .unfold_mlem import unfold_mlem as unfold_mlem_impl
+from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
+from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
+from .unfold_mystic import unfold_mystic as unfold_mystic_impl
+from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
+from .unfold_odl_advanced import (
+    unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
+)
+from .unfold_odl_advanced import (
+    unfold_odl_pdhg as unfold_odl_pdhg_impl,
+)
+from .unfold_osem import unfold_osem as unfold_osem_impl
+from .unfold_parametric import unfold_parametric as unfold_parametric_impl
+from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
+from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
+from .unfold_qubo import unfold_qubo as unfold_qubo_impl
+from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
+from .unfold_reconst import unfold_reconst as unfold_reconst_impl
+from .unfold_sandii import unfold_sandii as unfold_sandii_impl
+from .unfold_sart import unfold_sart as unfold_sart_impl
+from .unfold_scip import unfold_scip as unfold_scip_impl
+from .unfold_scipy_direct_method import (
+    unfold_scipy_direct_method as unfold_scipy_direct_impl,
+)
+from .unfold_smt import unfold_smt as unfold_smt_impl
+from .unfold_statreg import unfold_statreg as unfold_statreg_impl
+from .unfold_tikhonov_legendre import (
+    unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
+)
+from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
+from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
+from .unfold_zfit import unfold_zfit as unfold_zfit_impl
 
 __all__ = ["Detector"]
 
@@ -1569,6 +1595,265 @@ class Detector:
             random_state=random_state,
         )
 
+    def unfold_imaxed(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_factor: float = 0.1,
+        max_iterations: int = 5000,
+        tolerance: float = 1e-8,
+        line_search_tol: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the IMAXED algorithm (Wong 2024)."""
+        return unfold_imaxed_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_factor=sigma_factor,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            line_search_tol=line_search_tol,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_amaxed(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_factor: float = 0.1,
+        target_chi2: Optional[float] = None,
+        max_iterations: int = 5000,
+        tolerance: float = 1e-8,
+        line_search_tol: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the AMAXED algorithm (Wong 2024)."""
+        return unfold_amaxed_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_factor=sigma_factor,
+            target_chi2=target_chi2,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            line_search_tol=line_search_tol,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_amaxed_regularization(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        sigma_factor: float = 0.1,
+        tau: float = 1.0,
+        max_iterations: int = 5000,
+        tolerance: float = 1e-8,
+        line_search_tol: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the AMAXED-Regularization algorithm (Wong 2024)."""
+        return unfold_amaxed_regularization_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sigma_factor=sigma_factor,
+            tau=tau,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            line_search_tol=line_search_tol,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_odl_pdhg(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        tau: Optional[float] = None,
+        sigma: Optional[float] = None,
+        use_tv: bool = True,
+        tv_weight: float = 0.1,
+        nonnegativity: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using the Primal-Dual Hybrid Gradient (PDHG) algorithm."""
+        return unfold_odl_pdhg_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tau=tau,
+            sigma=sigma,
+            use_tv=use_tv,
+            tv_weight=tv_weight,
+            nonnegativity=nonnegativity,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_odl_douglas_rachford(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        use_tv: bool = True,
+        tv_weight: float = 0.1,
+        nonnegativity: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using Douglas-Rachford splitting."""
+        return unfold_odl_douglas_rachford_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            use_tv=use_tv,
+            tv_weight=tv_weight,
+            nonnegativity=nonnegativity,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_qubo(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_bits: int = 6,
+        max_value: Optional[float] = None,
+        regularization: float = 0.01,
+        max_iterations: int = 1000,
+        annealing_time: int = 1000,
+        num_reads: int = 10,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 50,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using a QUBO formulation with quantum-inspired annealing."""
+        return unfold_qubo_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_bits=n_bits,
+            max_value=max_value,
+            regularization=regularization,
+            max_iterations=max_iterations,
+            annealing_time=annealing_time,
+            num_reads=num_reads,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_zfit(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 100,
+        use_mcmc: bool = False,
+        n_samples: int = 1000,
+        regularization: float = 0.1,
+        smoothness_weight: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold using zfit Bayesian inference."""
+        return unfold_zfit_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            use_mcmc=use_mcmc,
+            n_samples=n_samples,
+            regularization=regularization,
+            smoothness_weight=smoothness_weight,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
     def unfold_mlem_stop(
         self,
         readings: Dict[str, float],
@@ -1698,7 +1983,8 @@ class Detector:
         EPIC_bool : np.ndarray, optional
             Boolean mask of which parameters are subject to the EPIC.
         V : np.ndarray, optional
-            Matrix mapping the searched betas to the regularization rows, beta = V @ y (shape (H.shape[0], len(y))).
+            Matrix mapping the searched betas to the regularization rows,
+            beta = V @ y (shape (H.shape[0], len(y))).
         LSQpar : dict, optional
             Tuning parameters for the nonlinear least-squares solver.
         calculate_errors : bool, optional
@@ -1781,6 +2067,66 @@ class Detector:
             pipeline=pipeline,
             calculate_errors=calculate_errors,
             verbose=verbose,
+        )
+
+    def unfold_cascade(
+        self,
+        readings: Dict[str, float],
+        cascade_stages: Optional[List[CascadeStage]] = None,
+        calculate_errors: bool = False,
+        verbose: bool = True,
+        save_result: bool = False,
+        multi_resolution: bool = False,
+        coarse_bins: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Cascade unfolding with sequential method refinement.
+
+        Applies unfolding methods in sequence; each stage may use the previous
+        result as an initial guess, a prior/reference spectrum, or a
+        regularization target, and the cascade may stop early when a stage
+        reaches its quality threshold. With ``multi_resolution=True`` the
+        first stage runs on a coarse energy grid and its prolongated solution
+        seeds the fine-grid stages. See
+        :func:`bssunfold.core.unfold_cascade.unfold_cascade`.
+        """
+        return unfold_cascade_impl(
+            self,
+            readings,
+            cascade_stages=cascade_stages,
+            calculate_errors=calculate_errors,
+            verbose=verbose,
+            save_result=save_result,
+            multi_resolution=multi_resolution,
+            coarse_bins=coarse_bins,
+        )
+
+    def unfold_composite(
+        self,
+        readings: Dict[str, float],
+        n_methods: int = 5,
+        timeout_per_method: float = 30.0,
+        save_result: bool = False,
+        spectrum: Optional[np.ndarray] = None,
+        energy: Optional[np.ndarray] = None,
+        method_names: Optional[List[str]] = None,
+        ensemble_weights: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """Adaptive ensemble of unfolding methods with confidence-weighted combination.
+
+        Classifies the unknown spectrum by hardness, runs a pool of suitable
+        individual methods, and combines their results. See
+        :func:`bssunfold.core.unfold_composite.unfold_composite`.
+        """
+        return unfold_composite_impl(
+            self,
+            readings,
+            n_methods=n_methods,
+            timeout_per_method=timeout_per_method,
+            save_result=save_result,
+            spectrum=spectrum,
+            energy=energy,
+            method_names=method_names,
+            ensemble_weights=ensemble_weights,
         )
 
     def unfold_interpret(
@@ -2419,7 +2765,8 @@ class Detector:
         save_result: bool = False,
         random_state: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Unfold neutron spectrum using Bayesian iterative unfolding with spline regularization.
+        """Unfold neutron spectrum using Bayesian iterative unfolding with
+        spline regularization.
 
         Parameters
         ----------
@@ -2495,7 +2842,8 @@ class Detector:
         initial_spectrum : Optional[np.ndarray], optional
             Initial spectrum guess.
         unfoldermethod : str, optional
-            Regularization method: 'EmpiricalBayes' or 'User' (default: 'EmpiricalBayes').
+            Regularization method: 'EmpiricalBayes' or 'User'
+            (default: 'EmpiricalBayes').
         regularization : float, optional
             Regularization parameter for 'User' method.
         basis_name : str, optional
@@ -3519,6 +3867,163 @@ class Detector:
             random_state=random_state,
             progressbar=progressbar,
         )
+
+    def unfold_maeo(
+        self,
+        readings: Dict[str, float],
+        n_cycles: int = 20,
+        n_gen_per_cycle: int = 10,
+        pop_size: int = 100,
+        algorithms: Optional[List[str]] = None,
+        lambda_smooth: float = 0.01,
+        prior_spectrum: Optional[np.ndarray] = None,
+        initial_spectrum: Optional[np.ndarray] = None,
+        convergence_assist_ratio: float = 0.2,
+        seed: Optional[int] = None,
+        verbose: bool = False,
+        save_result: bool = False,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using MAEO ensemble optimization.
+
+        This method implements the Multiobjective Animorphic Ensemble Optimization
+        (MAEO) framework from Erdem et al. (2026), which combines multiple
+        multiobjective optimization algorithms (NSGA-III, CTAEA, AGEMOEA2, SPEA2)
+        in an ensemble with adaptive migration based on hypervolume performance.
+
+        The MAEO framework is particularly effective for neutron spectrum unfolding
+        because it:
+        - Handles multiple conflicting objectives (data fit vs. smoothness)
+        - Automatically selects the best-performing algorithm for the problem
+        - Provides robust convergence through ensemble diversity
+        - Supports parallel evaluation of individuals
+
+        Parameters
+        ----------
+        readings : dict
+            Dictionary mapping detector names to measured count rates.
+        n_cycles : int, optional
+            Number of MAEO cycles (default: 20). Each cycle runs n_gen_per_cycle
+            generations for each island algorithm.
+        n_gen_per_cycle : int, optional
+            Generations per cycle for each island (default: 10).
+        pop_size : int, optional
+            Population size per island (default: 100).
+        algorithms : list of str, optional
+            List of algorithm names to use as islands. Default uses the four
+            algorithms from the MAEO paper: ["nsga3", "ctaea", "agemoea2", "spea2"].
+            Available options: "nsga3", "ctaea", "agemoea2", "spea2".
+        lambda_smooth : float, optional
+            Smoothness regularization weight (default: 0.01). Controls the trade-off
+            between data fidelity and spectrum smoothness.
+        prior_spectrum : np.ndarray, optional
+            Prior/guess spectrum for additional objective. If provided, adds a third
+            objective to minimize deviation from this prior.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum for warm-start. Used to seed the population in log space.
+        convergence_assist_ratio : float, optional
+            Fraction of cycles to dedicate to the best-performing island at the end
+            (default: 0.2). Implements the "convergence assist" mechanism from MAEO.
+        seed : int, optional
+            Random seed for reproducibility.
+        verbose : bool, optional
+            Print progress information including hypervolume history (default: False).
+        save_result : bool, optional
+            Save result to history (default: False).
+        **kwargs
+            Additional keyword arguments passed to the underlying optimizer.
+
+        Returns
+        -------
+        dict
+            Standardized result dictionary containing:
+            - 'energy': Energy grid in MeV
+            - 'spectrum': Unfolded spectrum (non-negative)
+            - 'spectrum_absolute': Absolute flux values
+            - 'effective_readings': Computed readings from unfolded spectrum
+            - 'residual': Difference between measured and computed readings
+            - 'residual_norm': L2 norm of residual
+            - 'method': 'MAEO'
+            - 'doserates': Dose rates calculated from spectrum
+            - 'maeo_info': Dictionary with MAEO-specific information:
+                - 'n_cycles': Number of cycles executed
+                - 'best_algorithm': Name of best-performing algorithm
+                - 'hypervolume_history': HV history for each island
+                - 'population_history': Population sizes per island per cycle
+                - 'algorithms_used': List of algorithms used
+            - 'maeo_pareto_front': Final Pareto front objectives (if available)
+            - 'maeo_objectives': Objectives for selected solution
+
+        Notes
+        -----
+        The MAEO framework optimizes multiple objectives simultaneously:
+        1. Minimize data fidelity error ||b - A*phi||^2 / ||b||^2
+        2. Minimize spectrum roughness ||D2 * phi||^2 (second derivative)
+        3. (Optional) Minimize deviation from prior spectrum
+
+        The final solution is selected from the combined Pareto front using a
+        knee-point detection method to balance accuracy and smoothness.
+
+        The algorithm runs in two phases:
+        1. Migration phase: All islands run in parallel, with individuals migrating
+           toward better-performing islands based on hypervolume indicators.
+        2. Convergence phase: Only the best-performing island continues, focusing
+           computational resources on exploitation.
+
+        References
+        ----------
+        [1] O.F. Erdem, D. Price, P. Seurin, M.I. Radaideh, "MAEO: Multiobjective
+            Animorphic Ensemble Optimization for Scalable Large-scale Engineering
+            Applications", arXiv:2604.26973 (2026).
+
+        [2] D. Price, M.I. Radaideh, "Animorphic Ensemble Optimization: a large-scale
+            island model", Neural Computing and Applications 35 (4) (2023) 3221-3243.
+
+        Examples
+        --------
+        >>> from bssunfold import Detector
+        >>> detector = Detector()
+        >>> readings = {
+        ...     'sphere_1': 100.5,
+        ...     'sphere_2': 85.3,
+        ...     'sphere_3': 72.1,
+        ...     'sphere_4': 58.9,
+        ...     'sphere_5': 45.2,
+        ...     'sphere_6': 32.8,
+        ... }
+        >>> # Run MAEO with default settings
+        >>> result = detector.unfold_maeo(readings, n_cycles=15)
+        >>> print(f"Spectrum integral: {np.sum(result['spectrum']):.2f}")
+        >>> print(f"Best algorithm: {result['maeo_info']['best_algorithm']}")
+        >>>
+        >>> # Run with custom algorithms and verbose output
+        >>> result = detector.unfold_maeo(
+        ...     readings,
+        ...     algorithms=["nsga3", "spea2"],
+        ...     n_cycles=10,
+        ...     verbose=True,
+        ... )
+        """
+        result = unfold_maeo_impl(
+            detector=self,
+            readings=readings,
+            n_cycles=n_cycles,
+            n_gen_per_cycle=n_gen_per_cycle,
+            pop_size=pop_size,
+            algorithms=algorithms,
+            lambda_smooth=lambda_smooth,
+            prior_spectrum=prior_spectrum,
+            initial_spectrum=initial_spectrum,
+            convergence_assist_ratio=convergence_assist_ratio,
+            seed=seed,
+            verbose=verbose,
+            **kwargs,
+        )
+
+        if save_result:
+            self._save_result(result)
+
+        return result
 
     def unfold_osem(
         self,

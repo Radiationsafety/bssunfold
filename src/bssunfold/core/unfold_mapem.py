@@ -18,10 +18,11 @@ priors (after PyTomography's ``QuadraticPrior``, ``LogCoshPrior`` and
 Set ``prior='none'`` to recover plain MLEM.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._em_priors import prior_gradient, prior_value
 
 __all__ = ["solve_mapem", "unfold_mapem"]

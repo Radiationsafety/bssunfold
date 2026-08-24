@@ -4,10 +4,11 @@ This module provides the core solve_mlem solver and the unfold_mlem
 wrapper for use with the Detector class.
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_mlem", "unfold_mlem"]
 
@@ -43,7 +44,7 @@ def solve_mlem(
     AT = A.T
 
     try:
-        from ._numba_jit import _mlem_inner, NUMBA_AVAILABLE
+        from ._numba_jit import NUMBA_AVAILABLE, _mlem_inner
 
         if NUMBA_AVAILABLE:
             return _mlem_inner(AT, A, x, b, max_iterations, tolerance)

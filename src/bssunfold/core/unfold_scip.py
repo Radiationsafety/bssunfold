@@ -12,13 +12,13 @@ the function bodies.
 """
 
 import warnings
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-from typing import Dict, Optional, Any, List
 
+from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 from .regularization import resolve_regularization_parameter
-from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = ["solve_scip", "unfold_scip"]
 
@@ -269,10 +269,11 @@ def unfold_scip(
     x0_default = np.zeros(n_energy_bins)
 
     def solve_wrapper(A, b, **kwargs):
-        kwargs.pop("x0", None)
+        x0 = kwargs.pop("x0", None)
         x = solve_scip(
             A,
             b,
+            x0=x0,
             alpha=alpha,
             norm=norm,
             timeout=timeout,

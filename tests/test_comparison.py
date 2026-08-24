@@ -5,42 +5,45 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
 
-from bssunfold import Detector, compare_spectra
+from bssunfold import RF_LANL, Detector, compare_spectra
+from bssunfold import utils as bss_utils
 from bssunfold.utils.comparison import (
-    _normalize,
+    DEFAULT_UNFOLD_BENCHMARK_METHODS,
+    DEFAULT_UNFOLD_BENCHMARK_METRICS,
+    BenchmarkResult,
     _check_same_length,
-    kl_divergence,
+    _normalize,
+    anderson_darling,
+    benchmark_unfold_methods,
+    chi_squared,
+    compare_multiple,
+    cosine_similarity,
+    cressie_read,
     cross_entropy,
+    energy_dist,
     entropy,
     entropy_difference_percent,
-    wasserstein_dist,
-    energy_dist,
+    freeman_tukey,
+    g_test,
+    kl_divergence,
     kolmogorov_smirnov_stat,
-    pearson_r,
-    spearman_r,
-    mean_squared_error,
-    root_mean_squared_error,
-    mean_absolute_error,
+    mannwhitneyu_test,
     mape,
-    r2_score,
     max_error,
+    mean_absolute_error,
+    mean_squared_error,
     median_absolute_error,
-    cosine_similarity,
+    mmd_rbf,
+    pearson_r,
+    r2_score,
+    root_mean_squared_error,
+    spearman_r,
+    standardized_mean_difference,
     total_flux,
     total_flux_ratio,
-    mmd_rbf,
-    chi_squared,
-    g_test,
-    freeman_tukey,
-    cressie_read,
-    anderson_darling,
-    standardized_mean_difference,
+    wasserstein_dist,
     wilcoxon_test,
-    mannwhitneyu_test,
-    compare_multiple,
 )
-from bssunfold import utils as bss_utils
-
 
 # ─── Fixtures ─────────────────────────────────────────────────────
 
@@ -641,3 +644,169 @@ class TestImports:
         assert hasattr(bss_utils, "compare_spectra")
         assert hasattr(bss_utils, "kl_divergence")
         assert hasattr(bss_utils, "cosine_similarity")
+
+
+# ─── Unfolding-method benchmark harness ───────────────────────────
+
+
+@pytest.fixture
+def rf_detector():
+    """Detector with a real energy grid (RF_LANL)."""
+    return Detector(RF_LANL)
+
+
+@pytest.fixture
+def synthetic_reference(rf_detector):
+    """A synthetic reference spectrum on the detector energy grid."""
+    rng = np.random.default_rng(0)
+    phi = np.abs(rng.normal(size=rf_detector.n_energy_bins)) + 0.1
+    return {"E_MeV": rf_detector.E_MeV, "Phi": phi}
+
+
+@pytest.fixture
+def fast_methods():
+    """A small, fast method subset for tests."""
+    return {
+        "mlem": {"method": "unfold_mlem", "params": [{"max_iterations": 10}]},
+        "tsvd": {"method": "unfold_tsvd", "params": [{"k": 3}]},
+        "landweber": {
+            "method": "unfold_landweber",
+            "params": [{"max_iterations": 10}],
+        },
+        "maxed": {
+            "method": "unfold_maxed",
+            "params": [{"sigma_factor": 0.05}],
+        },
+    }
+
+
+class TestBenchmarkUnfoldMethods:
+    def test_returns_expected_structure(
+        self, rf_detector, synthetic_reference, fast_methods
+    ):
+        res = benchmark_unfold_methods(
+            rf_detector, {"synth": synthetic_reference}, methods=fast_methods
+        )
+        assert isinstance(res, BenchmarkResult)
+        assert isinstance(res.results, pd.DataFrame)
+        assert isinstance(res.summary, pd.DataFrame)
+        assert isinstance(res.ranking, pd.DataFrame)
+        assert isinstance(res.report, str)
+        for col in (
+            "method",
+            "params",
+            "spectrum",
+            "success",
+            "time_sec",
+        ) + tuple(DEFAULT_UNFOLD_BENCHMARK_METRICS):
+            assert col in res.results.columns
+
+    def test_all_runs_succeed_and_scored(
+        self, rf_detector, synthetic_reference, fast_methods
+    ):
+        res = benchmark_unfold_methods(
+            rf_detector, {"synth": synthetic_reference}, methods=fast_methods
+        )
+        assert res.results["success"].all()
+        assert res.results["error"].fillna("").eq("").all()
+        assert len(res.results) == 4
+
+    def test_summary_has_mean_std_columns(
+        self, rf_detector, synthetic_reference, fast_methods
+    ):
+        res = benchmark_unfold_methods(
+            rf_detector, {"synth": synthetic_reference}, methods=fast_methods
+        )
+        for c in DEFAULT_UNFOLD_BENCHMARK_METRICS:
+            assert f"{c}_mean" in res.summary.columns
+            assert f"{c}_std" in res.summary.columns
+        assert set(res.summary["method"]) == set(fast_methods)
+
+    def test_ranking_sorted_by_metric_descending(
+        self, rf_detector, synthetic_reference, fast_methods
+    ):
+        res = benchmark_unfold_methods(
+            rf_detector, {"synth": synthetic_reference}, methods=fast_methods
+        )
+        vals = res.ranking["r2_score_mean"].values
+        assert list(vals) == sorted(vals, reverse=True)
+
+    def test_ranking_ascending_for_error_metric(
+        self, rf_detector, synthetic_reference, fast_methods
+    ):
+        res = benchmark_unfold_methods(
+            rf_detector,
+            {"synth": synthetic_reference},
+            methods=fast_methods,
+            rank_by="root_mean_squared_error",
+        )
+        vals = res.ranking["root_mean_squared_error_mean"].values
+        assert list(vals) == sorted(vals)
+
+    def test_failing_method_is_recorded_not_raised(
+        self, rf_detector, synthetic_reference
+    ):
+        def boom(readings, **params):
+            raise RuntimeError("intentional failure")
+
+        methods = {
+            "good": {"method": "unfold_tsvd", "params": [{"k": 3}]},
+            "bad": {"method": boom, "params": [{}]},
+        }
+        res = benchmark_unfold_methods(
+            rf_detector, {"synth": synthetic_reference}, methods=methods
+        )
+        bad = res.results[res.results["method"] == "bad"].iloc[0]
+        good = res.results[res.results["method"] == "good"].iloc[0]
+        assert not bad["success"]
+        assert "intentional failure" in bad["error"]
+        assert good["success"]
+
+    def test_dataframe_reference_input(
+        self, rf_detector, synthetic_reference, fast_methods
+    ):
+        df = pd.DataFrame(
+            {
+                "E_MeV": synthetic_reference["E_MeV"],
+                "synth": synthetic_reference["Phi"],
+            }
+        )
+        res = benchmark_unfold_methods(
+            rf_detector, df, methods=fast_methods
+        )
+        assert len(res.results) == 4
+        assert (res.results["spectrum"] == "synth").all()
+
+    def test_spectrum_name_subset(self, rf_detector, synthetic_reference):
+        df = pd.DataFrame(
+            {
+                "E_MeV": synthetic_reference["E_MeV"],
+                "a": synthetic_reference["Phi"],
+                "b": synthetic_reference["Phi"] * 0.5,
+            }
+        )
+        res = benchmark_unfold_methods(
+            rf_detector,
+            df,
+            methods={
+                "tsvd": {"method": "unfold_tsvd", "params": [{"k": 3}]}
+            },
+            spectrum_names=["a"],
+        )
+        assert set(res.results["spectrum"]) == {"a"}
+
+    def test_default_method_names_resolve(self, rf_detector):
+        for name, cfg in DEFAULT_UNFOLD_BENCHMARK_METHODS.items():
+            assert hasattr(rf_detector, cfg["method"]), name
+
+    def test_rank_by_not_in_metrics_raises(self, rf_detector, synthetic_reference):
+        with pytest.raises(ValueError):
+            benchmark_unfold_methods(
+                rf_detector,
+                {"synth": synthetic_reference},
+                methods={
+                    "tsvd": {"method": "unfold_tsvd", "params": [{"k": 3}]}
+                },
+                metrics=["r2_score"],
+                rank_by="mape",
+            )

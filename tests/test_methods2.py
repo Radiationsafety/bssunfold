@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
 import pandas as pd
-from src.bssunfold import Detector, RF_GSF
+import pytest
+
+from src.bssunfold import RF_GSF, Detector
 
 # Базовые тестовые данные
 EXPECTED_RESULT = {
@@ -453,7 +454,8 @@ class TestUnfoldKaczmarz:
 
     @pytest.mark.parametrize("invalid_omega", [0, -0.1, 2.1, 3.0])
     def test_kaczmarz_invalid_omega(self, detector, invalid_omega):
-        """Тест с некорректными значениями omega (должны работать, но с предупреждением)"""
+        """Тест с некорректными значениями omega
+        (должны работать, но с предупреждением)"""
         # Метод должен работать, но может выдавать предупреждение
         result = detector.unfold_kaczmarz(
             BASE_READINGS, omega=invalid_omega, max_iterations=200

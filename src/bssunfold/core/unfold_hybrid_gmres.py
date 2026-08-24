@@ -6,8 +6,10 @@ with Tikhonov regularization on projected problems.
 Based on IRtools IRhybrid_gmres.m by Silvia Gazzola et al.
 """
 
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, Optional, Any, List
+
 from ..logging_config import get_logger
 
 logger = get_logger("unfold_hybrid_gmres")

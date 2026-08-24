@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-
 # ============================================================================
 # Basic Import Tests
 # ============================================================================
@@ -19,10 +18,10 @@ class TestImports:
 
     def test_main_imports(self):
         """Test main package imports."""
-        from bssunfold import Detector
         from bssunfold import (
             ICRP116_COEFF_EFFECTIVE_DOSE,
             RF_GSF,
+            Detector,
         )
 
         assert Detector is not None

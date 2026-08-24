@@ -12,10 +12,11 @@ the update by the back-projected unit image (``A^T 1``); the relaxation
 sequence ``alpha(n)`` controls the step size.
 """
 
-import numpy as np
-from typing import Callable, Dict, Optional, Any, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_sart", "unfold_sart"]
 

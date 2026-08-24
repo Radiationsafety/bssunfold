@@ -14,42 +14,14 @@ License) and its Python port in the TRIPs-Py library by Mirjeta Pasha
 and Silvia Gazzola (Apache-2.0).
 """
 
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, make_solve_wrapper
-from ._matrix_utils import create_derivative_matrix
+import numpy as np
+
+from ._base_unfolder import make_solve_wrapper, run_unfolding
+from ._matrix_utils import make_regularization_operator
 
 __all__ = ["solve_cgls", "unfold_cgls"]
-
-
-def _make_regoperator(
-    n: int, smoothness_order: int = 0
-) -> Optional[np.ndarray]:
-    """Build the regularization operator L for the given derivative order.
-
-    Parameters
-    ----------
-    n : int
-        Number of energy bins.
-    smoothness_order : int, optional
-        Derivative order of the regularization operator: 0 (identity),
-        1 (first derivative) or 2 (second derivative).  ``0`` returns
-        ``None`` (identity is used implicitly by the plain CGLS scheme).
-
-    Returns
-    -------
-    Optional[np.ndarray]
-        Regularization operator as a dense ndarray, or ``None`` for
-        order 0.
-    """
-    if smoothness_order == 0:
-        return None
-    if smoothness_order not in (1, 2):
-        raise ValueError(
-            f"Unsupported smoothness_order: {smoothness_order}. Use 0, 1 or 2."
-        )
-    return create_derivative_matrix(n, smoothness_order).toarray()
 
 
 def solve_cgls(
@@ -121,7 +93,7 @@ def solve_cgls(
 
     L = None
     if regularization > 0:
-        L = _make_regoperator(n, smoothness_order)
+        L = make_regularization_operator(n, smoothness_order, identity_for_zero=False)
 
     r = b - A @ x
     s = A.T @ r

@@ -5,10 +5,11 @@ wrapper for use with the Detector class.
 """
 
 import warnings
-import numpy as np
-from typing import Dict, Optional, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from ._base_unfolder import run_unfolding, _build_system, _normalize_initial
+import numpy as np
+
+from ._base_unfolder import _build_system, _normalize_initial, run_unfolding
 
 __all__ = [
     "solve_lmfit",

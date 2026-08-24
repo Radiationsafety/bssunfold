@@ -122,6 +122,32 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_bayesian_parametric.unfold_bayesian_parametric
 
+.. autofunction:: bssunfold.core.unfold_imaxed.unfold_imaxed
+
+.. autofunction:: bssunfold.core.unfold_amaxed.unfold_amaxed
+
+.. autofunction:: bssunfold.core.unfold_amaxed_regularization.unfold_amaxed_regularization
+
+.. autofunction:: bssunfold.core.unfold_fista.unfold_fista
+
+.. autofunction:: bssunfold.core.unfold_hybrid_gmres.unfold_hybrid_gmres
+
+.. autofunction:: bssunfold.core.unfold_mcmc.unfold_mcmc
+
+.. autofunction:: bssunfold.core.unfold_zfit.unfold_zfit
+
+.. autofunction:: bssunfold.core.unfold_qubo.unfold_qubo
+
+.. autofunction:: bssunfold.core.unfold_maeo.unfold_maeo
+
+.. autofunction:: bssunfold.core.unfold_odl_advanced.unfold_odl_pdhg
+
+.. autofunction:: bssunfold.core.unfold_odl_advanced.unfold_odl_douglas_rachford
+
+.. autofunction:: bssunfold.core.unfold_cascade.unfold_cascade
+
+.. autofunction:: bssunfold.core.unfold_composite.unfold_composite
+
 Core Functions
 ==============
 

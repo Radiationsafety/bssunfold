@@ -5,14 +5,14 @@ wrapper with various regularization selection methods.
 """
 
 import warnings
-import numpy as np
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
 
+import numpy as np
 from scipy.sparse import csc_matrix
 
-from ._matrix_utils import create_derivative_matrix
+from ._base_unfolder import _build_system, run_unfolding
+from ._matrix_utils import build_smoothness_penalty
 from .regularization import resolve_regularization_parameter
-from ._base_unfolder import run_unfolding, _build_system
 
 __all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
 
@@ -76,18 +76,11 @@ def solve_qpsolvers(
 
     P_base = csc_matrix(A.T @ A)
     q_base = -A.T @ b
+    pen = build_smoothness_penalty(n, alpha, smoothness_order, smoothness_weight)
 
     if norm == 2:
-        P = P_base.copy()
-
-        if smoothness_order == 1:
-            L = create_derivative_matrix(n, 1)
-            P += alpha * smoothness_weight * (L.T @ L)
-        elif smoothness_order == 2:
-            L = create_derivative_matrix(n, 2)
-            P += alpha * smoothness_weight * (L.T @ L)
-        else:
-            P += alpha * csc_matrix(np.eye(n))
+        # Zeroth-order Tikhonov (identity) when no derivative penalty is requested.
+        P = P_base.copy() + (pen if pen is not None else alpha * csc_matrix(np.eye(n)))
 
         G = csc_matrix(-np.eye(n))
         h = np.zeros(n)
@@ -108,13 +101,8 @@ def solve_qpsolvers(
         # The penalty term alpha * sum(x) is linear, so it shifts q by alpha.
         P = P_base.copy()
         q = q_base + alpha * np.ones(n)
-
-        if smoothness_order == 1:
-            L = create_derivative_matrix(n, 1)
-            P += alpha * smoothness_weight * (L.T @ L)
-        elif smoothness_order == 2:
-            L = create_derivative_matrix(n, 2)
-            P += alpha * smoothness_weight * (L.T @ L)
+        if pen is not None:
+            P += pen
 
         G = csc_matrix(-np.eye(n))
         h = np.zeros(n)
@@ -226,13 +214,14 @@ def unfold_qpsolvers(
     x0_default = np.zeros(n_energy_bins)
 
     def solve_wrapper(A, b, **kwargs):
-        kwargs.pop("x0", None)
+        x0 = kwargs.pop("x0", None)
         x = solve_qpsolvers(
             A,
             b,
             alpha,
             norm,
             solver,
+            x0=x0,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
         )
