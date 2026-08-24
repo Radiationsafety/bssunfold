@@ -35,10 +35,14 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/_parametric_shared.py` — shared constants/fit helpers for the parametric family, incl. the canonical `_check_fit_quality` (leaf, no cyclic deps)
 - `core/_bon95.py` — BON95 parametric family (extracted from `unfold_parametric2.py`)
 - `core/_fruit.py` — FRUIT parametric model + NLS fit (extracted from `unfold_parametric.py`)
-- `utils/converters.py`, `interpolation.py`, `plotting.py`, `validators.py` — utility functions
-- `platform_check.py` — OS detection, solver availability checks
-- `constants.py` — ICRP116 dose coefficients, default response function data
-- `logging_config.py` — logger setup
+ - `utils/converters.py`, `interpolation.py`, `plotting.py`, `validators.py` — utility functions
+ - `platform_check.py` — OS detection, solver availability checks
+ - `constants.py` — ICRP116 dose coefficients, default response function data
+ - `logging_config.py` — logger setup
+
+`scripts/` — standalone IAEA analysis/benchmark scripts (NOT pytest modules,
+excluded from ruff). They read datasets from and write reports to `tests/`
+via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 
 ## Testing
 
