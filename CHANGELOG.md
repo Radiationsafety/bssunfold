@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [0.19.0] - 2026-08-23
+## [0.18.0] - 2026-08-24
 
 ### Added
 - **Cascade and Composite unfolding wired into the `Detector` API** —
@@ -41,29 +41,6 @@ and this project adheres to [Semantic Versioning].
   - Tests: coarse-response consistency, fluence-preserving prolongation and
     multi-resolution cascade runs (`tests/test_cascade.py`).
 
-### Documentation
-- README and Sphinx docs synced to the actual method inventory (60+
-  methods): features counts corrected (36 → 60+, 51 → 60+), method
-  reference tables extended to #62 (IMAXED/AMAXED family, MAEO, MCMC,
-  zfit, QUBO, ODL PDHG/Douglas-Rachford, cascade, composite), mermaid
-  diagrams updated, README project structure now lists
-  `unfold_cascade.py` / `unfold_composite.py` and all extracted helper
-  modules (`_bon95.py`, `_fruit.py`, `_parametric_shared.py`,
-  `_solver_backends.py`, `_interpret_pyopt.py`, `_interpret_report.py`,
-  `_multires.py`).
-- `docs/detector.rst`: added 13 missing `autofunction` entries
-  (imaxed/amaxed/amaxed_regularization, fista, hybrid_gmres, mcmc, zfit,
-  qubo, maeo, odl_pdhg, odl_douglas_rachford, cascade, composite).
-
-### Fixed
-- Sphinx build error: broken list-table indentation in the method
-  reference table of `docs/overview.rst` prevented the table from
-  rendering.
-
-
-## [0.18.0] - 2026-08-22
-
-### Added
 - **ODL Advanced regularization methods** — new `unfold_odl_pdhg()` and
   `unfold_odl_douglas_rachford()` methods for advanced proximal optimization:
   - **PDHG (Primal-Dual Hybrid Gradient / Chambolle-Pock)** — efficient
@@ -117,6 +94,25 @@ and this project adheres to [Semantic Versioning].
 ### Changed
 - Updated method count from 51 to 55 unfolding algorithms
 - Enhanced documentation with new method categories in README.md and Sphinx docs
+
+### Documentation
+- README and Sphinx docs synced to the actual method inventory (60+
+  methods): features counts corrected (36 → 60+, 51 → 60+), method
+  reference tables extended to #62 (IMAXED/AMAXED family, MAEO, MCMC,
+  zfit, QUBO, ODL PDHG/Douglas-Rachford, cascade, composite), mermaid
+  diagrams updated, README project structure now lists
+  `unfold_cascade.py` / `unfold_composite.py` and all extracted helper
+  modules (`_bon95.py`, `_fruit.py`, `_parametric_shared.py`,
+  `_solver_backends.py`, `_interpret_pyopt.py`, `_interpret_report.py`,
+  `_multires.py`).
+- `docs/detector.rst`: added 13 missing `autofunction` entries
+  (imaxed/amaxed/amaxed_regularization, fista, hybrid_gmres, mcmc, zfit,
+  qubo, maeo, odl_pdhg, odl_douglas_rachford, cascade, composite).
+
+### Fixed
+- Sphinx build error: broken list-table indentation in the method
+  reference table of `docs/overview.rst` prevented the table from
+  rendering.
 
 
 ## [0.17.3] - 2026-08-22
