@@ -7,7 +7,6 @@ cover the QP construction (:func:`build_interpretation_qp`), the core solver
 (``unfold_interpret`` and ``interpret_result``).
 """
 
-import builtins
 from unittest.mock import patch
 
 import numpy as np
@@ -16,6 +15,7 @@ import pytest
 pytest.importorskip("pyoptexplain")
 
 from bssunfold import Detector  # noqa: E402
+from tests.conftest import block_import  # noqa: E402
 
 
 @pytest.fixture
@@ -130,15 +130,9 @@ def test_solve_interpret_import_error(system):
 
     A, b = system
     _reset_pyopt_cache()
-    orig = builtins.__import__
-
-    def mock_import(name, *args, **kwargs):
-        if name == "pyoptexplain" or name.startswith("pyoptexplain."):
-            raise ImportError("pyoptexplain not installed")
-        return orig(name, *args, **kwargs)
 
     try:
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("pyoptexplain"):
             with pytest.raises(ImportError, match="pyoptexplain"):
                 solve_interpret(A, b, 1e-4)
     finally:
@@ -374,15 +368,9 @@ def test_unfold_interpret_tolerance_full_lanl():
 def test_unfold_interpret_import_error(detector, small_readings):
     """Missing pyoptexplain raises a helpful ImportError in the wrapper."""
     _reset_pyopt_cache()
-    orig = builtins.__import__
-
-    def mock_import(name, *args, **kwargs):
-        if name == "pyoptexplain" or name.startswith("pyoptexplain."):
-            raise ImportError("pyoptexplain not installed")
-        return orig(name, *args, **kwargs)
 
     try:
-        with patch("builtins.__import__", side_effect=mock_import):
+        with block_import("pyoptexplain"):
             with pytest.raises(ImportError, match="pyoptexplain"):
                 detector.unfold_interpret(small_readings, save_result=False)
     finally:

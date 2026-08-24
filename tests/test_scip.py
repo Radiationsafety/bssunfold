@@ -6,7 +6,6 @@ solver and the ``unfold_scip`` wrapper exposed both on the ``Detector`` class
 and as a module-level function.
 """
 
-import builtins
 from unittest.mock import patch
 
 import numpy as np
@@ -15,6 +14,7 @@ import pytest
 pytest.importorskip("pyscipopt")
 
 from bssunfold import Detector  # noqa: E402
+from tests.conftest import block_import  # noqa: E402
 
 
 @pytest.fixture
@@ -30,18 +30,6 @@ def readings(detector):
 @pytest.fixture
 def initial(detector):
     return np.ones(detector.n_energy_bins)
-
-
-def _mock_no_module(name):
-    """Build a builtins.__import__ patch that blocks ``name`` imports."""
-    original_import = builtins.__import__
-
-    def mock(_name, *args, **kwargs):
-        if _name == name or _name.startswith(name + "."):
-            raise ImportError(f"No module named '{name}'")
-        return original_import(_name, *args, **kwargs)
-
-    return patch("builtins.__import__", side_effect=mock)
 
 
 class TestSolveScip:
@@ -118,7 +106,7 @@ class TestSolveScip:
     def test_import_error_message(self):
         from bssunfold.core.unfold_scip import solve_scip
 
-        with _mock_no_module("pyscipopt"):
+        with block_import("pyscipopt"):
             with pytest.raises(ImportError, match="pyscipopt"):
                 solve_scip(np.ones((1, 2)), np.ones(1))
 

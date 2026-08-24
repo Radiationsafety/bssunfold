@@ -4,7 +4,7 @@
 
 ```bash
 uv sync --group dev          # install all deps including dev
-uv run pytest tests/         # run all 1404 tests
+uv run pytest tests/         # run all 1828 tests (1827 pass, 1 skipped)
 uv run pytest -v --tb=short  # verbose, short traceback
 uv run pytest tests/test_coverage.py  # primary coverage test file
 uv run pytest --cov=src/bssunfold --cov-report=term-missing --cov-fail-under=95

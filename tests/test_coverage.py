@@ -12,6 +12,8 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
 
+from tests.conftest import block_import
+
 # ============================================================================
 # _matrix_utils.py (22% -> 100%)
 # ============================================================================
@@ -99,16 +101,7 @@ class TestRegularization:
         return A, b
 
     def _without_pytikhonov(self):
-        import builtins
-
-        original_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if "pytikhonov" == name:
-                raise ImportError
-            return original_import(name, *args, **kwargs)
-
-        return patch("builtins.__import__", side_effect=mock_import)
+        return block_import("pytikhonov")
 
     def _restore_pytikhonov(self, saved):
         pass

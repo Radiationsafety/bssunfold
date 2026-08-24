@@ -5,13 +5,13 @@ These tests cover the ``solve_mystic`` core solver and the ``unfold_mystic``
 wrapper exposed both on the ``Detector`` class and as a module-level function.
 """
 
-import builtins
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from bssunfold import Detector
+from tests.conftest import block_import
 
 
 @pytest.fixture
@@ -239,14 +239,7 @@ def test_solve_mystic_import_error():
     A = np.eye(3)
     b = np.ones(3)
 
-    orig_import = builtins.__import__
-
-    def mock_import(name, *args, **kwargs):
-        if name == "mystic" or name.startswith("mystic."):
-            raise ImportError("mystic not installed")
-        return orig_import(name, *args, **kwargs)
-
-    with patch("builtins.__import__", side_effect=mock_import):
+    with block_import("mystic"):
         with pytest.raises(ImportError, match="mystic is required"):
             solve_mystic(A, b, alpha=1e-3)
 
