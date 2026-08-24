@@ -363,6 +363,7 @@ exclude = [
     "build",
     "dist",
     "node_modules",
+    "scripts",
     "site-packages",
     "venv",
 ]
@@ -393,14 +394,6 @@ ignore = [
 # pytest.raises(Exception) is an accepted pattern for asserting that a
 # fallback path raises at all; the specific type is checked elsewhere.
 "tests/*" = ["B017"]
-# Standalone analysis scripts with wide report tables (not pytest modules;
-# scheduled to move to scripts/ where they leave the linted surface).
-"tests/analyze_iaea_compendium.py" = ["E501"]
-"tests/dose_rate_evaluation.py" = ["E501"]
-"tests/dose_rate_iaea_compendium.py" = ["E501"]
-"tests/dose_rate_qpsolvers_cvxpy.py" = ["E501"]
-"tests/rank_methods.py" = ["E501"]
-"tests/summarize_iaea.py" = ["E501"]
 
 [[tool.uv.index]]
 name = "testpypi"

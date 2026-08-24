@@ -5,8 +5,8 @@ Reads iaea_validation_*.csv files, normalizes all metrics to 0-1 scale,
 and outputs a ranked list from best to worst method.
 
 Usage:
-    python tests/rank_methods.py
-    python tests/rank_methods.py --csv-dir tests/
+    python scripts/rank_methods.py
+    python scripts/rank_methods.py --csv-dir tests/
 """
 
 import argparse
@@ -273,7 +273,7 @@ def main():
     parser.add_argument(
         "--csv-dir",
         type=Path,
-        default=Path(__file__).parent,
+        default=Path(__file__).resolve().parent.parent / "tests",
         help="Directory containing iaea_validation_*.csv files",
     )
     args = parser.parse_args()

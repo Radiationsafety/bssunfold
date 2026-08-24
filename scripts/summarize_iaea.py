@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarize IAEA validation results across all detector types.
 
-Usage: python summarize_iaea.py
+Usage: python scripts/summarize_iaea.py
 """
 
 from pathlib import Path
@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REPORT_DIR = Path(__file__).parent
+REPORT_DIR = Path(__file__).resolve().parent.parent / "tests"
 
 DETECTORS = ["GSF", "PTB", "LANL"]
 

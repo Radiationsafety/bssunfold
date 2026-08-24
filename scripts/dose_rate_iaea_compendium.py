@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Evaluate unfolding methods by dose rate accuracy against Monte Carlo references.
+"""Evaluate unfolding methods by dose rate accuracy on IAEA Compendium dataset.
 
-Loads IAEA_Compendium_dataset.csv (detector readings) and
-MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv (reference spectra),
-unfolds with all 21 methods across 3 detector types, computes dose rates,
-fits y=k*x lines, computes angles, and generates scatter plots + markdown report.
+Reads tests/IAEA_Compendium_dataset.csv (251 spectra × 60 energy bins),
+computes effective readings for GSF/PTB/LANL detectors, unfolds with 21
+methods, compares dose rates with reference, generates scatter plots + report.
 
 Usage:
-    python tests/dose_rate_evaluation.py
+    python scripts/dose_rate_iaea_compendium.py
 """
 
 import sys
@@ -28,15 +27,14 @@ warnings.filterwarnings("ignore")
 
 # ── Constants ─────────────────────────────────────────────────────
 
-MC_CSV = (
-    Path(__file__).parent
-    / "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
-)
+TESTS_DIR = Path(__file__).resolve().parent.parent / "tests"
 
-OUTPUT_MD = Path(__file__).parent / "dose_rate_evaluation.md"
-OUTPUT_CSV = Path(__file__).parent / "dose_rate_results.csv"
-OUTPUT_PNG = Path(__file__).parent / "dose_rate_scatter.png"
-ISO_PLOT_DIR = Path(__file__).parent / "iso_plots"
+IAEA_CSV = TESTS_DIR / "IAEA_Compendium_dataset.csv"
+
+OUTPUT_MD = TESTS_DIR / "iaea_compendium_dose_rate_evaluation.md"
+OUTPUT_CSV = TESTS_DIR / "iaea_compendium_dose_rate_results.csv"
+OUTPUT_PNG = TESTS_DIR / "iaea_compendium_dose_rate_scatter.png"
+ISO_PLOT_DIR = TESTS_DIR / "iaea_compendium_iso_plots"
 
 CSV_ENERGIES = np.array(
     [
@@ -141,10 +139,7 @@ METHODS = {
         r, max_iterations=n_iter, save_result=False
     ),
     "tikhonov_legendre": lambda d, r: d.unfold_tikhonov_legendre(
-        r,
-        delta=0.05,
-        n_polynomials=45,
-        save_result=False,
+        r, delta=0.05, n_polynomials=45, save_result=False
     ),
     "bayes": lambda d, r: d.unfold_bayes(
         r, max_iterations=n_iter, save_result=False
@@ -242,31 +237,26 @@ def direction(theta):
 
 
 def load_data():
-    mc_df = pd.read_csv(MC_CSV)
-
-    mc_energy = mc_df["E_MeV"].values
-    mc_spectra_cols = [c for c in mc_df.columns if c != "E_MeV"]
-
-    print(
-        f"MonteCarlo ref: {len(mc_spectra_cols)} spectra, {len(mc_energy)} energy bins"
-    )
-
-    return mc_df, mc_energy, mc_spectra_cols
+    df = pd.read_csv(IAEA_CSV)
+    energy_cols = [c for c in df.columns if c.startswith("Energy_bin")]
+    places = df["Place"].tolist()
+    print(f"IAEA Compendium: {len(df)} spectra, {len(energy_cols)} energy bins")
+    return df, energy_cols, places
 
 
 # ── Main evaluation ───────────────────────────────────────────────
 
 
 def run_evaluation():
-    mc_df, mc_energy, mc_spectra_cols = load_data()
+    iaea_df, energy_cols, places = load_data()
 
     detectors = {name: fn() for name, fn in DETECTOR_CONFIGS.items()}
     n_methods = len(METHODS)
     n_detectors = len(DETECTOR_CONFIGS)
-    n_places = len(mc_spectra_cols)
-    total = n_methods * n_detectors * n_places
+    n_spectra = len(places)
+    total = n_methods * n_detectors * n_spectra
     print(
-        f"\nMethods: {n_methods}  |  Detectors: {n_detectors}  |  Places: {n_places}"
+        f"\nMethods: {n_methods}  |  Detectors: {n_detectors}  |  Spectra: {n_spectra}"
     )
     print(f"Total unfold calls: {total}\n")
 
@@ -274,9 +264,12 @@ def run_evaluation():
     done = 0
 
     for det_name, detector in detectors.items():
-        for place in mc_spectra_cols:
-            mc_spectrum = mc_df[place].values.astype(float)
-            ref_dict = {"E_MeV": mc_energy, "Phi": mc_spectrum}
+        for idx, (_, iaea_row) in enumerate(iaea_df.iterrows()):
+            place = iaea_row["Place"]
+            csv_spectrum = np.array(
+                [iaea_row[c] for c in energy_cols], dtype=float
+            )
+            ref_dict = {"E_MeV": CSV_ENERGIES, "Phi": csv_spectrum}
 
             interp_df = detector.discretize_spectra(ref_dict)
             ref_on_grid = interp_df["Phi"].values
@@ -313,7 +306,7 @@ def run_evaluation():
                     )
 
                 done += 1
-                if done % 100 == 0:
+                if done % 200 == 0:
                     print(
                         f"  [{done}/{total}] {det_name} / {place} / {method_name}"
                     )
@@ -393,8 +386,8 @@ def plot_scatter(df, angles_df):
                 gdf["dose_ref"],
                 gdf["dose_unfolded"],
                 c=geom_colors[geom],
-                s=12,
-                alpha=0.6,
+                s=8,
+                alpha=0.4,
                 label=geom,
                 edgecolors="none",
             )
@@ -406,7 +399,7 @@ def plot_scatter(df, angles_df):
             xmin = float(np.min(all_xs[mask]))
             xmax = float(np.max(all_xs[mask]))
             line_x = np.linspace(xmin, xmax, 100)
-            ax.plot(line_x, line_x, "k--", lw=1, alpha=0.5, label="45°")
+            ax.plot(line_x, line_x, "k--", lw=1, alpha=0.5, label="45\u00b0")
             arow = angles_df[angles_df["method"] == method]
             if not arow.empty:
                 k = arow.iloc[0]["k_avg"]
@@ -415,8 +408,7 @@ def plot_scatter(df, angles_df):
                     theta = arow.iloc[0]["theta_avg"]
                     cls = arow.iloc[0]["class_avg"]
                     ax.set_title(
-                        f"{method}\n{theta:.1f}° | {cls}",
-                        fontsize=9,
+                        f"{method}\n{theta:.1f}\u00b0 | {cls}", fontsize=9
                     )
                 else:
                     ax.set_title(method, fontsize=9)
@@ -443,7 +435,7 @@ def plot_scatter(df, angles_df):
         frameon=True,
     )
     fig.suptitle(
-        "Dose Rate: Reference vs Unfolded (all methods, all detectors)",
+        "IAEA Compendium \u2014 Dose Rate: Reference vs Unfolded (251 spectra)",
         fontsize=13,
         y=0.98,
     )
@@ -451,6 +443,9 @@ def plot_scatter(df, angles_df):
     fig.savefig(str(OUTPUT_PNG), dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"Scatter plot saved: {OUTPUT_PNG}")
+
+
+# ── ISO scatter plots ─────────────────────────────────────────────
 
 
 def plot_iso_scatter(df, angles_df):
@@ -491,10 +486,9 @@ def plot_iso_scatter(df, angles_df):
             continue
         vmin = float(np.min(np.concatenate([all_xs[mask], all_ys[mask]])))
         vmax = float(np.max(np.concatenate([all_xs[mask], all_ys[mask]])))
-        lo = vmin * 0.5
-        hi = vmax * 2.0
+        lo, hi = vmin * 0.5, vmax * 2.0
 
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(6, 6))
 
         for det_name, color in det_colors.items():
             det_mdf = mdf[mdf["detector"] == det_name]
@@ -508,7 +502,7 @@ def plot_iso_scatter(df, angles_df):
                 ys[det_mask],
                 c=color,
                 s=28,
-                alpha=0.7,
+                alpha=0.5,
                 edgecolors="none",
                 zorder=3,
                 label=det_name,
@@ -551,7 +545,6 @@ def plot_iso_scatter(df, angles_df):
         )
         ax.legend(fontsize=8, loc="lower right", frameon=True)
         ax.grid(True, which="major", ls="--", alpha=0.3)
-        ax.set_aspect("equal", adjustable="box")
 
         out_path = ISO_PLOT_DIR / f"{method}.png"
         fig.savefig(str(out_path), dpi=300, bbox_inches="tight")
@@ -574,11 +567,11 @@ def generate_report(df, angles_df):
     lines = []
     a = lines.append
 
-    a("# Dose Rate Evaluation Report\n")
-    a("**Script**: `tests/dose_rate_evaluation.py`  ")
+    a("# IAEA Compendium \u2014 Dose Rate Evaluation Report\n")
+    a("**Script**: `scripts/dose_rate_iaea_compendium.py`  ")
     a(f"**Total unfold calls**: {n_total} (OK: {n_ok}, ERROR: {n_err})  ")
     a(
-        f"**Places**: {n_places}  |  **Detectors**: {n_detectors}  |  "
+        f"**Spectra**: {n_places}  |  **Detectors**: {n_detectors}  |  "
         f"**Methods**: {len(angles_df)}  |  **Geometries**: {len(DOSE_GEOMETRIES)}\n"
     )
 
@@ -587,7 +580,9 @@ def generate_report(df, angles_df):
     # ── Overall ranking ──
     a("## Method Ranking (by average angle across all geometries)\n")
     ranked = angles_df.sort_values("theta_avg", key=lambda s: (s - 45.0).abs())
-    a("| Rank | Method | θ_avg (°) | k | Classification | Direction |")
+    a(
+        "| Rank | Method | \u03b8_avg (\u00b0) | k | Classification | Direction |"
+    )
     a("|------|--------|-----------|---|----------------|-----------|")
     for rank, (_, r) in enumerate(ranked.iterrows(), 1):
         theta = r["theta_avg"]
@@ -608,7 +603,9 @@ def generate_report(df, angles_df):
         gdf["_k"] = gdf[col_k]
         gdf = gdf.sort_values("_theta", key=lambda s: (s - 45.0).abs())
 
-        a("| Rank | Method | θ (°) | k | Classification | Direction |")
+        a(
+            "| Rank | Method | \u03b8 (\u00b0) | k | Classification | Direction |"
+        )
         a("|------|--------|-------|---|----------------|-----------|")
         for rank, (_, r) in enumerate(gdf.iterrows(), 1):
             theta = r["_theta"]
@@ -623,23 +620,21 @@ def generate_report(df, angles_df):
     # ── ISO scatter plots ──
     a("## ISO Dose Scatter Plots\n")
     a(
-        "Reference ISO dose vs unfolded ISO dose across all 20 spectra and 5 detectors "
+        "Reference ISO dose vs unfolded ISO dose across all 251 spectra and 5 detectors "
         "(GSF, PTB, LANL, JINR, FERMILAB). "
         "Dashed line = perfect 45\u00b0 reconstruction; solid red = fitted line y = k\u00b7x.\n"
     )
     methods_sorted = sorted(angles_df["method"].tolist())
     for method in methods_sorted:
         a(f"### {method}\n")
-        a(f"![{method}](iso_plots/{method}.png)\n")
+        a(f"![{method}](iaea_compendium_iso_plots/{method}.png)\n")
 
     # ── Classification summary ──
     a("## Classification Summary\n")
     a("| Method | AP | PA | LLAT | RLAT | ROT | ISO | Average |")
     a("|--------|----|----|------|------|-----|-----|---------|")
     for _, r in angles_df.iterrows():
-        cells = []
-        for geom in DOSE_GEOMETRIES:
-            cells.append(r[f"class_{geom}"].split(" (")[0])
+        cells = [r[f"class_{geom}"].split(" (")[0] for geom in DOSE_GEOMETRIES]
         a(
             f"| {r['method']} | "
             + " | ".join(cells)
@@ -652,11 +647,11 @@ def generate_report(df, angles_df):
     best = ranked.iloc[0]
     worst = ranked.iloc[-1]
     a(
-        f"- **Best method**: {best['method']} — θ = {best['theta_avg']:.2f}° "
+        f"- **Best method**: {best['method']} \u2014 \u03b8 = {best['theta_avg']:.2f}\u00b0 "
         f"(k = {best['k_avg']:.4f}), {best['class_avg']}"
     )
     a(
-        f"- **Worst method**: {worst['method']} — θ = {worst['theta_avg']:.2f}° "
+        f"- **Worst method**: {worst['method']} \u2014 \u03b8 = {worst['theta_avg']:.2f}\u00b0 "
         f"(k = {worst['k_avg']:.4f}), {worst['class_avg']}"
     )
     a("")
@@ -679,7 +674,7 @@ def generate_report(df, angles_df):
         det_rows.sort(
             key=lambda x: abs(x[1] - 45.0) if np.isfinite(x[1]) else 999
         )
-        a("| Method | θ (°) | k | Classification |")
+        a("| Method | \u03b8 (\u00b0) | k | Classification |")
         a("|--------|-------|---|----------------|")
         for method, theta, k, cls in det_rows:
             a(f"| {method} | {theta:.2f} | {k:.4f} | {cls} |")
@@ -688,11 +683,11 @@ def generate_report(df, angles_df):
     # ── Notes ──
     a("---\n")
     a("**Angle interpretation**:\n")
-    a("- θ = 45.0° → perfect dose reconstruction (k = 1.0)\n")
-    a("- θ > 45° → method overestimates dose (k > 1.0)\n")
-    a("- θ < 45° → method underestimates dose (k < 1.0)\n")
+    a("- \u03b8 = 45.0\u00b0 \u2192 perfect dose reconstruction (k = 1.0)\n")
+    a("- \u03b8 > 45\u00b0 \u2192 method overestimates dose (k > 1.0)\n")
+    a("- \u03b8 < 45\u00b0 \u2192 method underestimates dose (k < 1.0)\n")
     a(
-        "- Classification: Excellent (|Δ| < 1°), Good (1-5°), Fair (5-10°), Poor (>10°)\n"
+        "- Classification: Excellent (|\u0394| < 1\u00b0), Good (1-5\u00b0), Fair (5-10\u00b0), Poor (>10\u00b0)\n"
     )
 
     report = "\n".join(lines)
@@ -705,11 +700,11 @@ def generate_report(df, angles_df):
 
 
 def main():
-    if not MC_CSV.exists():
-        sys.exit(f"CSV not found: {MC_CSV}")
+    if not IAEA_CSV.exists():
+        sys.exit(f"CSV not found: {IAEA_CSV}")
 
     print("=" * 70)
-    print("  Dose Rate Evaluation — bssunfold unfolding methods")
+    print("  IAEA Compendium \u2014 Dose Rate Evaluation")
     print("=" * 70)
 
     df = run_evaluation()

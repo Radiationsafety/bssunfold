@@ -5,7 +5,7 @@ Runs all solver × detector combinations on the IAEA Compendium dataset (251 spe
 computes dose rates, and saves results to CSV for notebook visualization.
 
 Usage:
-    python tests/dose_rate_qpsolvers_cvxpy.py
+    python scripts/dose_rate_qpsolvers_cvxpy.py
 """
 
 import sys
@@ -31,8 +31,10 @@ warnings.filterwarnings("ignore")
 
 # ── Constants ─────────────────────────────────────────────────────
 
-IAEA_CSV = Path(__file__).parent / "IAEA_Compendium_dataset.csv"
-OUTPUT_CSV = Path(__file__).parent / "qpsolvers_cvxpy_dose_rate_results.csv"
+TESTS_DIR = Path(__file__).resolve().parent.parent / "tests"
+
+IAEA_CSV = TESTS_DIR / "IAEA_Compendium_dataset.csv"
+OUTPUT_CSV = TESTS_DIR / "qpsolvers_cvxpy_dose_rate_results.csv"
 
 CSV_ENERGIES = np.array(
     [
