@@ -209,3 +209,7 @@ examples/benchmark_summary_*.csv
 examples/full_benchmark_results.csv
 examples/best_method_params.json
 examples/methods_comparison_summary.png
+tests/iaea_validation_*.csv
+tests/iaea_validation_GSF.csv
+tests/iaea_validation_LANL.csv
+tests/iaea_validation_PTB.csv
