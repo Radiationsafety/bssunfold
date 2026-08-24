@@ -304,6 +304,10 @@ Kernel / similarity
 
 .. autofunction:: bssunfold.utils.comparison.mmd_rbf
 
+.. autofunction:: bssunfold.utils.comparison.total_flux_ratio
+
+.. autofunction:: bssunfold.utils.comparison.spectral_shape_similarity
+
 Chi-squared family
 ------------------
 
@@ -336,6 +340,34 @@ Integral quantity metrics
 .. autofunction:: bssunfold.utils.comparison.dose_averaged_energy
 
 .. autofunction:: bssunfold.utils.comparison.ambient_dose_equivalent_rate
+
+Spectral diagnostics (energy grid required)
+-------------------------------------------
+
+These metrics compare two spectra in physically meaningful terms
+(fluence, dose, energy groups, peaks) and are computed automatically by
+:func:`~bssunfold.utils.comparison.compare_spectra` when an ``energy``
+grid is supplied.
+
+.. autofunction:: bssunfold.utils.comparison.fluence_difference_percent
+
+.. autofunction:: bssunfold.utils.comparison.energy_group_fluence_diff
+
+.. autofunction:: bssunfold.utils.comparison.dose_difference_percent
+
+.. autofunction:: bssunfold.utils.comparison.fluence_averaged_energy_diff
+
+.. autofunction:: bssunfold.utils.comparison.dose_averaged_energy_diff
+
+.. autofunction:: bssunfold.utils.comparison.log_lethargy_correlation
+
+.. autofunction:: bssunfold.utils.comparison.peak_location_error
+
+.. autofunction:: bssunfold.utils.comparison.peak_width_error
+
+.. autofunction:: bssunfold.utils.comparison.dose_weighted_error
+
+.. autofunction:: bssunfold.utils.comparison.response_matrix_consistency
 
 Regularization Selection
 ========================

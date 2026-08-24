@@ -1011,6 +1011,7 @@ _ALL_METRICS: Dict[str, str] = {
     "dose_difference_percent": "Dose difference (%)",
     "fluence_averaged_energy_diff": "Fluence-averaged energy diff (%)",
     "dose_averaged_energy_diff": "Dose-averaged energy diff (%)",
+    "energy_group_fluence_diff": "Fluence rate difference per energy group (%)",
     "fluence_averaged_energy": "Fluence-averaged energy (MeV)",
     "energy_group_fluence": "Fluence rate per energy group",
     "dose_averaged_energy": "H*(10)-averaged energy (MeV)",
