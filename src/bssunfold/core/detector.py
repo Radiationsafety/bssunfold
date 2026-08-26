@@ -84,6 +84,7 @@ from .unfold_mlem import unfold_mlem as unfold_mlem_impl
 from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
 from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
 from .unfold_mystic import unfold_mystic as unfold_mystic_impl
+from .unfold_mystic import unfold_mystic_hybrid as unfold_mystic_hybrid_impl
 from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
 from .unfold_odl_advanced import (
     unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
@@ -882,6 +883,117 @@ class Detector:
             solver=solver,
             maxiter=maxiter,
             maxfun=maxfun,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            random_state=random_state,
+        )
+
+    def unfold_mystic_hybrid(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        global_solver: str = "diffev2",
+        local_solver: str = "fmin_powell",
+        global_maxiter: Optional[int] = None,
+        global_maxfun: Optional[int] = None,
+        local_maxiter: Optional[int] = None,
+        local_maxfun: Optional[int] = None,
+        npop: Optional[int] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: Optional[float] = None,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Two-stage hybrid unfolding: global search + local refinement.
+
+        Stage 1 uses a population-based solver (``diffev2`` by default)
+        with automatically derived bounds to robustly locate the basin of
+        the global minimum.  Stage 2 feeds that result as ``x0`` into a
+        local direct-search solver (``fmin_powell`` by default) for precise
+        final convergence.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess for the global stage.
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        global_solver : str, optional
+            Population-based solver for stage 1 (``'diffev'`` or
+            ``'diffev2'``), default: ``'diffev2'``.
+        local_solver : str, optional
+            Local solver for stage 2 (``'fmin'`` or ``'fmin_powell'``),
+            default: ``'fmin_powell'``.
+        global_maxiter : int, optional
+            Maximum iterations for the global stage (default: 200).
+        global_maxfun : int, optional
+            Maximum function evaluations for the global stage.
+        local_maxiter : int, optional
+            Maximum iterations for the local stage (default: 2000).
+        local_maxfun : int, optional
+            Maximum function evaluations for the local stage.
+        npop : int, optional
+            Population size for the global stage.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        regularization_method : str, optional
+            Method for selecting regularization parameter.
+            Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for smoothness term, default: 1.0.
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        return unfold_mystic_hybrid_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            global_solver=global_solver,
+            local_solver=local_solver,
+            global_maxiter=global_maxiter,
+            global_maxfun=global_maxfun,
+            local_maxiter=local_maxiter,
+            local_maxfun=local_maxfun,
+            npop=npop,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

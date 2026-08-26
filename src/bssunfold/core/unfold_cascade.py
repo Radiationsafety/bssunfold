@@ -63,6 +63,7 @@ METHOD_DISPATCH: Dict[str, str] = {
     "kaczmarz": "unfold_kaczmarz",
     "genetic": "unfold_genetic",
     "mystic": "unfold_mystic",
+    "mystic_hybrid": "unfold_mystic_hybrid",
     "scip": "unfold_scip",
     "docplex": "unfold_docplex",
     "epic": "unfold_epic",

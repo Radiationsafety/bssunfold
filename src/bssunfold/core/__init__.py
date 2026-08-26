@@ -62,7 +62,12 @@ from .unfold_mcmc import solve_bayesian_mcmc, unfold_mcmc
 from .unfold_mlem import solve_mlem, unfold_mlem
 from .unfold_mlem_odl import unfold_mlem_odl
 from .unfold_mlem_stop import solve_mlem_stop, unfold_mlem_stop
-from .unfold_mystic import solve_mystic, unfold_mystic
+from .unfold_mystic import (
+    solve_mystic,
+    unfold_mystic,
+    solve_mystic_hybrid,
+    unfold_mystic_hybrid,
+)
 from .unfold_nsduaz import (
     builtin_catalogue,
     select_catalogue_initial,
@@ -108,6 +113,7 @@ __all__ = [
     "solve_mlem",
     "solve_qpsolvers",
     "solve_mystic",
+    "solve_mystic_hybrid",
     "solve_genetic",
     "solve_doroshenko",
     "solve_kaczmarz",
@@ -160,6 +166,7 @@ __all__ = [
     "unfold_mlem",
     "unfold_qpsolvers",
     "unfold_mystic",
+    "unfold_mystic_hybrid",
     "unfold_genetic",
     "unfold_doroshenko",
     "unfold_kaczmarz",
