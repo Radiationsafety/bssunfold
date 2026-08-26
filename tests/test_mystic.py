@@ -3,6 +3,8 @@
 The ``mystic`` package is an optional backend installed in the dev group.
 These tests cover the ``solve_mystic`` core solver and the ``unfold_mystic``
 wrapper exposed both on the ``Detector`` class and as a module-level function.
+Tests for the two-stage hybrid solver (``solve_mystic_hybrid`` /
+``unfold_mystic_hybrid``) are also included.
 """
 
 from unittest.mock import patch
@@ -285,6 +287,252 @@ def test_unfold_combined_mystic(detector, readings):
             {
                 "method": "mystic",
                 "params": {"maxiter": 200, "save_result": False},
+            }
+        ],
+        verbose=False,
+    )
+    assert "spectrum" in result
+    assert np.all(result["spectrum"] >= 0)
+
+
+# ============================================================
+# Hybrid solver tests (solve_mystic_hybrid / unfold_mystic_hybrid)
+# ============================================================
+
+
+def test_unfold_mystic_hybrid_basic(detector, readings):
+    """Basic hybrid call returns a standardized result."""
+    result = detector.unfold_mystic_hybrid(
+        readings,
+        regularization=1e-3,
+        global_maxiter=30,
+        global_maxfun=500,
+        local_maxiter=200,
+        local_maxfun=2000,
+        save_result=False,
+    )
+
+    assert isinstance(result, dict)
+    assert "energy" in result
+    assert "spectrum" in result
+    assert "residual_norm" in result
+    assert "method" in result
+    assert "mystic_hybrid" in result["method"]
+    assert isinstance(result["energy"], np.ndarray)
+    assert isinstance(result["spectrum"], np.ndarray)
+    assert isinstance(result["residual_norm"], float)
+    assert len(result["spectrum"]) == detector.n_energy_bins
+    assert np.all(result["spectrum"] >= 0)
+    assert result["global_solver"] == "diffev2"
+    assert result["local_solver"] == "fmin_powell"
+    assert result["selected_regularization"] == pytest.approx(1e-3)
+
+
+def test_unfold_mystic_hybrid_diffev_fmin(detector, readings):
+    """Hybrid with diffev + fmin solver combination."""
+    result = detector.unfold_mystic_hybrid(
+        readings,
+        global_solver="diffev",
+        local_solver="fmin",
+        global_maxiter=20,
+        global_maxfun=500,
+        local_maxiter=200,
+        local_maxfun=2000,
+        save_result=False,
+    )
+    assert "mystic_hybrid_diffev_fmin" in result["method"]
+    assert np.all(result["spectrum"] >= 0)
+
+
+def test_solve_mystic_hybrid_returns_array(detector, readings):
+    """Core solve_mystic_hybrid returns raw ndarray."""
+    from bssunfold.core.unfold_mystic import solve_mystic_hybrid
+
+    selected = [name for name in detector.detector_names if name in readings]
+    A = np.array([detector.sensitivities[name] for name in selected])
+    b = np.array([readings[name] for name in selected], dtype=float)
+
+    spectrum = solve_mystic_hybrid(
+        A,
+        b,
+        alpha=1e-3,
+        global_maxiter=20,
+        global_maxfun=500,
+        local_maxiter=200,
+        local_maxfun=2000,
+    )
+    assert isinstance(spectrum, np.ndarray)
+    assert spectrum.shape == (detector.n_energy_bins,)
+    assert np.all(spectrum >= -1e-6)
+
+
+def test_solve_mystic_hybrid_import_error():
+    """Missing mystic raises a helpful ImportError."""
+    from bssunfold.core.unfold_mystic import solve_mystic_hybrid
+
+    A = np.eye(3)
+    b = np.ones(3)
+
+    with block_import("mystic"):
+        with pytest.raises(ImportError, match="mystic is required"):
+            solve_mystic_hybrid(A, b, alpha=1e-3)
+
+
+def test_unfold_mystic_hybrid_unknown_global_solver(detector, readings):
+    """Unknown global solver falls back to diffev2 with warning."""
+    with pytest.warns(UserWarning, match="not population-based"):
+        result = detector.unfold_mystic_hybrid(
+            readings,
+            global_solver="fmin_powell",
+            global_maxiter=10,
+            global_maxfun=200,
+            local_maxiter=100,
+            local_maxfun=1000,
+            save_result=False,
+        )
+    assert np.all(result["spectrum"] >= 0)
+
+
+def test_unfold_mystic_hybrid_unknown_local_solver(detector, readings):
+    """Unknown local solver falls back to fmin_powell with warning."""
+    with pytest.warns(UserWarning, match="not a direct-search"):
+        result = detector.unfold_mystic_hybrid(
+            readings,
+            local_solver="diffev2",
+            global_maxiter=10,
+            global_maxfun=200,
+            local_maxiter=100,
+            local_maxfun=1000,
+            save_result=False,
+        )
+    assert np.all(result["spectrum"] >= 0)
+
+
+def test_unfold_mystic_hybrid_norm1(detector, readings):
+    """L1 regularization norm is supported by hybrid solver."""
+    result = detector.unfold_mystic_hybrid(
+        readings,
+        norm=1,
+        regularization=1e-3,
+        global_maxiter=10,
+        global_maxfun=200,
+        local_maxiter=100,
+        local_maxfun=1000,
+        save_result=False,
+    )
+    assert result["norm"] == 1
+    assert np.all(result["spectrum"] >= 0)
+
+
+def test_unfold_mystic_hybrid_smoothness(detector, readings):
+    """Smoothness constraints work with hybrid solver."""
+    for order in (1, 2):
+        result = detector.unfold_mystic_hybrid(
+            readings,
+            smoothness_order=order,
+            smoothness_weight=0.5,
+            global_maxiter=10,
+            global_maxfun=200,
+            local_maxiter=100,
+            local_maxfun=1000,
+            save_result=False,
+        )
+        assert result["smoothness_order"] == order
+        assert result["smoothness_weight"] == 0.5
+        assert np.all(result["spectrum"] >= 0)
+
+
+def test_unfold_mystic_hybrid_with_errors(detector, readings):
+    """Monte-Carlo uncertainty works with hybrid solver."""
+    result = detector.unfold_mystic_hybrid(
+        readings,
+        regularization=1e-3,
+        calculate_errors=True,
+        n_montecarlo=3,
+        global_maxiter=10,
+        global_maxfun=200,
+        local_maxiter=100,
+        local_maxfun=1000,
+        save_result=False,
+    )
+    assert "spectrum_uncert_mean" in result
+    assert "spectrum_uncert_std" in result
+    assert len(result["spectrum_uncert_mean"]) == detector.n_energy_bins
+
+
+def test_unfold_mystic_hybrid_save_result(detector, readings):
+    """save_result=True stores result in history."""
+    detector.unfold_mystic_hybrid(
+        readings,
+        global_maxiter=10,
+        global_maxfun=200,
+        local_maxiter=100,
+        local_maxfun=1000,
+        save_result=True,
+    )
+    assert len(detector.results_history) == 1
+    latest = detector.results_history[max(detector.results_history.keys())]
+    assert "mystic_hybrid" in latest["method"]
+
+
+def test_unfold_mystic_hybrid_reg_methods(detector, readings, initial):
+    """Automatic regularization selection works with hybrid."""
+    result = detector.unfold_mystic_hybrid(
+        readings,
+        regularization_method="lcurve",
+        global_maxiter=10,
+        global_maxfun=200,
+        local_maxiter=100,
+        local_maxfun=1000,
+        save_result=False,
+    )
+    assert "spectrum" in result
+    assert result["regularization_method"] == "lcurve"
+    assert result["selected_regularization"] > 0
+
+
+def test_unfold_mystic_hybrid_cosine_no_initial(detector, readings):
+    """Cosine selection without initial spectrum raises ValueError."""
+    with pytest.raises(ValueError, match="initial_spectrum must be provided"):
+        detector.unfold_mystic_hybrid(
+            readings,
+            regularization_method="cosine",
+            global_maxiter=10,
+            local_maxiter=100,
+            save_result=False,
+        )
+
+
+def test_core_exports_hybrid():
+    """solve_mystic_hybrid and unfold_mystic_hybrid are exported."""
+    from bssunfold.core import solve_mystic_hybrid, unfold_mystic_hybrid
+
+    assert solve_mystic_hybrid is not None
+    assert unfold_mystic_hybrid is not None
+
+
+def test_unfold_combined_mystic_hybrid(detector, readings):
+    """'mystic_hybrid' can be used in a combined unfolding pipeline."""
+    from bssunfold.core.unfold_combined import unfold_combined
+
+    result = unfold_combined(
+        detector_names=detector.detector_names,
+        n_energy_bins=detector.n_energy_bins,
+        E_MeV=detector.E_MeV,
+        sensitivities=detector.sensitivities,
+        cc_icrp116=detector._get_interpolated_cc(),
+        save_result_callback=detector._save_result,
+        readings=readings,
+        pipeline=[
+            {
+                "method": "mystic_hybrid",
+                "params": {
+                    "global_maxiter": 10,
+                    "global_maxfun": 200,
+                    "local_maxiter": 100,
+                    "local_maxfun": 1000,
+                    "save_result": False,
+                },
             }
         ],
         verbose=False,

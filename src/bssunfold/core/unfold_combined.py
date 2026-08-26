@@ -77,7 +77,7 @@ def unfold_combined(
     from .unfold_mapem import unfold_mapem
     from .unfold_mlem import unfold_mlem
     from .unfold_mlem_odl import unfold_mlem_odl
-    from .unfold_mystic import unfold_mystic
+    from .unfold_mystic import unfold_mystic, unfold_mystic_hybrid
     from .unfold_osem import unfold_osem
     from .unfold_qpsolvers import unfold_qpsolvers
     from .unfold_sandii import unfold_sandii
@@ -115,6 +115,7 @@ def unfold_combined(
             "mlem_odl": unfold_mlem_odl,
             "qpsolvers": unfold_qpsolvers,
             "mystic": unfold_mystic,
+            "mystic_hybrid": unfold_mystic_hybrid,
             "genetic": unfold_genetic,
             "doroshenko": unfold_doroshenko,
             "kaczmarz": unfold_kaczmarz,

@@ -42,6 +42,7 @@ METHOD_DISPATCH: Dict[str, str] = {
     "interpret": "unfold_interpret",
     "maeo_ensemble": "unfold_maeo",
     "mystic": "unfold_mystic",
+    "mystic_hybrid": "unfold_mystic_hybrid",
     "cs": "unfold_cs",
     "scip": "unfold_scip",
     "docplex": "unfold_docplex",
@@ -54,7 +55,7 @@ DEFAULT_BIN_METHODS: Dict[str, List[str]] = {
     "very_soft": ["tsvd", "bayes", "cvxpy", "statreg", "lanczos"],
     "soft": ["mlem", "landweber", "bayes_spline", "gravel", "qpsolvers"],
     "intermediate": ["cvxpy", "qpsolvers", "hybrid_parametric", "parametric2"],
-    "hard": ["genetic", "interpret", "maeo_ensemble", "mystic", "cs"],
+    "hard": ["genetic", "interpret", "maeo_ensemble", "mystic", "mystic_hybrid", "cs"],
     "very_hard": ["scip", "docplex", "epic", "cs", "interpret"],
 }
 
@@ -86,6 +87,7 @@ DEFAULT_ENSEMBLE_WEIGHTS: Dict[str, float] = {
     "interpret": 0.8,
     "maeo_ensemble": 0.8,
     "mystic": 0.8,
+    "mystic_hybrid": 0.85,
     "cs": 0.8,
     "scip": 0.8,
     "docplex": 0.8,
