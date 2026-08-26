@@ -6,7 +6,7 @@ performed with the ``mystic`` constrained-optimization framework
 (https://pypi.org/project/mystic/), using a direct-search solver on the
 penalized least-squares objective.
 
-Additionally, a two-stage hybrid solver (``solve_mystic_hybrid`` / 
+Additionally, a two-stage hybrid solver (``solve_mystic_hybrid`` /
 ``unfold_mystic_hybrid``) is provided that first uses ``diffev2`` for
 global exploration and then refines the result with ``fmin_powell`` for
 precise local convergence.

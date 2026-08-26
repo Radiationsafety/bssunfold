@@ -64,8 +64,8 @@ from .unfold_mlem_odl import unfold_mlem_odl
 from .unfold_mlem_stop import solve_mlem_stop, unfold_mlem_stop
 from .unfold_mystic import (
     solve_mystic,
-    unfold_mystic,
     solve_mystic_hybrid,
+    unfold_mystic,
     unfold_mystic_hybrid,
 )
 from .unfold_nsduaz import (

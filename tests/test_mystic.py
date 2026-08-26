@@ -3,7 +3,7 @@
 The ``mystic`` package is an optional backend installed in the dev group.
 These tests cover the ``solve_mystic`` core solver and the ``unfold_mystic``
 wrapper exposed both on the ``Detector`` class and as a module-level function.
-Tests for the two-stage hybrid solver (``solve_mystic_hybrid`` / 
+Tests for the two-stage hybrid solver (``solve_mystic_hybrid`` /
 ``unfold_mystic_hybrid``) are also included.
 """
 
