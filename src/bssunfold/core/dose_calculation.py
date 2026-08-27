@@ -197,13 +197,27 @@ def calculate_dose_rates(
     if not cc_icrp116:
         return {}
 
+    # Pre-compute constant factor
+    ln10 = np.log(10.0) * dlnE
+    spec = np.asarray(spectrum, dtype=float)
+    n_spec = len(spec)
     doserates = {}
-    for geom, k in cc_icrp116.items():
-        if geom != "E_MeV":
-            k_arr = np.asarray(k, dtype=float)
-            min_len = min(len(k_arr), len(spectrum))
-            integrand = k_arr[:min_len] * spectrum[:min_len] * dlnE
-            dose = np.log(10) * np.sum(integrand)
-            doserates[geom] = float(dose)
 
-    return doserates
+    # Batch: stack all CC arrays into a matrix and do a single matmul
+    geoms = [g for g in cc_icrp116 if g != "E_MeV"]
+    if not geoms:
+        return {}
+
+    cc_matrix = np.empty((len(geoms), n_spec))
+    for idx, geom in enumerate(geoms):
+        k_arr = np.asarray(cc_icrp116[geom], dtype=float)
+        min_len = min(len(k_arr), n_spec)
+        cc_matrix[idx, :min_len] = k_arr[:min_len]
+        if min_len < n_spec:
+            cc_matrix[idx, min_len:] = 0.0
+
+    # Single matrix-vector multiply: (n_geoms x n_spec) @ (n_spec,) -> (n_geoms,)
+    doses = cc_matrix @ spec
+    doses *= ln10
+
+    return {geom: float(doses[idx]) for idx, geom in enumerate(geoms)}

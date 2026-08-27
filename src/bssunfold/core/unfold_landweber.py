@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from ..utils.validators import validate_system
 
 __all__ = ["solve_landweber", "unfold_landweber"]
 
@@ -42,6 +43,7 @@ def solve_landweber(
     """
     import warnings
 
+    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
     x = x0.copy()
     sigma_max = np.linalg.norm(A, 2)
 
@@ -55,22 +57,43 @@ def solve_landweber(
     # Precompute ATb for efficiency
     ATb = AT @ b
 
+    # Try Numba JIT path
+    try:
+        from ._numba_jit import NUMBA_AVAILABLE, _landweber_inner
+
+        if NUMBA_AVAILABLE:
+            return _landweber_inner(
+                np.ascontiguousarray(A, dtype=np.float64),
+                np.ascontiguousarray(AT, dtype=np.float64),
+                x, ATb, step_size, max_iterations, tolerance,
+            )
+    except ImportError:
+        pass
+
+    # Fallback: optimized pure numpy implementation
     converged = False
     iterations = 0
 
+    # Pre-allocate work arrays to avoid repeated allocations
+    Ax = np.empty(A.shape[0])
+    grad = np.empty_like(x)
+
     for i in range(max_iterations):
-        # Compute residual and its norm efficiently
-        # residual = A @ x - b, so AT @ residual = AT @ A @ x - ATb
-        ATAx = AT @ (A @ x)
-        grad = ATAx - ATb
-        residual_norm = np.linalg.norm(A @ x - b)
+        # Compute A @ x and gradient in-place
+        np.dot(A, x, out=Ax)
+        np.dot(AT, Ax, out=grad)
+        grad -= ATb
+
+        # Residual norm
+        residual_norm = np.linalg.norm(Ax - b)
 
         if residual_norm < tolerance:
             converged = True
             iterations = i
             break
 
-        x = x - step_size * grad
+        # In-place update
+        x -= step_size * grad
         np.maximum(x, 0, out=x)
 
     if not converged:

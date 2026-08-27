@@ -14,6 +14,8 @@ __all__ = [
     "validate_energy_grid",
     "validate_spectrum",
     "validate_response_matrix",
+    "validate_solver_params",
+    "validate_system",
 ]
 
 
@@ -52,6 +54,10 @@ def validate_readings(
     for det in detector_names:
         if det in readings:
             val = float(readings[det])
+            if np.isnan(val):
+                raise ValueError(f"Reading '{det}' is NaN")
+            if np.isinf(val):
+                raise ValueError(f"Reading '{det}' is infinite")
             if val < 0:
                 raise ValueError(f"Reading '{det}' is negative: {val}")
             if val == 0 and not allow_zero:
@@ -165,6 +171,14 @@ def validate_spectrum(
             f"energy grid length ({len(E_MeV)})"
         )
 
+    if np.any(np.isnan(spectrum)):
+        n_nan = int(np.sum(np.isnan(spectrum)))
+        raise ValueError(f"Spectrum contains {n_nan} NaN values")
+
+    if np.any(np.isinf(spectrum)):
+        n_inf = int(np.sum(np.isinf(spectrum)))
+        raise ValueError(f"Spectrum contains {n_inf} infinite values")
+
     if not allow_negative and np.any(spectrum < 0):
         n_negative = np.sum(spectrum < 0)
         raise ValueError(
@@ -207,6 +221,9 @@ def validate_response_matrix(
     if A.ndim != 2:
         raise ValueError(f"A must be 2D array, got {A.ndim}D")
 
+    if A.size == 0:
+        raise ValueError("Response matrix A is empty")
+
     if b.ndim != 1:
         raise ValueError(f"b must be 1D array, got {b.ndim}D")
 
@@ -215,6 +232,12 @@ def validate_response_matrix(
             f"Number of rows in A ({A.shape[0]}) must match "
             f"length of b ({len(b)})"
         )
+
+    if np.any(np.isnan(A)) or np.any(np.isnan(b)):
+        raise ValueError("Response matrix or measurement vector contains NaN values")
+
+    if np.any(np.isinf(A)) or np.any(np.isinf(b)):
+        raise ValueError("Response matrix or measurement vector contains infinite values")
 
     if check_rank:
         rank = np.linalg.matrix_rank(A)
@@ -225,3 +248,193 @@ def validate_response_matrix(
             )
 
     return A, b
+
+
+def validate_system(
+    A: np.ndarray,
+    b: np.ndarray,
+    x0: Optional[np.ndarray] = None,
+    max_iterations: Optional[int] = None,
+    tolerance: Optional[float] = None,
+) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
+    """Validate system matrix, measurement vector, and optional initial guess.
+
+    This is a convenience wrapper used by iterative solvers to perform
+    common validation at the start of each ``solve_*`` function.  It checks
+    array shapes, dimension compatibility, and optional parameter bounds.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    x0 : np.ndarray, optional
+        Initial guess (n,).  If provided, length must match A.shape[1].
+    max_iterations : int, optional
+        If provided, must be a positive integer.
+    tolerance : float, optional
+        If provided, must be a positive float.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]
+        Validated (A, b, x0).
+
+    Raises
+    ------
+    ValueError
+        If any validation check fails.
+    """
+    A = np.asarray(A, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64).ravel()
+
+    if A.ndim != 2:
+        raise ValueError(
+            f"Response matrix A must be 2D, got {A.ndim}D array"
+        )
+    if A.size == 0:
+        raise ValueError("Response matrix A is empty")
+    if b.ndim != 1:
+        raise ValueError(
+            f"Measurement vector b must be 1D, got {b.ndim}D array"
+        )
+    if len(b) == 0:
+        raise ValueError("Measurement vector b is empty")
+    if A.shape[0] != len(b):
+        raise ValueError(
+            f"Row count of A ({A.shape[0]}) must match length of b "
+            f"({len(b)})"
+        )
+
+    if x0 is not None:
+        x0 = np.asarray(x0, dtype=np.float64).ravel()
+        if x0.ndim != 1:
+            raise ValueError(
+                f"Initial guess x0 must be 1D, got {x0.ndim}D array"
+            )
+        if len(x0) != A.shape[1]:
+            raise ValueError(
+                f"Length of x0 ({len(x0)}) must match column count of A "
+                f"({A.shape[1]})"
+            )
+
+    if max_iterations is not None:
+        if not isinstance(max_iterations, (int, np.integer)) or max_iterations <= 0:
+            raise ValueError(
+                f"max_iterations must be a positive integer, "
+                f"got {max_iterations!r}"
+            )
+
+    if tolerance is not None:
+        if not isinstance(tolerance, (int, float, np.integer, np.floating)):
+            raise ValueError(
+                f"tolerance must be a non-negative number, got {type(tolerance).__name__}"
+            )
+        if float(tolerance) < 0:
+            raise ValueError(
+                f"tolerance must be non-negative, got {tolerance}"
+            )
+
+    return A, b, x0
+
+
+def validate_solver_params(
+    max_iterations: int = 1000,
+    tolerance: float = 1e-6,
+    regularization_alpha: float = 0.0,
+    noise_level: float = 0.01,
+    n_montecarlo: int = 100,
+    random_state: Optional[int] = None,
+) -> Dict[str, Optional[int]]:
+    """Validate common solver parameters.
+
+    Parameters
+    ----------
+    max_iterations : int, optional
+        Maximum number of iterations (must be positive int, default: 1000).
+    tolerance : float, optional
+        Convergence tolerance (must be positive float, default: 1e-6).
+    regularization_alpha : float, optional
+        Regularization strength (must be non-negative, default: 0.0).
+    noise_level : float, optional
+        Relative noise level in [0, 1] range (default: 0.01).
+    n_montecarlo : int, optional
+        Number of Monte-Carlo samples (must be positive int, default: 100).
+    random_state : int, optional
+        Random seed for reproducibility (non-negative int or None).
+
+    Returns
+    -------
+    Dict[str, Optional[int]]
+        Dictionary with validated parameter names and values.
+
+    Raises
+    ------
+    ValueError
+        If any parameter is out of its valid range.
+    TypeError
+        If any parameter has the wrong type.
+    """
+    if not isinstance(max_iterations, (int, np.integer)) or max_iterations <= 0:
+        raise ValueError(
+            f"max_iterations must be a positive integer, got {max_iterations!r}"
+        )
+
+    if not isinstance(tolerance, (int, float, np.integer, np.floating)):
+        raise TypeError(
+            f"tolerance must be a number, got {type(tolerance).__name__}"
+        )
+    tolerance = float(tolerance)
+    if tolerance <= 0 or tolerance > 1e2:
+        raise ValueError(
+            f"tolerance must be in (0, 100] range, got {tolerance}"
+        )
+
+    if not isinstance(
+        regularization_alpha, (int, float, np.integer, np.floating)
+    ):
+        raise TypeError(
+            "regularization_alpha must be a number, "
+            f"got {type(regularization_alpha).__name__}"
+        )
+    if float(regularization_alpha) < 0:
+        raise ValueError(
+            f"regularization_alpha must be non-negative, got {regularization_alpha}"
+        )
+
+    if not isinstance(noise_level, (int, float, np.integer, np.floating)):
+        raise TypeError(
+            f"noise_level must be a number, got {type(noise_level).__name__}"
+        )
+    noise_level = float(noise_level)
+    if noise_level < 0 or noise_level > 1:
+        raise ValueError(
+            f"noise_level must be in [0, 1] range, got {noise_level}"
+        )
+
+    if not isinstance(n_montecarlo, (int, np.integer)) or n_montecarlo <= 0:
+        raise ValueError(
+            f"n_montecarlo must be a positive integer, got {n_montecarlo!r}"
+        )
+
+    if random_state is not None:
+        if not isinstance(random_state, (int, np.integer)):
+            raise TypeError(
+                f"random_state must be a non-negative int or None, "
+                f"got {type(random_state).__name__}"
+            )
+        if int(random_state) < 0:
+            raise ValueError(
+                f"random_state must be non-negative, got {random_state}"
+            )
+        random_state = int(random_state)
+
+    return {
+        "max_iterations": int(max_iterations),
+        "tolerance": tolerance,
+        "regularization_alpha": float(regularization_alpha),
+        "noise_level": noise_level,
+        "n_montecarlo": int(n_montecarlo),
+        "random_state": random_state,
+    }

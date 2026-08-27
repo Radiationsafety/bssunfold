@@ -202,7 +202,18 @@ class Detector:
         ValueError
             If E_MeV is not a 1D array or has less than 2 energy points,
             or if input data is inconsistent.
+        TypeError
+            If response_functions has an unsupported type.
         """
+        # Validate response_functions type early for clear error messages
+        if response_functions is not None and not isinstance(
+            response_functions, (pd.DataFrame, dict)
+        ):
+            raise TypeError(
+                f"response_functions must be a pandas DataFrame, dict, or None, "
+                f"got {type(response_functions).__name__}"
+            )
+
         rf_df = self._process_input(response_functions, E_MeV, sensitivities)
         Amat, E_MeV, detector_names, log_steps = (
             self._convert_rf_to_matrix_variable_step(rf_df, Emin=1e-9)
@@ -304,6 +315,20 @@ class Detector:
         return (
             f"Detector(E_MeV={self.E_MeV.tolist()}, "
             f"sensitivities={self.sensitivities})"
+        )
+
+    def __getattr__(self, name: str):
+        """Provide helpful error for unrecognized unfold_* methods."""
+        if name.startswith("unfold_"):
+            available = [
+                m for m in dir(self.__class__) if m.startswith("unfold_")
+            ]
+            raise AttributeError(
+                f"Unknown unfolding method 'Detector.{name}'. "
+                f"Available methods: {available}"
+            )
+        raise AttributeError(
+            f"'Detector' object has no attribute '{name}'"
         )
 
     @property

@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from ..utils.validators import validate_system
 
 __all__ = ["solve_bayes", "unfold_bayes"]
 
@@ -46,6 +47,7 @@ def solve_bayes(
     np.ndarray
         Unfolded spectrum (n,) in physical units.
     """
+    A, b, _ = validate_system(A, b, max_iterations=max_iterations, tolerance=tolerance)
     _, n_energy = A.shape
 
     # Column-normalise response so each column sums to 1.
@@ -65,9 +67,23 @@ def solve_bayes(
     total_counts = np.sum(b)
     y = total_counts * prior  # initial effective counts
 
-    for _ in range(max_iterations):
-        y_old = y.copy()
+    # Try Numba JIT path first
+    try:
+        from ._numba_jit import NUMBA_AVAILABLE, _bayes_inner
 
+        if NUMBA_AVAILABLE:
+            return _bayes_inner(
+                P, b, prior, total_counts, column_sums_safe, zero_sens,
+                max_iterations, tolerance,
+            )
+    except ImportError:
+        pass
+
+    # Fallback: pure numpy implementation
+    # Pre-allocate to avoid y.copy() every iteration
+    y_new = np.empty_like(y)
+
+    for _ in range(max_iterations):
         # Forward fold
         f_norm = P @ y
         f_norm_safe = np.where(f_norm > 0, f_norm, 1e-300)
@@ -75,20 +91,23 @@ def solve_bayes(
         # D'Agostini update in effective-count space:
         #   y_i^(new) = y_i^(old) * sum_j b_j * P_ji / (P @ y)_j
         weight = b[:, np.newaxis] * P / f_norm_safe[:, np.newaxis]
-        y = y_old * np.sum(weight, axis=0)
+        np.multiply(y, np.sum(weight, axis=0), out=y_new)
 
         # Zero-sensitivity bins stay at the prior.
         if np.any(zero_sens):
-            y[zero_sens] = prior[zero_sens] * total_counts
-
-        # Convert to physical spectrum for convergence check
-        x = y / column_sums_safe
+            y_new[zero_sens] = prior[zero_sens] * total_counts
 
         # Convergence check (in y-space for consistency)
-        denom = max(1.0, np.linalg.norm(y_old))
-        if np.linalg.norm(y - y_old) / denom < tolerance:
+        denom = max(1.0, np.linalg.norm(y))
+        if np.linalg.norm(y_new - y) / denom < tolerance:
+            y = y_new
             break
 
+        # Swap: y_new becomes y for next iteration (no copy needed)
+        y, y_new = y_new, y
+
+    # Convert to physical units
+    x = y / column_sums_safe
     return x
 
 

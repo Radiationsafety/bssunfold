@@ -123,6 +123,41 @@ def run_unfolding(
     Dict[str, Any]
         Standardized unfolding result dictionary.
     """
+    # 0. Validate inputs before building the system
+    if not isinstance(readings, dict) or len(readings) == 0:
+        raise ValueError(
+            "readings must be a non-empty dict mapping detector names to "
+            f"float values, got {type(readings).__name__ if not isinstance(readings, dict) else 'empty dict'}"
+        )
+    if not isinstance(detector_names, list) or len(detector_names) == 0:
+        raise ValueError(
+            "detector_names must be a non-empty list, got "
+            f"{type(detector_names).__name__ if not isinstance(detector_names, list) else 'empty list'}"
+        )
+    if not isinstance(n_energy_bins, (int, np.integer)) or n_energy_bins <= 0:
+        raise ValueError(
+            f"n_energy_bins must be a positive integer, got {n_energy_bins!r}"
+        )
+    E_MeV_arr = np.asarray(E_MeV)
+    if len(E_MeV_arr) != n_energy_bins:
+        raise ValueError(
+            f"Length of E_MeV ({len(E_MeV_arr)}) must match "
+            f"n_energy_bins ({n_energy_bins})"
+        )
+    if not isinstance(noise_level, (int, float, np.integer, np.floating)):
+        raise TypeError(
+            f"noise_level must be a number, got {type(noise_level).__name__}"
+        )
+    noise_level_f = float(noise_level)
+    if noise_level_f <= 0 or noise_level_f > 1:
+        raise ValueError(
+            f"noise_level must be in (0, 1] range, got {noise_level_f}"
+        )
+    if not isinstance(n_montecarlo, (int, np.integer)) or n_montecarlo <= 0:
+        raise ValueError(
+            f"n_montecarlo must be a positive integer, got {n_montecarlo!r}"
+        )
+
     # 1. Build system
     A, b, selected = _build_system(readings, detector_names, sensitivities)
 

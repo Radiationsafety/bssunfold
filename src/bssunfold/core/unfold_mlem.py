@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from ..utils.validators import validate_system
 
 __all__ = ["solve_mlem", "unfold_mlem"]
 
@@ -40,6 +41,7 @@ def solve_mlem(
     Tuple[np.ndarray, int, bool]
         Tuple of (solution, iterations, converged).
     """
+    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
     x = np.maximum(x0.copy(), 1e-10)
     AT = A.T
 

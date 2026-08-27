@@ -34,6 +34,7 @@ import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 from .unfold_bunki import solve_bunki
+from ..utils.validators import validate_system
 
 __all__ = [
     "solve_nsduaz",
@@ -268,6 +269,7 @@ def solve_nsduaz(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
+    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
     return solve_bunki(
         A=A,
         b=b,

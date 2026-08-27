@@ -347,6 +347,162 @@ if NUMBA_AVAILABLE:
         return log_steps
 
     @njit(cache=True)
+    def _bayes_inner(
+        P, b, prior, total_counts, column_sums_safe, zero_sens, max_iterations, tolerance
+    ):  # pragma: no cover
+        """JIT-compiled Bayesian (D'Agostini) iteration inner loop.
+
+        Parameters
+        ----------
+        P : np.ndarray
+            Column-normalised response matrix (m x n).
+        b : np.ndarray
+            Measurement vector (m,).
+        prior : np.ndarray
+            Prior in effective-count space.
+        total_counts : float
+            Total counts.
+        column_sums_safe : np.ndarray
+            Safe column sums (n,).
+        zero_sens : np.ndarray (bool)
+            Mask for bins with zero sensitivity.
+        max_iterations : int
+            Maximum iterations.
+        tolerance : float
+            Relative L2 convergence tolerance.
+
+        Returns
+        -------
+        np.ndarray
+            Unfolded spectrum in physical units (n,).
+        """
+        m = P.shape[0]
+        n = P.shape[1]
+        eps = 1e-300
+        eps2 = 1e-10
+
+        y = total_counts * prior.copy()
+        y_new = np.empty(n)
+
+        for it in range(max_iterations):
+            # Forward fold: f_norm = P @ y
+            f_norm = np.empty(m)
+            for i in range(m):
+                s = 0.0
+                for j in range(n):
+                    s += P[i, j] * y[j]
+                f_norm[i] = s if s > 0.0 else eps
+
+            # D'Agostini update
+            for j in range(n):
+                s = 0.0
+                for i in range(m):
+                    s += b[i] * P[i, j] / f_norm[i]
+                y_new[j] = y[j] * s
+
+            # Zero-sensitivity bins stay at the prior
+            for j in range(n):
+                if zero_sens[j]:
+                    y_new[j] = prior[j] * total_counts
+
+            # Convergence check in y-space
+            diff_norm = 0.0
+            y_norm = 0.0
+            for j in range(n):
+                d = y_new[j] - y[j]
+                diff_norm += d * d
+                y_norm += y[j] * y[j]
+
+            # Copy y_new -> y
+            for j in range(n):
+                y[j] = y_new[j]
+
+            denom = max(1.0, np.sqrt(y_norm))
+            if np.sqrt(diff_norm) / denom < tolerance:
+                break
+
+        # Convert to physical units
+        x = np.empty(n)
+        for j in range(n):
+            x[j] = y[j] / column_sums_safe[j]
+        return x
+
+    @njit(cache=True)
+    def _landweber_inner(
+        A, AT, x, ATb, step_size, max_iterations, tolerance
+    ):  # pragma: no cover
+        """JIT-compiled Landweber iteration inner loop.
+
+        Parameters
+        ----------
+        A : np.ndarray
+            Response matrix (m x n).
+        AT : np.ndarray
+            Transposed response matrix (n x m).
+        x : np.ndarray
+            Solution vector (n,).
+        ATb : np.ndarray
+            Precomputed A^T b (n,).
+        step_size : float
+            Step size (1 / sigma_max^2).
+        max_iterations : int
+            Maximum iterations.
+        tolerance : float
+            Convergence tolerance.
+
+        Returns
+        -------
+        tuple
+            (solution, iterations, converged)
+        """
+        m = A.shape[0]
+        n = A.shape[1]
+        converged = False
+        iterations = 0
+
+        # Pre-allocate work arrays
+        Ax = np.empty(m)
+        grad = np.empty(n)
+
+        for i in range(max_iterations):
+            # Ax = A @ x
+            for k in range(m):
+                s = 0.0
+                for j in range(n):
+                    s += A[k, j] * x[j]
+                Ax[k] = s
+
+            # residual_norm = ||Ax - b|| (b is implicit from ATb computation)
+            # grad = AT @ Ax - ATb
+            residual_norm = 0.0
+            for j in range(n):
+                s = 0.0
+                for k in range(m):
+                    s += AT[j, k] * Ax[k]
+                grad[j] = s - ATb[j]
+
+            # Compute residual norm
+            for k in range(m):
+                residual_norm += Ax[k] * Ax[k]
+            residual_norm = np.sqrt(residual_norm)
+
+            if residual_norm < tolerance:
+                converged = True
+                iterations = i
+                break
+
+            # Update x
+            for j in range(n):
+                x[j] = x[j] - step_size * grad[j]
+                if x[j] < 0.0:
+                    x[j] = 0.0
+
+        if not converged:
+            iterations = max_iterations
+
+        return x, iterations, converged
+
+    @njit(cache=True)
     def _dose_weighted_mse_jit(s1, s2, cc, ln_steps):  # pragma: no cover
         """JIT-compiled dose-weighted MSE calculation.
 
@@ -397,3 +553,9 @@ else:
 
     def _dose_weighted_mse_jit(*args, **kwargs):
         raise ImportError("numba is required for JIT-compiled functions")
+
+    def _bayes_inner(*args, **kwargs):
+        raise ImportError("numba is required for JIT-compiled solvers")
+
+    def _landweber_inner(*args, **kwargs):
+        raise ImportError("numba is required for JIT-compiled solvers")

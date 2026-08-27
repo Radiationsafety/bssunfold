@@ -10,6 +10,7 @@ import numpy as np
 from numpy import exp, log
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from ..utils.validators import validate_system
 
 __all__ = ["solve_gravel", "unfold_gravel"]
 
@@ -44,9 +45,9 @@ def solve_gravel(
     Tuple[np.ndarray, int, bool]
         Tuple of (solution, iterations, converged).
     """
+    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
     _, N = A.shape
-    x = x0.copy().astype(np.float64)
-    b = b.astype(np.float64)
+    x = x0.copy()
 
     valid = b > 0
     if np.sum(valid) == 0:
@@ -65,40 +66,44 @@ def solve_gravel(
     except ImportError:
         pass
 
-    # Fallback: pure Python implementation
+    # Fallback: vectorized pure numpy implementation
     J_prev = 0.0
     dJ_prev = 1.0
+    eps = 1e-10
+    m_valid = len(b_valid)
 
     for iteration in range(1, max_iterations + 1):
         computed = A_valid @ x
+        computed_safe = np.maximum(computed, eps)
 
-        W = np.zeros((len(b_valid), N))
-        for j in range(N):
-            for i, _ in enumerate(b_valid):
-                if computed[i] > 0 and x[j] > 0:
-                    W[i, j] = b_valid[i] * A_valid[i, j] * x[j] / computed[i]
+        # Vectorized W computation: W[i,j] = b[i] * A[i,j] * x[j] / computed[i]
+        # Only where computed > 0 and x > 0
+        x_safe = np.maximum(x, 0.0)
+        W = b_valid[:, None] * A_valid * x_safe[None, :] / computed_safe[:, None]
+        # Zero out where conditions aren't met
+        valid_mask = (computed[:, None] > 0) & (x_safe[None, :] > 0)
+        W *= valid_mask
 
-            numerator = 0.0
-            denominator = 0.0
-            for i, _ in enumerate(b_valid):
-                if (
-                    computed[i] > 0
-                    and b_valid[i] > 0
-                    and W[i, j] > 0
-                    and A_valid[i, j] > 0
-                ):
-                    log_ratio = log(b_valid[i] / computed[i])
-                    numerator += W[i, j] * log_ratio
-                    denominator += W[i, j]
+        # Vectorized log_ratio per row
+        log_ratio = log(b_valid / computed_safe)
+        # Zero out where conditions aren't met
+        weight_mask = (b_valid > 0) & (computed_safe > 0) & (computed > 0)
+        log_ratio *= weight_mask
 
-            if denominator > 0:
-                reg_term = regularization * log(x[j] + 1e-10)
-                update = exp((numerator - reg_term) / denominator)
-                x[j] *= update
+        # Per-column sums
+        numerator = (W * log_ratio[:, None]).sum(axis=0)
+        denominator = W.sum(axis=0)
+
+        # Update x where denominator > 0
+        update_mask = denominator > 0
+        if np.any(update_mask):
+            reg_term = regularization * log(x[update_mask] + eps)
+            update = exp((numerator[update_mask] - reg_term) / denominator[update_mask])
+            x[update_mask] *= update
 
         computed_final = A_valid @ x
         chi_sq = np.sum(
-            (computed_final - b_valid) ** 2 / np.maximum(b_valid, 1e-10)
+            (computed_final - b_valid) ** 2 / np.maximum(b_valid, eps)
         )
         J = chi_sq / np.sum(computed_final)
         dJ = J_prev - J

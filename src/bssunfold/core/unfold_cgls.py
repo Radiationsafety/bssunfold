@@ -20,6 +20,7 @@ import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import make_regularization_operator
+from ..utils.validators import validate_system
 
 __all__ = ["solve_cgls", "unfold_cgls"]
 
@@ -76,16 +77,10 @@ def solve_cgls(
         whether a stopping criterion was satisfied before reaching the
         maximum number of iterations.
     """
-    A = np.asarray(A, dtype=float)
-    b = np.asarray(b, dtype=float).ravel()
-    _, n = A.shape
+    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
+    m, n = A.shape
 
-    x = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float).copy()
-    if x.shape != (n,):
-        raise ValueError(
-            f"Initial spectrum length ({len(x)}) must match "
-            f"number of energy bins ({n})"
-        )
+    x = np.zeros(n) if x0 is None else x0.copy()
 
     nrmb = float(np.linalg.norm(b))
     if nrmb == 0.0:
@@ -113,10 +108,14 @@ def solve_cgls(
     iterations = 0
     converged = False
 
+    # Pre-allocate work arrays to avoid repeated allocations
+    Ad = np.empty(m)
+    Ld = np.empty(L.shape[0]) if L is not None else None
+
     for k in range(1, max_iterations + 1):
-        Ad = A @ d
+        np.dot(A, d, out=Ad)
         if L is not None:
-            Ld = L @ d
+            np.dot(L, d, out=Ld)
             normAd2 = float(np.dot(Ad, Ad) + regularization**2 * np.dot(Ld, Ld))
         else:
             normAd2 = float(np.dot(Ad, Ad))
@@ -124,14 +123,16 @@ def solve_cgls(
         if normAd2 <= 0.0:
             break
 
-        alpha = rho / normAd2
-        x = x + alpha * d
-        r = r - alpha * Ad
+        alpha_k = rho / normAd2
+        x += alpha_k * d
+        r -= alpha_k * Ad
 
         if L is not None:
-            s = A.T @ r - regularization * (L.T @ (L @ x))
+            np.dot(A.T, r, out=s)
+            Lx = L @ x
+            s -= regularization * (L.T @ Lx)
         else:
-            s = A.T @ r
+            np.dot(A.T, r, out=s)
 
         rho_new = float(np.dot(s, s))
         beta = rho_new / rho if rho > 0 else 0.0

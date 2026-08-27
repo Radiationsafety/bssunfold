@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from ..logging_config import get_logger
+from ..utils.validators import validate_system
 
 logger = get_logger("unfold_fista")
 
@@ -126,6 +127,7 @@ def unfold_fista(
     b = np.array([readings[name] for name in selected], dtype=float)
     A = np.array([sensitivities[name] for name in selected], dtype=float)
 
+    A, b, _ = validate_system(A, b, max_iterations=max_iterations, tolerance=tolerance)
     _, n_energy = A.shape
 
     # Initial guess
