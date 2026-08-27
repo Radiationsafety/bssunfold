@@ -484,6 +484,7 @@ class TestMLEMUnfolding:
 
     def test_unfold_mlem_odl_basic(self, detector, sample_readings):
         """Базовый тест unfold_mlem_odl."""
+        pytest.importorskip("odl")
         result = detector.unfold_mlem_odl(sample_readings, max_iterations=10)
         assert isinstance(result, dict)
         assert "energy" in result
@@ -497,6 +498,7 @@ class TestMLEMUnfolding:
         self, detector, sample_readings
     ):
         """MLEM с начальным спектром."""
+        pytest.importorskip("odl")
         initial = np.ones(detector.n_energy_bins) * 0.1
         result = detector.unfold_mlem_odl(
             sample_readings,
@@ -507,6 +509,7 @@ class TestMLEMUnfolding:
 
     def test_unfold_mlem_odl_with_errors(self, detector, sample_readings):
         """MLEM с расчетом ошибок (Monte-Carlo)."""
+        pytest.importorskip("odl")
         result = detector.unfold_mlem_odl(
             sample_readings,
             max_iterations=5,

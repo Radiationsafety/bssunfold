@@ -23,6 +23,7 @@ def detector():
 
 def test_unfold_mlem_odl_returns_correct_doserates(detector):
     """Тест проверяет, что unfold_mlem_odl возвращает правильные значения doserates"""
+    pytest.importorskip("odl")
     # Входные данные
     readings = {
         "3in": 0.053,
@@ -60,6 +61,7 @@ def test_unfold_mlem_odl_returns_correct_doserates(detector):
 
 def test_unfold_mlem_odl_with_different_max_iterations(detector):
     """Тест проверяет работу метода с разным количеством итераций"""
+    pytest.importorskip("odl")
     readings = {
         "3in": 0.053,
         "5in": 0.184,
@@ -85,6 +87,7 @@ def test_unfold_mlem_odl_with_different_max_iterations(detector):
 
 def test_unfold_mlem_odl_structure(detector):
     """Тест проверяет структуру возвращаемого результата"""
+    pytest.importorskip("odl")
     readings = {
         "3in": 0.053,
         "5in": 0.184,
@@ -113,12 +116,14 @@ def test_unfold_mlem_odl_structure(detector):
 # Дополнительные тесты для проверки обработки ошибок
 def test_unfold_mlem_odl_with_empty_readings(detector):
     """Тест с пустыми входными данными"""
+    pytest.importorskip("odl")
     with pytest.raises(Exception):
         detector.unfold_mlem_odl({}, max_iterations=900)
 
 
 def test_unfold_mlem_odl_with_invalid_readings(detector):
     """Тест с некорректными входными данными"""
+    pytest.importorskip("odl")
     with pytest.raises(Exception):
         detector.unfold_mlem_odl({"invalid_key": 1.0}, max_iterations=900)
 
@@ -127,6 +132,7 @@ def test_unfold_mlem_odl_with_invalid_readings(detector):
 @pytest.mark.parametrize("tolerance", [1e-1, 1e-3, 1e-5])
 def test_unfold_mlem_odl_precision(detector, tolerance):
     """Параметризованный тест для проверки с разной точностью"""
+    pytest.importorskip("odl")
     readings = {
         "3in": 0.053,
         "5in": 0.184,

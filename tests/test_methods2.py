@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+pytest.importorskip("odl")
+
 from src.bssunfold import RF_GSF, Detector
 
 # Базовые тестовые данные

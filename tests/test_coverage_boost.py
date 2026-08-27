@@ -1191,6 +1191,7 @@ class TestQpsolvers:
 
 class TestRegularizationFallbacks:
     def test_lcurve_fallback(self):
+        pytest.importorskip("pytikhonov")
         from bssunfold.core.regularization import _lcurve_fallback
 
         np.random.seed(42)
@@ -1221,6 +1222,7 @@ class TestRegularizationFallbacks:
         assert alpha > 0
 
     def test_lcurve_selection_fallback(self):
+        pytest.importorskip("pytikhonov")
         from bssunfold.core.regularization import lcurve_selection
 
         np.random.seed(42)

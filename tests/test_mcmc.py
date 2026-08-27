@@ -15,6 +15,9 @@ import pytest
 
 from bssunfold import Detector
 
+pymc = pytest.importorskip("pymc")
+arviz = pytest.importorskip("arviz")
+
 MOD = importlib.import_module("bssunfold.core.unfold_mcmc")
 
 
@@ -210,6 +213,7 @@ def test_importerror_without_pymc(detector, readings):
 
 
 def test_module_importable_without_pymc():
+    pytest.importorskip("pymc")
     assert MOD.PYMC_AVAILABLE is True
     assert MOD.pm is not None
     assert MOD.az is not None

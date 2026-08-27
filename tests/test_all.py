@@ -164,6 +164,7 @@ class TestDetector:
 
     def test_unfold_mlem_odl(self, detector, readings):
         """Test unfold_mlem_odl method."""
+        pytest.importorskip("odl")
         result = detector.unfold_mlem_odl(readings, max_iterations=50)
         assert "spectrum" in result
         assert result["method"] == "MLEM (ODL)"

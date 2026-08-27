@@ -550,6 +550,7 @@ class TestDetectorCompare:
         import matplotlib
 
         matplotlib.use("Agg")
+        pytest.importorskip("seaborn")
         s1 = np.ones(detector.n_energy_bins)
         s2 = np.ones(detector.n_energy_bins) * 2
         result, fig, ax1, ax2 = detector.compare(
@@ -562,6 +563,7 @@ class TestDetectorCompare:
         plt.close(fig)
 
     def test_plot_save_to_file(self, detector, tmp_path):
+        pytest.importorskip("seaborn")
         import matplotlib
 
         matplotlib.use("Agg")
@@ -574,6 +576,7 @@ class TestDetectorCompare:
         assert tmp_path.joinpath("compare_test.png").exists()
 
     def test_plot_save_to_eps(self, detector, tmp_path):
+        pytest.importorskip("seaborn")
         import matplotlib
 
         matplotlib.use("Agg")

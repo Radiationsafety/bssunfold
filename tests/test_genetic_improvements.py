@@ -15,6 +15,8 @@ from bssunfold.core.unfold_genetic import (
     _split_coarse,
 )
 
+mealpy = pytest.importorskip("mealpy")
+
 
 @pytest.fixture
 def detector():

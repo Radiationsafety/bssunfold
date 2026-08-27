@@ -15,6 +15,8 @@ import pytest
 from bssunfold import Detector
 from tests.conftest import block_import
 
+mystic = pytest.importorskip("mystic")
+
 
 @pytest.fixture
 def detector():

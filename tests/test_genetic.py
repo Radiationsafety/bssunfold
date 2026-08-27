@@ -15,6 +15,8 @@ import pytest
 from bssunfold import Detector
 from tests.conftest import block_import
 
+mealpy = pytest.importorskip("mealpy")
+
 SOLVERS = ["pso", "ga", "de", "es", "ep", "abc", "gwo", "cmaes"]
 
 

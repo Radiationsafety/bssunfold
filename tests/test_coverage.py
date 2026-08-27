@@ -2552,6 +2552,7 @@ class TestDetectorCompareCoverage:
             detector.compare(s1, s2, s3, labels=["a"])
 
     def test_compare_three_spectra_plot_dataframe(self, detector):
+        pytest.importorskip("seaborn")
         n = detector.n_energy_bins
         s1 = np.ones(n)
         s2 = np.ones(n) * 0.5

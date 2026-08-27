@@ -11,9 +11,8 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-import z3
 
-pytest.importorskip("z3")
+z3 = pytest.importorskip("z3")
 
 from bssunfold import Detector  # noqa: E402
 from tests.conftest import block_import  # noqa: E402
