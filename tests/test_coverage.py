@@ -12,6 +12,24 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
 
+try:
+    import lmfit
+    _LMFIT_AVAILABLE = True
+except ImportError:
+    _LMFIT_AVAILABLE = False
+
+try:
+    import odl
+    _ODL_AVAILABLE = True
+except ImportError:
+    _ODL_AVAILABLE = False
+
+try:
+    import pytikhonov
+    _PYTIKHONOV_AVAILABLE = True
+except ImportError:
+    _PYTIKHONOV_AVAILABLE = False
+
 from tests.conftest import block_import
 
 # ============================================================================
@@ -114,6 +132,7 @@ class TestRegularization:
         assert isinstance(var, float)
         assert var >= 0
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_lcurve_fallback(self, ab):
         A, b = ab
         with self._without_pytikhonov():
@@ -189,6 +208,7 @@ class TestRegularization:
         lam = cosine_similarity_selection(A, b_zero, initial)
         assert isinstance(lam, float)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_lcurve_pytikhonov_none_lambda(self, ab):
         import pytikhonov
 
@@ -201,6 +221,7 @@ class TestRegularization:
             with pytest.raises(ValueError, match="L-curve"):
                 lcurve_selection(A, b)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_gcv_pytikhonov_none_lambda(self, ab):
         import pytikhonov
 
@@ -213,6 +234,7 @@ class TestRegularization:
             with pytest.raises(ValueError, match="GCV"):
                 gcv_selection(A, b)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_dp_pytikhonov_none_lambda(self, ab):
         import pytikhonov
 
@@ -229,6 +251,7 @@ class TestRegularization:
             with pytest.raises(ValueError, match="Discrepancy"):
                 discrepancy_principle_selection(A, b, noise_var=0.01)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_dp_pytikhonov_noise_var_none(self, ab):
         import pytikhonov
 
@@ -273,6 +296,7 @@ class TestRegularization:
         with pytest.raises(ValueError, match="Initial spectrum has zero norm"):
             cosine_similarity_selection(A, b, initial)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_select_reg_parameter_lcurve(self, ab):
         A, b = ab
         with self._without_pytikhonov():
@@ -328,6 +352,7 @@ class TestRegularization:
         ):
             select_regularization_parameter(A, b, method="unknown")
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_compare_regularization_methods(self, ab):
         from bssunfold.core.regularization import compare_regularization_methods
 
@@ -338,6 +363,7 @@ class TestRegularization:
         assert "gcv" in result
         assert "selected" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_compare_regularization_methods_with_plot(self, ab, tmp_path):
         from bssunfold.core.regularization import compare_regularization_methods
 
@@ -348,6 +374,7 @@ class TestRegularization:
         )
         assert result is not None
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment(self, ab):
         from bssunfold.core.regularization import randomization_experiment
 
@@ -360,6 +387,7 @@ class TestRegularization:
         assert "gcv" in result
         assert "lcurve_full" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment_custom_methods(self, ab):
         from bssunfold.core.regularization import randomization_experiment
 
@@ -371,6 +399,7 @@ class TestRegularization:
         assert "gcv" in result
         assert "dp" not in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment_unknown_method(self, ab):
         from bssunfold.core.regularization import randomization_experiment
 
@@ -1322,6 +1351,7 @@ class TestUnfoldingMethodsEdgeCases:
         else:
             assert x is None
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_leastsq(self):
         from bssunfold.core import solve_lmfit
 
@@ -1343,6 +1373,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
         assert np.all(x >= 0)
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_lasso_leastsq(self):
         from bssunfold.core import solve_lmfit
 
@@ -1356,6 +1387,7 @@ class TestUnfoldingMethodsEdgeCases:
         )
         assert x.shape == (10,)
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_ridge_leastsq(self):
         from bssunfold.core import solve_lmfit
 
@@ -1369,6 +1401,7 @@ class TestUnfoldingMethodsEdgeCases:
         )
         assert x.shape == (10,)
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_invalid_model(self):
         from bssunfold.core import solve_lmfit
 
@@ -1454,6 +1487,7 @@ class TestUnfoldQpsolversCoverage:
                 regularization_method="cosine",
             )
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_qpsolvers_lcurve_reg(self, detector, readings):
         result = detector.unfold_qpsolvers(
             readings,
@@ -1487,6 +1521,7 @@ class TestUnfoldQpsolversCoverage:
             )
         assert "spectrum" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_qpsolvers_auto_with_norm1(self, detector, readings):
         with pytest.warns(UserWarning, match="assume L2"):
             result = detector.unfold_qpsolvers(
@@ -1589,6 +1624,7 @@ class TestUnfoldCvxpyCoverage:
         ):
             detector.unfold_cvxpy(readings, regularization_method="cosine")
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_cvxpy_lcurve_reg(self, detector, readings):
         result = detector.unfold_cvxpy(readings, regularization_method="lcurve")
         assert "spectrum" in result
@@ -1799,6 +1835,7 @@ class TestDetectorCoverage:
         with pytest.raises(ImportError, match="nonexistent_module is required"):
             Detector._import_optional("nonexistent_module", "testing")
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_compare_regularization_methods_on_detector(
         self, detector, readings
     ):
@@ -1806,6 +1843,7 @@ class TestDetectorCoverage:
         assert "selected" in result
         assert "lcurve" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment_on_detector(self, detector, readings):
         result = detector.randomization_experiment(readings, n_samples=3)
         assert "lcurve" in result
@@ -1930,6 +1968,7 @@ class TestDetectorCoverage:
         )
         assert "spectrum_uncert_mean" in result
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_unfold_lmfit_with_errors(self, detector, readings):
         result = detector.unfold_lmfit(
             readings,
@@ -1940,6 +1979,7 @@ class TestDetectorCoverage:
         )
         assert "spectrum_uncert_mean" in result
 
+    @pytest.mark.skipif(not _ODL_AVAILABLE, reason="odl not installed")
     def test_unfold_mlem_odl_with_errors(self, detector, readings):
         result = detector.unfold_mlem_odl(
             readings,
@@ -2262,7 +2302,7 @@ class TestDetectorInitEdgeCases:
     def test_init_invalid_combination(self):
         from bssunfold import Detector
 
-        with pytest.raises(ValueError, match="Invalid input combination"):
+        with pytest.raises(TypeError, match="response_functions must be"):
             Detector(response_functions="invalid")
 
     def test_init_array_mismatch(self):
