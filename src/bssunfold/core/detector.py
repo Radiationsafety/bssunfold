@@ -50,6 +50,7 @@ from .unfold_cascade import (
 from .unfold_cgls import unfold_cgls as unfold_cgls_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
 from .unfold_composite import unfold_composite as unfold_composite_impl
+from .unfold_crystal_ball import unfold_crystal_ball as unfold_crystal_ball_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
 from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
@@ -99,6 +100,7 @@ from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
 from .unfold_qubo import unfold_qubo as unfold_qubo_impl
 from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
 from .unfold_reconst import unfold_reconst as unfold_reconst_impl
+from .unfold_rfsp_jul import unfold_rfsp_jul as unfold_rfsp_jul_impl
 from .unfold_sandii import unfold_sandii as unfold_sandii_impl
 from .unfold_sart import unfold_sart as unfold_sart_impl
 from .unfold_scip import unfold_scip as unfold_scip_impl
@@ -107,6 +109,7 @@ from .unfold_scipy_direct_method import (
 )
 from .unfold_smt import unfold_smt as unfold_smt_impl
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
+from .unfold_staysl import unfold_staysl as unfold_staysl_impl
 from .unfold_tikhonov_legendre import (
     unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
 )
@@ -3504,6 +3507,200 @@ class Detector:
             tolerance=tolerance,
             chi_fac=chi_fac,
             relative_uncertainty=relative_uncertainty,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_crystal_ball(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        regularization: float = 0.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the CRYSTAL BALL algorithm.
+
+        CRYSTAL BALL is a direct (non-iterative) method that represents the
+        spectrum as a linear combination of the detector response functions.
+        This is an independent open-source reimplementation based on the
+        published algorithmic description; the original code is proprietary.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Unused; accepted for interface uniformity.
+        regularization : float, optional
+            Tikhonov regularization strength for the Gram-matrix inversion
+            (default: 0.0).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_crystal_ball_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_rfsp_jul(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 200,
+        tolerance: float = 1e-4,
+        weights: Optional[np.ndarray] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the RFSP-JUL algorithm.
+
+        RFSP-JUL is an iterative, damped least-squares method minimising a
+        weighted residual functional with a Marquardt-style damping term that
+        ties each iterate to the previous one. This is an independent
+        open-source reimplementation based on the published description; the
+        original code is proprietary.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 200).
+        tolerance : float, optional
+            Convergence tolerance on maximum relative spectrum change
+            (default: 1e-4).
+        weights : np.ndarray, optional
+            Per-detector weights for the residual term. None => equal weights.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_rfsp_jul_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            weights=weights,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_staysl(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        relative_uncertainty: float = 0.1,
+        prior_uncertainty: float = 1.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the STAY'SL Bayesian algorithm.
+
+        STAY'SL is a single-step linear Bayesian least-squares update that
+        refines a prior spectrum using the full measurement and prior
+        covariance information. This is an independent open-source
+        reimplementation based on the published mathematical formulation; the
+        original code is proprietary.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Prior spectrum guess. If None, a flat spectrum is used as the
+            prior mean.
+        relative_uncertainty : float, optional
+            Relative measurement uncertainty for the covariance (default: 0.1).
+        prior_uncertainty : float, optional
+            Relative prior uncertainty for the covariance (default: 1.0).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_staysl_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            relative_uncertainty=relative_uncertainty,
+            prior_uncertainty=prior_uncertainty,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

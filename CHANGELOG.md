@@ -7,6 +7,47 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.19.0] - 2026-08-27
+
+### Added
+- **Classic unfolding codes reimplemented** — three
+  historically codes from Zijp, Willem L., and Henk J. Nolthenius. Experience with 
+  neutron spectrum unfolding codes. No. ECN--105. Stichting Energieonderzoek Centrum 
+  Nederland, Petten, 1981 are now available
+  as independent, from-scratch Python reimplementations built solely from their
+  published mathematical descriptions. They are exposed as `Detector` methods
+  and exported from `bssunfold.core`:
+  - **CRYSTAL BALL** (`unfold_crystal_ball` / `solve_crystal_ball`) — a direct
+    (non-iterative) method that represents the spectrum as a linear combination
+    of the detector response functions and solves the regularized normal
+    equations `α = (R Rᵀ + λI)⁻¹ b`, then `φ = Rᵀ α`. Based on the
+    delta-operator approximation (Kam & Stallmann; 1981 review).
+  - **RFSP-JUL** (`unfold_rfsp_jul` / `solve_rfsp_jul`) — an iterative damped
+    least-squares method minimizing a weighted residual functional with a
+    Marquardt-style damping term tying each iterate to the previous one; the
+    minimizer is found from the symmetric positive-definite normal equations at
+    each step. Based on the description by Fischer.
+  - **STAY'SL** (`unfold_staysl` / `solve_staysl`) — a single-step linear
+    Bayesian least-squares update `x = x0 + Cx Aᵀ (Cb + A Cx Aᵀ)⁻¹ (b − A x0)`
+    that refines a prior spectrum using full measurement and prior covariance
+    information. Based on the Bayesian formalism of Perey.
+  - All three are documented in `docs/detector.rst` (autodoc), `docs/overview.rst`
+    (method catalogue + mermaid diagram), and the README method reference table,
+    each explicitly noted as an independent reimplementation of a proprietary
+    original. Core-solver and `Detector`-wrapper tests live in
+    `tests/test_classic_unfolders.py`.
+
+- **Two-stage hybrid `mystic` solver** — `solve_mystic_hybrid` /
+  `unfold_mystic_hybrid` is a two-stage hybrid that
+  first uses `diffev2` for global exploration of the penalized least-squares
+  objective and then refines the result with `fmin_powell` for precise local
+  convergence. It is registered in `unfold_combined` / `unfold_composite`
+  pipelines as `'mystic_hybrid'` and requires the optional `mystic` dependency
+  (`bssunfold[mystic]`). It is now listed in `docs/detector.rst` (autodoc),
+  `docs/overview.rst` (method catalogue + mermaid diagram) and the README
+  method reference table (row 66); covered by `tests/test_mystic.py`.
+
+
 ## [0.18.0] - 2026-08-24
 
 ### Added

@@ -41,7 +41,8 @@
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
   - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
-  - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
+   - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
+   - **Classic codes (independent reimplementations)**: CRYSTAL BALL (direct delta-operator), RFSP-JUL (damped least squares), STAY'SL (single-step Bayesian least squares) — reimplemented from their published algorithmic descriptions; the original codes are proprietary
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
     IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
@@ -264,6 +265,7 @@ graph TD
     A --> G[Optimization-based]
     A --> H[Pipeline]
     A --> I[Parametric]
+    A --> K[Classic codes]
 
     B --> B1[unfold_cvxpy]
     B --> B2[unfold_qpsolvers]
@@ -297,6 +299,7 @@ graph TD
     G --> G1[unfold_lmfit]
     G --> G2[unfold_scipy_direct_method]
     G --> G3[unfold_mystic]
+    G --> GH[unfold_mystic_hybrid]
     G --> G4[unfold_smt]
     G --> G5[unfold_genetic]
     G --> G6[unfold_cs]
@@ -317,6 +320,10 @@ graph TD
     I --> I7[unfold_hybrid_parametric]
     I --> I8[unfold_bayesian_parametric]
 
+    K --> K1[unfold_crystal_ball]
+    K --> K2[unfold_rfsp_jul]
+    K --> K3[unfold_staysl]
+
     style A fill:#4a90d9,color:#fff
     style B fill:#e8f0fe
     style C fill:#e8f0fe
@@ -327,6 +334,7 @@ graph TD
     style H fill:#e8f0fe
     style I fill:#e8f0fe
     style J fill:#e8f0fe
+    style K fill:#e8f0fe
 ```
 
 ### Method Reference Table
@@ -395,6 +403,10 @@ graph TD
 | 60 | `unfold_zfit` | Bayesian | `use_mcmc`, `n_samples`, `regularization`, `smoothness_weight` | zfit, tensorflow | Poisson-likelihood spectrum inference with smoothness/L2 priors via zfit (Minuit) and a SciPy fallback |
 | 61 | `unfold_cascade` | Pipeline/Ensemble | `cascade_stages`, `multi_resolution`, `coarse_bins` | — | Sequential multi-method cascade; each stage may use the previous result as an initial guess or a prior, and the cascade may stop early on a quality threshold. With `multi_resolution=True` the first stage runs on a coarse energy grid and its prolongated solution seeds the fine-grid stages |
 | 62 | `unfold_composite` | Ensemble | `n_methods`, `timeout_per_method`, `method_names`, `ensemble_weights`, `spectrum`, `energy` | — | Adaptive ensemble (stacked generalization): classifies the spectrum by hardness, runs a pool of individual methods and combines their results with confidence-weighted averaging |
+| 63 | `unfold_crystal_ball` | Classic RSICC codes | `regularization`, `noise_level` | — | CRYSTAL BALL direct (non-iterative) method: approximates the spectrum as a linear combination of the detector response functions; independent reimplementation from the published delta-operator description (original code proprietary/RSICC) |
+| 64 | `unfold_rfsp_jul` | Classic RSICC codes | `max_iterations`, `tolerance`, `weights`, `noise_level` | — | RFSP-JUL iterative damped least squares: minimises a weighted residual functional with a Marquardt-style damping term tying each iterate to the previous one; independent reimplementation (original code proprietary/RSICC) |
+| 65 | `unfold_staysl` | Classic RSICC codes | `relative_uncertainty`, `prior_uncertainty`, `noise_level` | — | STAY'SL single-step linear Bayesian least-squares update refining a prior spectrum with full measurement/prior covariance information; independent reimplementation from the published mathematical formalism (original code proprietary/RSICC) |
+| 66 | `unfold_mystic_hybrid` | Optimization | `global_solver` (diffev2), `local_solver` (fmin_powell), `global_maxiter`, `global_maxfun`, `local_maxiter`, `local_maxfun`, `npop`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `regularization_method` | mystic | Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; usable in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'` |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -820,6 +832,9 @@ bssunfold/
         │   ├── unfold_rebunki.py # ReBUNKI spectral stripping
         │   ├── unfold_reconst.py # STREG1 Fortran port
         │   ├── unfold_sandii.py # SAND-II geometric-mean ratio
+        │   ├── unfold_crystal_ball.py # CRYSTAL BALL direct delta-operator (classic code, reimplemented)
+        │   ├── unfold_rfsp_jul.py # RFSP-JUL damped least squares (classic code, reimplemented)
+        │   ├── unfold_staysl.py # STAY'SL Bayesian least squares (classic code, reimplemented)
         │   ├── unfold_sart.py   # Simultaneous Algebraic Reconstruction
         │   ├── unfold_scip.py   # SCIP Optimization Suite interface
         │   ├── unfold_scipy_direct_method.py # SciPy linear solvers
