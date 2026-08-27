@@ -200,13 +200,13 @@ class TestDetectorUnfoldMethods:
     def test_unfold_scip(self, detector, readings):
         """unfold_scip pass-through (line 1311)."""
         pytest.importorskip("pyscipopt")
-        result = detector.unfold_scip(readings, max_iterations=10)
+        result = detector.unfold_scip(readings, timeout=5.0)
         assert "spectrum" in result
 
     def test_unfold_docplex(self, detector, readings):
         """unfold_docplex pass-through (line 1399)."""
         pytest.importorskip("docplex")
-        result = detector.unfold_docplex(readings, max_iterations=10)
+        result = detector.unfold_docplex(readings, timeout=5.0)
         assert "spectrum" in result
 
     def test_unfold_interpret(self, detector, readings):
@@ -235,6 +235,7 @@ class TestDetectorUnfoldMethods:
 
     def test_unfold_maeo(self, detector, readings):
         """unfold_maeo pass-through (lines 4148-4167)."""
+        pytest.importorskip("pymoo")
         pytest.importorskip("mealpy")
         result = detector.unfold_maeo(readings, n_cycles=1, n_gen_per_cycle=2, save_result=False)
         assert "spectrum" in result or isinstance(result, dict)
