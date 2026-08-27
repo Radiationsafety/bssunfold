@@ -153,9 +153,9 @@ def run_unfolding(
         raise ValueError(
             f"noise_level must be in (0, 1] range, got {noise_level_f}"
         )
-    if not isinstance(n_montecarlo, (int, np.integer)) or n_montecarlo <= 0:
+    if not isinstance(n_montecarlo, (int, np.integer)) or n_montecarlo < 0:
         raise ValueError(
-            f"n_montecarlo must be a positive integer, got {n_montecarlo!r}"
+            f"n_montecarlo must be a non-negative integer, got {n_montecarlo!r}"
         )
 
     # 1. Build system

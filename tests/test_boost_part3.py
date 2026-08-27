@@ -632,7 +632,7 @@ class TestNewValidators:
         from bssunfold.utils.validators import validate_solver_params
 
         with pytest.raises(ValueError):
-            validate_solver_params(n_montecarlo=0)
+            validate_solver_params(n_montecarlo=-1)
 
     def test_validate_solver_params_bad_random_state(self):
         """Negative random_state raises ValueError."""
@@ -718,10 +718,10 @@ class TestBaseUnfolderValidation:
             )
 
     def test_run_unfolding_bad_montecarlo(self):
-        """Bad n_montecarlo raises ValueError."""
+        """Negative n_montecarlo raises ValueError."""
         from bssunfold.core._base_unfolder import run_unfolding
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="n_montecarlo"):
             run_unfolding(
                 detector_names=["a"],
                 n_energy_bins=10,
@@ -735,7 +735,7 @@ class TestBaseUnfolderValidation:
                 solve_func=lambda A, b, **kw: np.ones(10),
                 solve_kwargs={},
                 method_name="test",
-                n_montecarlo=0,
+                n_montecarlo=-1,
             )
 
     def test_run_unfolding_E_MeV_length_mismatch(self):
