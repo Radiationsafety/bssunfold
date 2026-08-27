@@ -30,9 +30,10 @@ categories:
        A --> I["Parametric"]
        A --> J["Krylov/hybrid"]
        A --> K["EM family"]
-        A --> L["Multi-sphere ratio"]
-        A --> M["Advanced proximal"]
-        A --> N["Evolutionary"]
+         A --> L["Multi-sphere ratio"]
+         A --> M["Advanced proximal"]
+         A --> N["Evolutionary"]
+         A --> O["Classic RSICC codes"]
 
        B --> B1["unfold_cvxpy"]
        B --> B2["unfold_qpsolvers"]
@@ -80,6 +81,7 @@ categories:
        G --> G1["unfold_lmfit"]
        G --> G2["unfold_scipy_direct_method"]
        G --> G3["unfold_mystic"]
+       G --> GH["unfold_mystic_hybrid"]
        G --> G4["unfold_smt"]
        G --> G5["unfold_genetic"]
        G --> G6["unfold_cs"]
@@ -102,7 +104,10 @@ categories:
         I --> I8["unfold_bayesian_parametric"]
         M --> M1["unfold_odl_pdhg"]
         M --> M2["unfold_odl_douglas_rachford"]
-        N --> N1["unfold_maeo"]
+         N --> N1["unfold_maeo"]
+         O --> O1["unfold_crystal_ball"]
+         O --> O2["unfold_rfsp_jul"]
+         O --> O3["unfold_staysl"]
 
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
@@ -114,8 +119,9 @@ categories:
        style H fill:#e8f0fe
         style I fill:#e8f0fe
         style J fill:#e8f0fe
-        style M fill:#e8f0fe
-        style N fill:#e8f0fe
+         style M fill:#e8f0fe
+         style N fill:#e8f0fe
+         style O fill:#e8f0fe
 
 Method Reference
 ~~~~~~~~~~~~~~~~
@@ -502,6 +508,32 @@ Method Reference
      - `n_methods`, `timeout_per_method`, `method_names`, `ensemble_weights`, `spectrum`, `energy`
      - —
      - Adaptive ensemble (stacked generalization): classifies the spectrum by hardness, runs a pool of individual methods and combines their results with confidence-weighted averaging
+   * - 63
+     - ``unfold_crystal_ball``
+     - Classic RSICC codes
+     - `regularization`, `noise_level`
+     - —
+     - CRYSTAL BALL direct (non-iterative) method: approximates the spectrum as a linear combination of the detector response functions; independent reimplementation from the published delta-operator description (the original code is proprietary/RSICC)
+   * - 64
+     - ``unfold_rfsp_jul``
+     - Classic RSICC codes
+     - `max_iterations`, `tolerance`, `weights`, `noise_level`
+     - —
+     - RFSP-JUL iterative damped least squares: minimises a weighted residual functional with a Marquardt-style damping term tying each iterate to the previous one; independent reimplementation (original code proprietary/RSICC)
+   * - 65
+     - ``unfold_staysl``
+     - Classic RSICC codes
+     - `relative_uncertainty`, `prior_uncertainty`, `noise_level`
+     - —
+     - STAY'SL single-step linear Bayesian least-squares update refining a prior spectrum with full measurement/prior covariance information; independent reimplementation from the published mathematical formalism (original code proprietary/RSICC)
+   * - 66
+     - ``unfold_mystic_hybrid``
+     - Optimization
+     - `global_solver` (diffev2), `local_solver` (fmin_powell), `global_maxiter`, `global_maxfun`, `local_maxiter`, `local_maxfun`, `npop`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `regularization_method`
+     - mystic
+     - Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; registered in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'`
+
+
 
 .. note::
 

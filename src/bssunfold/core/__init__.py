@@ -33,6 +33,7 @@ from .unfold_cascade import unfold_cascade
 from .unfold_cgls import solve_cgls, unfold_cgls
 from .unfold_combined import unfold_combined
 from .unfold_composite import unfold_composite
+from .unfold_crystal_ball import solve_crystal_ball, unfold_crystal_ball
 from .unfold_cs import solve_cs, solve_ksvd, solve_omp, solve_sl0, unfold_cs
 from .unfold_cvxpy import solve_cvxpy, unfold_cvxpy
 from .unfold_docplex import solve_docplex, unfold_docplex
@@ -86,6 +87,7 @@ from .unfold_qpsolvers import solve_qpsolvers, unfold_qpsolvers
 from .unfold_qubo import solve_qubo_unfold, unfold_qubo
 from .unfold_rebunki import solve_rebunki, unfold_rebunki
 from .unfold_reconst import solve_reconst, unfold_reconst
+from .unfold_rfsp_jul import solve_rfsp_jul, unfold_rfsp_jul
 from .unfold_sandii import solve_sandii, unfold_sandii
 from .unfold_sart import solve_sart, unfold_sart
 from .unfold_scip import solve_scip, unfold_scip
@@ -99,6 +101,7 @@ from .unfold_smt import (
     unfold_smt,
 )
 from .unfold_statreg import solve_statreg, unfold_statreg
+from .unfold_staysl import solve_staysl, unfold_staysl
 from .unfold_tikhonov_legendre import solve_tikhonov_legendre, unfold_tikhonov_legendre
 from .unfold_tikhonov_tv import solve_tikhonov_tv, unfold_tikhonov_tv
 from .unfold_tsvd import solve_tsvd, unfold_tsvd
@@ -158,6 +161,9 @@ __all__ = [
     "solve_docplex",
     "solve_cs",
     "solve_omp",
+    "solve_crystal_ball",
+    "solve_rfsp_jul",
+    "solve_staysl",
     "solve_ksvd",
     "solve_sl0",
     # unfold modules
@@ -206,6 +212,9 @@ __all__ = [
     "unfold_scip",
     "unfold_docplex",
     "unfold_cs",
+    "unfold_crystal_ball",
+    "unfold_rfsp_jul",
+    "unfold_staysl",
     "solve_epic",
     "unfold_epic",
     # ODL advanced methods

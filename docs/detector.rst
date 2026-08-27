@@ -22,6 +22,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_mystic.unfold_mystic
 
+.. autofunction:: bssunfold.core.unfold_mystic.unfold_mystic_hybrid
+
 .. autofunction:: bssunfold.core.unfold_genetic.unfold_genetic
 
 .. autofunction:: bssunfold.core.unfold_smt.unfold_smt
@@ -75,6 +77,12 @@ The following unfolding methods are available through the Detector class:
 .. autofunction:: bssunfold.core.unfold_tikhonov_tv.unfold_tikhonov_tv
 
 .. autofunction:: bssunfold.core.unfold_sandii.unfold_sandii
+
+.. autofunction:: bssunfold.core.unfold_crystal_ball.unfold_crystal_ball
+
+.. autofunction:: bssunfold.core.unfold_rfsp_jul.unfold_rfsp_jul
+
+.. autofunction:: bssunfold.core.unfold_staysl.unfold_staysl
 
 .. autofunction:: bssunfold.core.unfold_bunki.unfold_bunki
 
@@ -165,6 +173,8 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_mystic.solve_mystic
 
+.. autofunction:: bssunfold.core.unfold_mystic.solve_mystic_hybrid
+
 .. autofunction:: bssunfold.core.unfold_genetic.solve_genetic
 
 .. autofunction:: bssunfold.core.unfold_smt.solve_smt
@@ -224,6 +234,12 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_tikhonov_tv.solve_tikhonov_tv
 
 .. autofunction:: bssunfold.core.unfold_sandii.solve_sandii
+
+.. autofunction:: bssunfold.core.unfold_crystal_ball.solve_crystal_ball
+
+.. autofunction:: bssunfold.core.unfold_rfsp_jul.solve_rfsp_jul
+
+.. autofunction:: bssunfold.core.unfold_staysl.solve_staysl
 
 .. autofunction:: bssunfold.core.unfold_bunki.solve_bunki
 
