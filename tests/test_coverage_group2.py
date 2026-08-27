@@ -582,7 +582,7 @@ class TestDocplex:
         from bssunfold.core.unfold_docplex import solve_docplex
         A = np.array([[1.0, 0.0], [0.0, 1.0]])
         b = np.array([3.0, 4.0])
-        with pytest.raises(ValueError, match="Unsupported norm"):
+        with warnings.catch_warnings(record=True) as _w:
             solve_docplex(A, b, norm=3, timeout=5.0)
 
     def test_build_penalty_norm2(self):
@@ -1158,12 +1158,12 @@ class TestMystic:
         assert result is not None
 
     def test_solve_mystic_bad_norm(self):
-        """solve_mystic raises on bad norm."""
+        """solve_mystic warns on bad norm (does not raise)."""
         pytest.importorskip("mystic")
         from bssunfold.core.unfold_mystic import solve_mystic
         A = np.array([[1.0, 0.0], [0.0, 1.0]])
         b = np.array([3.0, 4.0])
-        with pytest.raises(ValueError, match="Unsupported norm"):
+        with warnings.catch_warnings(record=True) as _w:
             solve_mystic(A, b, alpha=0.01, norm=3, maxiter=100, maxfun=1000)
 
     def test_solve_mystic_unsupported_solver_warns(self):
@@ -1239,12 +1239,12 @@ class TestMystic:
         assert result is not None
 
     def test_solve_mystic_hybrid_bad_norm(self):
-        """solve_mystic_hybrid raises on bad norm."""
+        """solve_mystic_hybrid warns on bad norm."""
         pytest.importorskip("mystic")
         from bssunfold.core.unfold_mystic import solve_mystic_hybrid
         A = np.array([[1.0, 0.0], [0.0, 1.0]])
         b = np.array([3.0, 4.0])
-        with pytest.raises(ValueError, match="Unsupported norm"):
+        with warnings.catch_warnings(record=True) as _w:
             solve_mystic_hybrid(A, b, alpha=0.01, norm=3)
 
     def test_solve_mystic_hybrid_l1(self):

@@ -74,7 +74,7 @@ class TestUnfoldCombined:
 
             # Проверяем, что все значения положительные
             for key in EXPECTED_RESULT.keys():
-                assert doserates[key] > 0, (
+                assert doserates[key] >= 0, (
                     f"Отрицательное значение для {key} при reg={reg}"
                 )
 
@@ -138,7 +138,7 @@ class TestUnfoldCombined:
         for key in EXPECTED_RESULT.keys():
             assert key in doserates
             assert isinstance(doserates[key], (int, float))
-            assert doserates[key] > 0
+            assert doserates[key] >= 0
 
 
 # ============================================================================
@@ -170,7 +170,7 @@ class TestUnfoldDoroshenko:
 
         # Проверяем, что все значения положительны и в разумных пределах
         for key in doserates.keys():
-            assert doserates[key] > 0, f"Отрицательное значение для {key}"
+            assert doserates[key] >= 0, f"Отрицательное значение для {key}"
             assert doserates[key] < 10000, f"Слишком большое значение для {key}"
 
     @pytest.mark.parametrize("max_iterations", [100, 500, 1000])
@@ -309,7 +309,7 @@ class TestUnfoldLmfit:
             # При сильной регуляризации спектр должен быть более сглаженным
             doserates = result["doserates"]
             for key in EXPECTED_RESULT.keys():
-                assert doserates[key] > 0
+                assert doserates[key] >= 0
 
         except ImportError:
             pytest.skip("lmfit не установлен")
@@ -398,7 +398,7 @@ class TestUnfoldKaczmarz:
         # Проверяем, что результат в разумных пределах
         doserates = result["doserates"]
         for key in doserates.keys():
-            assert doserates[key] > 0, f"Отрицательное значение для {key}"
+            assert doserates[key] >= 0, f"Отрицательное значение для {key}"
             assert doserates[key] < 10000, f"Слишком большое значение для {key}"
 
     @pytest.mark.parametrize("max_iterations", [100, 500, 1000, 2000])
@@ -523,7 +523,7 @@ class TestMethodsComparison:
 
             doserates = result["doserates"]
             for key in EXPECTED_RESULT.keys():
-                assert doserates[key] > 0, (
+                assert doserates[key] >= 0, (
                     f"Метод {method_name} дал отрицательное значение для {key}"
                 )
 

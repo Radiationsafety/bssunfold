@@ -281,13 +281,13 @@ def _build_report(
     sections.append("")
 
     # spectrum table
+    import pandas as pd
+
     if E_MeV is not None:
         spectrum_table = {
             "energy_MeV": [float(e) for e in E_MeV],
             "spectrum": x.tolist(),
         }
-        import pandas as pd
-
         spec_df = pd.DataFrame(spectrum_table)
     else:
         spec_df = pd.DataFrame(

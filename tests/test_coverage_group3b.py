@@ -218,7 +218,7 @@ class TestDetectorUnfoldMethods:
     def test_interpret_qp_method(self, detector, readings):
         """interpret_qp method on detector (lines 2416-2432)."""
         pytest.importorskip("pyoptexplain")
-        result = detector.interpret_qp(readings, alpha=1e-4)
+        result = detector.interpret_result(readings, alpha=1e-4)
         assert "spectrum" in result
 
     def test_unfold_nsduaz(self, detector, readings):

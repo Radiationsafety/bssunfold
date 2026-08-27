@@ -1611,14 +1611,12 @@ class TestDetectorEdgeCases:
         assert "spectrum" in result
 
     def test_detector_compare_spectra_with_plot(self, detector):
-        pytest.importorskip("seaborn")
         s1 = np.ones(detector.n_energy_bins)
         s2 = np.ones(detector.n_energy_bins) * 2.0
         result = detector.compare_spectra(s1, s2, plot=True, save_to=None)
         assert isinstance(result, dict)
 
     def test_detector_compare_spectra_dataframe_plot(self, detector):
-        pytest.importorskip("seaborn")
         import pandas as pd
 
         df = pd.DataFrame({
