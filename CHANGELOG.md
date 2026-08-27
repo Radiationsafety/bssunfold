@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.19.1] - 2026-08-27
+### Fixed
+ - version in pyproject.toml
+
 ## [0.19.0] - 2026-08-27
 
 ### Added
