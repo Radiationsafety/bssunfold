@@ -348,7 +348,14 @@ if NUMBA_AVAILABLE:
 
     @njit(cache=True)
     def _bayes_inner(
-        P, b, prior, total_counts, column_sums_safe, zero_sens, max_iterations, tolerance
+        P,
+        b,
+        prior,
+        total_counts,
+        column_sums_safe,
+        zero_sens,
+        max_iterations,
+        tolerance,
     ):  # pragma: no cover
         """JIT-compiled Bayesian (D'Agostini) iteration inner loop.
 
@@ -379,7 +386,6 @@ if NUMBA_AVAILABLE:
         m = P.shape[0]
         n = P.shape[1]
         eps = 1e-300
-        eps2 = 1e-10
 
         y = total_counts * prior.copy()
         y_new = np.empty(n)
@@ -429,7 +435,7 @@ if NUMBA_AVAILABLE:
 
     @njit(cache=True)
     def _landweber_inner(
-        A, AT, x, ATb, step_size, max_iterations, tolerance
+        A, AT, b, x, ATb, step_size, max_iterations, tolerance
     ):  # pragma: no cover
         """JIT-compiled Landweber iteration inner loop.
 
@@ -439,6 +445,8 @@ if NUMBA_AVAILABLE:
             Response matrix (m x n).
         AT : np.ndarray
             Transposed response matrix (n x m).
+        b : np.ndarray
+            Measurement vector (m,).
         x : np.ndarray
             Solution vector (n,).
         ATb : np.ndarray
@@ -472,7 +480,6 @@ if NUMBA_AVAILABLE:
                     s += A[k, j] * x[j]
                 Ax[k] = s
 
-            # residual_norm = ||Ax - b|| (b is implicit from ATb computation)
             # grad = AT @ Ax - ATb
             residual_norm = 0.0
             for j in range(n):
@@ -481,9 +488,10 @@ if NUMBA_AVAILABLE:
                     s += AT[j, k] * Ax[k]
                 grad[j] = s - ATb[j]
 
-            # Compute residual norm
+            # Residual norm: ||Ax - b||
             for k in range(m):
-                residual_norm += Ax[k] * Ax[k]
+                d = Ax[k] - b[k]
+                residual_norm += d * d
             residual_norm = np.sqrt(residual_norm)
 
             if residual_norm < tolerance:

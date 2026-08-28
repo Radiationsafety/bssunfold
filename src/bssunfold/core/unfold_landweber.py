@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ..utils.validators import validate_system
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_landweber", "unfold_landweber"]
 
@@ -43,7 +43,9 @@ def solve_landweber(
     """
     import warnings
 
-    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
     x = x0.copy()
     sigma_max = np.linalg.norm(A, 2)
 
@@ -65,7 +67,12 @@ def solve_landweber(
             return _landweber_inner(
                 np.ascontiguousarray(A, dtype=np.float64),
                 np.ascontiguousarray(AT, dtype=np.float64),
-                x, ATb, step_size, max_iterations, tolerance,
+                np.ascontiguousarray(b, dtype=np.float64),
+                x,
+                ATb,
+                step_size,
+                max_iterations,
+                tolerance,
             )
     except ImportError:
         pass
