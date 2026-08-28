@@ -18,6 +18,7 @@ import numpy as np
 
 from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import create_derivative_matrix
+from ._max_energy import upper_bounds
 from .regularization import resolve_regularization_parameter
 
 __all__ = ["solve_scip", "unfold_scip"]
@@ -46,6 +47,7 @@ def solve_scip(
     smoothness_weight: float = 1.0,
     nonneg: bool = True,
     random_state: Optional[int] = None,
+    ub: Optional[np.ndarray] = None,
 ) -> Optional[np.ndarray]:
     """Solve the unfolding problem with the SCIP optimizer.
 
@@ -101,7 +103,17 @@ def solve_scip(
         model.setParam("randomization/randomseedshift", int(random_state))
 
     lb = 0.0 if nonneg else None
-    x = [model.addVar(lb=lb, name=f"x{i}") for i in range(n)]
+    ub_list = None
+    if ub is not None:
+        ub_list = [None if not np.isfinite(u) else float(u) for u in ub]
+    x = [
+        model.addVar(
+            lb=lb,
+            ub=None if ub_list is None else ub_list[i],
+            name=f"x{i}",
+        )
+        for i in range(n)
+    ]
 
     residual = quicksum(
         (b[i] - quicksum(A[i, j] * x[j] for j in range(n))) ** 2
@@ -130,7 +142,10 @@ def solve_scip(
     if best is None:
         warnings.warn(f"SCIP solver did not find a solution (status={status}).")
         return None
-    return np.array([model.getSolVal(best, xj) for xj in x])
+    result = np.array([model.getSolVal(best, xj) for xj in x])
+    if ub is not None:
+        result[ub == 0.0] = 0.0
+    return result
 
 
 def _build_penalty(
@@ -199,6 +214,7 @@ def unfold_scip(
     regularization_method: str = "manual",
     noise_var: Optional[float] = None,
     random_state: Optional[int] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Unfold a neutron spectrum using the SCIP optimizer.
 
@@ -281,6 +297,7 @@ def unfold_scip(
             smoothness_weight=smoothness_weight,
             nonneg=nonneg,
             random_state=random_state,
+            ub=upper_bounds(E_MeV, max_neutron_energy),
         )
         if x is None:
             x = np.zeros(A.shape[1])

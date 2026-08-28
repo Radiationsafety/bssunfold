@@ -12,6 +12,7 @@ from scipy.sparse import csc_matrix
 
 from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import build_smoothness_penalty
+from ._max_energy import upper_bounds
 from .regularization import resolve_regularization_parameter
 
 __all__ = ["solve_qpsolvers", "unfold_qpsolvers"]
@@ -26,6 +27,7 @@ def solve_qpsolvers(
     x0: Optional[np.ndarray] = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
+    ub: Optional[np.ndarray] = None,
 ) -> Optional[np.ndarray]:
     """Solve unfolding problem using qpsolvers.
 
@@ -82,14 +84,11 @@ def solve_qpsolvers(
         # Zeroth-order Tikhonov (identity) when no derivative penalty is requested.
         P = P_base.copy() + (pen if pen is not None else alpha * csc_matrix(np.eye(n)))
 
-        G = csc_matrix(-np.eye(n))
-        h = np.zeros(n)
-
         x = solve_qp(
             P=P,
             q=q_base,
-            G=G,
-            h=h,
+            lb=np.zeros(n),
+            ub=ub,
             solver=solver,
             initvals=x0,
             verbose=False,
@@ -104,14 +103,11 @@ def solve_qpsolvers(
         if pen is not None:
             P += pen
 
-        G = csc_matrix(-np.eye(n))
-        h = np.zeros(n)
-
         x = solve_qp(
             P=P,
             q=q,
-            G=G,
-            h=h,
+            lb=np.zeros(n),
+            ub=ub,
             solver=solver,
             initvals=x0,
             verbose=False,
@@ -123,7 +119,10 @@ def solve_qpsolvers(
         warnings.warn(f"Solver '{solver}' did not find a solution.")
         return None
 
-    return np.asarray(x)
+    x = np.asarray(x)
+    if ub is not None:
+        x[ub == 0.0] = 0.0
+    return x
 
 
 def unfold_qpsolvers(
@@ -147,6 +146,7 @@ def unfold_qpsolvers(
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
     random_state: Optional[int] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Unfold using qpsolvers with regularization selection.
 
@@ -215,6 +215,7 @@ def unfold_qpsolvers(
 
     def solve_wrapper(A, b, **kwargs):
         x0 = kwargs.pop("x0", None)
+        ub = upper_bounds(E_MeV, max_neutron_energy)
         x = solve_qpsolvers(
             A,
             b,
@@ -224,6 +225,7 @@ def unfold_qpsolvers(
             x0=x0,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            ub=ub,
         )
         if x is None:
             x = np.zeros(A.shape[1])

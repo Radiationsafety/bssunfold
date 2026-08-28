@@ -17,6 +17,7 @@ import numpy as np
 
 from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import create_derivative_matrix
+from ._max_energy import upper_bounds
 from .regularization import resolve_regularization_parameter
 
 __all__ = ["solve_docplex", "unfold_docplex"]
@@ -56,6 +57,7 @@ def solve_docplex(
     smoothness_weight: float = 1.0,
     nonneg: bool = True,
     random_state: Optional[int] = None,
+    ub: Optional[np.ndarray] = None,
 ) -> Optional[np.ndarray]:
     """Solve the unfolding problem with CPLEX (docplex).
 
@@ -109,7 +111,10 @@ def solve_docplex(
         mdl.parameters.randomseed.set(int(random_state))
 
     lb = 0 if nonneg else None
-    x = mdl.continuous_var_list(n, lb=lb, name="x")
+    ub_list = None
+    if ub is not None:
+        ub_list = [None if not np.isfinite(u) else float(u) for u in ub]
+    x = mdl.continuous_var_list(n, lb=lb, ub=ub_list, name="x")
 
     residual = [b[i] - mdl.dot(x, A[i]) for i in range(m)]
     obj = 0.5 * mdl.sum_squares(residual)
@@ -124,7 +129,10 @@ def solve_docplex(
             "CPLEX solver did not find a solution. Returning zero vector."
         )
         return None
-    return np.array([sol.get_value(xj) for xj in x])
+    result = np.array([sol.get_value(xj) for xj in x])
+    if ub is not None:
+        result[ub == 0.0] = 0.0
+    return result
 
 
 def _build_penalty(
@@ -179,6 +187,7 @@ def unfold_docplex(
     regularization_method: str = "manual",
     noise_var: Optional[float] = None,
     random_state: Optional[int] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Unfold a neutron spectrum using CPLEX (docplex).
 
@@ -263,6 +272,7 @@ def unfold_docplex(
             smoothness_weight=smoothness_weight,
             nonneg=nonneg,
             random_state=random_state,
+            ub=upper_bounds(E_MeV, max_neutron_energy),
         )
         if x is None:
             x = np.zeros(A.shape[1])

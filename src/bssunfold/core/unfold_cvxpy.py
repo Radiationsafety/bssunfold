@@ -12,6 +12,7 @@ import numpy as np
 
 from ..platform_check import get_recommended_solver
 from ._base_unfolder import _build_system, make_solve_wrapper, run_unfolding
+from ._max_energy import upper_bounds
 from .regularization import select_regularization_parameter
 
 __all__ = ["solve_cvxpy", "unfold_cvxpy"]
@@ -25,6 +26,7 @@ def _solve_cvxpy_problem(
     alpha: float,
     norm: int = 2,
     solver: str = "ECOS",
+    ub: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Solve cvxpy optimization problem."""
     try:
@@ -37,7 +39,12 @@ def _solve_cvxpy_problem(
     n = A.shape[1]
     x = cp.Variable(n, nonneg=True)
     objective = cp.Minimize(cp.norm(A @ x - b, 2) + alpha * cp.norm(x, norm))
-    problem = cp.Problem(objective)
+    constraints = []
+    if ub is not None:
+        finite = np.isfinite(ub)
+        if finite.any():
+            constraints.append(x[finite] <= ub[finite])
+    problem = cp.Problem(objective, constraints)
 
     solvers_to_try = [solver] + [
         s for s in ["ECOS", "SCS", "CLARABEL"] if s != solver
@@ -51,7 +58,10 @@ def _solve_cvxpy_problem(
                 continue
             if x.value is None:
                 continue
-            return np.asarray(x.value)
+            sol = np.asarray(x.value)
+            if ub is not None:
+                sol[ub == 0.0] = 0.0
+            return sol
         except Exception as exc:
             logger.debug("Solver %s failed: %s", s, exc)
             continue
@@ -68,6 +78,7 @@ def solve_cvxpy(
     norm: int = 2,
     solver: str = "ECOS",
     x0: Optional[np.ndarray] = None,
+    ub: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Solve unfolding problem using cvxpy.
 
@@ -91,7 +102,9 @@ def solve_cvxpy(
     np.ndarray
         Unfolded spectrum (n,).
     """
-    return _solve_cvxpy_problem(A, b, alpha=alpha, norm=norm, solver=solver)
+    return _solve_cvxpy_problem(
+        A, b, alpha=alpha, norm=norm, solver=solver, ub=ub
+    )
 
 
 def unfold_cvxpy(
@@ -113,6 +126,7 @@ def unfold_cvxpy(
     regularization_method: str = "manual",
     noise_var: Optional[float] = None,
     random_state: Optional[int] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Unfold neutron spectrum using convex optimization (cvxpy).
 
@@ -218,6 +232,7 @@ def unfold_cvxpy(
             alpha=alpha,
             norm=norm,
             solver=solver,
+            ub=upper_bounds(E_MeV, max_neutron_energy),
         ),
         solve_kwargs={},
         method_name="cvxpy",

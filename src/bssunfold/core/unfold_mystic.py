@@ -19,6 +19,7 @@ import numpy as np
 
 from ._base_unfolder import _build_system, make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
+from ._max_energy import upper_bounds
 from .regularization import select_regularization_parameter
 
 __all__ = [
@@ -52,15 +53,26 @@ def _nonneg_condition(x: np.ndarray) -> float:
 
 
 def _build_bounds(
-    A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]
+    A: np.ndarray,
+    b: np.ndarray,
+    x0: Optional[np.ndarray],
+    ub_cutoff: Optional[np.ndarray] = None,
 ) -> list:
-    """Build non-negativity bounds for population-based solvers."""
+    """Build non-negativity bounds for population-based solvers.
+
+    When ``ub_cutoff`` is provided (the per-bin upper bound derived from
+    ``max_neutron_energy``), each bin's upper bound is the minimum of the
+    automatically derived scale and the cutoff (``0.0`` for bins above the
+    maximum neutron energy).
+    """
     n = A.shape[1]
     x0_arr = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float)
     col_norm = float(np.max(np.linalg.norm(A, axis=0))) or 1.0
     scale = float(np.max(np.abs(b))) / max(col_norm, 1e-12)
     ub = np.maximum(2.0 * np.abs(x0_arr), scale)
     ub = np.maximum(ub, 1e-3)
+    if ub_cutoff is not None:
+        ub = np.minimum(ub, np.asarray(ub_cutoff, dtype=float))
     return [(0.0, float(ub_i)) for ub_i in ub]
 
 
@@ -75,6 +87,8 @@ def solve_mystic(
     maxfun: Optional[int] = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
+    E_MeV: Optional[np.ndarray] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> np.ndarray:
     """Solve unfolding problem using mystic.
 
@@ -153,6 +167,12 @@ def solve_mystic(
     if x0 is not None:
         x0_arr = np.maximum(np.asarray(x0, dtype=float), 0)
 
+    ub_cutoff = (
+        upper_bounds(E_MeV, max_neutron_energy)
+        if max_neutron_energy is not None
+        else None
+    )
+
     kw = {"disp": 0, "penalty": penalty}
     if maxiter is not None:
         kw["maxiter"] = maxiter
@@ -162,7 +182,7 @@ def solve_mystic(
     try:
         solver_func = _solver_function(solver)
         if solver in ("diffev", "diffev2"):
-            kw["bounds"] = _build_bounds(A, b, x0_arr)
+            kw["bounds"] = _build_bounds(A, b, x0_arr, ub_cutoff=ub_cutoff)
         result = solver_func(cost, x0_arr, **kw)
     except Exception as exc:
         warnings.warn(
@@ -170,7 +190,10 @@ def solve_mystic(
         )
         return np.zeros(n)
 
-    return np.asarray(result, dtype=float)
+    result = np.asarray(result, dtype=float)
+    if ub_cutoff is not None:
+        result[ub_cutoff == 0.0] = 0.0
+    return result
 
 
 def unfold_mystic(
@@ -196,6 +219,7 @@ def unfold_mystic(
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
     random_state: Optional[int] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Unfold using mystic with regularization selection.
 
@@ -322,6 +346,8 @@ def unfold_mystic(
             maxfun=maxfun,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            E_MeV=E_MeV,
+            max_neutron_energy=max_neutron_energy,
         ),
         solve_kwargs={},
         method_name=f"mystic_{solver}",
@@ -357,6 +383,8 @@ def solve_mystic_hybrid(
     npop: Optional[int] = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
+    E_MeV: Optional[np.ndarray] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> np.ndarray:
     """Two-stage hybrid solver: global search then local refinement.
 
@@ -480,6 +508,12 @@ def solve_mystic_hybrid(
     if x0 is not None:
         x0_arr = np.maximum(np.asarray(x0, dtype=float), 0)
 
+    ub_cutoff = (
+        upper_bounds(E_MeV, max_neutron_energy)
+        if max_neutron_energy is not None
+        else None
+    )
+
     # ============================================================
     # Stage 1: Global search with population-based solver
     # ============================================================
@@ -488,7 +522,7 @@ def solve_mystic_hybrid(
 
     try:
         solver_func = _solver_function(global_solver)
-        bounds = _build_bounds(A, b, x0_arr)
+        bounds = _build_bounds(A, b, x0_arr, ub_cutoff=ub_cutoff)
         x_global = np.asarray(
             solver_func(
                 cost,
@@ -535,16 +569,20 @@ def solve_mystic_hybrid(
         )
         return np.maximum(x_global, 0.0)
 
-    # Return the best of the two stages
+    # Combine the two stages, then enforce the maximum-energy cutoff.
     if local_cost <= global_cost:
-        return np.maximum(x_local, 0.0)
+        result = np.maximum(x_local, 0.0)
     else:
         warnings.warn(
             "Hybrid local stage did not improve upon global result. "
             f"Global cost: {global_cost:.6e}, local cost: {local_cost:.6e}. "
             "Returning global stage result."
         )
-        return np.maximum(x_global, 0.0)
+        result = np.maximum(x_global, 0.0)
+
+    if ub_cutoff is not None:
+        result[ub_cutoff == 0.0] = 0.0
+    return result
 
 
 def unfold_mystic_hybrid(
@@ -574,6 +612,7 @@ def unfold_mystic_hybrid(
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
     random_state: Optional[int] = None,
+    max_neutron_energy: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Two-stage hybrid unfolding: global search + local refinement.
 
@@ -724,6 +763,8 @@ def unfold_mystic_hybrid(
             npop=npop,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            E_MeV=E_MeV,
+            max_neutron_energy=max_neutron_energy,
         ),
         solve_kwargs={},
         method_name=f"mystic_hybrid_{global_solver}_{local_solver}",
