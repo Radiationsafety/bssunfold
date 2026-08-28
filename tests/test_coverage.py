@@ -2521,3 +2521,128 @@ class TestComparisonCoverage:
             with patch.object(nj, "_dose_weighted_mse_jit", return_value=0.1):
                 result = dose_weighted_error(s1, s2, e, cc)
         assert result == pytest.approx(0.1)
+
+
+# ============================================================================
+# max_neutron_energy cutoff (all unfold_* methods)
+# ============================================================================
+
+
+class TestMaxNeutronEnergy:
+    """Spectrum must not be built above ``max_neutron_energy``."""
+
+    @staticmethod
+    def _readings(detector, true_spectrum):
+        return {
+            name: float(np.dot(detector.sensitivities[name], true_spectrum))
+            for name in detector.detector_names
+        }
+
+    def _make_detector(self):
+        from bssunfold import Detector
+
+        return Detector()
+
+    @pytest.mark.parametrize(
+        "method",
+        ["cvxpy", "qpsolvers", "mlem", "landweber", "genetic"],
+    )
+    def test_spectrum_zero_above_emax(self, method):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        fn = getattr(det, f"unfold_{method}")
+        kw = {}
+        if method == "genetic":
+            kw = dict(epoch=30, pop_size=20, n_montecarlo=0)
+        result = fn(readings, max_neutron_energy=Emax, **kw)
+
+        assert len(result["spectrum"]) == n
+        assert len(result["energy"]) == n
+        above = result["spectrum"][det.E_MeV > Emax]
+        assert np.allclose(above, 0.0)
+        # Below the cutoff there should be non-negative unfolded fluence.
+        assert np.all(result["spectrum"][det.E_MeV <= Emax] >= -1e-9)
+
+    def test_default_no_cutoff_full_grid(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.ones(n)
+        readings = self._readings(det, true)
+
+        r_none = det.unfold_cvxpy(readings, max_neutron_energy=None)
+        r_default = det.unfold_cvxpy(readings)
+        assert np.allclose(r_none["spectrum"], r_default["spectrum"])
+        assert len(r_none["spectrum"]) == n
+
+    def test_dose_rates_consistent_with_cutoff(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.unfold_qpsolvers(readings, max_neutron_energy=Emax)
+        # Dose rates dict must be present and finite.
+        assert "doserates" in result
+        for v in result["doserates"].values():
+            assert np.isfinite(v)
+        # Effective readings / residual recomputed on full grid.
+        assert np.allclose(
+            np.array(list(result["effective_readings"].values())),
+            np.array(
+                [det.sensitivities[name] @ result["spectrum"]
+                 for name in result["effective_readings"]]
+            ),
+        )
+
+    def test_montecarlo_expanded_to_full_grid(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.unfold_qpsolvers(
+            readings, max_neutron_energy=Emax,
+            calculate_errors=True, n_montecarlo=10, noise_level=0.01,
+        )
+        assert "spectrum_uncert_mean" in result
+        assert len(result["spectrum_uncert_mean"]) == n
+        assert np.allclose(
+            result["spectrum_uncert_mean"][det.E_MeV > Emax], 0.0
+        )
+
+    def test_interpret_result_cutoff(self):
+        pytest.importorskip("pyoptexplain")
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.interpret_result(readings, max_neutron_energy=Emax)
+        assert len(result["spectrum"]) == n
+        assert np.allclose(result["spectrum"][det.E_MeV > Emax], 0.0)
+
+    def test_maeo_cutoff(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.unfold_maeo(
+            readings, max_neutron_energy=Emax,
+            n_cycles=2, n_gen_per_cycle=5, pop_size=20,
+        )
+        assert len(result["spectrum"]) == n
+        assert np.allclose(result["spectrum"][det.E_MeV > Emax], 0.0)

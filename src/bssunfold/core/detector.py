@@ -569,6 +569,102 @@ class Detector:
             for key, value in readings.items()
         }
 
+    def _max_energy_mask(self, max_neutron_energy: Optional[float]) -> np.ndarray:
+        """Boolean mask of energy bins with ``E_MeV <= max_neutron_energy``.
+
+        Returns an all-True mask when ``max_neutron_energy`` is ``None``
+        (i.e. no upper cutoff is applied and the full grid is used).
+        """
+        if max_neutron_energy is None:
+            return np.ones(self.n_energy_bins, dtype=bool)
+        return self.E_MeV <= float(max_neutron_energy)
+
+    def _subdetector(self, mask: np.ndarray) -> "Detector":
+        """Return a new Detector restricted to the bins selected by ``mask``."""
+        sub = Detector(
+            E_MeV=self.E_MeV[mask],
+            sensitivities={
+                k: v[mask] for k, v in self.sensitivities.items()
+            },
+            cc_type=self.cc_type,
+        )
+        return sub
+
+    def _expand_result(
+        self,
+        result: Dict[str, Any],
+        mask: np.ndarray,
+        readings: Dict[str, float],
+    ) -> Dict[str, Any]:
+        """Expand a reduced-grid unfolding result back to the full energy grid.
+
+        Bins excluded by ``mask`` (i.e. ``E_MeV > max_neutron_energy``) are set
+        to zero. Dose rates, effective readings and the residual are recomputed
+        on the full grid so that all downstream quantities stay consistent.
+        When ``mask`` is all ``True`` (no cutoff) the result is left unchanged
+        apart from a consistent recomputation of the derived quantities.
+        """
+        from .dose_calculation import calculate_dose_rates
+
+        if result is None:
+            return None
+
+        n_full = self.n_energy_bins
+        n_active = int(mask.sum())
+        spectrum_keys = (
+            "spectrum",
+            "spectrum_absolute",
+            "spectrum_uncert_mean",
+            "spectrum_uncert_std",
+            "spectrum_uncert_min",
+            "spectrum_uncert_max",
+            "spectrum_uncert_median",
+            "spectrum_uncert_percentile_5",
+            "spectrum_uncert_percentile_95",
+        )
+        if n_active != n_full:
+            for key in spectrum_keys:
+                val = result.get(key)
+                if isinstance(val, np.ndarray) and val.shape[0] == n_active:
+                    full = np.zeros(n_full, dtype=float)
+                    full[mask] = np.asarray(val, dtype=float)
+                    result[key] = full
+            all_samples = result.get("spectrum_uncert_all")
+            if isinstance(all_samples, np.ndarray) and all_samples.ndim == 2:
+                if all_samples.shape[1] == n_active:
+                    full = np.zeros((all_samples.shape[0], n_full), dtype=float)
+                    full[:, mask] = all_samples
+                    result["spectrum_uncert_all"] = full
+
+        spectrum = result.get("spectrum")
+        if spectrum is None:
+            return result
+
+        spectrum = np.asarray(spectrum, dtype=float)
+        result["energy"] = self.E_MeV.copy()
+
+        eff = result.get("effective_readings")
+        if isinstance(eff, dict) and eff:
+            selected = list(eff.keys())
+            A = np.array(
+                [self.sensitivities[name] for name in selected], dtype=float
+            )
+            b_measured = np.array(
+                [readings[name] for name in selected], dtype=float
+            )
+            computed = A @ spectrum
+            result["effective_readings"] = {
+                name: float(v) for name, v in zip(selected, computed)
+            }
+            residual = b_measured - computed
+            result["residual"] = residual
+            result["residual_norm"] = float(np.linalg.norm(residual))
+
+        result["doserates"] = calculate_dose_rates(
+            spectrum, self._get_interpolated_cc()
+        )
+        return result
+
     # Public methods delegated to unfolding modules
     def unfold_cvxpy(
         self,
@@ -584,6 +680,7 @@ class Detector:
         regularization_method: str = "manual",
         noise_var: Optional[float] = None,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using convex optimization (cvxpy).
 
@@ -619,12 +716,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_cvxpy_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_cvxpy_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -639,6 +738,7 @@ class Detector:
             noise_var=noise_var,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_landweber(
         self,
@@ -651,6 +751,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using Landweber iteration method.
 
@@ -680,12 +781,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_landweber_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_landweber_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -697,6 +800,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_mlem(
         self,
@@ -709,6 +813,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using MLEM algorithm.
 
@@ -738,12 +843,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_mlem_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mlem_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -755,6 +862,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_qpsolvers(
         self,
@@ -772,6 +880,7 @@ class Detector:
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using qpsolvers with regularization selection.
 
@@ -812,12 +921,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_qpsolvers_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_qpsolvers_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -834,6 +945,7 @@ class Detector:
             smoothness_weight=smoothness_weight,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_mystic(
         self,
@@ -853,6 +965,7 @@ class Detector:
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using mystic with regularization selection.
 
@@ -901,12 +1014,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_mystic_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mystic_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -925,6 +1040,7 @@ class Detector:
             smoothness_weight=smoothness_weight,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_mystic_hybrid(
         self,
@@ -948,6 +1064,7 @@ class Detector:
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Two-stage hybrid unfolding: global search + local refinement.
 
@@ -1008,12 +1125,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_mystic_hybrid_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mystic_hybrid_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1036,6 +1155,7 @@ class Detector:
             smoothness_weight=smoothness_weight,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_genetic(
         self,
@@ -1065,6 +1185,7 @@ class Detector:
         save_result: bool = False,
         random_state: Optional[int] = None,
         verbose: bool = False,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using a meta-heuristic (evolutionary) algorithm.
 
@@ -1146,12 +1267,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_genetic_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_genetic_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1180,6 +1303,7 @@ class Detector:
             random_state=random_state,
             verbose=verbose,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_smt(
         self,
@@ -1193,6 +1317,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold a neutron spectrum using an SMT solver.
 
@@ -1229,12 +1354,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_smt_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_smt_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1247,6 +1374,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_scip(
         self,
@@ -1265,6 +1393,7 @@ class Detector:
         regularization_method: str = "manual",
         noise_var: Optional[float] = None,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold a neutron spectrum using the SCIP optimizer.
 
@@ -1311,12 +1440,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_scip_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_scip_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1334,6 +1465,7 @@ class Detector:
             noise_var=noise_var,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_docplex(
         self,
@@ -1352,6 +1484,7 @@ class Detector:
         regularization_method: str = "manual",
         noise_var: Optional[float] = None,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold a neutron spectrum using CPLEX (docplex).
 
@@ -1399,12 +1532,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_docplex_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_docplex_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1422,6 +1557,7 @@ class Detector:
             noise_var=noise_var,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_cs(
         self,
@@ -1442,6 +1578,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Compressive Sensing (CS).
 
@@ -1493,12 +1630,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_cs_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_cs_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1518,6 +1657,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_reconst(
         self,
@@ -1531,6 +1671,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Turchin's statistical regularization.
 
@@ -1567,12 +1708,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_reconst_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_reconst_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1585,6 +1728,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_lmfit(
         self,
@@ -1604,6 +1748,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
 
@@ -1654,12 +1799,14 @@ class Detector:
         Dict[str, Any]
             Dictionary containing unfolding results.
         """
-        return unfold_lmfit_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_lmfit_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1678,6 +1825,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_mlem_odl(
         self,
@@ -1690,6 +1838,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using MLEM with ODL (Operator Discretization Library).
 
@@ -1721,12 +1870,14 @@ class Detector:
         Dict
             Dictionary containing the spectrum restoration results.
         """
-        return unfold_mlem_odl_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mlem_odl_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1738,6 +1889,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_imaxed(
         self,
@@ -1752,14 +1904,17 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using the IMAXED algorithm (Wong 2024)."""
-        return unfold_imaxed_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_imaxed_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1773,6 +1928,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_amaxed(
         self,
@@ -1788,14 +1944,17 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using the AMAXED algorithm (Wong 2024)."""
-        return unfold_amaxed_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_amaxed_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1810,6 +1969,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_amaxed_regularization(
         self,
@@ -1825,14 +1985,17 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using the AMAXED-Regularization algorithm (Wong 2024)."""
-        return unfold_amaxed_regularization_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_amaxed_regularization_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1847,6 +2010,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_odl_pdhg(
         self,
@@ -1863,14 +2027,17 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using the Primal-Dual Hybrid Gradient (PDHG) algorithm."""
-        return unfold_odl_pdhg_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_odl_pdhg_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1886,6 +2053,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_odl_douglas_rachford(
         self,
@@ -1900,14 +2068,17 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using Douglas-Rachford splitting."""
-        return unfold_odl_douglas_rachford_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_odl_douglas_rachford_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1921,6 +2092,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_qubo(
         self,
@@ -1937,14 +2109,17 @@ class Detector:
         n_montecarlo: int = 50,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using a QUBO formulation with quantum-inspired annealing."""
-        return unfold_qubo_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_qubo_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1960,6 +2135,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_zfit(
         self,
@@ -1975,14 +2151,17 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using zfit Bayesian inference."""
-        return unfold_zfit_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_zfit_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -1997,6 +2176,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_mlem_stop(
         self,
@@ -2010,6 +2190,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold using MLEM-STOP with J-factor early stopping criterion.
 
@@ -2046,12 +2227,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_mlem_stop_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mlem_stop_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2064,6 +2247,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_epic(
         self,
@@ -2086,6 +2270,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold a neutron spectrum using EPIC Tikhonov regularization.
 
@@ -2147,12 +2332,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
         """
-        return unfold_epic_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_epic_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2174,6 +2361,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_combined(
         self,
@@ -2181,6 +2369,7 @@ class Detector:
         pipeline: List[Dict[str, Any]],
         calculate_errors: bool = False,
         verbose: bool = True,
+        max_neutron_energy: Optional[float] = None,
     ) -> Optional[Dict[str, Any]]:
         """Combined unfolding method applying multiple methods sequentially.
 
@@ -2200,18 +2389,21 @@ class Detector:
         Dict
             Dictionary with unfolding results.
         """
-        return unfold_combined_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_combined_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             pipeline=pipeline,
             calculate_errors=calculate_errors,
             verbose=verbose,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_cascade(
         self,
@@ -2222,6 +2414,7 @@ class Detector:
         save_result: bool = False,
         multi_resolution: bool = False,
         coarse_bins: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Cascade unfolding with sequential method refinement.
 
@@ -2233,7 +2426,9 @@ class Detector:
         seeds the fine-grid stages. See
         :func:`bssunfold.core.unfold_cascade.unfold_cascade`.
         """
-        return unfold_cascade_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_cascade_impl(
             self,
             readings,
             cascade_stages=cascade_stages,
@@ -2243,6 +2438,7 @@ class Detector:
             multi_resolution=multi_resolution,
             coarse_bins=coarse_bins,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_composite(
         self,
@@ -2254,6 +2450,7 @@ class Detector:
         energy: Optional[np.ndarray] = None,
         method_names: Optional[List[str]] = None,
         ensemble_weights: Optional[Dict[str, float]] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Adaptive ensemble of unfolding methods with confidence-weighted combination.
 
@@ -2261,7 +2458,9 @@ class Detector:
         individual methods, and combines their results. See
         :func:`bssunfold.core.unfold_composite.unfold_composite`.
         """
-        return unfold_composite_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_composite_impl(
             self,
             readings,
             n_methods=n_methods,
@@ -2272,6 +2471,7 @@ class Detector:
             method_names=method_names,
             ensemble_weights=ensemble_weights,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_interpret(
         self,
@@ -2292,6 +2492,7 @@ class Detector:
         random_state: Optional[int] = None,
         tolerance: float = 1e-8,
         interpret_options: Optional[Dict[str, Any]] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold a neutron spectrum and interpret the solution with pyoptexplain.
 
@@ -2348,12 +2549,14 @@ class Detector:
             Standardized unfolding result plus ``report`` and
             ``interpretation_metrics`` keys.
         """
-        return unfold_interpret_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interpret_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2373,6 +2576,7 @@ class Detector:
             tolerance=tolerance,
             interpret_options=interpret_options,
         )
+        return self._expand_result(result, mask, readings)
 
     def interpret_result(
         self,
@@ -2383,6 +2587,7 @@ class Detector:
         smoothness_weight: float = 1.0,
         enforce_norm: bool = False,
         norm_value: float = 1.0,
+        max_neutron_energy: Optional[float] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Interpret a set of detector readings without unfolding.
@@ -2407,6 +2612,9 @@ class Detector:
             Add ``sum(x) == norm_value`` (default: False).
         norm_value : float, optional
             Target total fluence (default: 1.0).
+        max_neutron_energy : float, optional
+            Maximum neutron energy (MeV). Bins with ``E_MeV >
+            max_neutron_energy`` are excluded from the interpretation.
         **kwargs
             Extra keyword arguments forwarded to :func:`interpret_qp`.
 
@@ -2416,9 +2624,12 @@ class Detector:
             Dictionary with ``report``, ``metrics``, ``tables`` and
             ``spectrum`` keys.
         """
+        mask = self._max_energy_mask(max_neutron_energy)
         A, b, selected = _build_system(
             readings, self.detector_names, self.sensitivities
         )
+        if not mask.all():
+            A = A[:, mask]
         result = interpret_qp_impl(
             A,
             b,
@@ -2428,15 +2639,18 @@ class Detector:
             smoothness_weight=smoothness_weight,
             enforce_norm=enforce_norm,
             norm_value=norm_value,
-            E_MeV=self.E_MeV,
+            E_MeV=self.E_MeV[mask],
             detector_names=selected,
             **kwargs,
         )
+        spectrum = np.asarray(result.spectrum, dtype=float)
+        full_spectrum = np.zeros(self.n_energy_bins, dtype=float)
+        full_spectrum[mask] = spectrum
         return {
             "report": result.report,
             "metrics": result.metrics,
             "tables": result.tables,
-            "spectrum": np.asarray(result.spectrum, dtype=float),
+            "spectrum": full_spectrum,
         }
 
     # Utility methods
@@ -2543,6 +2757,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the Doroshenko coordinate update method.
 
@@ -2574,12 +2789,14 @@ class Detector:
         Dict[str, Any]
             Dictionary containing unfolding results.
         """
-        return unfold_doroshenko_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_doroshenko_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2592,6 +2809,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_kaczmarz(
         self,
@@ -2605,6 +2823,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the Kaczmarz algorithm (ART).
 
@@ -2636,12 +2855,14 @@ class Detector:
         Dict[str, Any]
             Dictionary containing unfolding results.
         """
-        return unfold_kaczmarz_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_kaczmarz_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2654,6 +2875,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_gravel(
         self,
@@ -2667,6 +2889,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the GRAVEL algorithm.
 
@@ -2698,12 +2921,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_gravel_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_gravel_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2716,6 +2941,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_maxed(
         self,
@@ -2729,6 +2955,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the MAXED algorithm.
 
@@ -2760,12 +2987,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_maxed_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_maxed_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2778,6 +3007,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_tikhonov_legendre(
         self,
@@ -2790,6 +3020,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Tikhonov regularization with Legendre basis.
 
@@ -2819,12 +3050,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_tikhonov_legendre_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_tikhonov_legendre_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2836,6 +3069,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_bayes(
         self,
@@ -2848,6 +3082,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Bayesian iterative unfolding (D'Agostini).
 
@@ -2877,12 +3112,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_bayes_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_bayes_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2894,6 +3131,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_bayes_spline_regularization(
         self,
@@ -2908,6 +3146,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Bayesian iterative unfolding with
         spline regularization.
@@ -2942,12 +3181,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_bayes_spline_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_bayes_spline_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -2961,6 +3202,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_statreg(
         self,
@@ -2976,6 +3218,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Turchin's method of statistical regularization.
 
@@ -3012,12 +3255,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_statreg_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_statreg_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3032,6 +3277,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_scipy_direct_method(
         self,
@@ -3045,6 +3291,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using scipy linear solvers.
 
@@ -3076,12 +3323,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_scipy_direct_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_scipy_direct_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3094,6 +3343,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_tsvd(
         self,
@@ -3107,6 +3357,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Truncated SVD (TSVD).
 
@@ -3139,12 +3390,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_tsvd_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_tsvd_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3157,6 +3410,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_lanczos(
         self,
@@ -3170,6 +3424,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the Lanczos-hybrid (Krylov) method.
 
@@ -3211,12 +3466,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_lanczos_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_lanczos_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3229,6 +3486,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_cgls(
         self,
@@ -3243,6 +3501,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the CGLS iterative method.
 
@@ -3287,12 +3546,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_cgls_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_cgls_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3306,6 +3567,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_gks(
         self,
@@ -3320,6 +3582,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the GKS Krylov-hybrid method.
 
@@ -3365,12 +3628,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_gks_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_gks_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3384,6 +3649,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_tikhonov_tv(
         self,
@@ -3401,6 +3667,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum with noise-constrained Tikhonov-TV.
 
@@ -3451,12 +3718,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_tikhonov_tv_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_tikhonov_tv_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3473,6 +3742,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_sandii(
         self,
@@ -3487,6 +3757,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the SAND-II algorithm.
 
@@ -3523,12 +3794,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_sandii_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_sandii_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3542,6 +3815,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_crystal_ball(
         self,
@@ -3553,6 +3827,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the CRYSTAL BALL algorithm.
 
@@ -3586,12 +3861,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_crystal_ball_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_crystal_ball_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3602,6 +3879,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_rfsp_jul(
         self,
@@ -3615,6 +3893,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the RFSP-JUL algorithm.
 
@@ -3653,12 +3932,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_rfsp_jul_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_rfsp_jul_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3671,6 +3952,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_staysl(
         self,
@@ -3683,6 +3965,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the STAY'SL Bayesian algorithm.
 
@@ -3719,12 +4002,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_staysl_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_staysl_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3736,6 +4021,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_bunki(
         self,
@@ -3749,6 +4035,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the BUNKI (SPUNIT) algorithm.
 
@@ -3780,12 +4067,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_bunki_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_bunki_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3798,6 +4087,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_bunkiut(
         self,
@@ -3811,6 +4101,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the BUNKI-UT (BON31G) algorithm.
 
@@ -3842,12 +4133,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_bunkiut_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_bunkiut_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3860,6 +4153,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_ferdor(
         self,
@@ -3875,6 +4169,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the FERDOR algorithm.
 
@@ -3917,12 +4212,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_ferdor_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_ferdor_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -3937,6 +4234,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_rebunki(
         self,
@@ -3950,6 +4248,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the ReBUNKI (SPUNIT) algorithm.
 
@@ -3986,12 +4285,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_rebunki_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_rebunki_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4004,6 +4305,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_nsduaz(
         self,
@@ -4020,6 +4322,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the NSDUAZ algorithm.
 
@@ -4069,12 +4372,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_nsduaz_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_nsduaz_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4090,6 +4395,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_mcmc(
         self,
@@ -4109,6 +4415,7 @@ class Detector:
         save_result: bool = False,
         random_state: Optional[int] = None,
         progressbar: bool = False,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Bayesian MCMC with NUTS sampler.
 
@@ -4181,12 +4488,14 @@ class Detector:
         RuntimeError
             If MCMC sampling fails.
         """
-        return unfold_mcmc_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mcmc_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4205,6 +4514,7 @@ class Detector:
             random_state=random_state,
             progressbar=progressbar,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_maeo(
         self,
@@ -4220,6 +4530,7 @@ class Detector:
         seed: Optional[int] = None,
         verbose: bool = False,
         save_result: bool = False,
+        max_neutron_energy: Optional[float] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using MAEO ensemble optimization.
@@ -4342,8 +4653,10 @@ class Detector:
         ...     verbose=True,
         ... )
         """
+        mask = self._max_energy_mask(max_neutron_energy)
+        detector = self._subdetector(mask) if not mask.all() else self
         result = unfold_maeo_impl(
-            detector=self,
+            detector=detector,
             readings=readings,
             n_cycles=n_cycles,
             n_gen_per_cycle=n_gen_per_cycle,
@@ -4357,6 +4670,9 @@ class Detector:
             verbose=verbose,
             **kwargs,
         )
+
+        if not mask.all():
+            result = self._expand_result(result, mask, readings)
 
         if save_result:
             self._save_result(result)
@@ -4375,6 +4691,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the OSEM algorithm.
 
@@ -4407,12 +4724,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_osem_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_osem_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4425,6 +4744,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_mapem(
         self,
@@ -4441,6 +4761,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using penalised EM (MAP-EM).
 
@@ -4481,12 +4802,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_mapem_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mapem_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4502,6 +4825,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_bsrem(
         self,
@@ -4521,6 +4845,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the BSREM algorithm.
 
@@ -4567,12 +4892,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_bsrem_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_bsrem_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4591,6 +4918,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_sart(
         self,
@@ -4604,6 +4932,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the SART algorithm.
 
@@ -4635,12 +4964,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_sart_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_sart_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4653,6 +4984,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_fista(
         self,
@@ -4672,6 +5004,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using FISTA algorithm.
 
@@ -4722,12 +5055,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_fista_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_fista_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4746,6 +5081,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_ensemble(
         self,
@@ -4760,6 +5096,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using ensemble method.
 
@@ -4799,12 +5136,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_ensemble_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_ensemble_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4818,6 +5157,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_iterative_refinement(
         self,
@@ -4832,6 +5172,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using iterative refinement.
 
@@ -4868,12 +5209,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_iterative_refinement_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_iterative_refinement_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4887,6 +5230,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_hybrid_gmres(
         self,
@@ -4902,6 +5246,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Hybrid GMRES method.
 
@@ -4945,12 +5290,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_hybrid_gmres_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_hybrid_gmres_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -4965,6 +5312,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_fruit_like(
         self,
@@ -4977,6 +5325,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using FRUIT-like parametric method.
 
@@ -5010,12 +5359,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_fruit_like_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_fruit_like_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -5027,6 +5378,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_hybrid_parametric(
         self,
@@ -5041,6 +5393,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using hybrid parametric-nonparametric method.
 
@@ -5077,12 +5430,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_hybrid_parametric_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_hybrid_parametric_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -5096,6 +5451,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_bayesian_parametric(
         self,
@@ -5110,6 +5466,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using Bayesian parametric method.
 
@@ -5146,12 +5503,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_bayesian_parametric_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_bayesian_parametric_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -5165,6 +5524,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_parametric(
         self,
@@ -5183,6 +5543,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Unfold neutron spectrum using the FRUIT-based parametric method.
 
@@ -5238,12 +5599,14 @@ class Detector:
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_parametric_impl(
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_parametric_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -5261,6 +5624,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_parametric2(
         self,
