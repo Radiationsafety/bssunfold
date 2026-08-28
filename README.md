@@ -16,7 +16,7 @@
 
 ## 🔍 Overview
 
-**BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities. Iterative solvers are accelerated with Numba JIT compilation for 3–50x speedups.
+**BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities. Iterative solvers are accelerated with Numba JIT compilation (Landweber, D'Agostini Bayes, Doroshenko, Kaczmarz, MLEM, GRAVEL) for 3–50x speedups.
 
 ![logo](assets/bssunfold_logo.png)
 
@@ -51,10 +51,11 @@
   - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
   - **Advanced Proximal**: ODL PDHG, ODL Douglas-Rachford (Total Variation regularization)
   - **Pipeline**: Combined approach for chaining multiple methods
+  - **Ensemble & Refinement**: Ensemble (robust combination of base solvers via weighted average, median, trimmed mean, or best residual) and Iterative refinement (two-pass unfold with an auto-selected blending factor)
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
 - **Numba JIT-Accelerated Iterative Solvers**:
-  - `@njit(cache=True)` compiled inner loops for Doroshenko, Kaczmarz, MLEM, GRAVEL
+  - `@njit(cache=True)` compiled inner loops for Landweber, D'Agostini Bayes, Doroshenko, Kaczmarz, MLEM, GRAVEL
   - 3–50x speedup on iterative solvers (see [Performance](#-performance))
   - Automatic disk caching of compiled code; graceful fallback when numba is not installed
 
@@ -310,6 +311,8 @@ graph TD
     H --> H1[unfold_combined]
     H --> H2[unfold_cascade]
     H --> H3[unfold_composite]
+    H --> H4[unfold_ensemble]
+    H --> H5[unfold_iterative_refinement]
 
     I --> I1[unfold_parametric]
     I --> I2[unfold_parametric_cvxpy]

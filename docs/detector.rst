@@ -156,6 +156,10 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_composite.unfold_composite
 
+.. autofunction:: bssunfold.core.unfold_ensemble.unfold_ensemble
+
+.. autofunction:: bssunfold.core.unfold_iterative_refinement.unfold_iterative_refinement
+
 Core Functions
 ==============
 

@@ -93,6 +93,8 @@ categories:
         H --> H1["unfold_combined"]
         H --> H2["unfold_cascade"]
         H --> H3["unfold_composite"]
+        H --> H4["unfold_ensemble"]
+        H --> H5["unfold_iterative_refinement"]
 
        I --> I1["unfold_parametric"]
        I --> I2["unfold_parametric_cvxpy"]
@@ -531,7 +533,19 @@ Method Reference
      - Optimization
      - `global_solver` (diffev2), `local_solver` (fmin_powell), `global_maxiter`, `global_maxfun`, `local_maxiter`, `local_maxfun`, `npop`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `regularization_method`
      - mystic
-     - Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; registered in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'`
+      - Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; registered in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'`
+    * - 67
+      - ``unfold_ensemble``
+      - Ensemble
+      - `methods`, `weights`, `combination` (weighted_average/median/trimmed_mean/best_residual), `trim_fraction`
+      - —
+      - Robust ensemble combining several base solvers (default MLEM/Bayes/Landweber/CGLS/GRAVEL) via inverse-residual weighting or robust statistics to reduce method-specific bias
+    * - 68
+      - ``unfold_iterative_refinement``
+      - Ensemble/Refinement
+      - `first_pass_kwargs`, `second_pass_kwargs`, `alpha`, `max_alpha_search`
+      - —
+      - Two-pass refinement: an initial unfold is refined by a second pass with an automatically selected blending factor α between the two spectra
 
 
 
@@ -922,8 +936,8 @@ dose-related entries, the packaged ICRP-116 conversion coefficients.
 Performance
 -----------
 
-All iterative solvers use Numba JIT-compiled inner loops when numba is installed,
-with automatic fallback to pure Python.
+All iterative solvers use Numba JIT-compiled inner loops when numba is installed
+(including Landweber and D'Agostini Bayes), with automatic fallback to pure Python.
 
 .. list-table:: Benchmark results (60-bin grid, 500 iterations, macOS arm64)
    :header-rows: 1
@@ -945,10 +959,18 @@ with automatic fallback to pure Python.
      - 2.7 ms
      - 0.4 ms
      - **7x**
-   * - GRAVEL
-     - ~2 ms
-     - 0.6 ms
-     - **3x**
+    * - GRAVEL
+      - ~2 ms
+      - 0.6 ms
+      - **3x**
+    * - Landweber
+      - 2.8 ms
+      - 0.23 ms
+      - **12x**
+    * - Bayes (D'Agostini)
+      - 7.9 ms
+      - 0.36 ms
+      - **22x**
    * - cvxpy
      - 84 ms
      - 78 ms

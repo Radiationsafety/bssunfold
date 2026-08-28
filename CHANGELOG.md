@@ -7,6 +7,39 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.20.0] - 2026-08-28
+
+### Added
+- **Ensemble unfolding method** — `unfold_ensemble` / `solve_ensemble` combines
+  several base solvers (default MLEM, Bayes, Landweber, CGLS, GRAVEL) into a single
+  robust solution via weighted-average (inverse-residual weights), median,
+  trimmed-mean, or best-residual combination strategies.
+- **Iterative refinement method** — `unfold_iterative_refinement` /
+  `solve_iterative_refinement` performs a two-pass unfold and blends the two
+  spectra with an automatically selected blending factor α (line search over
+  `max_alpha_search` candidates) to reduce method-specific bias.
+- **Input validation**: `run_unfolding` now validates `readings`,
+  `detector_names`, `n_energy_bins`, `noise_level` (range 0–1) and
+  `n_montecarlo` before building the system; new validators `validate_system`
+  and `validate_solver_params` (shape, NaN/Inf and parameter-range checks) are
+  used across iterative solvers and exported from `bssunfold.utils.validators`.
+- **Extended Numba JIT acceleration** to the Landweber and D'Agostini Bayes
+  inner loops (in addition to Doroshenko, Kaczmarz, MLEM, GRAVEL), with
+  automatic disk caching and pure-Python fallback.
+- **Batch dose-rate computation** in `calculate_dose_rates` (a single matrix
+  multiply over all conversion-coefficient geometries instead of a per-geometry
+  Python loop).
+- Large test-coverage boost: ~5,200 new test lines across
+  `tests/test_boost_part1..4.py` and `tests/test_new_ensemble_refinement.py`,
+  exercising validation, solvers, parametric families and the new methods.
+
+### Fixed
+- **Landweber JIT convergence regression**: the Numba inner loop converged on
+  `‖Ax‖` instead of `‖Ax−b‖`. With the wrapper's default zero initial guess this
+  made the residual zero at the first iteration, so `solve_landweber` returned an
+  all-zero spectrum (regression vs 0.19.x). The JIT path now receives `b` and
+  uses the true residual norm, matching the pure-Python fallback.
+
 ## [0.19.1] - 2026-08-27
 ### Fixed
  - version in pyproject.toml
