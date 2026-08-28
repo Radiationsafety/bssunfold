@@ -120,7 +120,7 @@ class TestSolveCgls:
 
         A = np.random.default_rng(10).random((4, 8))
         b = A @ np.ones(8)
-        with pytest.raises(ValueError, match="Initial spectrum"):
+        with pytest.raises(ValueError, match="Length of x0"):
             solve_cgls(A, b, x0=np.ones(5))
 
 

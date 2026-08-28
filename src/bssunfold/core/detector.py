@@ -55,6 +55,7 @@ from .unfold_cs import unfold_cs as unfold_cs_impl
 from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
+from .unfold_ensemble import unfold_ensemble as unfold_ensemble_impl
 from .unfold_epic import unfold_epic as unfold_epic_impl
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
 from .unfold_fista import unfold_fista as unfold_fista_impl
@@ -72,6 +73,9 @@ from .unfold_interpret import (
 )
 from .unfold_interpret import (
     unfold_interpret as unfold_interpret_impl,
+)
+from .unfold_iterative_refinement import (
+    unfold_iterative_refinement as unfold_iterative_refinement_impl,
 )
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
 from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
@@ -205,7 +209,18 @@ class Detector:
         ValueError
             If E_MeV is not a 1D array or has less than 2 energy points,
             or if input data is inconsistent.
+        TypeError
+            If response_functions has an unsupported type.
         """
+        # Validate response_functions type early for clear error messages
+        if response_functions is not None and not isinstance(
+            response_functions, (pd.DataFrame, dict)
+        ):
+            raise TypeError(
+                f"response_functions must be a pandas DataFrame, dict, or None, "
+                f"got {type(response_functions).__name__}"
+            )
+
         rf_df = self._process_input(response_functions, E_MeV, sensitivities)
         Amat, E_MeV, detector_names, log_steps = (
             self._convert_rf_to_matrix_variable_step(rf_df, Emin=1e-9)
@@ -307,6 +322,20 @@ class Detector:
         return (
             f"Detector(E_MeV={self.E_MeV.tolist()}, "
             f"sensitivities={self.sensitivities})"
+        )
+
+    def __getattr__(self, name: str):
+        """Provide helpful error for unrecognized unfold_* methods."""
+        if name.startswith("unfold_"):
+            available = [
+                m for m in dir(self.__class__) if m.startswith("unfold_")
+            ]
+            raise AttributeError(
+                f"Unknown unfolding method 'Detector.{name}'. "
+                f"Available methods: {available}"
+            )
+        raise AttributeError(
+            f"'Detector' object has no attribute '{name}'"
         )
 
     @property
@@ -4713,6 +4742,147 @@ class Detector:
             noise_level=noise_level,
             eta=eta,
             calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_ensemble(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        methods: Optional[List[Tuple[Callable, Dict[str, Any]]]] = None,
+        weights: Optional[np.ndarray] = None,
+        combination: str = "weighted_average",
+        trim_fraction: float = 0.2,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using ensemble method.
+
+        Combines results from multiple base unfolding methods for robust
+        reconstruction. Different methods have different biases; the
+        ensemble reduces variance and is more robust to method-specific
+        failures.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        methods : list of (callable, dict), optional
+            Solver functions and their keyword arguments.
+        weights : np.ndarray, optional
+            Per-method weights for weighted average.
+        combination : str, optional
+            Combination strategy: 'weighted_average', 'median',
+            'trimmed_mean', or 'best_residual' (default: 'weighted_average').
+        trim_fraction : float, optional
+            Trim fraction for trimmed mean (default: 0.2).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_ensemble_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            methods=methods,
+            weights=weights,
+            combination=combination,
+            trim_fraction=trim_fraction,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
+    def unfold_iterative_refinement(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        first_pass_kwargs: Optional[Dict[str, Any]] = None,
+        second_pass_kwargs: Optional[Dict[str, Any]] = None,
+        alpha: Optional[float] = None,
+        max_alpha_search: int = 20,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using iterative refinement.
+
+        Two-pass method: first pass (MLEM) captures gross structure,
+        second pass (Landweber) corrects systematic errors via residual.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        first_pass_kwargs : dict, optional
+            Keyword arguments for first-pass solver.
+        second_pass_kwargs : dict, optional
+            Keyword arguments for second-pass solver.
+        alpha : float, optional
+            Blending factor (None = auto-select via line search).
+        max_alpha_search : int, optional
+            Number of alpha candidates for line search (default: 20).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_iterative_refinement_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            first_pass_kwargs=first_pass_kwargs,
+            second_pass_kwargs=second_pass_kwargs,
+            alpha=alpha,
+            max_alpha_search=max_alpha_search,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,

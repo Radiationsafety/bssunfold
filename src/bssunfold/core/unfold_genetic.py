@@ -124,9 +124,7 @@ def _normalize_solver(solver: str) -> str:
     return name
 
 
-def _build_seed(
-    A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]
-) -> np.ndarray:
+def _build_seed(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> np.ndarray:
     """Build the seed spectrum used to initialise the population.
 
     If a non-trivial initial guess ``x0`` is provided it is used directly.
@@ -479,9 +477,7 @@ def _run_numpy_ga(
                     if mutation == "iterative":
                         # phi_new = phi_old * (1 + scale * beta), beta in [-1, 1]
                         beta = rng.uniform(-1.0, 1.0, size=n)
-                        child = child + np.log(
-                            np.maximum(1.0 + scale * beta, 1e-12)
-                        )
+                        child = child + np.log(np.maximum(1.0 + scale * beta, 1e-12))
                     else:
                         child = child + rng.normal(0.0, scale, size=n)
                     child = np.clip(child, lb, ub)
@@ -510,24 +506,23 @@ def _fast_non_dominated_sort(fvals: np.ndarray) -> List[np.ndarray]:
         non-dominated (Pareto) front.
     """
     N = fvals.shape[0]
-    dominates = np.zeros((N, N), dtype=bool)
-    for i in range(N):
-        for j in range(N):
-            if i == j:
-                continue
-            if np.all(fvals[i] <= fvals[j]) and np.any(fvals[i] < fvals[j]):
-                dominates[i, j] = True
+    # Vectorized domination check using broadcasting
+    # dominates[i,j] = all(fvals[i] <= fvals[j]) and any(fvals[i] < fvals[j])
+    leq = fvals[:, None, :] <= fvals[None, :, :]  # (N, N, n_obj)
+    lt = fvals[:, None, :] < fvals[None, :, :]
+    dominates = np.all(leq, axis=2) & np.any(lt, axis=2)  # (N, N)
+    np.fill_diagonal(dominates, False)
+
     fronts: List[np.ndarray] = []
     remaining = np.arange(N)
     while remaining.size:
-        current = []
-        for i in remaining:
-            others = remaining[remaining != i]
-            if others.size == 0 or not np.any(dominates[others, i]):
-                current.append(int(i))
-        front = np.array(current)
+        # A remaining individual i is non-dominated if no other remaining j dominates i
+        # i.e. not np.any(dominates[remaining, i]) for i in remaining
+        dom_remaining = dominates[np.ix_(remaining, remaining)]
+        is_nondominated = ~np.any(dom_remaining, axis=0)
+        front = remaining[is_nondominated]
         fronts.append(front)
-        remaining = remaining[~np.isin(remaining, front)]
+        remaining = remaining[~is_nondominated]
     return fronts
 
 
@@ -538,19 +533,20 @@ def _crowding_distance(fvals: np.ndarray, front: np.ndarray) -> np.ndarray:
     if m <= 2:
         return np.full(m, np.inf)
     n_obj = fvals.shape[1]
+    front_vals = fvals[front]  # (m, n_obj)
     for obj in range(n_obj):
-        order = np.argsort(fvals[front, obj])
+        order = np.argsort(front_vals[:, obj])
         dist[order[0]] = np.inf
         dist[order[-1]] = np.inf
-        fmin = fvals[front, obj].min()
-        fmax = fvals[front, obj].max()
-        if fmax - fmin <= 0:
+        fmin = front_vals[0, obj]  # min after sort
+        fmax = front_vals[-1, obj]  # max after sort
+        spread = fmax - fmin
+        if spread <= 0:
             continue
-        for k in range(1, m - 1):
-            dist[order[k]] += (
-                fvals[front[order[k + 1]], obj]
-                - fvals[front[order[k - 1]], obj]
-            ) / (fmax - fmin)
+        # Vectorized crowding distance for interior points
+        dist[order[1:-1]] += (
+            front_vals[order[2:], obj] - front_vals[order[:-2], obj]
+        ) / spread
     return dist
 
 
@@ -679,24 +675,30 @@ def _run_nsga2(
         for front in fronts:
             crowding[front] = _crowding_distance(fvals, front)
 
-        # Binary tournament selection by (rank, -crowding).
-        selected = np.empty_like(pop)
-        for i in range(pop_size):
-            a, b1 = rng.integers(0, pop_size, size=2)
-            c, d = rng.integers(0, pop_size, size=2)
-            w1 = (
-                a if (rank[a], -crowding[a]) < (rank[b1], -crowding[b1]) else b1
-            )
-            w2 = c if (rank[c], -crowding[c]) < (rank[d], -crowding[d]) else d
-            selected[i] = (
-                pop[w1]
-                if (rank[w1], -crowding[w1])
-                <= (
-                    rank[w2],
-                    -crowding[w2],
-                )
-                else pop[w2]
-            )
+        # Vectorized binary tournament selection by (rank, -crowding).
+        idx_all = rng.integers(0, pop_size, size=(pop_size, 4))
+        rank_a = rank[idx_all[:, 0]]
+        rank_b = rank[idx_all[:, 1]]
+        rank_c = rank[idx_all[:, 2]]
+        rank_d = rank[idx_all[:, 3]]
+        crowd_a = crowding[idx_all[:, 0]]
+        crowd_b = crowding[idx_all[:, 1]]
+        crowd_c = crowding[idx_all[:, 2]]
+        crowd_d = crowding[idx_all[:, 3]]
+        # w1: pick a if (rank_a, -crowd_a) < (rank_b, -crowd_b)
+        w1_less = (rank_a < rank_b) | ((rank_a == rank_b) & (crowd_a > crowd_b))
+        w1 = np.where(w1_less, idx_all[:, 0], idx_all[:, 1])
+        # w2: pick c if (rank_c, -crowd_c) < (rank_d, -crowd_d)
+        w2_less = (rank_c < rank_d) | ((rank_c == rank_d) & (crowd_c > crowd_d))
+        w2 = np.where(w2_less, idx_all[:, 2], idx_all[:, 3])
+        # Final: pick w1 if (rank[w1], -crowd[w1]) <= (rank[w2], -crowd[w2])
+        rw1 = rank[w1]
+        cw1 = crowding[w1]
+        rw2 = rank[w2]
+        cw2 = crowding[w2]
+        final_less = (rw1 < rw2) | ((rw1 == rw2) & (cw1 >= cw2))
+        winner = np.where(final_less, w1, w2)
+        selected = pop[winner]
 
         # SBX + polynomial mutation.
         offspring = []
@@ -934,8 +936,7 @@ def _solve_genetic_impl(
         )
     if mutation not in ("random", "iterative"):
         raise ValueError(
-            f"Unsupported mutation operator: {mutation}. "
-            f"Use 'random' or 'iterative'."
+            f"Unsupported mutation operator: {mutation}. Use 'random' or 'iterative'."
         )
     if pareto_select not in ("knee", "min_residual", "max_entropy"):
         raise ValueError(
@@ -1087,9 +1088,7 @@ def _solve_genetic_impl(
     if early_stop is not None:
         termination = {"max_early_stop": int(early_stop)}
 
-    starting = _make_starting_solutions(
-        seed, lb, ub, pop_size, extra=extra_starting
-    )
+    starting = _make_starting_solutions(seed, lb, ub, pop_size, extra=extra_starting)
     runs = max(1, int(n_runs))
     spectra = []
     for run in range(runs):
@@ -1253,8 +1252,7 @@ def unfold_genetic(
         )
     if mutation not in ("random", "iterative"):
         raise ValueError(
-            f"Unsupported mutation operator: {mutation}. "
-            f"Use 'random' or 'iterative'."
+            f"Unsupported mutation operator: {mutation}. Use 'random' or 'iterative'."
         )
     if pareto_select not in ("knee", "min_residual", "max_entropy"):
         raise ValueError(
