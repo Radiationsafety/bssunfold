@@ -17,6 +17,8 @@ import numpy as np
 from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import compute_log_steps
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_fruit_like", "unfold_fruit_like"]
 
 
@@ -135,6 +137,7 @@ def solve_fruit_like(
     Tuple[np.ndarray, bool, str, int]
         (spectrum, success, message, nfev)
     """
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
     try:
         import lmfit
     except ImportError as e:

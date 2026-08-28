@@ -21,6 +21,8 @@ import numpy as np
 from ._base_unfolder import run_unfolding
 
 
+from ..utils.validators import validate_system
+
 def solve_zfit_unfold(
     A: np.ndarray,
     b: np.ndarray,
@@ -60,6 +62,7 @@ def solve_zfit_unfold(
     tuple
         (spectrum, iterations, converged)
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     try:
         import tensorflow as tf
         import zfit

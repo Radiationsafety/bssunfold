@@ -16,6 +16,8 @@ import numpy as np
 
 from ._parametric_shared import _check_fit_quality as _check_fit_quality_shared
 
+from ..utils.validators import validate_system
+
 __all__ = ["parametric_model", "solve_parametric"]
 # Fixed constants from the papers / FRUIT code
 _T0 = 2.53e-8  # Thermal peak energy (MeV)
@@ -208,6 +210,7 @@ def solve_parametric(
     Tuple[np.ndarray, bool, str, int]
         (spectrum, success, message, nfev)
     """
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
     try:
         import lmfit
     except ImportError as e:

@@ -18,6 +18,8 @@ import numpy as np
 from ._base_unfolder import run_unfolding
 
 
+from ..utils.validators import validate_system
+
 def _forward_diff_matrix(n: int) -> np.ndarray:
     """1-D forward-difference operator D (shape (n - 1, n))."""
     D = np.zeros((n - 1, n))
@@ -106,6 +108,8 @@ def solve_odl_pdhg(
     tuple
         (spectrum, iterations, converged)
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
+    A, b, x0 = validate_system(A, b, x0=x0)
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
     m_len, n = A.shape

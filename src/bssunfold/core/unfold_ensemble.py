@@ -20,6 +20,7 @@ import numpy as np
 
 from ._base_unfolder import _build_system
 from ..logging_config import get_logger
+from ..utils.validators import validate_system
 
 __all__ = ["solve_ensemble", "unfold_ensemble"]
 
@@ -110,6 +111,7 @@ def solve_ensemble(
         ``(spectrum, info)`` where *info* contains per-method results
         and diagnostics.
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     n = A.shape[1]
     if x0 is None:
         x0 = np.ones(n) * 0.5

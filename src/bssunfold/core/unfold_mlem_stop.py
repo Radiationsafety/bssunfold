@@ -16,6 +16,8 @@ import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_mlem_stop", "unfold_mlem_stop"]
 
 
@@ -66,6 +68,7 @@ def solve_mlem_stop(
     Tuple[np.ndarray, int, bool]
         Tuple of (solution, iterations, converged).
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     if j_threshold is None:
         j_threshold = np.mean(b) / cps_crossover
 

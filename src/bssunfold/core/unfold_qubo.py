@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from ._base_unfolder import run_unfolding
+from ..utils.validators import validate_system
 
 
 def _spectrum_to_binary(
@@ -143,6 +144,7 @@ def solve_qubo_unfold(
     tuple
         (spectrum, iterations, converged)
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     try:
         import dwave.samplers as ds
         from pyqubo import Array, Binary

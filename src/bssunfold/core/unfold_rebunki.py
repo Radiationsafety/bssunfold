@@ -23,6 +23,8 @@ import numpy as np
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 from .unfold_bunki import solve_bunki
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_rebunki", "unfold_rebunki"]
 
 
@@ -66,6 +68,7 @@ def solve_rebunki(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     return solve_bunki(
         A=A,
         b=b,

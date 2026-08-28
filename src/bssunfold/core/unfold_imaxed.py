@@ -18,6 +18,8 @@ import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_imaxed", "unfold_imaxed"]
 
 
@@ -57,6 +59,7 @@ def solve_imaxed(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     from scipy.optimize import minimize
 
     m, n = A.shape

@@ -13,6 +13,8 @@ import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_bayes_spline", "unfold_bayes_spline_regularization"]
 
 
@@ -56,6 +58,7 @@ def solve_bayes_spline(
     np.ndarray
         Unfolded spectrum (n,).
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     from scipy.interpolate import UnivariateSpline
 
     _, n_energy = A.shape

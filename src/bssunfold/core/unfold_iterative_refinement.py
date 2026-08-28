@@ -26,6 +26,8 @@ import numpy as np
 from ._base_unfolder import _build_system
 from ..logging_config import get_logger
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_iterative_refinement", "unfold_iterative_refinement"]
 
 logger = get_logger("unfold_iterative_refinement")
@@ -77,6 +79,7 @@ def solve_iterative_refinement(
     tuple
         ``(spectrum, info)`` with diagnostics.
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     n = A.shape[1]
     if x0 is None:
         x0 = np.ones(n) * 0.5

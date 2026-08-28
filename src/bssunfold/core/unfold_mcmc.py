@@ -31,6 +31,8 @@ import numpy as np
 
 from ._base_unfolder import run_unfolding
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_bayesian_mcmc", "unfold_mcmc"]
 
 # ---------------------------------------------------------------------------
@@ -351,6 +353,8 @@ def solve_bayesian_mcmc(
     RuntimeError
         If MCMC sampling fails.
     """
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
+
     pm, az = _resolve_backends()
     if not _check_pymc_available():
         raise ImportError(

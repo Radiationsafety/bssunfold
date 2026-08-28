@@ -12,6 +12,8 @@ from numpy.polynomial.legendre import Legendre
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import create_derivative_matrix
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_tikhonov_legendre", "unfold_tikhonov_legendre"]
 
 
@@ -53,6 +55,7 @@ def solve_tikhonov_legendre(
     np.ndarray
         Unfolded spectrum (n,).
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     n_energy = A.shape[1]
     basis = _build_legendre_basis(n_energy, n_polynomials)
 

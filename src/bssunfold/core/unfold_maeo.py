@@ -29,6 +29,8 @@ import numpy as np
 
 from ._matrix_utils import create_derivative_matrix
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_maeo", "unfold_maeo", "solve_maeo_ensemble", "unfold_maeo_ensemble"]
 
 _IMPORT_ERROR_MSG = (
@@ -54,6 +56,7 @@ def _compute_hypervolume(front: np.ndarray, ref_point: np.ndarray) -> float:
     float
         Hypervolume value (larger is better).
     """
+    A, b = validate_system(A, b)
     try:
         from pymoo.indicators.hv import HV
         indicator = HV(ref_point=ref_point)

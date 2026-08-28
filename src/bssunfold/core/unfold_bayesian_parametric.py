@@ -22,6 +22,8 @@ import numpy as np
 from ._base_unfolder import _build_system, run_unfolding
 from ._matrix_utils import compute_log_steps
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_bayesian_parametric", "unfold_bayesian_parametric"]
 
 
@@ -194,6 +196,7 @@ def solve_bayesian_parametric(
     Tuple[np.ndarray, bool, str, int]
         (spectrum, success, message, n_samples)
     """
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
     if initial_params is None:
         initial_params = {
             "A_th": 1e-6,

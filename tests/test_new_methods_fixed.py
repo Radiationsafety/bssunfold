@@ -228,6 +228,9 @@ class TestUnfoldCombined:
             detector.unfold_combined(readings, pipeline=pipeline)
 
 
+odl = pytest.importorskip("odl")
+
+
 class TestUnfoldMlemOdl:
     """Tests for unfold_mlem_odl method."""
 

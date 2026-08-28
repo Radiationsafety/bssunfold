@@ -17,6 +17,8 @@ import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
+from ..utils.validators import validate_system
+
 __all__ = ["solve_reconst", "unfold_reconst"]
 
 _AINF = np.array([1.01, 1.01, 0.01, 0.01, 0.0])
@@ -390,6 +392,7 @@ def solve_reconst(
     np.ndarray
         Unfolded spectrum (N,).
     """
+    A, b, x0 = validate_system(A, b, x0=x0)
     M, N = A.shape
     F = b.copy().astype(np.float64)
 

@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ..utils.validators import validate_system
 from ._parametric_shared import (
     _check_fit_quality,
     _clean_edge_bins,
@@ -245,6 +246,8 @@ def solve_bon95_parametric(
         best_params keys: b, Tf, c, a1, a2, a3, a4
     """
     b_vals = np.linspace(b_range[0], b_range[1], b_range[2])
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
+
     Tf_vals = np.linspace(Tf_range[0], Tf_range[1], Tf_range[2])
     c_vals = np.linspace(c_range[0], c_range[1], c_range[2])
 
@@ -484,6 +487,8 @@ def solve_bon95_cvxpy(
     Tuple[np.ndarray, bool, str, int]
         (spectrum, success, message, nfev)
     """
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
+
     try:
         import cvxpy as cp
     except ImportError as e:
@@ -683,6 +688,8 @@ def solve_bon95_qpsolvers(
     Tuple[np.ndarray, bool, str, int]
         (spectrum, success, message, nfev)
     """
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
+
     try:
         from qpsolvers import available_solvers, solve_qp
     except ImportError as e:
@@ -885,6 +892,8 @@ def solve_bon95_combined(
     Tuple[np.ndarray, bool, str, int]
         (spectrum, success, message, nfev)
     """
+    A_matrix, b_readings, _ = validate_system(A_matrix, b_readings)
+
     # Step 1: Grid search
     best, _, _ = solve_bon95_parametric(
         A_matrix,

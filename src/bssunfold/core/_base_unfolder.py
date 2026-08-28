@@ -158,6 +158,34 @@ def run_unfolding(
             f"n_montecarlo must be a non-negative integer, got {n_montecarlo!r}"
         )
 
+    # Validate readings values (NaN, Inf, negative, non-numeric)
+    for det_name, val in readings.items():
+        if not isinstance(val, (int, float, np.integer, np.floating)):
+            raise TypeError(
+                f"Reading for '{det_name}' must be a number, "
+                f"got {type(val).__name__}"
+            )
+        fval = float(val)
+        if np.isnan(fval):
+            raise ValueError(f"Reading for '{det_name}' is NaN")
+        if np.isinf(fval):
+            raise ValueError(f"Reading for '{det_name}' is infinite")
+        if fval < 0:
+            raise ValueError(f"Reading for '{det_name}' is negative: {fval}")
+
+    # Validate sensitivities for NaN/Inf
+    for det_name, sens in sensitivities.items():
+        if det_name in readings:
+            s = np.asarray(sens, dtype=float)
+            if np.any(np.isnan(s)):
+                raise ValueError(
+                    f"Sensitivity for '{det_name}' contains NaN values"
+                )
+            if np.any(np.isinf(s)):
+                raise ValueError(
+                    f"Sensitivity for '{det_name}' contains infinite values"
+                )
+
     # 1. Build system
     A, b, selected = _build_system(readings, detector_names, sensitivities)
 
