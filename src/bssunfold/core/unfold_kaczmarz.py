@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ..utils.validators import validate_system
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_kaczmarz", "unfold_kaczmarz"]
 
@@ -46,7 +46,9 @@ def solve_kaczmarz(
     """
     import warnings
 
-    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
     m, _ = A.shape
     x = x0.copy()
 

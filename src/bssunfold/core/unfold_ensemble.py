@@ -14,12 +14,12 @@ Supported combination strategies:
   misfit.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ._base_unfolder import _build_system
 from ..logging_config import get_logger
+from ._base_unfolder import _build_system
 
 __all__ = ["solve_ensemble", "unfold_ensemble"]
 
@@ -34,19 +34,21 @@ def _ensure_default_methods() -> List[Tuple[str, Callable]]:
     """Lazily import default ensemble methods to avoid circular imports."""
     if DEFAULT_METHODS:
         return DEFAULT_METHODS
-    from .unfold_mlem import solve_mlem
     from .unfold_bayes import solve_bayes
-    from .unfold_landweber import solve_landweber
     from .unfold_cgls import solve_cgls
     from .unfold_gravel import solve_gravel
+    from .unfold_landweber import solve_landweber
+    from .unfold_mlem import solve_mlem
 
-    DEFAULT_METHODS.extend([
-        ("MLEM", solve_mlem),
-        ("Bayes", solve_bayes),
-        ("Landweber", solve_landweber),
-        ("CGLS", solve_cgls),
-        ("GRAVEL", solve_gravel),
-    ])
+    DEFAULT_METHODS.extend(
+        [
+            ("MLEM", solve_mlem),
+            ("Bayes", solve_bayes),
+            ("Landweber", solve_landweber),
+            ("CGLS", solve_cgls),
+            ("GRAVEL", solve_gravel),
+        ]
+    )
     return DEFAULT_METHODS
 
 
@@ -117,15 +119,13 @@ def solve_ensemble(
     if methods is None:
         defaults = _ensure_default_methods()
         methods = [
-            (fn, {"max_iterations": 200, "tolerance": 1e-4})
-            for _, fn in defaults
+            (fn, {"max_iterations": 200, "tolerance": 1e-4}) for _, fn in defaults
         ]
 
     valid_combinations = ("weighted_average", "median", "trimmed_mean", "best_residual")
     if combination not in valid_combinations:
         raise ValueError(
-            f"Unknown combination '{combination}'. "
-            f"Choose from {valid_combinations}"
+            f"Unknown combination '{combination}'. Choose from {valid_combinations}"
         )
 
     spectra: List[np.ndarray] = []
@@ -135,7 +135,9 @@ def solve_ensemble(
     for idx, (solver, kwargs) in enumerate(methods):
         name = kwargs.get("_name", f"method_{idx}")
         try:
-            result = solver(A, b, x0, **{k: v for k, v in kwargs.items() if not k.startswith("_")})
+            result = solver(
+                A, b, x0, **{k: v for k, v in kwargs.items() if not k.startswith("_")}
+            )
             # Handle both (x,) and (x, iters, conv) return types
             if isinstance(result, tuple):
                 x_sol = result[0]
@@ -262,7 +264,9 @@ def unfold_ensemble(
     from .dose_calculation import calculate_dose_rates
 
     spectrum, info = solve_ensemble(
-        A, b, x0,
+        A,
+        b,
+        x0,
         methods=methods,
         weights=weights,
         combination=combination,
@@ -305,7 +309,9 @@ def unfold_ensemble(
             b_pert = b * (1.0 + noise_level * rng.standard_normal(len(b)))
             try:
                 x_mc, _ = solve_ensemble(
-                    A, np.maximum(b_pert, 0), x0,
+                    A,
+                    np.maximum(b_pert, 0),
+                    x0,
                     methods=methods,
                     weights=weights,
                     combination=combination,

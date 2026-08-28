@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ..utils.validators import validate_system
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_lanczos", "unfold_lanczos"]
 

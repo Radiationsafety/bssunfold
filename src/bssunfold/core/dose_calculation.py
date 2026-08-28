@@ -106,8 +106,7 @@ def get_coefficients(name: str) -> Dict[str, np.ndarray]:
     if name not in DOSE_COEFFICIENTS_REGISTRY:
         available = list(DOSE_COEFFICIENTS_REGISTRY.keys())
         raise ValueError(
-            f"Unknown dose coefficient name: '{name}'. "
-            f"Available options: {available}"
+            f"Unknown dose coefficient name: '{name}'. Available options: {available}"
         )
 
     return DOSE_COEFFICIENTS_REGISTRY[name]
@@ -201,7 +200,6 @@ def calculate_dose_rates(
     ln10 = np.log(10.0) * dlnE
     spec = np.asarray(spectrum, dtype=float)
     n_spec = len(spec)
-    doserates = {}
 
     # Batch: stack all CC arrays into a matrix and do a single matmul
     geoms = [g for g in cc_icrp116 if g != "E_MeV"]

@@ -87,8 +87,6 @@ def solve_bunki(
         if b.size == 0:
             raise ValueError("BUNKI requires strictly positive measurements")
 
-    m = A.shape[0]
-
     x0_safe = np.maximum(x0, 0.0)
     # trans_mat: response scaled by the initial spectrum, spl starts at ones.
     aleth = A * x0_safe[None, :]

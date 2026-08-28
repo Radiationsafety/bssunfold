@@ -37,6 +37,7 @@ class TestUnfoldMlemOdl:
         """Test ImportError when odl is not available."""
         with block_import("odl"):
             from bssunfold.core.unfold_mlem_odl import unfold_mlem_odl
+
             with pytest.raises(ImportError, match="odl is required"):
                 unfold_mlem_odl(
                     detector_names=["a"],
@@ -232,9 +233,11 @@ class TestFruitLike:
         """ImportError when lmfit is not available."""
         with block_import("lmfit"):
             from bssunfold.core.unfold_fruit_like import solve_fruit_like
+
             with pytest.raises(ImportError, match="lmfit is required"):
                 solve_fruit_like(
-                    np.eye(5), np.ones(5),
+                    np.eye(5),
+                    np.ones(5),
                     np.linspace(1e-10, 20, 10),
                     np.ones(10),
                 )
@@ -271,7 +274,9 @@ class TestFruitLike:
         from bssunfold.core.unfold_fruit_like import parametric_model
 
         E = np.logspace(-8, 1, 150)
-        phi = parametric_model(E, A_th=1e-6, T_th=0.025e-6, A_epi=1e-6, A_f=1e-6, T_ev=2.0)
+        phi = parametric_model(
+            E, A_th=1e-6, T_th=0.025e-6, A_epi=1e-6, A_f=1e-6, T_ev=2.0
+        )
         assert len(phi) == 150
 
     def test_maxwellian(self):
@@ -336,7 +341,13 @@ class TestFruitLike:
         A = np.random.rand(7, 150) + 0.1
         b = A @ (np.random.rand(150) + 0.1)
 
-        initial = {"A_th": 1e-5, "T_th": 0.03e-6, "A_epi": 1e-5, "A_f": 1e-5, "T_ev": 1.5}
+        initial = {
+            "A_th": 1e-5,
+            "T_th": 0.03e-6,
+            "A_epi": 1e-5,
+            "A_f": 1e-5,
+            "T_ev": 1.5,
+        }
         spectrum, success, message, nfev = solve_fruit_like(
             A, b, E, log_steps, initial_params=initial
         )
@@ -498,6 +509,7 @@ class TestFerdor:
     def test_LinalgWarning_class(self):
         """LinalgWarning class exists."""
         from bssunfold.core.unfold_ferdor import LinalgWarning
+
         assert issubclass(LinalgWarning, Warning)
 
 
@@ -831,14 +843,17 @@ class TestNumbaJit:
     def test_bayes_inner_exists(self):
         """Check _bayes_inner function exists."""
         from bssunfold.core._numba_jit import _bayes_inner
+
         assert callable(_bayes_inner)
 
     def test_landweber_inner_exists(self):
         """Check _landweber_inner function exists."""
         from bssunfold.core._numba_jit import _landweber_inner
+
         assert callable(_landweber_inner)
 
     def test_NUMBA_AVAILABLE(self):
         """Check NUMBA_AVAILABLE is a bool."""
         from bssunfold.core._numba_jit import NUMBA_AVAILABLE
+
         assert isinstance(NUMBA_AVAILABLE, bool)

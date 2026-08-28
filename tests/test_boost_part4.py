@@ -1,14 +1,15 @@
 """Coverage boost tests -- part 4.
 
 Covers 7 modules with specific missing lines:
- 1. regularization.py        -- lcurve/gcv/dp fallbacks, compare/randomization ImportError
+ 1. regularization.py -- lcurve/gcv/dp fallbacks, ImportError paths.
  2. unfold_fista.py         -- box constraints, power iteration, TV/L1, MC errors
  3. _fruit.py                -- solve_parametric alpha_auto, multi-start, gcv fallback
- 4. unfold_parametric.py     -- cvxpy/qpsolvers/combined import errors, optimizer branches
+ 4. unfold_parametric.py -- cvxpy/qpsolvers/combined import errors.
  5. unfold_parametric2.py    -- DD end-of-loop, cvxpy/qpsolvers/combined optimizers
  6. unfold_cascade.py        -- quality metrics, cascade with timeout/quality/adapt
  7. detector.py              -- error paths, init with response_functions
 """
+
 from __future__ import annotations
 
 import builtins
@@ -71,12 +72,10 @@ class TestRegularization:
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
                 try:
-                    alpha = lcurve_selection(A, b)
+                    lcurve_selection(A, b)
                 except ValueError:
                     pass  # np.cross incompatibility in fallback
-                assert any(
-                    "pytikhonov not available" in str(x.message) for x in w
-                )
+                assert any("pytikhonov not available" in str(x.message) for x in w)
 
     # -- _gcv_fallback --
 
@@ -117,9 +116,7 @@ class TestRegularization:
         from bssunfold.core.regularization import discrepancy_principle_selection
 
         with block_import("pytikhonov"):
-            alpha = discrepancy_principle_selection(
-                _A7x30, _B7, noise_var=0.01
-            )
+            alpha = discrepancy_principle_selection(_A7x30, _B7, noise_var=0.01)
             assert isinstance(alpha, float)
 
     # -- compare_regularization_methods lines [593-619] ImportError --
@@ -216,7 +213,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -230,7 +231,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -246,7 +251,11 @@ class TestUnfoldFista:
         # Provide readings with names NOT in the detector_names list
         with pytest.raises(ValueError, match="No valid readings"):
             unfold_fista(
-                ["nonexistent1", "nonexistent2"], n, E, sens, cc,
+                ["nonexistent1", "nonexistent2"],
+                n,
+                E,
+                sens,
+                cc,
                 save_result_callback=lambda x: None,
                 readings={},
             )
@@ -257,7 +266,11 @@ class TestUnfoldFista:
 
         names, _, E, sens, cc, readings = self._make_inputs(120)
         result = unfold_fista(
-            names, 120, E, sens, cc,
+            names,
+            120,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=5,
@@ -272,7 +285,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -286,7 +303,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -300,7 +321,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -314,7 +339,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -329,7 +358,11 @@ class TestUnfoldFista:
         names, n, E, sens, cc, readings = self._make_inputs(20)
         # Very large noise_level so threshold is always exceeded
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=200,
@@ -344,7 +377,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -363,7 +400,11 @@ class TestUnfoldFista:
         names, n, E, sens, cc, readings = self._make_inputs(20)
         x0 = np.ones(20) * 0.01
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -377,7 +418,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -391,8 +436,12 @@ class TestUnfoldFista:
 
         saved = []
         names, n, E, sens, cc, readings = self._make_inputs(20)
-        result = unfold_fista(
-            names, n, E, sens, cc,
+        _ = unfold_fista(
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=saved.append,
             readings=readings,
             max_iterations=5,
@@ -406,7 +455,11 @@ class TestUnfoldFista:
 
         names, n, E, sens, cc, readings = self._make_inputs(20)
         result = unfold_fista(
-            names, n, E, sens, cc,
+            names,
+            n,
+            E,
+            sens,
+            cc,
             save_result_callback=lambda x: None,
             readings=readings,
             max_iterations=10,
@@ -429,7 +482,7 @@ class TestFruitHelpers:
 
     def test_thermal_component(self):
         """_thermal returns correct shape."""
-        from bssunfold.core._fruit import _thermal, _T0
+        from bssunfold.core._fruit import _T0, _thermal
 
         E = np.array([1e-9, 5e-9, _T0, 1e-7])
         result = _thermal(E)
@@ -465,9 +518,7 @@ class TestFruitHelpers:
         """_find_initial_params returns dict with return_top=1."""
         from bssunfold.core._fruit import _find_initial_params
 
-        result = _find_initial_params(
-            _A7x30, _B7, _E30, _LS30, n_grid=3, return_top=1
-        )
+        result = _find_initial_params(_A7x30, _B7, _E30, _LS30, n_grid=3, return_top=1)
         assert isinstance(result, dict)
         assert "b" in result
         assert "beta" in result
@@ -476,9 +527,7 @@ class TestFruitHelpers:
         """_find_initial_params returns list of dicts with return_top>1."""
         from bssunfold.core._fruit import _find_initial_params
 
-        result = _find_initial_params(
-            _A7x30, _B7, _E30, _LS30, n_grid=3, return_top=3
-        )
+        result = _find_initial_params(_A7x30, _B7, _E30, _LS30, n_grid=3, return_top=3)
         assert isinstance(result, list)
         assert len(result) <= 3
 
@@ -486,20 +535,14 @@ class TestFruitHelpers:
         """_find_initial_params with n_grid=1 returns defaults."""
         from bssunfold.core._fruit import _find_initial_params
 
-        result = _find_initial_params(
-            _A7x30, _B7, _E30, _LS30,
-            n_grid=1, return_top=1
-        )
+        result = _find_initial_params(_A7x30, _B7, _E30, _LS30, n_grid=1, return_top=1)
         assert isinstance(result, dict)
 
     def test_find_initial_params_no_valid_multi(self):
         """_find_initial_params with return_top>1 and n_grid=1 returns list."""
         from bssunfold.core._fruit import _find_initial_params
 
-        result = _find_initial_params(
-            _A7x30, _B7, _E30, _LS30,
-            n_grid=1, return_top=3
-        )
+        result = _find_initial_params(_A7x30, _B7, _E30, _LS30, n_grid=1, return_top=3)
         assert isinstance(result, list)
 
     def test_get_initial_params(self):
@@ -526,8 +569,14 @@ class TestFruitHelpers:
         from bssunfold.core._fruit import _clamp_params, _get_param_bounds
 
         bounds = _get_param_bounds()
-        params = {"b": 100.0, "beta_prime": 0.01, "alpha": 0.5,
-                  "beta": 2.0, "P_th": -1.0, "P_epi": 0.3}
+        params = {
+            "b": 100.0,
+            "beta_prime": 0.01,
+            "alpha": 0.5,
+            "beta": 2.0,
+            "P_th": -1.0,
+            "P_epi": 0.3,
+        }
         clamped = _clamp_params(params, bounds)
         assert clamped["b"] <= bounds["b"][1]
         assert clamped["P_th"] >= bounds["P_th"][0]
@@ -536,9 +585,7 @@ class TestFruitHelpers:
         """_compute_jacobian returns correct shape."""
         from bssunfold.core._fruit import _compute_jacobian, _find_initial_params
 
-        params = _find_initial_params(
-            _A7x30, _B7, _E30, _LS30, n_grid=2
-        )
+        params = _find_initial_params(_A7x30, _B7, _E30, _LS30, n_grid=2)
         J = _compute_jacobian(_E30, _LS30, params)
         assert J.shape == (30, 6)
 
@@ -546,21 +593,31 @@ class TestFruitHelpers:
         """_compute_jacobian uses backward difference at upper boundary."""
         from bssunfold.core._fruit import _compute_jacobian
 
-        params = {"b": 1.0, "beta_prime": 0.01, "alpha": 0.5,
-                  "beta": 2.0, "P_th": 1.0, "P_epi": 0.0}
+        params = {
+            "b": 1.0,
+            "beta_prime": 0.01,
+            "alpha": 0.5,
+            "beta": 2.0,
+            "P_th": 1.0,
+            "P_epi": 0.0,
+        }
         J = _compute_jacobian(_E30, _LS30, params, delta=1e-8)
         assert J.shape == (30, 6)
 
     def test_residuals_no_reg(self):
         """_residuals without regularization returns data-only residual."""
-        from bssunfold.core._fruit import _residuals
         import lmfit
+
+        from bssunfold.core._fruit import _residuals
 
         params = lmfit.Parameters()
         for name, val, lo, hi in [
-            ("b", 1.0, 0.5, 2.0), ("beta_prime", 0.01, 1e-4, 1.0),
-            ("alpha", 0.5, 0.0, 5.0), ("beta", 2.0, 0.1, 20.0),
-            ("P_th", 0.3, 0.0, 1.0), ("P_epi", 0.3, 0.0, 1.0),
+            ("b", 1.0, 0.5, 2.0),
+            ("beta_prime", 0.01, 1e-4, 1.0),
+            ("alpha", 0.5, 0.0, 5.0),
+            ("beta", 2.0, 0.1, 20.0),
+            ("P_th", 0.3, 0.0, 1.0),
+            ("P_epi", 0.3, 0.0, 1.0),
         ]:
             params.add(name, value=val, min=lo, max=hi)
 
@@ -569,52 +626,54 @@ class TestFruitHelpers:
 
     def test_residuals_with_reg_no_initial(self):
         """_residuals with reg_alpha but no initial_param_vec."""
-        from bssunfold.core._fruit import _residuals
         import lmfit
+
+        from bssunfold.core._fruit import _residuals
 
         params = lmfit.Parameters()
         for name, val, lo, hi in [
-            ("b", 1.0, 0.5, 2.0), ("beta_prime", 0.01, 1e-4, 1.0),
-            ("alpha", 0.5, 0.0, 5.0), ("beta", 2.0, 0.1, 20.0),
-            ("P_th", 0.3, 0.0, 1.0), ("P_epi", 0.3, 0.0, 1.0),
+            ("b", 1.0, 0.5, 2.0),
+            ("beta_prime", 0.01, 1e-4, 1.0),
+            ("alpha", 0.5, 0.0, 5.0),
+            ("beta", 2.0, 0.1, 20.0),
+            ("P_th", 0.3, 0.0, 1.0),
+            ("P_epi", 0.3, 0.0, 1.0),
         ]:
             params.add(name, value=val, min=lo, max=hi)
 
-        res = _residuals(
-            params, _A7x30, _B7, _E30, _LS30, reg_alpha=1.0
-        )
+        res = _residuals(params, _A7x30, _B7, _E30, _LS30, reg_alpha=1.0)
         assert res.shape == (7 + 6,)
 
     def test_residuals_with_reg_and_initial(self):
         """_residuals with reg_alpha and initial_param_vec."""
-        from bssunfold.core._fruit import _residuals
         import lmfit
+
+        from bssunfold.core._fruit import _residuals
 
         params = lmfit.Parameters()
         for name, val, lo, hi in [
-            ("b", 1.0, 0.5, 2.0), ("beta_prime", 0.01, 1e-4, 1.0),
-            ("alpha", 0.5, 0.0, 5.0), ("beta", 2.0, 0.1, 20.0),
-            ("P_th", 0.3, 0.0, 1.0), ("P_epi", 0.3, 0.0, 1.0),
+            ("b", 1.0, 0.5, 2.0),
+            ("beta_prime", 0.01, 1e-4, 1.0),
+            ("alpha", 0.5, 0.0, 5.0),
+            ("beta", 2.0, 0.1, 20.0),
+            ("P_th", 0.3, 0.0, 1.0),
+            ("P_epi", 0.3, 0.0, 1.0),
         ]:
             params.add(name, value=val, min=lo, max=hi)
 
         init_vec = np.array([1.0, 0.01, 0.5, 2.0, 0.3, 0.3])
         res = _residuals(
-            params, _A7x30, _B7, _E30, _LS30,
-            reg_alpha=1.0, initial_param_vec=init_vec
+            params, _A7x30, _B7, _E30, _LS30, reg_alpha=1.0, initial_param_vec=init_vec
         )
         assert res.shape == (13,)
 
     def test_gcv_select_alpha(self):
         """_gcv_select_alpha returns a positive float."""
-        from bssunfold.core._fruit import _gcv_select_alpha, _find_initial_params
+        from bssunfold.core._fruit import _find_initial_params, _gcv_select_alpha
 
-        params = _find_initial_params(
-            _A7x30, _B7, _E30, _LS30, n_grid=2
-        )
+        params = _find_initial_params(_A7x30, _B7, _E30, _LS30, n_grid=2)
         alpha = _gcv_select_alpha(
-            _A7x30, _B7, _E30, _LS30, params,
-            n_coarse=10, n_refine=5
+            _A7x30, _B7, _E30, _LS30, params, n_coarse=10, n_refine=5
         )
         assert isinstance(alpha, float)
         assert alpha > 0
@@ -623,11 +682,16 @@ class TestFruitHelpers:
         """_gcv_select_alpha returns default for very small matrix."""
         from bssunfold.core._fruit import _gcv_select_alpha
 
-        params = {"b": 1.0, "beta_prime": 0.01, "alpha": 0.5,
-                  "beta": 2.0, "P_th": 0.3, "P_epi": 0.3}
+        params = {
+            "b": 1.0,
+            "beta_prime": 0.01,
+            "alpha": 0.5,
+            "beta": 2.0,
+            "P_th": 0.3,
+            "P_epi": 0.3,
+        }
         alpha = _gcv_select_alpha(
-            np.array([[1.0]]), np.array([1.0]),
-            np.array([1.0]), np.array([0.1]), params
+            np.array([[1.0]]), np.array([1.0]), np.array([1.0]), np.array([0.1]), params
         )
         assert alpha == 1e-4
 
@@ -656,30 +720,33 @@ class TestFruitHelpers:
 
         with block_import("lmfit"):
             with pytest.raises(ImportError, match="lmfit is required"):
-                solve_parametric(
-                    _A7x30, _B7, _E30, _LS30
-                )
+                solve_parametric(_A7x30, _B7, _E30, _LS30)
 
     def test_solve_parametric_with_alpha_auto(self):
         """solve_parametric with alpha_auto=True triggers GCV selection."""
         from bssunfold.core._fruit import solve_parametric
 
         spec, success, msg, nfev = solve_parametric(
-            _A7x30, _B7, _E30, _LS30,
-            alpha_auto=True, n_restarts=2,
+            _A7x30,
+            _B7,
+            _E30,
+            _LS30,
+            alpha_auto=True,
+            n_restarts=2,
         )
         assert spec is not None
         assert spec.shape == (30,)
 
     def test_solve_parametric_multi_start(self):
         """solve_parametric with initial_params as list (multi-start)."""
-        from bssunfold.core._fruit import solve_parametric, _find_initial_params
+        from bssunfold.core._fruit import _find_initial_params, solve_parametric
 
-        starts = _find_initial_params(
-            _A7x30, _B7, _E30, _LS30, n_grid=3, return_top=3
-        )
+        starts = _find_initial_params(_A7x30, _B7, _E30, _LS30, n_grid=3, return_top=3)
         spec, success, msg, nfev = solve_parametric(
-            _A7x30, _B7, _E30, _LS30,
+            _A7x30,
+            _B7,
+            _E30,
+            _LS30,
             initial_params=starts,
             n_restarts=2,
         )
@@ -691,8 +758,12 @@ class TestFruitHelpers:
         from bssunfold.core._fruit import solve_parametric
 
         spec, success, msg, nfev = solve_parametric(
-            _A7x30, _B7, _E30, _LS30,
-            alpha=0.1, n_restarts=1,
+            _A7x30,
+            _B7,
+            _E30,
+            _LS30,
+            alpha=0.1,
+            n_restarts=1,
         )
         assert spec is not None
 
@@ -711,9 +782,7 @@ class TestUnfoldParametric:
 
         with block_import("cvxpy"):
             with pytest.raises(ImportError, match="cvxpy is required"):
-                solve_parametric_cvxpy(
-                    _A7x30, _B7, _E30, _LS30
-                )
+                solve_parametric_cvxpy(_A7x30, _B7, _E30, _LS30)
 
     def test_qpsolvers_import_error(self):
         """solve_parametric_qpsolvers raises ImportError without qpsolvers."""
@@ -721,9 +790,7 @@ class TestUnfoldParametric:
 
         with block_import("qpsolvers"):
             with pytest.raises(ImportError, match="qpsolvers is required"):
-                solve_parametric_qpsolvers(
-                    _A7x30, _B7, _E30, _LS30
-                )
+                solve_parametric_qpsolvers(_A7x30, _B7, _E30, _LS30)
 
     def test_combined_unknown_library(self):
         """solve_parametric_combined raises ValueError for unknown library."""
@@ -735,12 +802,10 @@ class TestUnfoldParametric:
         # The simplest way: patch _parse_solver_backend to return bad values.
         with patch(
             "bssunfold.core.unfold_parametric._parse_solver_backend",
-            return_value=("badlib", "badlib")
+            return_value=("badlib", "badlib"),
         ):
             with pytest.raises(ValueError, match="Unknown solver library"):
-                solve_parametric_combined(
-                    _A7x30, _B7, _E30, _LS30
-                )
+                solve_parametric_combined(_A7x30, _B7, _E30, _LS30)
 
     def test_combined_cvxpy_refinement_none(self):
         """solve_parametric_combined returns lmfit result when cvxpy fails."""
@@ -751,7 +816,7 @@ class TestUnfoldParametric:
         # Actually, let's use a mock that makes cvxpy solver fail.
         with patch(
             "bssunfold.core.unfold_parametric._parse_solver_backend",
-            return_value=("cvxpy", "")
+            return_value=("cvxpy", ""),
         ):
             with patch(
                 "bssunfold.core.unfold_parametric._resolve_cvxpy_solvers",
@@ -759,8 +824,6 @@ class TestUnfoldParametric:
             ):
                 # cvxpy import succeeds but solver fails -> refined is None
                 import cvxpy as cp
-
-                orig_solve = cp.Problem.solve
 
                 def fake_solve(self_inner, *a, **kw):
                     result = type("obj", (), {"status": "infeasible"})()
@@ -784,8 +847,11 @@ class TestUnfoldParametric:
 
         with pytest.raises(ValueError, match="Unknown optimizer"):
             unfold_parametric(
-                d.detector_names, d.n_energy_bins, d.E_MeV,
-                d.sensitivities, d.cc_icrp116,
+                d.detector_names,
+                d.n_energy_bins,
+                d.E_MeV,
+                d.sensitivities,
+                d.cc_icrp116,
                 save_result_callback=lambda x: None,
                 readings=readings,
                 optimizer="nonexistent",
@@ -800,8 +866,11 @@ class TestUnfoldParametric:
         readings = {name: 1.0 for name in d.detector_names}
 
         result = unfold_parametric(
-            d.detector_names, d.n_energy_bins, d.E_MeV,
-            d.sensitivities, d.cc_icrp116,
+            d.detector_names,
+            d.n_energy_bins,
+            d.E_MeV,
+            d.sensitivities,
+            d.cc_icrp116,
             save_result_callback=lambda x: None,
             readings=readings,
             optimizer="lmfit",
@@ -819,8 +888,11 @@ class TestUnfoldParametric:
         readings = {name: 1.0 for name in d.detector_names}
 
         result = unfold_parametric(
-            d.detector_names, d.n_energy_bins, d.E_MeV,
-            d.sensitivities, d.cc_icrp116,
+            d.detector_names,
+            d.n_energy_bins,
+            d.E_MeV,
+            d.sensitivities,
+            d.cc_icrp116,
             save_result_callback=lambda x: None,
             readings=readings,
             optimizer="combined",
@@ -828,21 +900,10 @@ class TestUnfoldParametric:
         )
         assert "spectrum" in result
 
-    def test_qpsolvers_import_error(self):
-        """solve_parametric_qpsolvers raises ImportError without qpsolvers."""
-        from bssunfold.core.unfold_parametric import solve_parametric_qpsolvers
-
-        with block_import("qpsolvers"):
-            with pytest.raises(ImportError, match="qpsolvers is required"):
-                solve_parametric_qpsolvers(
-                    _A7x30, _B7, _E30, _LS30
-                )
-
 
 # ================================================================== #
 # 5. unfold_parametric2.py                                           #
 # ================================================================== #
-
 
 class TestUnfoldParametric2:
     """Tests for unfold_parametric2.py."""
@@ -911,8 +972,14 @@ class TestUnfoldParametric2:
 
         phi0 = np.ones(50) * 1e-10
         phi, iters, chi2, converged = directed_divergence_iteration(
-            A, b, E, ls, phi0,
-            max_iter=3, tol_chi2=1e-30, tol_rel=1e-30,
+            A,
+            b,
+            E,
+            ls,
+            phi0,
+            max_iter=3,
+            tol_chi2=1e-30,
+            tol_rel=1e-30,
         )
         assert iters == 3
         # With tiny tolerance, converged should be False (or bool(converged) is False)
@@ -929,8 +996,13 @@ class TestUnfoldParametric2:
 
         phi0 = np.ones(5) * 1.0
         phi, iters, chi2, converged = directed_divergence_iteration(
-            A, b, E, ls, phi0,
-            max_iter=100, tol_chi2=10.0,
+            A,
+            b,
+            E,
+            ls,
+            phi0,
+            max_iter=100,
+            tol_chi2=10.0,
         )
         assert converged is True
         assert iters <= 2
@@ -940,17 +1012,17 @@ class TestUnfoldParametric2:
         from bssunfold.core.unfold_parametric2 import solve_parametric2
 
         with pytest.raises(ValueError, match="Unknown optimizer"):
-            solve_parametric2(
-                _A7x30, _B7, _E30, _LS30,
-                optimizer="nonexistent"
-            )
+            solve_parametric2(_A7x30, _B7, _E30, _LS30, optimizer="nonexistent")
 
     def test_solve_parametric2_grid_optimizer(self):
         """solve_parametric2 with grid optimizer returns a spectrum."""
         from bssunfold.core.unfold_parametric2 import solve_parametric2
 
         spec, success, msg, nfev = solve_parametric2(
-            _A7x30, _B7, _E30, _LS30,
+            _A7x30,
+            _B7,
+            _E30,
+            _LS30,
             optimizer="grid",
             b_range=(0.0, 3.0, 3),
             Tf_range=(0.1, 10.0, 3),
@@ -965,7 +1037,10 @@ class TestUnfoldParametric2:
         from bssunfold.core.unfold_parametric2 import solve_parametric2
 
         spec, success, msg, nfev = solve_parametric2(
-            _A7x30, _B7, _E30, _LS30,
+            _A7x30,
+            _B7,
+            _E30,
+            _LS30,
             optimizer="cvxpy",
             alpha=1e-3,
             max_iter_qp=3,
@@ -979,7 +1054,10 @@ class TestUnfoldParametric2:
         from bssunfold.core.unfold_parametric2 import solve_parametric2
 
         spec, success, msg, nfev = solve_parametric2(
-            _A7x30, _B7, _E30, _LS30,
+            _A7x30,
+            _B7,
+            _E30,
+            _LS30,
             optimizer="qpsolvers",
             alpha=1e-3,
             max_iter_qp=3,
@@ -993,7 +1071,10 @@ class TestUnfoldParametric2:
         from bssunfold.core.unfold_parametric2 import solve_parametric2
 
         spec, success, msg, nfev = solve_parametric2(
-            _A7x30, _B7, _E30, _LS30,
+            _A7x30,
+            _B7,
+            _E30,
+            _LS30,
             optimizer="combined",
             alpha=1e-3,
             max_iter_qp=3,
@@ -1011,8 +1092,11 @@ class TestUnfoldParametric2:
         readings = {name: 1.0 for name in d.detector_names}
 
         result = unfold_parametric2(
-            d.detector_names, d.n_energy_bins, d.E_MeV,
-            d.sensitivities, d.cc_icrp116,
+            d.detector_names,
+            d.n_energy_bins,
+            d.E_MeV,
+            d.sensitivities,
+            d.cc_icrp116,
             save_result_callback=lambda x: None,
             readings=readings,
             optimizer="grid",
@@ -1099,7 +1183,7 @@ class TestUnfoldCascade:
 
         metrics = compute_quality_metrics(spectrum, reconstructed, measured, energy)
         assert metrics["smoothness"] == 1.0  # len <= 2
-        assert metrics["peak_count"] == 0   # len <= 3
+        assert metrics["peak_count"] == 0  # len <= 3
 
     def test_compute_quality_metrics_medium_spectrum(self):
         """compute_quality_metrics: len > 2 but <= 3 for peaks, <= 10 for hardness."""
@@ -1150,8 +1234,9 @@ class TestUnfoldCascade:
 
         metrics = {"smoothness": 0.8, "chi_square": 1.0, "flux_error": 0.1}
         method = select_next_method(
-            metrics, ["bayes_spline", "parametric2", "hybrid_parametric"],
-            stage_number=2
+            metrics,
+            ["bayes_spline", "parametric2", "hybrid_parametric"],
+            stage_number=2,
         )
         assert method in ["bayes_spline", "parametric2", "hybrid_parametric"]
 
@@ -1260,7 +1345,7 @@ class TestUnfoldCascade:
 
     def test_timeout_handler(self):
         """_timeout_handler raises _StageTimeout."""
-        from bssunfold.core.unfold_cascade import _timeout_handler, _StageTimeout
+        from bssunfold.core.unfold_cascade import _StageTimeout, _timeout_handler
 
         with pytest.raises(_StageTimeout):
             _timeout_handler(None, None)
@@ -1358,8 +1443,11 @@ class TestUnfoldCascade:
             )
         ]
         result = unfold_cascade(
-            d, readings, cascade_stages=stages,
-            calculate_errors=True, verbose=False,
+            d,
+            readings,
+            cascade_stages=stages,
+            calculate_errors=True,
+            verbose=False,
         )
         assert result["status"] == "OK"
 
@@ -1398,8 +1486,12 @@ class TestUnfoldCascade:
             )
         ]
         result = unfold_cascade(
-            d, readings, cascade_stages=stages,
-            multi_resolution=True, coarse_bins=10, verbose=False,
+            d,
+            readings,
+            cascade_stages=stages,
+            multi_resolution=True,
+            coarse_bins=10,
+            verbose=False,
         )
         assert result["spectrum"] is not None
 
@@ -1432,9 +1524,7 @@ class TestUnfoldCascade:
 
         d = Detector()
         readings = {name: 1.0 for name in d.detector_names}
-        result = unfold_adaptive_cascade(
-            d, readings, max_stages=2, verbose=False
-        )
+        result = unfold_adaptive_cascade(d, readings, max_stages=2, verbose=False)
         assert result["spectrum"] is not None or result["status"] == "ERROR"
 
     def test_build_response_matrix(self):
@@ -1469,11 +1559,12 @@ class TestDetectorEdgeCases:
 
         d = Detector()
         with pytest.raises(AttributeError, match="has no attribute"):
-            d.some_random_attribute_xyz
+            _ = d.some_random_attribute_xyz
 
     def test_init_with_dataframe(self):
         """Detector init works with pandas DataFrame."""
         import pandas as pd
+
         from bssunfold import Detector
 
         E = np.logspace(-9, 2, 100)
@@ -1488,8 +1579,11 @@ class TestDetectorEdgeCases:
         from bssunfold import Detector
 
         E = np.logspace(-9, 2, 50)
-        data = {"E_MeV": E, "s1": np.random.rand(50) + 0.1,
-                "s2": np.random.rand(50) + 0.1}
+        data = {
+            "E_MeV": E,
+            "s1": np.random.rand(50) + 0.1,
+            "s2": np.random.rand(50) + 0.1,
+        }
         d = Detector(response_functions=data)
         assert d.n_energy_bins == 50
         assert len(d.detector_names) == 2
@@ -1645,6 +1739,7 @@ class TestDetectorEdgeCases:
     def test_get_effective_readings_with_dataframe(self):
         """get_effective_readings_for_spectra works with DataFrame."""
         import pandas as pd
+
         from bssunfold import Detector
 
         d = Detector()

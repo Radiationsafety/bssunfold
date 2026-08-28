@@ -23,8 +23,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ._base_unfolder import _build_system
 from ..logging_config import get_logger
+from ._base_unfolder import _build_system
 
 __all__ = ["solve_iterative_refinement", "unfold_iterative_refinement"]
 

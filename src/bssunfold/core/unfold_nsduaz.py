@@ -32,9 +32,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 from .unfold_bunki import solve_bunki
-from ..utils.validators import validate_system
 
 __all__ = [
     "solve_nsduaz",
@@ -44,9 +44,7 @@ __all__ = [
 ]
 
 
-def _watt_spectrum(
-    E_MeV: np.ndarray, a: float = 1.025, b: float = 2.926
-) -> np.ndarray:
+def _watt_spectrum(E_MeV: np.ndarray, a: float = 1.025, b: float = 2.926) -> np.ndarray:
     """Analytic Watt fission spectrum (e.g. 252Cf): exp(-E/a) sinh(sqrt(b E))."""
     E = np.asarray(E_MeV, dtype=float)
     E = np.maximum(E, 1e-9)
@@ -162,9 +160,7 @@ def select_catalogue_initial(
     """
     selected = [name for name in detector_names if name in readings]
     if not selected:
-        raise ValueError(
-            "No detector readings available for catalogue selection"
-        )
+        raise ValueError("No detector readings available for catalogue selection")
     b = np.array([readings[name] for name in selected], dtype=float)
     A = np.array([sensitivities[name] for name in selected], dtype=float)
 
@@ -269,7 +265,9 @@ def solve_nsduaz(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
-    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
     return solve_bunki(
         A=A,
         b=b,

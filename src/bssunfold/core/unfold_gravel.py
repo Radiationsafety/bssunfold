@@ -9,8 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from numpy import exp, log
 
-from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ..utils.validators import validate_system
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_gravel", "unfold_gravel"]
 
@@ -45,7 +45,9 @@ def solve_gravel(
     Tuple[np.ndarray, int, bool]
         Tuple of (solution, iterations, converged).
     """
-    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
     _, N = A.shape
     x = x0.copy()
 
@@ -70,7 +72,6 @@ def solve_gravel(
     J_prev = 0.0
     dJ_prev = 1.0
     eps = 1e-10
-    m_valid = len(b_valid)
 
     for iteration in range(1, max_iterations + 1):
         computed = A_valid @ x
@@ -102,9 +103,7 @@ def solve_gravel(
             x[update_mask] *= update
 
         computed_final = A_valid @ x
-        chi_sq = np.sum(
-            (computed_final - b_valid) ** 2 / np.maximum(b_valid, eps)
-        )
+        chi_sq = np.sum((computed_final - b_valid) ** 2 / np.maximum(b_valid, eps))
         J = chi_sq / np.sum(computed_final)
         dJ = J_prev - J
         ddJ = abs(dJ - dJ_prev)

@@ -124,9 +124,7 @@ def _normalize_solver(solver: str) -> str:
     return name
 
 
-def _build_seed(
-    A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]
-) -> np.ndarray:
+def _build_seed(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> np.ndarray:
     """Build the seed spectrum used to initialise the population.
 
     If a non-trivial initial guess ``x0`` is provided it is used directly.
@@ -479,9 +477,7 @@ def _run_numpy_ga(
                     if mutation == "iterative":
                         # phi_new = phi_old * (1 + scale * beta), beta in [-1, 1]
                         beta = rng.uniform(-1.0, 1.0, size=n)
-                        child = child + np.log(
-                            np.maximum(1.0 + scale * beta, 1e-12)
-                        )
+                        child = child + np.log(np.maximum(1.0 + scale * beta, 1e-12))
                     else:
                         child = child + rng.normal(0.0, scale, size=n)
                     child = np.clip(child, lb, ub)
@@ -696,8 +692,10 @@ def _run_nsga2(
         w2_less = (rank_c < rank_d) | ((rank_c == rank_d) & (crowd_c > crowd_d))
         w2 = np.where(w2_less, idx_all[:, 2], idx_all[:, 3])
         # Final: pick w1 if (rank[w1], -crowd[w1]) <= (rank[w2], -crowd[w2])
-        rw1 = rank[w1]; cw1 = crowding[w1]
-        rw2 = rank[w2]; cw2 = crowding[w2]
+        rw1 = rank[w1]
+        cw1 = crowding[w1]
+        rw2 = rank[w2]
+        cw2 = crowding[w2]
         final_less = (rw1 < rw2) | ((rw1 == rw2) & (cw1 >= cw2))
         winner = np.where(final_less, w1, w2)
         selected = pop[winner]
@@ -938,8 +936,7 @@ def _solve_genetic_impl(
         )
     if mutation not in ("random", "iterative"):
         raise ValueError(
-            f"Unsupported mutation operator: {mutation}. "
-            f"Use 'random' or 'iterative'."
+            f"Unsupported mutation operator: {mutation}. Use 'random' or 'iterative'."
         )
     if pareto_select not in ("knee", "min_residual", "max_entropy"):
         raise ValueError(
@@ -1091,9 +1088,7 @@ def _solve_genetic_impl(
     if early_stop is not None:
         termination = {"max_early_stop": int(early_stop)}
 
-    starting = _make_starting_solutions(
-        seed, lb, ub, pop_size, extra=extra_starting
-    )
+    starting = _make_starting_solutions(seed, lb, ub, pop_size, extra=extra_starting)
     runs = max(1, int(n_runs))
     spectra = []
     for run in range(runs):
@@ -1257,8 +1252,7 @@ def unfold_genetic(
         )
     if mutation not in ("random", "iterative"):
         raise ValueError(
-            f"Unsupported mutation operator: {mutation}. "
-            f"Use 'random' or 'iterative'."
+            f"Unsupported mutation operator: {mutation}. Use 'random' or 'iterative'."
         )
     if pareto_select not in ("knee", "min_residual", "max_entropy"):
         raise ValueError(

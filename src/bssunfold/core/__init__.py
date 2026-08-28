@@ -53,7 +53,10 @@ from .unfold_interpret import (
     solve_interpret,
     unfold_interpret,
 )
-from .unfold_iterative_refinement import solve_iterative_refinement, unfold_iterative_refinement
+from .unfold_iterative_refinement import (
+    solve_iterative_refinement,
+    unfold_iterative_refinement,
+)
 from .unfold_kaczmarz import solve_kaczmarz, unfold_kaczmarz
 from .unfold_lanczos import solve_lanczos, unfold_lanczos
 from .unfold_landweber import solve_landweber, unfold_landweber

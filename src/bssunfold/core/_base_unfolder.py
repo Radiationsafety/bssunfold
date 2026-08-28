@@ -125,15 +125,17 @@ def run_unfolding(
     """
     # 0. Validate inputs before building the system
     if not isinstance(readings, dict) or len(readings) == 0:
-        raise ValueError(
-            "readings must be a non-empty dict mapping detector names to "
-            f"float values, got {type(readings).__name__ if not isinstance(readings, dict) else 'empty dict'}"
-        )
+        if not isinstance(readings, dict):
+            kind = type(readings).__name__
+        else:
+            kind = "empty dict"
+        raise ValueError(f"readings must be a non-empty dict, got {kind}")
     if not isinstance(detector_names, list) or len(detector_names) == 0:
-        raise ValueError(
-            "detector_names must be a non-empty list, got "
-            f"{type(detector_names).__name__ if not isinstance(detector_names, list) else 'empty list'}"
-        )
+        if not isinstance(detector_names, list):
+            kind = type(detector_names).__name__
+        else:
+            kind = "empty list"
+        raise ValueError(f"detector_names must be a non-empty list, got {kind}")
     if not isinstance(n_energy_bins, (int, np.integer)) or n_energy_bins <= 0:
         raise ValueError(
             f"n_energy_bins must be a positive integer, got {n_energy_bins!r}"
@@ -150,9 +152,7 @@ def run_unfolding(
         )
     noise_level_f = float(noise_level)
     if noise_level_f <= 0 or noise_level_f > 1:
-        raise ValueError(
-            f"noise_level must be in (0, 1] range, got {noise_level_f}"
-        )
+        raise ValueError(f"noise_level must be in (0, 1] range, got {noise_level_f}")
     if not isinstance(n_montecarlo, (int, np.integer)) or n_montecarlo < 0:
         raise ValueError(
             f"n_montecarlo must be a non-negative integer, got {n_montecarlo!r}"
@@ -311,9 +311,7 @@ def _add_montecarlo_uncertainty(
     x0: np.ndarray,
 ) -> None:
     """Run Monte-Carlo uncertainty and update output dict in-place."""
-    logger.info(
-        f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples..."
-    )
+    logger.info(f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples...")
 
     def _mc_solver(noisy_readings: Dict[str, float], **kwargs) -> np.ndarray:
         A_noisy, b_noisy, _ = _build_system(

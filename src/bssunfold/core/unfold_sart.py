@@ -16,8 +16,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ..utils.validators import validate_system
+from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_sart", "unfold_sart"]
 
@@ -55,7 +55,9 @@ def solve_sart(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
-    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
 
     if relaxation is None:
 

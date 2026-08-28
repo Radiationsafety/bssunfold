@@ -18,9 +18,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._matrix_utils import make_regularization_operator
-from ..utils.validators import validate_system
 
 __all__ = ["solve_cgls", "unfold_cgls"]
 
@@ -77,7 +77,9 @@ def solve_cgls(
         whether a stopping criterion was satisfied before reaching the
         maximum number of iterations.
     """
-    A, b, x0 = validate_system(A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance)
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
     m, n = A.shape
 
     x = np.zeros(n) if x0 is None else x0.copy()

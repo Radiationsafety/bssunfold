@@ -5,16 +5,21 @@ Part 1 of targeted coverage boost.
 
 from __future__ import annotations
 
+import builtins
 import warnings
 from contextlib import contextmanager
+from importlib.util import find_spec
 from typing import Iterator
 from unittest.mock import patch
 
-import builtins
 import numpy as np
 import pytest
 
 from bssunfold import Detector
+
+# These tests exercise the "mystic not installed" code path and therefore
+# only make sense when mystic is unavailable.
+MYSTIC_AVAILABLE = find_spec("mystic") is not None
 
 
 # Re-use block_import from conftest (it's in the same test directory).
@@ -406,7 +411,9 @@ class TestUnfoldGenetic:
     def test_nsga2_solver_direct(self):
         """Test _run_nsga2 directly (numpy-native, no mealpy needed)."""
         from bssunfold.core.unfold_genetic import (
-            _build_seed, _build_log_bounds, _run_nsga2,
+            _build_log_bounds,
+            _build_seed,
+            _run_nsga2,
         )
 
         A, b, x_true = _make_small_system(n_det=3, n_energy=10)
@@ -723,7 +730,10 @@ class TestUnfoldGenetic:
     def test_run_numpy_ga(self):
         """Test the numpy-native GA engine directly."""
         from bssunfold.core.unfold_genetic import (
-            _build_fitness, _build_log_bounds, _build_seed, _run_numpy_ga,
+            _build_fitness,
+            _build_log_bounds,
+            _build_seed,
+            _run_numpy_ga,
         )
 
         A, b, _ = _make_small_system(n_det=3, n_energy=5)
@@ -1002,6 +1012,7 @@ class TestUnfoldMystic:
             assert any("not supported" in str(x.message) for x in w)
         assert isinstance(result, np.ndarray)
 
+    @pytest.mark.skipif(MYSTIC_AVAILABLE, reason="exercises mystic-absent path")
     def test_unfold_mystic_auto_reg_method_fails_mystic(self):
         """Non-manual, non-cosine method needs select_regularization_parameter.
 
@@ -1028,6 +1039,7 @@ class TestUnfoldMystic:
                 regularization_method="gcv",
             )
 
+    @pytest.mark.skipif(MYSTIC_AVAILABLE, reason="exercises mystic-absent path")
     def test_unfold_mystic_auto_reg_norm_warning(self):
         """Auto reg method with norm=1 should produce a norm warning."""
         from bssunfold.core.unfold_mystic import unfold_mystic
@@ -1053,8 +1065,9 @@ class TestUnfoldMystic:
 
     def test_unfold_mystic_auto_reg_failed_selection(self):
         """When select_regularization_parameter fails, ValueError is raised."""
-        from bssunfold.core.unfold_mystic import unfold_mystic
         import unittest.mock as mock
+
+        from bssunfold.core.unfold_mystic import unfold_mystic
 
         names, n_energy, E_MeV, sens, cc, readings = _make_detector_inputs(
             n_det=3, n_energy=10
@@ -1075,6 +1088,7 @@ class TestUnfoldMystic:
                     regularization_method="gcv",
                 )
 
+    @pytest.mark.skipif(MYSTIC_AVAILABLE, reason="exercises mystic-absent path")
     def test_unfold_mystic_cosine_norm_warning(self):
         """Cosine method with norm=1 should produce a warning."""
         from bssunfold.core.unfold_mystic import unfold_mystic
@@ -1100,6 +1114,7 @@ class TestUnfoldMystic:
                 )
             assert any("norm" in str(x.message).lower() for x in w)
 
+    @pytest.mark.skipif(MYSTIC_AVAILABLE, reason="exercises mystic-absent path")
     def test_unfold_mystic_hybrid_auto_reg_fails(self):
         """Non-manual reg method in hybrid triggers else branch."""
         from bssunfold.core.unfold_mystic import unfold_mystic_hybrid
@@ -1119,6 +1134,7 @@ class TestUnfoldMystic:
                 regularization_method="gcv",
             )
 
+    @pytest.mark.skipif(MYSTIC_AVAILABLE, reason="exercises mystic-absent path")
     def test_unfold_mystic_hybrid_auto_reg_norm_warning(self):
         """Auto reg method with norm=1 in hybrid produces norm warning."""
         from bssunfold.core.unfold_mystic import unfold_mystic_hybrid
@@ -1144,8 +1160,9 @@ class TestUnfoldMystic:
 
     def test_unfold_mystic_hybrid_auto_reg_failed_selection(self):
         """When select_regularization_parameter fails in hybrid, ValueError."""
-        from bssunfold.core.unfold_mystic import unfold_mystic_hybrid
         import unittest.mock as mock
+
+        from bssunfold.core.unfold_mystic import unfold_mystic_hybrid
 
         names, n_energy, E_MeV, sens, cc, readings = _make_detector_inputs(
             n_det=3, n_energy=10
@@ -1186,6 +1203,7 @@ class TestUnfoldMystic:
                 initial_spectrum=np.ones(5),
             )
 
+    @pytest.mark.skipif(MYSTIC_AVAILABLE, reason="exercises mystic-absent path")
     def test_unfold_mystic_hybrid_cosine_norm_warning(self):
         """Cosine method with norm=1 in hybrid produces a warning."""
         from bssunfold.core.unfold_mystic import unfold_mystic_hybrid
