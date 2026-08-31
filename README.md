@@ -46,7 +46,7 @@
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
     IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
-  - **Statistical Regularization**: Turchin's method (StatReg, Reconst — Fortran STREG1 port)
+  - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst)
   - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired annealing)
   - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
   - **Advanced Proximal**: ODL PDHG, ODL Douglas-Rachford (Total Variation regularization)
@@ -375,7 +375,7 @@ graph TD
 | 17 | `unfold_amaxed` | MaxEnt | `sigma_factor`, `target_chi2`, `max_iterations`, `tolerance` | — | Alternative MAXED with reversed cross-entropy definition using Lagrangian multipliers (Wong 2024) |
 | 18 | `unfold_amaxed_regularization` | MaxEnt | `sigma_factor`, `tau`, `max_iterations`, `tolerance` | — | AMAXED with Tikhonov-style simultaneous minimization of chi-squared and cross-entropy (Wong 2024) |
 | 19 | `unfold_statreg` | Statistical Reg. | `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree` | — | Turchin's statistical regularization |
-| 20 | `unfold_reconst` | Statistical Reg. | `alpha`, `beta`, `max_iter_alpha`, `max_iter_beta`, `tol_alpha`, `tol_beta` | — | Fortran STREG1 port: auto α/β with discrepancy principle & ω-criterion |
+| 20 | `unfold_reconst` | Statistical Reg. | `alpha`, `beta`, `max_iter_alpha`, `max_iter_beta`, `tol_alpha`, `tol_beta` | — | Reconst reimplementation: auto α/β with discrepancy principle & ω-criterion |
 | 21 | `unfold_lmfit` | Optimization | `method` (lbfgsb/leastsq/...), `model_name` (elastic/lasso/ridge), `regularization`, `regularization2`, `l1_weight`, `regularization_method` (manual/aic/aicc/bic), `lambda_range`, `n_lambda` | lmfit | L1/L2/Elastic Net via lmfit, with optional AIC/AICc/BIC-based regularization selection |
 | 22 | `unfold_scipy_direct_method` | Optimization | `method` (cg/gmres/lsqr/lsmr/minres), `tolerance`, `max_iterations` | — | Direct SciPy linear solvers |
 | 23 | `unfold_combined` | Pipeline | `pipeline` (list of `{method, params}` dicts) | — | Sequential multi-method pipeline |
@@ -746,127 +746,158 @@ bssunfold/
 │   ├── examples.rst
 │   ├── conf.py
 │   └── requirements.txt
-├── examples/                    # Jupyter notebooks
-├── tests/                       # Test suite
+├── examples/                    # Jupyter notebooks (38 notebooks)
+├── scripts/                     # Standalone analysis / benchmark scripts
+│   ├── rank_methods.py
+│   ├── optimize_defaults_and_new_methods.py
+│   ├── dose_rate_evaluation.py
+│   ├── dose_rate_iaea_compendium.py
+│   ├── dose_rate_qpsolvers_cvxpy.py
+│   ├── analyze_iaea_compendium.py
+│   └── summarize_iaea.py
+├── tools/                       # Dev / CI analysis tools
+│   ├── run_dynapyt.py           # DynaPyt dynamic analysis
+│   └── regenerate_paper_figures.py
+├── tests/                       # Test suite (48 files, 2314 tests)
 │   ├── test_all.py
+│   ├── test_boost_part1.py
+│   ├── test_boost_part2.py
+│   ├── test_boost_part3.py
+│   ├── test_boost_part4.py
+│   ├── test_cascade.py
+│   ├── test_classic_unfolders.py
 │   ├── test_comparison.py
+│   ├── test_composite.py
 │   ├── test_coverage.py         # Edge-case & fallback tests
-│   ├── test_coverage_boost.py   # Additional coverage tests
-│   ├── test_cs.py               # Compressive sensing tests
+│   ├── test_coverage_boost.py
+│   ├── test_cs.py
 │   ├── test_detector.py
-│   ├── test_docplex.py          # CPLEX/docplex tests
+│   ├── test_docplex.py
 │   ├── test_dose_coefficients.py
-│   ├── test_em_methods.py       # EM family (OSEM/MAP-EM/BSREM) tests
-│   ├── test_epic.py             # EPIC regularization tests
-│   ├── test_ferdor.py           # FERDOR deconvolution tests
-│   ├── test_genetic.py          # Meta-heuristic optimization tests
+│   ├── test_em_methods.py
+│   ├── test_epic.py
+│   ├── test_ferdor.py
+│   ├── test_genetic.py
 │   ├── test_genetic_improvements.py
 │   ├── test_iaea_validation.py
-│   ├── test_improvements.py     # Validators, metrics, MC tests
-│   ├── test_interpret.py        # Interpretation report tests
-│   ├── test_krylov_tv.py        # Krylov + TV regularization tests
-│   ├── test_lanczos.py          # Lanczos-hybrid tests
+│   ├── test_improvements.py
+│   ├── test_interpret.py
+│   ├── test_krylov_tv.py
+│   ├── test_lanczos.py
+│   ├── test_maeo.py
+│   ├── test_mcmc.py
 │   ├── test_methods2.py
 │   ├── test_mlem.py
-│   ├── test_mlem_stop.py        # MLEM J-factor stopping tests
-│   ├── test_mystic.py           # Mystic optimization tests
+│   ├── test_mlem_stop.py
+│   ├── test_mystic.py
+│   ├── test_new_ensemble_refinement.py
 │   ├── test_new_methods.py
 │   ├── test_new_methods_fixed.py
 │   ├── test_new_metrics.py
-│   ├── test_nsduaz.py           # NSDUAZ catalogue tests
+│   ├── test_new_unfold_methods.py
+│   ├── test_nsduaz.py
+│   ├── test_randomized_kaczmarz_eki.py
 │   ├── test_readings.py
-│   ├── test_rebunki.py          # ReBUNKI tests
-│   ├── test_reconst.py          # STREG1/Reconst tests
+│   ├── test_rebunki.py
+│   ├── test_reconst.py
 │   ├── test_refactored_fixed.py
+│   ├── test_regularization_new_criteria.py
 │   ├── test_response_functions.py
-│   ├── test_scip.py             # SCIP optimization tests
+│   ├── test_scip.py
 │   ├── test_security.py
-│   ├── test_smt.py              # SMT/Z3 exact solving tests
+│   ├── test_smt.py
 │   ├── test_unfold_parametric.py
-│   └── test_unfold_parametric2.py
+│   ├── test_unfold_parametric2.py
+│   └── test_wong2024_methods.py
 └── src/
     └── bssunfold/
-        ├── __init__.py          # Public API: Detector
-        ├── constants.py         # ICRP-116 dose coefficients
+        ├── __init__.py              # Public API: Detector
+        ├── constants.py             # ICRP-116 dose coefficients
         ├── logging_config.py
-        ├── platform_check.py    # Solver availability checks
-        ├── core/
-        │   ├── __init__.py
-        │   ├── _base_unfolder.py
-        │   ├── _em_priors.py    # EM prior functions (quadratic, logcosh, etc.)
-        │   ├── _matrix_utils.py # SVD, derivative matrix
-        │   ├── _montecarlo.py   # MC uncertainty (optimized)
-│   ├── _numba_jit.py    # Numba JIT inner loops 
-│   ├── _bon95.py        # BON95 parametric family (extracted from unfold_parametric2.py)
-│   ├── _fruit.py        # FRUIT parametric model + NLS fit (extracted from unfold_parametric.py)
-│   ├── _parametric_shared.py # Shared parametric constants/fit helpers
-│   ├── _solver_backends.py  # Shared solver-backend resolution
-│   ├── _interpret_pyopt.py  # Interpretation QP build/solve + perturbations (leaf)
-│   ├── _interpret_report.py # Interpretation result dataclass + report (leaf)
-│   ├── _multires.py     # Coarse-to-fine (multi-resolution) helpers
-│   ├── detector.py      # Main Detector class
-        │   ├── dose_calculation.py
-        │   ├── regularization.py   # L-curve, GCV, DP
-        │   ├── unfold_bayes.py
-        │   ├── unfold_bayes_spline_regularization.py
-        │   ├── unfold_bayesian_parametric.py
-        │   ├── unfold_bsrem.py  # Block-sequential regularized EM
-        │   ├── unfold_bunki.py  # BUNKI (SPUNIT) multi-sphere ratio
-        │   ├── unfold_bunkiut.py # BUNKI-UT (BON31G) modernized
-        │   ├── unfold_cgls.py   # Conjugate Gradient Least Squares
-│   ├── unfold_combined.py # Sequential multi-method pipeline
-│   ├── unfold_cascade.py # Cascade (sequential) multi-method unfolding
-│   ├── unfold_composite.py # Adaptive ensemble (stacked generalization)
-│   ├── unfold_cs.py     # Compressive sensing (K-SVD + OMP + SL0)
-        │   ├── unfold_cvxpy.py  # Convex optimization (Tikhonov)
-        │   ├── unfold_docplex.py # IBM CPLEX QP solver
-        │   ├── unfold_doroshenko.py # Coordinate-update iterative
-        │   ├── unfold_epic.py   # EPIC Tikhonov regularization
-        │   ├── unfold_ferdor.py # FERDOR few-channel deconvolution
-        │   ├── unfold_fista.py  # Fast Iterative Shrinkage-Thresholding
-        │   ├── unfold_fruit_like.py # FRUIT-like parametric model
-        │   ├── unfold_genetic.py # Meta-heuristic (PSO/GA/DE/CMA-ES/NSGA-II)
-        │   ├── unfold_gks.py    # Generalized Krylov Subspace
-        │   ├── unfold_gravel.py # GRAVEL algorithm
-        │   ├── unfold_hybrid_gmres.py # Hybrid GMRES with Tikhonov
-        │   ├── unfold_hybrid_parametric.py # Parametric + iterative refinement
-        │   ├── unfold_interpret.py # Unfolding + interpretation report
-        │   ├── unfold_kaczmarz.py # ART (Algebraic Reconstruction)
-        │   ├── unfold_lanczos.py # Lanczos-hybrid (Golub-Kahan)
-        │   ├── unfold_landweber.py # Landweber fixed-point iteration
-        │   ├── unfold_lmfit.py  # L1/L2/Elastic Net via lmfit
-        │   ├── unfold_mapem.py  # MAP-EM (OSMAPOSL penalized EM)
-        │   ├── unfold_maxed.py  # Maximum entropy deconvolution
-        │   ├── unfold_mlem.py   # MLEM (expectation maximization)
-        │   ├── unfold_mlem_odl.py # MLEM via ODL operator framework
-        │   ├── unfold_mlem_stop.py # MLEM with J-factor stopping
-        │   ├── unfold_mystic.py # Direct-search optimization
-        │   ├── unfold_nsduaz.py # NSDUAZ catalogue-based unfolding
-        │   ├── unfold_osem.py   # Ordered-subset EM
-        │   ├── unfold_parametric.py # FRUIT-style parametric fitting
-        │   ├── unfold_parametric2.py # BON95 4-component model
-        │   ├── unfold_qpsolvers.py # QP-based unfolding
-        │   ├── unfold_rebunki.py # ReBUNKI spectral stripping
-        │   ├── unfold_reconst.py # STREG1 Fortran port
-        │   ├── unfold_sandii.py # SAND-II geometric-mean ratio
-        │   ├── unfold_crystal_ball.py # CRYSTAL BALL direct delta-operator (classic code, reimplemented)
-        │   ├── unfold_rfsp_jul.py # RFSP-JUL damped least squares (classic code, reimplemented)
-        │   ├── unfold_staysl.py # STAY'SL Bayesian least squares (classic code, reimplemented)
-        │   ├── unfold_sart.py   # Simultaneous Algebraic Reconstruction
-        │   ├── unfold_scip.py   # SCIP Optimization Suite interface
-        │   ├── unfold_scipy_direct_method.py # SciPy linear solvers
-        │   ├── unfold_smt.py    # SMT exact solving (Z3)
-        │   ├── unfold_statreg.py # Turchin's statistical regularization
-        │   ├── unfold_tikhonov_legendre.py # Legendre polynomial basis
-        │   ├── unfold_tikhonov_tv.py # Tikhonov+TV via ADMM
-        │   └── unfold_tsvd.py   # Truncated SVD
-        └── utils/
+        ├── platform_check.py        # Solver availability checks
+        └── core/
             ├── __init__.py
-            ├── comparison.py    # 25 spectrum metrics
-            ├── converters.py
-            ├── interpolation.py
-            ├── plotting.py
-            └── validators.py
+            ├── _base_unfolder.py
+            ├── _bon95.py            # BON95 parametric family
+            ├── _em_priors.py        # EM prior functions
+            ├── _fruit.py            # FRUIT parametric model + NLS fit
+            ├── _interpret_pyopt.py  # Interpretation QP build/solve
+            ├── _interpret_report.py # Interpretation report dataclass
+            ├── _matrix_utils.py     # SVD, derivative matrix
+            ├── _max_energy.py       # max_neutron_energy helpers (UB, mask)
+            ├── _montecarlo.py       # MC uncertainty
+            ├── _multires.py         # Coarse-to-fine helpers
+            ├── _numba_jit.py        # Numba JIT inner loops
+            ├── _parametric_shared.py # Shared parametric constants
+            ├── _solver_backends.py  # Shared solver-backend resolution
+            ├── detector.py          # Main Detector class (65 unfold_* methods)
+            ├── dose_calculation.py
+            ├── regularization.py    # L-curve, GCV, DP, cosine, NCP, etc.
+            ├── unfold_amaxed.py
+            ├── unfold_amaxed_regularization.py
+            ├── unfold_bayes.py
+            ├── unfold_bayes_spline_regularization.py
+            ├── unfold_bayesian_parametric.py
+            ├── unfold_bsrem.py
+            ├── unfold_bunki.py
+            ├── unfold_bunkiut.py
+            ├── unfold_cascade.py
+            ├── unfold_cgls.py
+            ├── unfold_combined.py
+            ├── unfold_composite.py
+            ├── unfold_crystal_ball.py
+            ├── unfold_cs.py
+            ├── unfold_cvxpy.py
+            ├── unfold_docplex.py
+            ├── unfold_doroshenko.py
+            ├── unfold_eki.py
+            ├── unfold_ensemble.py
+            ├── unfold_epic.py
+            ├── unfold_ferdor.py
+            ├── unfold_fista.py
+            ├── unfold_fruit_like.py
+            ├── unfold_genetic.py
+            ├── unfold_gks.py
+            ├── unfold_gravel.py
+            ├── unfold_hybrid_gmres.py
+            ├── unfold_hybrid_parametric.py
+            ├── unfold_imaxed.py
+            ├── unfold_interpret.py
+            ├── unfold_iterative_refinement.py
+            ├── unfold_kaczmarz.py
+            ├── unfold_lanczos.py
+            ├── unfold_landweber.py
+            ├── unfold_lmfit.py
+            ├── unfold_maeo.py
+            ├── unfold_mapem.py
+            ├── unfold_maxed.py
+            ├── unfold_mcmc.py
+            ├── unfold_mlem.py
+            ├── unfold_mlem_odl.py
+            ├── unfold_mlem_stop.py
+            ├── unfold_mystic.py
+            ├── unfold_nsduaz.py
+            ├── unfold_odl_advanced.py
+            ├── unfold_osem.py
+            ├── unfold_parametric.py
+            ├── unfold_parametric2.py
+            ├── unfold_qpsolvers.py
+            ├── unfold_qubo.py
+            ├── unfold_randomized_kaczmarz.py
+            ├── unfold_rebunki.py
+            ├── unfold_reconst.py
+            ├── unfold_rfsp_jul.py
+            ├── unfold_sandii.py
+            ├── unfold_sart.py
+            ├── unfold_scip.py
+            ├── unfold_scipy_direct_method.py
+            ├── unfold_smt.py
+            ├── unfold_statreg.py
+            ├── unfold_staysl.py
+            ├── unfold_tikhonov_legendre.py
+            ├── unfold_tikhonov_tv.py
+            ├── unfold_tsvd.py
+            └── unfold_zfit.py
 ```
 
 ## 🔧 Technical Requirements
