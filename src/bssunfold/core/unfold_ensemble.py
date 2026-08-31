@@ -318,7 +318,11 @@ def unfold_ensemble(
                     trim_fraction=trim_fraction,
                 )
                 spectra_mc.append(x_mc)
-            except Exception:
+            except (RuntimeError, ValueError, np.linalg.LinAlgError) as exc:
+                logger.debug(
+                    "Monte-Carlo sample failed (%s): %s",
+                    exc.__class__.__name__, exc,
+                )
                 continue
         if spectra_mc:
             result["spectrum_uncertainty"] = np.std(spectra_mc, axis=0)
