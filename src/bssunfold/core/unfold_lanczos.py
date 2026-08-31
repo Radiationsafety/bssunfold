@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_lanczos", "unfold_lanczos"]
@@ -104,8 +105,7 @@ def solve_lanczos(
         whether the discrepancy-principle criterion was met (or the Krylov
         space was fully spanned).
     """
-    A = np.asarray(A, dtype=float)
-    b = np.asarray(b, dtype=float).ravel()
+    A, b, _ = validate_system(A, b)
     m, n = A.shape
 
     if max_iterations is None:

@@ -16,7 +16,7 @@
 
 ## 🔍 Overview
 
-**BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities. Iterative solvers are accelerated with Numba JIT compilation for 3–50x speedups.
+**BSSUnfold** is a Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem of unfolding neutron energy spectra from detector readings, with applications in radiation protection, nuclear physics research, and accelerator facilities. Iterative solvers are accelerated with Numba JIT compilation (Landweber, D'Agostini Bayes, Doroshenko, Kaczmarz, MLEM, GRAVEL) for 3–50x speedups.
 
 ![logo](assets/bssunfold_logo.png)
 
@@ -51,10 +51,16 @@
   - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
   - **Advanced Proximal**: ODL PDHG, ODL Douglas-Rachford (Total Variation regularization)
   - **Pipeline**: Combined approach for chaining multiple methods
+  - **Ensemble & Refinement**: Ensemble (robust combination of base solvers via weighted average, median, trimmed mean, or best residual) and Iterative refinement (two-pass unfold with an auto-selected blending factor)
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
+- **Maximum Energy Cutoff**: `max_neutron_energy` parameter on all `unfold_*`
+  methods — forces zero fluence above a user-specified energy. QP solvers
+  receive the full response matrix with a `ub` array; iterative solvers use
+  matrix trimming with automatic result expansion.
+
 - **Numba JIT-Accelerated Iterative Solvers**:
-  - `@njit(cache=True)` compiled inner loops for Doroshenko, Kaczmarz, MLEM, GRAVEL
+  - `@njit(cache=True)` compiled inner loops for Landweber, D'Agostini Bayes, Doroshenko, Kaczmarz, MLEM, GRAVEL
   - 3–50x speedup on iterative solvers (see [Performance](#-performance))
   - Automatic disk caching of compiled code; graceful fallback when numba is not installed
 
@@ -176,6 +182,13 @@ detector.plot_with_uncertainty(result, plot_style == 'errorbar')
 
 # Calculate and display dose rates
 print("Dose rates [pcSv/s]:", result['doserates'])
+
+# Restrict unfolding to energies below 10 MeV (zero fluence above cutoff)
+result_limited = detector.unfold_cvxpy(
+    readings,
+    regularization=1e-4,
+    max_neutron_energy=10.0
+)
 ```
 
 ## 📊 Input Data Structure
@@ -310,6 +323,8 @@ graph TD
     H --> H1[unfold_combined]
     H --> H2[unfold_cascade]
     H --> H3[unfold_composite]
+    H --> H4[unfold_ensemble]
+    H --> H5[unfold_iterative_refinement]
 
     I --> I1[unfold_parametric]
     I --> I2[unfold_parametric_cvxpy]
@@ -407,6 +422,8 @@ graph TD
 | 64 | `unfold_rfsp_jul` | Classic RSICC codes | `max_iterations`, `tolerance`, `weights`, `noise_level` | — | RFSP-JUL iterative damped least squares: minimises a weighted residual functional with a Marquardt-style damping term tying each iterate to the previous one; independent reimplementation (original code proprietary/RSICC) |
 | 65 | `unfold_staysl` | Classic RSICC codes | `relative_uncertainty`, `prior_uncertainty`, `noise_level` | — | STAY'SL single-step linear Bayesian least-squares update refining a prior spectrum with full measurement/prior covariance information; independent reimplementation from the published mathematical formalism (original code proprietary/RSICC) |
 | 66 | `unfold_mystic_hybrid` | Optimization | `global_solver` (diffev2), `local_solver` (fmin_powell), `global_maxiter`, `global_maxfun`, `local_maxiter`, `local_maxfun`, `npop`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `regularization_method` | mystic | Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; usable in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'` |
+| 67 | `unfold_randomized_kaczmarz` | Iterative | `max_iterations`, `omega`, `tolerance`, `random_state` | — | Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems |
+| 68 | `unfold_eki` | Bayesian | `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state` | — | Ensemble Kalman Inversion (Iglesias et al. 2013): approximates the Bayesian posterior without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 

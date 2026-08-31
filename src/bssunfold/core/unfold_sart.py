@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_sart", "unfold_sart"]
@@ -54,9 +55,9 @@ def solve_sart(
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
-    A = np.asarray(A, dtype=float)
-    b = np.asarray(b, dtype=float)
-    x0 = np.asarray(x0, dtype=float)
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
 
     if relaxation is None:
 
@@ -81,20 +82,33 @@ def solve_sart(
     converged = False
     iterations = 0
 
+    # Pre-allocate work arrays
+    Ax = np.empty(b.shape[0])
+    residual = np.empty_like(b)
+    update = np.empty_like(x)
+    x_old = x.copy()
+    norm_back_safe = norm_back + eps
+    norm_forward_safe = norm_forward + eps
+
     for it in range(1, max_iterations + 1):
         iterations = it
-        x_old = x.copy()
+        x_old_norm = np.linalg.norm(x_old)
         alpha = float(relaxation_seq(it))
 
-        residual = (b - A @ x) / (norm_forward + eps)
-        update = A.T @ residual
-        x = np.maximum(x + alpha * update / (norm_back + eps), 0.0)
+        np.dot(A, x, out=Ax)
+        np.subtract(b, Ax, out=residual)
+        residual /= norm_forward_safe
+        np.dot(A.T, residual, out=update)
+        x += alpha * update / norm_back_safe
+        np.maximum(x, 0.0, out=x)
         x[0] = x0_first
 
-        rel = np.linalg.norm(x - x_old) / (np.linalg.norm(x_old) + eps)
+        # Convergence check using the old norm (already computed)
+        rel = np.linalg.norm(x - x_old) / (x_old_norm + eps)
         if rel < tolerance:
             converged = True
             break
+        np.copyto(x_old, x)
 
     return x, iterations, converged
 

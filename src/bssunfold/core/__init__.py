@@ -38,6 +38,7 @@ from .unfold_cs import solve_cs, solve_ksvd, solve_omp, solve_sl0, unfold_cs
 from .unfold_cvxpy import solve_cvxpy, unfold_cvxpy
 from .unfold_docplex import solve_docplex, unfold_docplex
 from .unfold_doroshenko import solve_doroshenko, unfold_doroshenko
+from .unfold_ensemble import solve_ensemble, unfold_ensemble
 from .unfold_epic import solve_epic, unfold_epic
 from .unfold_ferdor import solve_ferdor, unfold_ferdor
 from .unfold_fruit_like import solve_fruit_like
@@ -52,6 +53,10 @@ from .unfold_interpret import (
     interpret_qp,
     solve_interpret,
     unfold_interpret,
+)
+from .unfold_iterative_refinement import (
+    solve_iterative_refinement,
+    unfold_iterative_refinement,
 )
 from .unfold_kaczmarz import solve_kaczmarz, unfold_kaczmarz
 from .unfold_lanczos import solve_lanczos, unfold_lanczos
@@ -231,6 +236,12 @@ __all__ = [
     # cascade / composite (ensemble) methods
     "unfold_cascade",
     "unfold_composite",
+    # ensemble method
+    "solve_ensemble",
+    "unfold_ensemble",
+    # iterative refinement
+    "solve_iterative_refinement",
+    "unfold_iterative_refinement",
     # interpretation
     "InterpretationResult",
     "build_interpretation_qp",

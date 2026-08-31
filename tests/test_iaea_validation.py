@@ -172,6 +172,160 @@ METHODS = [
         ),
     ),
     ("parametric", lambda d, r: d.unfold_parametric(r, save_result=False)),
+    (
+        "cgls",
+        lambda d, r: d.unfold_cgls(
+            r, max_iterations=100, save_result=False
+        ),
+    ),
+    (
+        "gks",
+        lambda d, r: d.unfold_gks(r, save_result=False),
+    ),
+    (
+        "lanczos",
+        lambda d, r: d.unfold_lanczos(r, save_result=False),
+    ),
+    (
+        "tikhonov_tv",
+        lambda d, r: d.unfold_tikhonov_tv(
+            r, max_iterations=100, save_result=False
+        ),
+    ),
+    (
+        "fista",
+        lambda d, r: d.unfold_fista(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "sandii",
+        lambda d, r: d.unfold_sandii(r, max_iterations=50, save_result=False),
+    ),
+    (
+        "mlem_stop",
+        lambda d, r: d.unfold_mlem_stop(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "osem",
+        lambda d, r: d.unfold_osem(r, max_iterations=50, save_result=False),
+    ),
+    (
+        "mapem",
+        lambda d, r: d.unfold_mapem(r, max_iterations=50, save_result=False),
+    ),
+    (
+        "bsrem",
+        lambda d, r: d.unfold_bsrem(r, max_iterations=50, save_result=False),
+    ),
+    (
+        "sart",
+        lambda d, r: d.unfold_sart(r, max_iterations=50, save_result=False),
+    ),
+    (
+        "parametric2",
+        lambda d, r: d.unfold_parametric2(r, save_result=False),
+    ),
+    (
+        "bunki",
+        lambda d, r: d.unfold_bunki(r, max_iterations=200, save_result=False),
+    ),
+    (
+        "bunkiut",
+        lambda d, r: d.unfold_bunkiut(r, max_iterations=200, save_result=False),
+    ),
+    (
+        "staysl",
+        lambda d, r: d.unfold_staysl(r, save_result=False),
+    ),
+    (
+        "imaxed",
+        lambda d, r: d.unfold_imaxed(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "amaxed",
+        lambda d, r: d.unfold_amaxed(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "amaxed_regularization",
+        lambda d, r: d.unfold_amaxed_regularization(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "crystal_ball",
+        lambda d, r: d.unfold_crystal_ball(r, save_result=False),
+    ),
+    (
+        "reconst",
+        lambda d, r: d.unfold_reconst(r, save_result=False),
+    ),
+    (
+        "epic",
+        lambda d, r: d.unfold_epic(r, save_result=False),
+    ),
+    (
+        "iterative_refinement",
+        lambda d, r: d.unfold_iterative_refinement(r, save_result=False),
+    ),
+    (
+        "hybrid_gmres",
+        lambda d, r: d.unfold_hybrid_gmres(
+            r, max_iterations=100, save_result=False
+        ),
+    ),
+    (
+        "ferdor",
+        lambda d, r: d.unfold_ferdor(r, save_result=False),
+    ),
+    (
+        "rebunki",
+        lambda d, r: d.unfold_rebunki(r, save_result=False),
+    ),
+    (
+        "nsduaz",
+        lambda d, r: d.unfold_nsduaz(r, save_result=False),
+    ),
+    (
+        "rfsp_jul",
+        lambda d, r: d.unfold_rfsp_jul(r, save_result=False),
+    ),
+    (
+        "ensemble",
+        lambda d, r: d.unfold_ensemble(
+            r, combination="trimmed_mean", save_result=False
+        ),
+    ),
+    (
+        "cascade",
+        lambda d, r: d.unfold_cascade(r, save_result=False),
+    ),
+    (
+        "composite",
+        lambda d, r: d.unfold_composite(r, save_result=False),
+    ),
+    (
+        "maeo",
+        lambda d, r: d.unfold_maeo(r, save_result=False),
+    ),
+    (
+        "randomized_kaczmarz",
+        lambda d, r: d.unfold_randomized_kaczmarz(
+            r, max_iterations=500, save_result=False
+        ),
+    ),
+    (
+        "eki",
+        lambda d, r: d.unfold_eki(
+            r, n_ensemble=30, n_iterations=30, save_result=False
+        ),
+    ),
 ]
 
 

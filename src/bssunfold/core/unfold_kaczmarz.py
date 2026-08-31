@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_kaczmarz", "unfold_kaczmarz"]
@@ -45,6 +46,9 @@ def solve_kaczmarz(
     """
     import warnings
 
+    A, b, x0 = validate_system(
+        A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
+    )
     m, _ = A.shape
     x = x0.copy()
 
@@ -63,7 +67,7 @@ def solve_kaczmarz(
     except ImportError:
         pass
 
-    # Fallback: pure Python implementation
+    # Fallback: optimized pure Python implementation
     converged = False
     iterations = 0
     x_old = x.copy()
@@ -72,15 +76,16 @@ def solve_kaczmarz(
         i = k % m
         if row_norms_sq[i] > 0:
             update = (b[i] - np.dot(A[i], x)) / row_norms_sq[i]
-            x = x + omega * update * A[i]
-            x = np.maximum(x, 0)
+            # In-place update to avoid repeated allocations
+            x += omega * update * A[i]
+            np.maximum(x, 0, out=x)
 
         if (k + 1) % m == 0:
             if np.linalg.norm(x - x_old) < tolerance:
                 converged = True
                 iterations = k + 1
                 break
-            x_old = x.copy()
+            np.copyto(x_old, x)
 
     if not converged:
         iterations = max_iterations

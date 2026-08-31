@@ -156,6 +156,14 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_composite.unfold_composite
 
+.. autofunction:: bssunfold.core.unfold_ensemble.unfold_ensemble
+
+.. autofunction:: bssunfold.core.unfold_iterative_refinement.unfold_iterative_refinement
+
+.. autofunction:: bssunfold.core.unfold_randomized_kaczmarz.unfold_randomized_kaczmarz
+
+.. autofunction:: bssunfold.core.unfold_eki.unfold_eki
+
 Core Functions
 ==============
 
@@ -258,6 +266,10 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_rebunki.solve_rebunki
 
 .. autofunction:: bssunfold.core.unfold_nsduaz.solve_nsduaz
+
+.. autofunction:: bssunfold.core.unfold_randomized_kaczmarz.solve_randomized_kaczmarz
+
+.. autofunction:: bssunfold.core.unfold_eki.solve_eki
 
 Comparison Methods
 ==================
@@ -397,4 +409,14 @@ Regularization Selection
 .. autofunction:: bssunfold.core.regularization.discrepancy_principle_selection
 
 .. autofunction:: bssunfold.core.regularization.cosine_similarity_selection
+
+.. autofunction:: bssunfold.core.regularization.quasi_optimality_selection
+
+.. autofunction:: bssunfold.core.regularization.ncp_selection
+
+.. autofunction:: bssunfold.core.regularization.snr_criterion_selection
+
+.. autofunction:: bssunfold.core.regularization.weighted_gcv_poisson_selection
+
+.. autofunction:: bssunfold.core.regularization.kfold_cv_selection
    

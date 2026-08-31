@@ -5,6 +5,7 @@ in methods, edge cases, and fallback implementations.
 """
 
 import warnings
+from importlib.util import find_spec
 from unittest.mock import patch
 
 import numpy as np
@@ -13,6 +14,10 @@ import pytest
 from numpy.testing import assert_almost_equal
 
 from tests.conftest import block_import
+
+_LMFIT_AVAILABLE = find_spec("lmfit") is not None
+_ODL_AVAILABLE = find_spec("odl") is not None
+_PYTIKHONOV_AVAILABLE = find_spec("pytikhonov") is not None
 
 # ============================================================================
 # _matrix_utils.py (22% -> 100%)
@@ -114,6 +119,7 @@ class TestRegularization:
         assert isinstance(var, float)
         assert var >= 0
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_lcurve_fallback(self, ab):
         A, b = ab
         with self._without_pytikhonov():
@@ -128,9 +134,7 @@ class TestRegularization:
 
         A_small = np.ones((1, 1))
         b_small = np.ones(1)
-        lam = _lcurve_fallback(
-            A_small, b_small, n_alphas=2, alpha_range=(1e-9, 1e2)
-        )
+        lam = _lcurve_fallback(A_small, b_small, n_alphas=2, alpha_range=(1e-9, 1e2))
         assert lam == 1.0
 
     def test_gcv_fallback(self, ab):
@@ -189,30 +193,29 @@ class TestRegularization:
         lam = cosine_similarity_selection(A, b_zero, initial)
         assert isinstance(lam, float)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_lcurve_pytikhonov_none_lambda(self, ab):
         import pytikhonov
 
         from bssunfold.core.regularization import lcurve_selection
 
         A, b = ab
-        with patch.object(
-            pytikhonov, "lcorner", return_value={"opt_lambdah": None}
-        ):
+        with patch.object(pytikhonov, "lcorner", return_value={"opt_lambdah": None}):
             with pytest.raises(ValueError, match="L-curve"):
                 lcurve_selection(A, b)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_gcv_pytikhonov_none_lambda(self, ab):
         import pytikhonov
 
         from bssunfold.core.regularization import gcv_selection
 
         A, b = ab
-        with patch.object(
-            pytikhonov, "gcvmin", return_value={"opt_lambdah": None}
-        ):
+        with patch.object(pytikhonov, "gcvmin", return_value={"opt_lambdah": None}):
             with pytest.raises(ValueError, match="GCV"):
                 gcv_selection(A, b)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_dp_pytikhonov_none_lambda(self, ab):
         import pytikhonov
 
@@ -229,6 +232,7 @@ class TestRegularization:
             with pytest.raises(ValueError, match="Discrepancy"):
                 discrepancy_principle_selection(A, b, noise_var=0.01)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_dp_pytikhonov_noise_var_none(self, ab):
         import pytikhonov
 
@@ -273,6 +277,7 @@ class TestRegularization:
         with pytest.raises(ValueError, match="Initial spectrum has zero norm"):
             cosine_similarity_selection(A, b, initial)
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_select_reg_parameter_lcurve(self, ab):
         A, b = ab
         with self._without_pytikhonov():
@@ -300,9 +305,7 @@ class TestRegularization:
                 select_regularization_parameter,
             )
 
-            lam = select_regularization_parameter(
-                A, b, method="dp", noise_var=0.01
-            )
+            lam = select_regularization_parameter(A, b, method="dp", noise_var=0.01)
             assert isinstance(lam, float)
 
     def test_select_reg_parameter_cosine(self, ab):
@@ -323,11 +326,10 @@ class TestRegularization:
         )
 
         A, b = ab
-        with pytest.raises(
-            ValueError, match="Unknown regularization selection method"
-        ):
+        with pytest.raises(ValueError, match="Unknown regularization selection method"):
             select_regularization_parameter(A, b, method="unknown")
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_compare_regularization_methods(self, ab):
         from bssunfold.core.regularization import compare_regularization_methods
 
@@ -338,6 +340,7 @@ class TestRegularization:
         assert "gcv" in result
         assert "selected" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_compare_regularization_methods_with_plot(self, ab, tmp_path):
         from bssunfold.core.regularization import compare_regularization_methods
 
@@ -348,18 +351,18 @@ class TestRegularization:
         )
         assert result is not None
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment(self, ab):
         from bssunfold.core.regularization import randomization_experiment
 
         A, b = ab
-        result = randomization_experiment(
-            A, b, noise_var=0.01, n_samples=3, rseed=0
-        )
+        result = randomization_experiment(A, b, noise_var=0.01, n_samples=3, rseed=0)
         assert "lcurve" in result
         assert "dp" in result
         assert "gcv" in result
         assert "lcurve_full" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment_custom_methods(self, ab):
         from bssunfold.core.regularization import randomization_experiment
 
@@ -371,6 +374,7 @@ class TestRegularization:
         assert "gcv" in result
         assert "dp" not in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment_unknown_method(self, ab):
         from bssunfold.core.regularization import randomization_experiment
 
@@ -488,17 +492,13 @@ class TestConverters:
         from bssunfold.utils.converters import convert_sensitivities_to_matrix
 
         E = np.array([0.1, 0.2])
-        with pytest.raises(
-            TypeError, match="sensitivities must be dict or np.ndarray"
-        ):
+        with pytest.raises(TypeError, match="sensitivities must be dict or np.ndarray"):
             convert_sensitivities_to_matrix("invalid", E)
 
     def test_extract_detector_names_dataframe(self):
         from bssunfold.utils.converters import extract_detector_names
 
-        df = pd.DataFrame(
-            {"E_MeV": [0.1, 0.2], "det1": [1.0, 2.0], "det2": [3.0, 4.0]}
-        )
+        df = pd.DataFrame({"E_MeV": [0.1, 0.2], "det1": [1.0, 2.0], "det2": [3.0, 4.0]})
         names = extract_detector_names(df)
         assert names == ["det1", "det2"]
 
@@ -592,9 +592,7 @@ class TestValidators:
         from bssunfold.utils.validators import validate_energy_grid
 
         E = np.array([-0.1, 0.2, 0.3])
-        with pytest.raises(
-            ValueError, match="All energy values must be positive"
-        ):
+        with pytest.raises(ValueError, match="All energy values must be positive"):
             validate_energy_grid(E)
 
     def test_validate_energy_grid_not_increasing(self):
@@ -708,9 +706,7 @@ class TestInterpolation:
         E_from = np.array([0.1, 0.2, 0.5])
         E_to = np.array([0.3])
         spectrum = np.array([1.0, 2.0, 3.0])
-        result = interpolate_spectrum(
-            spectrum, E_from, E_to, replace_negative=False
-        )
+        result = interpolate_spectrum(spectrum, E_from, E_to, replace_negative=False)
         assert len(result) == 1
 
     def test_discretize_spectra_with_dict(self):
@@ -736,9 +732,7 @@ class TestInterpolation:
         from bssunfold.utils.interpolation import discretize_spectra
 
         target = np.array([0.1, 0.2])
-        with pytest.raises(
-            TypeError, match="spectra must be DataFrame or dict"
-        ):
+        with pytest.raises(TypeError, match="spectra must be DataFrame or dict"):
             discretize_spectra("invalid", target)
 
     def test_discretize_spectra_no_energy_column(self):
@@ -862,9 +856,7 @@ class TestPlotting:
         E = np.array([0.1, 0.2, 0.5, 1.0])
         sens = {"det1": np.array([1.0, 2.0, 3.0, 4.0])}
         save_path = str(tmp_path / "rf.png")
-        fig, ax = plot_response_functions(
-            E, sens, save_to=save_path, show=False
-        )
+        fig, ax = plot_response_functions(E, sens, save_to=save_path, show=False)
         assert tmp_path.joinpath("rf.png").exists()
         import matplotlib.pyplot as plt
 
@@ -919,9 +911,7 @@ class TestPlotting:
             "E_MeV": np.array([0.1, 0.2, 0.5, 1.0]),
             "Phi": np.array([1.0, 2.0, 3.0, 4.0]),
         }
-        fig, ax = plot_with_uncertainty(
-            E, spec, reference_spectrum=ref, show=False
-        )
+        fig, ax = plot_with_uncertainty(E, spec, reference_spectrum=ref, show=False)
         import matplotlib.pyplot as plt
 
         plt.close(fig)
@@ -954,9 +944,7 @@ class TestPlotting:
         measured = np.array([1.0, 2.0, 3.0])
         calculated = np.array([0.9, 2.1, 2.8])
         names = ["det1", "det2", "det3"]
-        fig, ax = plot_residuals(
-            measured, calculated, detector_names=names, show=False
-        )
+        fig, ax = plot_residuals(measured, calculated, detector_names=names, show=False)
         import matplotlib.pyplot as plt
 
         plt.close(fig)
@@ -967,9 +955,7 @@ class TestPlotting:
         measured = np.array([1.0, 2.0, 3.0])
         calculated = np.array([0.9, 2.1, 2.8])
         save_path = str(tmp_path / "residuals.png")
-        fig, ax = plot_residuals(
-            measured, calculated, save_to=save_path, show=False
-        )
+        fig, ax = plot_residuals(measured, calculated, save_to=save_path, show=False)
         assert tmp_path.joinpath("residuals.png").exists()
         import matplotlib.pyplot as plt
 
@@ -1022,9 +1008,7 @@ class TestPlotting:
             },
         }
         readings = {"det1": 1.0, "det2": 2.0}
-        fig, ax = plot_comparison(
-            results, readings, reference_spectrum=ref, show=False
-        )
+        fig, ax = plot_comparison(results, readings, reference_spectrum=ref, show=False)
         import matplotlib.pyplot as plt
 
         plt.close(fig)
@@ -1063,9 +1047,7 @@ class TestPlotting:
         }
         readings = {"det1": 1.0}
         save_path = str(tmp_path / "comparison.png")
-        fig, ax = plot_comparison(
-            results, readings, save_to=save_path, show=False
-        )
+        fig, ax = plot_comparison(results, readings, save_to=save_path, show=False)
         assert tmp_path.joinpath("comparison.png").exists()
         import matplotlib.pyplot as plt
 
@@ -1108,9 +1090,7 @@ class TestPlotting:
         E = np.array([0.1, 0.2, 0.5, 1.0])
         spec = np.array([1.0, 2.0, 3.0, 4.0])
         ref = {"E_MeV": E, "flux": np.array([1.0, 2.0, 3.0, 4.0])}
-        fig, ax = plot_with_uncertainty(
-            E, spec, reference_spectrum=ref, show=False
-        )
+        fig, ax = plot_with_uncertainty(E, spec, reference_spectrum=ref, show=False)
         import matplotlib.pyplot as plt
 
         plt.close(fig)
@@ -1148,9 +1128,7 @@ class TestPlotting:
             },
         }
         readings = {"det1": 1.0}
-        fig, ax = plot_comparison(
-            results, readings, reference_spectrum=ref, show=False
-        )
+        fig, ax = plot_comparison(results, readings, reference_spectrum=ref, show=False)
         import matplotlib.pyplot as plt
 
         plt.close(fig)
@@ -1217,9 +1195,7 @@ class TestUnfoldingMethodsEdgeCases:
         b = A @ x_true
         x0 = np.zeros(10)
         with pytest.warns(UserWarning, match="omega"):
-            x, iters, conv = solve_kaczmarz(
-                A, b, x0, omega=3.0, max_iterations=10
-            )
+            x, iters, conv = solve_kaczmarz(A, b, x0, omega=3.0, max_iterations=10)
         assert x.shape == (10,)
 
     def test_solve_doroshenko_denominator_zero(self):
@@ -1228,9 +1204,7 @@ class TestUnfoldingMethodsEdgeCases:
         A = np.array([[0.0, 1.0], [0.0, 1.0]])
         b = np.array([1.0, 2.0])
         x0 = np.array([0.0, 0.0])
-        x, iterations, converged = solve_doroshenko(
-            A, b, x0, max_iterations=100
-        )
+        x, iterations, converged = solve_doroshenko(A, b, x0, max_iterations=100)
         assert x.shape == (2,)
 
     def test_solve_cvxpy_default_solver(self):
@@ -1314,14 +1288,13 @@ class TestUnfoldingMethodsEdgeCases:
 
         A = np.random.rand(5, 10)
         b = np.random.rand(5)
-        x = solve_qpsolvers(
-            A, b, alpha=1e-4, norm=2, solver="nonexistent_solver"
-        )
+        x = solve_qpsolvers(A, b, alpha=1e-4, norm=2, solver="nonexistent_solver")
         if "osqp" in available_solvers:
             assert x is not None
         else:
             assert x is None
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_leastsq(self):
         from bssunfold.core import solve_lmfit
 
@@ -1343,6 +1316,7 @@ class TestUnfoldingMethodsEdgeCases:
         assert x.shape == (10,)
         assert np.all(x >= 0)
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_lasso_leastsq(self):
         from bssunfold.core import solve_lmfit
 
@@ -1356,6 +1330,7 @@ class TestUnfoldingMethodsEdgeCases:
         )
         assert x.shape == (10,)
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_ridge_leastsq(self):
         from bssunfold.core import solve_lmfit
 
@@ -1369,6 +1344,7 @@ class TestUnfoldingMethodsEdgeCases:
         )
         assert x.shape == (10,)
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_solve_lmfit_invalid_model(self):
         from bssunfold.core import solve_lmfit
 
@@ -1379,9 +1355,7 @@ class TestUnfoldingMethodsEdgeCases:
             solve_lmfit(A, b, x0, model_name="invalid")
 
     def test_solve_cvxpy_exception(self):
-        with patch(
-            "cvxpy.Problem.solve", side_effect=Exception("Solver error")
-        ):
+        with patch("cvxpy.Problem.solve", side_effect=Exception("Solver error")):
             from bssunfold.core import solve_cvxpy
 
             A = np.random.rand(5, 10)
@@ -1446,14 +1420,13 @@ class TestUnfoldQpsolversCoverage:
         assert "spectrum" in result
 
     def test_qpsolvers_cosine_no_initial(self, detector, readings):
-        with pytest.raises(
-            ValueError, match="initial_spectrum must be provided"
-        ):
+        with pytest.raises(ValueError, match="initial_spectrum must be provided"):
             detector.unfold_qpsolvers(
                 readings,
                 regularization_method="cosine",
             )
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_qpsolvers_lcurve_reg(self, detector, readings):
         result = detector.unfold_qpsolvers(
             readings,
@@ -1487,6 +1460,7 @@ class TestUnfoldQpsolversCoverage:
             )
         assert "spectrum" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_qpsolvers_auto_with_norm1(self, detector, readings):
         with pytest.warns(UserWarning, match="assume L2"):
             result = detector.unfold_qpsolvers(
@@ -1527,9 +1501,7 @@ class TestUnfoldQpsolversCoverage:
 
     def test_qpsolvers_cosine_wrong_initial_length(self, detector, readings):
         initial = np.ones(5)
-        with pytest.raises(
-            ValueError, match="must match number of energy bins"
-        ):
+        with pytest.raises(ValueError, match="must match number of energy bins"):
             detector.unfold_qpsolvers(
                 readings,
                 regularization_method="cosine",
@@ -1541,12 +1513,8 @@ class TestUnfoldQpsolversCoverage:
             "bssunfold.core.regularization.select_regularization_parameter",
             side_effect=Exception("test error"),
         ):
-            with pytest.raises(
-                ValueError, match="Regularization selection failed"
-            ):
-                detector.unfold_qpsolvers(
-                    readings, regularization_method="lcurve"
-                )
+            with pytest.raises(ValueError, match="Regularization selection failed"):
+                detector.unfold_qpsolvers(readings, regularization_method="lcurve")
 
     def test_qpsolvers_solution_none(self, detector, readings):
         with patch(
@@ -1584,11 +1552,10 @@ class TestUnfoldCvxpyCoverage:
         assert "spectrum" in result
 
     def test_cvxpy_cosine_no_initial(self, detector, readings):
-        with pytest.raises(
-            ValueError, match="initial_spectrum must be provided"
-        ):
+        with pytest.raises(ValueError, match="initial_spectrum must be provided"):
             detector.unfold_cvxpy(readings, regularization_method="cosine")
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_cvxpy_lcurve_reg(self, detector, readings):
         result = detector.unfold_cvxpy(readings, regularization_method="lcurve")
         assert "spectrum" in result
@@ -1605,9 +1572,7 @@ class TestUnfoldCvxpyCoverage:
 
     def test_cvxpy_cosine_wrong_initial_length(self, detector, readings):
         initial = np.ones(5)
-        with pytest.raises(
-            ValueError, match="must match number of energy bins"
-        ):
+        with pytest.raises(ValueError, match="must match number of energy bins"):
             detector.unfold_cvxpy(
                 readings,
                 regularization_method="cosine",
@@ -1764,9 +1729,7 @@ class TestDetectorCoverage:
         assert isinstance(result, dict)
 
     def test_get_effective_readings_invalid_type(self, detector):
-        with pytest.raises(
-            TypeError, match="Input spectra must be DataFrame or dict"
-        ):
+        with pytest.raises(TypeError, match="Input spectra must be DataFrame or dict"):
             detector.get_effective_readings_for_spectra("invalid")
 
     def test_get_effective_readings_via_dict(self, detector):
@@ -1799,13 +1762,13 @@ class TestDetectorCoverage:
         with pytest.raises(ImportError, match="nonexistent_module is required"):
             Detector._import_optional("nonexistent_module", "testing")
 
-    def test_compare_regularization_methods_on_detector(
-        self, detector, readings
-    ):
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
+    def test_compare_regularization_methods_on_detector(self, detector, readings):
         result = detector.compare_regularization_methods(readings)
         assert "selected" in result
         assert "lcurve" in result
 
+    @pytest.mark.skipif(not _PYTIKHONOV_AVAILABLE, reason="pytikhonov not installed")
     def test_randomization_experiment_on_detector(self, detector, readings):
         result = detector.randomization_experiment(readings, n_samples=3)
         assert "lcurve" in result
@@ -1820,9 +1783,7 @@ class TestDetectorCoverage:
         import matplotlib
 
         matplotlib.use("Agg")
-        result = detector.unfold_cvxpy(
-            readings, regularization=1e-3, save_result=False
-        )
+        result = detector.unfold_cvxpy(readings, regularization=1e-3, save_result=False)
         fig, ax = detector.plot_with_uncertainty(result, show=False)
         import matplotlib.pyplot as plt
 
@@ -1832,9 +1793,7 @@ class TestDetectorCoverage:
         import matplotlib
 
         matplotlib.use("Agg")
-        result = detector.unfold_cvxpy(
-            readings, regularization=1e-3, save_result=False
-        )
+        result = detector.unfold_cvxpy(readings, regularization=1e-3, save_result=False)
         ref = {
             "E_MeV": detector.E_MeV,
             "Phi": np.ones(detector.n_energy_bins) * 0.5,
@@ -1851,9 +1810,7 @@ class TestDetectorCoverage:
 
         matplotlib.use("Agg")
         with pytest.raises(ValueError, match="Unsupported file extension"):
-            detector.plot_response_functions(
-                save_to=str(tmp_path / "test"), show=False
-            )
+            detector.plot_response_functions(save_to=str(tmp_path / "test"), show=False)
 
     def test_build_system_no_readings(self, detector):
         from bssunfold import Detector
@@ -1871,9 +1828,7 @@ class TestDetectorCoverage:
         assert A.shape[0] == 1
 
     def test_validate_readings_on_detector(self, detector):
-        validated = detector._validate_readings(
-            {detector.detector_names[0]: 50.0}
-        )
+        validated = detector._validate_readings({detector.detector_names[0]: 50.0})
         assert validated[detector.detector_names[0]] == 50.0
 
     def test_unfold_cvxpy_save_result_false(self, detector, readings):
@@ -1930,6 +1885,7 @@ class TestDetectorCoverage:
         )
         assert "spectrum_uncert_mean" in result
 
+    @pytest.mark.skipif(not _LMFIT_AVAILABLE, reason="lmfit not installed")
     def test_unfold_lmfit_with_errors(self, detector, readings):
         result = detector.unfold_lmfit(
             readings,
@@ -1940,6 +1896,7 @@ class TestDetectorCoverage:
         )
         assert "spectrum_uncert_mean" in result
 
+    @pytest.mark.skipif(not _ODL_AVAILABLE, reason="odl not installed")
     def test_unfold_mlem_odl_with_errors(self, detector, readings):
         result = detector.unfold_mlem_odl(
             readings,
@@ -1963,9 +1920,7 @@ class TestDetectorCoverage:
         pipeline = [
             {"method": "cvxpy", "params": {"regularization": 1e-3}},
         ]
-        result = detector.unfold_combined(
-            readings, pipeline=pipeline, verbose=False
-        )
+        result = detector.unfold_combined(readings, pipeline=pipeline, verbose=False)
         assert "spectrum" in result
 
     def test_unfold_combined_none_final_result(self):
@@ -2262,7 +2217,7 @@ class TestDetectorInitEdgeCases:
     def test_init_invalid_combination(self):
         from bssunfold import Detector
 
-        with pytest.raises(ValueError, match="Invalid input combination"):
+        with pytest.raises(TypeError, match="response_functions must be"):
             Detector(response_functions="invalid")
 
     def test_init_array_mismatch(self):
@@ -2350,9 +2305,7 @@ class TestDetectorInitEdgeCases:
                 "col2": [2.0, 3.0, 4.0, 5.0, 6.0],
             }
         )
-        rf_matrix, energies, names, _ = d._convert_rf_to_matrix_variable_step(
-            rf_df
-        )
+        rf_matrix, energies, names, _ = d._convert_rf_to_matrix_variable_step(rf_df)
         assert rf_matrix.shape == (5, 2)
         assert "col1" in names
 
@@ -2552,9 +2505,7 @@ class TestComparisonCoverage:
 
         energy = np.array([1e-3, 1e-2, 1e-1, 1.0])
         with patch.object(nj, "NUMBA_AVAILABLE", True):
-            with patch.object(
-                nj, "_compute_log_steps_jit", return_value=np.ones(4)
-            ):
+            with patch.object(nj, "_compute_log_steps_jit", return_value=np.ones(4)):
                 result = _compute_log_steps(energy)
         assert result.shape == (4,)
 
@@ -2570,3 +2521,128 @@ class TestComparisonCoverage:
             with patch.object(nj, "_dose_weighted_mse_jit", return_value=0.1):
                 result = dose_weighted_error(s1, s2, e, cc)
         assert result == pytest.approx(0.1)
+
+
+# ============================================================================
+# max_neutron_energy cutoff (all unfold_* methods)
+# ============================================================================
+
+
+class TestMaxNeutronEnergy:
+    """Spectrum must not be built above ``max_neutron_energy``."""
+
+    @staticmethod
+    def _readings(detector, true_spectrum):
+        return {
+            name: float(np.dot(detector.sensitivities[name], true_spectrum))
+            for name in detector.detector_names
+        }
+
+    def _make_detector(self):
+        from bssunfold import Detector
+
+        return Detector()
+
+    @pytest.mark.parametrize(
+        "method",
+        ["cvxpy", "qpsolvers", "mlem", "landweber", "genetic"],
+    )
+    def test_spectrum_zero_above_emax(self, method):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        fn = getattr(det, f"unfold_{method}")
+        kw = {}
+        if method == "genetic":
+            kw = dict(epoch=30, pop_size=20, n_montecarlo=0)
+        result = fn(readings, max_neutron_energy=Emax, **kw)
+
+        assert len(result["spectrum"]) == n
+        assert len(result["energy"]) == n
+        above = result["spectrum"][det.E_MeV > Emax]
+        assert np.allclose(above, 0.0)
+        # Below the cutoff there should be non-negative unfolded fluence.
+        assert np.all(result["spectrum"][det.E_MeV <= Emax] >= -1e-9)
+
+    def test_default_no_cutoff_full_grid(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.ones(n)
+        readings = self._readings(det, true)
+
+        r_none = det.unfold_cvxpy(readings, max_neutron_energy=None)
+        r_default = det.unfold_cvxpy(readings)
+        assert np.allclose(r_none["spectrum"], r_default["spectrum"])
+        assert len(r_none["spectrum"]) == n
+
+    def test_dose_rates_consistent_with_cutoff(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.unfold_qpsolvers(readings, max_neutron_energy=Emax)
+        # Dose rates dict must be present and finite.
+        assert "doserates" in result
+        for v in result["doserates"].values():
+            assert np.isfinite(v)
+        # Effective readings / residual recomputed on full grid.
+        assert np.allclose(
+            np.array(list(result["effective_readings"].values())),
+            np.array(
+                [det.sensitivities[name] @ result["spectrum"]
+                 for name in result["effective_readings"]]
+            ),
+        )
+
+    def test_montecarlo_expanded_to_full_grid(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.unfold_qpsolvers(
+            readings, max_neutron_energy=Emax,
+            calculate_errors=True, n_montecarlo=10, noise_level=0.01,
+        )
+        assert "spectrum_uncert_mean" in result
+        assert len(result["spectrum_uncert_mean"]) == n
+        assert np.allclose(
+            result["spectrum_uncert_mean"][det.E_MeV > Emax], 0.0
+        )
+
+    def test_interpret_result_cutoff(self):
+        pytest.importorskip("pyoptexplain")
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.interpret_result(readings, max_neutron_energy=Emax)
+        assert len(result["spectrum"]) == n
+        assert np.allclose(result["spectrum"][det.E_MeV > Emax], 0.0)
+
+    def test_maeo_cutoff(self):
+        det = self._make_detector()
+        n = det.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = self._readings(det, true)
+        Emax = det.E_MeV[n // 2 - 1]
+
+        result = det.unfold_maeo(
+            readings, max_neutron_energy=Emax,
+            n_cycles=2, n_gen_per_cycle=5, pop_size=20,
+        )
+        assert len(result["spectrum"]) == n
+        assert np.allclose(result["spectrum"][det.E_MeV > Emax], 0.0)

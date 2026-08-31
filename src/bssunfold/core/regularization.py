@@ -17,6 +17,11 @@ __all__ = [
     "gcv_selection",
     "discrepancy_principle_selection",
     "cosine_similarity_selection",
+    "quasi_optimality_selection",
+    "ncp_selection",
+    "snr_criterion_selection",
+    "weighted_gcv_poisson_selection",
+    "kfold_cv_selection",
     "compare_regularization_methods",
     "randomization_experiment",
 ]
@@ -90,9 +95,20 @@ def select_regularization_parameter(
         )
     if method == "cosine":
         return cosine_similarity_selection(A, b, initial_spectrum, **kwargs)
+    if method == "quasi_optimality":
+        return quasi_optimality_selection(A, b, **kwargs)
+    if method == "ncp":
+        return ncp_selection(A, b, **kwargs)
+    if method == "snr":
+        return snr_criterion_selection(A, b, **kwargs)
+    if method == "weighted_gcv_poisson":
+        return weighted_gcv_poisson_selection(A, b, **kwargs)
+    if method == "kfold_cv":
+        return kfold_cv_selection(A, b, **kwargs)
     raise ValueError(
         f"Unknown regularization selection method: {method}. "
-        "Choose from 'lcurve', 'gcv', 'dp', 'cosine'."
+        "Choose from 'lcurve', 'gcv', 'dp', 'cosine', 'quasi_optimality', "
+        "'ncp', 'snr', 'weighted_gcv_poisson', 'kfold_cv'."
     )
 
 
@@ -446,6 +462,322 @@ def cosine_similarity_selection(
 
     idx_max = np.argmax(similarities)
     return float(alphas[idx_max])
+
+
+def quasi_optimality_selection(
+    A: np.ndarray,
+    b: np.ndarray,
+    n_alphas: int = 50,
+    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+) -> float:
+    """Select regularization parameter using the quasi-optimality criterion.
+
+    The quasi-optimality criterion (Hochstenbach & Reichel, 2015) minimises
+    the noise component of the Tikhonov solution in the SVD basis:
+
+        Q(alpha) = sum_i  (alpha^2 / (s_i^2 + alpha^2))^2 * (U_i^T b / s_i)^2
+
+    The optimal alpha is the one that minimises Q(alpha).
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix.
+    b : np.ndarray
+        Measurement vector.
+    n_alphas : int, optional
+        Number of alpha values to test (default: 50).
+    alpha_range : Tuple[float, float], optional
+        Range of alpha values (default: (1e-9, 1e2)).
+
+    Returns
+    -------
+    float
+        Selected regularization parameter.
+    """
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
+    m, _ = A.shape
+
+    U, s, Vt, s_sq = compute_svd_components(A)
+    UTb = U.T @ b
+
+    quotients = np.zeros_like(s)
+    nonzero = s > 0
+    quotients[nonzero] = UTb[nonzero] / s[nonzero]
+
+    q_values = []
+    for alpha in alphas:
+        filt = alpha ** 2 / (s_sq + alpha ** 2) ** 2
+        q_val = np.sum(filt * quotients ** 2)
+        q_values.append(q_val)
+
+    idx_min = np.argmin(q_values)
+    return float(alphas[idx_min])
+
+
+def ncp_selection(
+    A: np.ndarray,
+    b: np.ndarray,
+    n_alphas: int = 50,
+    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    significance: float = 0.05,
+) -> float:
+    """Select regularization parameter using the Normalized Cumulative Periodogram.
+
+    The NCP criterion tests whether the residuals of the regularised solution
+    are consistent with white noise.  For each candidate alpha, the residual
+    vector is computed, its periodogram is formed, and a Kolmogorov-Smirnov
+    test is applied against the uniform distribution on [0, 1].  The alpha
+    with the smallest KS statistic (i.e. whitest residuals) is selected.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix.
+    b : np.ndarray
+        Measurement vector.
+    n_alphas : int, optional
+        Number of alpha values to test (default: 50).
+    alpha_range : Tuple[float, float], optional
+        Range of alpha values (default: (1e-9, 1e2)).
+    significance : float, optional
+        Reserved for future use (default: 0.05).
+
+    Returns
+    -------
+    float
+        Selected regularization parameter.
+    """
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
+
+    U, s, Vt, s_sq = compute_svd_components(A)
+    UTb = U.T @ b
+
+    ks_stats = []
+    for alpha in alphas:
+        filt = s / (s_sq + alpha)
+        x = Vt.T @ (filt * UTb)
+        residual = b - A @ np.maximum(x, 0)
+
+        r = np.fft.rfft(residual - np.mean(residual))
+        periodogram = np.abs(r) ** 2
+        cumul = np.cumsum(periodogram)
+        if cumul[-1] > 0:
+            cumul = cumul / cumul[-1]
+        n_p = len(cumul)
+        theoretical = np.linspace(1.0 / n_p, 1.0, n_p)
+        ks_stat = float(np.max(np.abs(cumul - theoretical)))
+        ks_stats.append(ks_stat)
+
+    idx_min = np.argmin(ks_stats)
+    return float(alphas[idx_min])
+
+
+def snr_criterion_selection(
+    A: np.ndarray,
+    b: np.ndarray,
+    n_alphas: int = 50,
+    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+) -> float:
+    """Select regularization parameter by maximising signal-to-noise ratio.
+
+    For each candidate alpha the Tikhonov solution is split into a signal
+    component (projection onto the leading singular vectors) and a noise
+    component (projection onto the trailing singular vectors).  The SNR is
+    defined as the ratio of their squared Frobenius norms.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix.
+    b : np.ndarray
+        Measurement vector.
+    n_alphas : int, optional
+        Number of alpha values to test (default: 50).
+    alpha_range : Tuple[float, float], optional
+        Range of alpha values (default: (1e-9, 1e2)).
+
+    Returns
+    -------
+    float
+        Selected regularization parameter.
+    """
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
+
+    U, s, Vt, s_sq = compute_svd_components(A)
+    UTb = U.T @ b
+
+    snr_values = []
+    for alpha in alphas:
+        filt = s / (s_sq + alpha)
+        x = Vt.T @ (filt * UTb)
+        x = np.maximum(x, 0)
+
+        signal_part = A @ x
+        noise_part = (b - A @ x)
+
+        signal_energy = float(np.sum(signal_part ** 2))
+        noise_energy = float(np.sum(noise_part ** 2))
+
+        if noise_energy > 0:
+            snr_values.append(signal_energy / noise_energy)
+        else:
+            snr_values.append(np.inf)
+
+    finite_mask = np.isfinite(snr_values)
+    if not np.any(finite_mask):
+        return float(alphas[0])
+
+    idx_max = np.argmax(np.where(finite_mask, snr_values, -np.inf))
+    return float(alphas[idx_max])
+
+
+def weighted_gcv_poisson_selection(
+    A: np.ndarray,
+    b: np.ndarray,
+    n_alphas: int = 50,
+    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+) -> float:
+    """Select regularization parameter using weighted GCV for Poisson noise.
+
+    Under Poisson noise the variance of each measurement equals its
+    expectation.  The weighted GCV replaces the ordinary GCV denominator
+    ``||r||^2`` with ``sum(r_i^2 / w_i)`` where ``w_i = max(b_i, 1)`` are
+    the Poisson variance estimates, and the trace term is replaced by
+    ``tr(W (I - H_alpha))`` with ``W = diag(1/w_i)``.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix.
+    b : np.ndarray
+        Measurement vector.
+    n_alphas : int, optional
+        Number of alpha values to test (default: 50).
+    alpha_range : Tuple[float, float], optional
+        Range of alpha values (default: (1e-9, 1e2)).
+
+    Returns
+    -------
+    float
+        Selected regularization parameter.
+    """
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
+    m, n = A.shape
+
+    weights = np.maximum(b, 1.0)
+    W = np.diag(1.0 / weights)
+    WA = W @ A
+    Wb = W @ b
+
+    U, s, Vt, s_sq = compute_svd_components(WA)
+    UTWb = U.T @ Wb
+
+    wgcv_values = []
+    for alpha in alphas:
+        filt = s / (s_sq + alpha)
+        x = Vt.T @ (filt * UTWb)
+        residual = Wb - WA @ x
+
+        wgcv_num = float(np.sum(residual ** 2))
+        trace_term = float(np.sum(filt))
+        denom = (m - trace_term) ** 2
+
+        if denom > 0:
+            wgcv_values.append(wgcv_num / denom)
+        else:
+            wgcv_values.append(np.inf)
+
+    finite_mask = np.isfinite(wgcv_values)
+    if not np.any(finite_mask):
+        return 1.0
+
+    idx_min = np.argmin(np.where(finite_mask, wgcv_values, np.inf))
+    return float(alphas[idx_min])
+
+
+def kfold_cv_selection(
+    A: np.ndarray,
+    b: np.ndarray,
+    n_folds: int = 5,
+    n_alphas: int = 50,
+    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    random_state: Optional[int] = None,
+) -> float:
+    """Select regularization parameter using K-fold cross-validation.
+
+    The data is split into K folds.  For each alpha, the Tikhonov problem
+    is solved on K-1 folds and the held-out residual is evaluated.  The
+    alpha with the smallest mean held-out prediction error is selected.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix.
+    b : np.ndarray
+        Measurement vector.
+    n_folds : int, optional
+        Number of cross-validation folds (default: 5).
+    n_alphas : int, optional
+        Number of alpha values to test (default: 50).
+    alpha_range : Tuple[float, float], optional
+        Range of alpha values (default: (1e-9, 1e2)).
+    random_state : int, optional
+        Random seed for fold assignment (default: None).
+
+    Returns
+    -------
+    float
+        Selected regularization parameter.
+    """
+    rng = np.random.RandomState(random_state)
+    m, n = A.shape
+
+    alphas = np.logspace(
+        np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
+    )
+
+    indices = rng.permutation(m)
+    fold_sizes = np.full(n_folds, m // n_folds, dtype=int)
+    fold_sizes[: m % n_folds] += 1
+
+    folds = []
+    current = 0
+    for fs in fold_sizes:
+        folds.append(indices[current : current + fs])
+        current += fs
+
+    cv_errors = np.zeros(len(alphas))
+
+    for fold_idx in range(n_folds):
+        test_idx = folds[fold_idx]
+        train_idx = np.concatenate([folds[j] for j in range(n_folds) if j != fold_idx])
+
+        A_train, b_train = A[train_idx], b[train_idx]
+        A_test, b_test = A[test_idx], b[test_idx]
+
+        ATA_train = A_train.T @ A_train
+        ATb_train = A_train.T @ b_train
+
+        for i, alpha in enumerate(alphas):
+            try:
+                x = np.linalg.solve(ATA_train + alpha * np.eye(n), ATb_train)
+                x = np.maximum(x, 0)
+                residual = b_test - A_test @ x
+                cv_errors[i] += float(np.sum(residual ** 2))
+            except np.linalg.LinAlgError:
+                cv_errors[i] += np.inf
+
+    idx_min = np.argmin(cv_errors)
+    return float(alphas[idx_min])
 
 
 def resolve_regularization_parameter(

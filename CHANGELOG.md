@@ -7,6 +7,98 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.21.0] - 2026-08-31
+
+### Added
+- **Maximum neutron energy cutoff** — `max_neutron_energy` parameter on every
+  `unfold_*` method (including `unfold_maeo`, `unfold_interpret`): pass
+  e.g. `max_neutron_energy=10.0` to force zero fluence above 10 MeV.
+  Two internal strategies:
+  - **UB array** for QP solvers (`cvxpy`, `qpsolvers`, `docplex`, `scip`,
+    `mystic`): full response matrix + per-bin upper bound `ub = 0` above the
+    cutoff is passed to the solver.
+  - **Trimming** for iterative / matrix solvers (all others): response matrix
+    is sliced to active energy bins, solved, and expanded back with zeros above
+    the cutoff.
+  New helper module `core/_max_energy.py` (`upper_bounds`, `max_energy_mask`).
+  10 dedicated tests in `TestMaxNeutronEnergy`.
+- **Randomized Kaczmarz** — `unfold_randomized_kaczmarz` /
+  `solve_randomized_kaczmarz`: stochastic row-projection method with
+  probability proportional to squared row norms (Strohmer & Vershynin 2009),
+  achieving faster convergence than the cyclic variant for ill-conditioned
+  response matrices.  Core solver in `core/unfold_randomized_kaczmarz.py`,
+  Detector wrapper, Numba-free pure-NumPy fallback.
+- **Ensemble Kalman Inversion (EKI)** — `unfold_eki` / `solve_eki`:
+  Bayesian posterior approximation without MCMC, propagating an ensemble of
+  particles through the forward model and updating via the Kalman gain
+  equation (Iglesias et al. 2013).  Regularized variant adds `αI` to the
+  covariance matrices; covariance inflation prevents ensemble collapse.
+  Core solver in `core/unfold_eki.py`, Detector wrapper.
+- **Five new regularization-parameter selection criteria** in
+  `core/regularization.py`, all accessible via `select_regularization_parameter`:
+  - `quasi_optimality_selection` — minimises the noise component in the SVD
+    basis (Hochstenbach & Reichel 2015).
+  - `ncp_selection` — Normalized Cumulative Periodogram; KS-test on residual
+    whiteness selects α giving the whitest residuals.
+  - `snr_criterion_selection` — maximises the signal-to-noise ratio in the
+    Tikhonov solution.
+  - `weighted_gcv_poisson_selection` — GCV with Poisson variance weights for
+    heteroscedastic (counting) noise.
+  - `kfold_cv_selection` — K-fold cross-validation; noise-independent
+    alternative to GCV.
+- **IAEA validation test** (`tests/test_iaea_validation.py`) expanded from
+  21 to 54 methods, now covering all general-purpose `Detector.unfold_*`
+  methods including CGLS, GKS, Lanczos, FISTA, Tikhonov-TV, SAND-II,
+  OSEM, MAP-EM, BSREM, SART, BON95, BUNKI, BUNKI-UT, STAY'SL, IMAXED,
+  AMAXED, CRYSTAL BALL, RECONST, EPIC, iterative refinement, hybrid GMRES,
+  FERDOR, ReBUNKI, NSDUAZ, RFSP-JUL, ensemble, cascade, composite, MAEO,
+  randomized Kaczmarz, and EKI.
+- **New test files**:
+  - `tests/test_randomized_kaczmarz_eki.py` — 16 tests for both solvers
+    (basic, deterministic, zero-input, relaxation, ensemble size, Detector
+    wrapper, save_result, Monte-Carlo errors, exports).
+  - `tests/test_regularization_new_criteria.py` — 22 tests for the five
+    new selection criteria (basic, ill-conditioned, white-noise, custom range,
+    reproducibility, dispatcher integration).
+- **New example notebooks**:
+  - `examples/36-randomized-kaczmarz-eki.ipynb` — side-by-side comparison
+    of randomized Kaczmarz and EKI with established methods.
+  - `examples/37-regularization-criteria.ipynb` — visual comparison of all
+    nine regularization selection criteria.
+
+## [0.20.0] - 2026-08-28
+
+### Added
+- **Ensemble unfolding method** — `unfold_ensemble` / `solve_ensemble` combines
+  several base solvers (default MLEM, Bayes, Landweber, CGLS, GRAVEL) into a single
+  robust solution via weighted-average (inverse-residual weights), median,
+  trimmed-mean, or best-residual combination strategies.
+- **Iterative refinement method** — `unfold_iterative_refinement` /
+  `solve_iterative_refinement` performs a two-pass unfold and blends the two
+  spectra with an automatically selected blending factor α (line search over
+  `max_alpha_search` candidates) to reduce method-specific bias.
+- **Input validation**: `run_unfolding` now validates `readings`,
+  `detector_names`, `n_energy_bins`, `noise_level` (range 0–1) and
+  `n_montecarlo` before building the system; new validators `validate_system`
+  and `validate_solver_params` (shape, NaN/Inf and parameter-range checks) are
+  used across iterative solvers and exported from `bssunfold.utils.validators`.
+- **Extended Numba JIT acceleration** to the Landweber and D'Agostini Bayes
+  inner loops (in addition to Doroshenko, Kaczmarz, MLEM, GRAVEL), with
+  automatic disk caching and pure-Python fallback.
+- **Batch dose-rate computation** in `calculate_dose_rates` (a single matrix
+  multiply over all conversion-coefficient geometries instead of a per-geometry
+  Python loop).
+- Large test-coverage boost: ~5,200 new test lines across
+  `tests/test_boost_part1..4.py` and `tests/test_new_ensemble_refinement.py`,
+  exercising validation, solvers, parametric families and the new methods.
+
+### Fixed
+- **Landweber JIT convergence regression**: the Numba inner loop converged on
+  `‖Ax‖` instead of `‖Ax−b‖`. With the wrapper's default zero initial guess this
+  made the residual zero at the first iteration, so `solve_landweber` returned an
+  all-zero spectrum (regression vs 0.19.x). The JIT path now receives `b` and
+  uses the true residual norm, matching the pure-Python fallback.
+
 ## [0.19.1] - 2026-08-27
 ### Fixed
  - version in pyproject.toml

@@ -87,22 +87,15 @@ def solve_bunki(
         if b.size == 0:
             raise ValueError("BUNKI requires strictly positive measurements")
 
-    m = A.shape[0]
-
     x0_safe = np.maximum(x0, 0.0)
     # trans_mat: response scaled by the initial spectrum, spl starts at ones.
     aleth = A * x0_safe[None, :]
     spl = np.ones(n)
     bcc = aleth @ spl
 
-    # ss[j] = sum_i aleth[i, j] / b[i]
-    ss = np.zeros(n)
-    for j in range(n):
-        denom = 0.0
-        for i in range(m):
-            if b[i] != 0.0:
-                denom += aleth[i, j] / b[i]
-        ss[j] = denom
+    # ss[j] = sum_i aleth[i, j] / b[i] -- vectorized
+    inv_b = np.where(b > 0.0, 1.0 / b, 0.0)
+    ss = aleth.T @ inv_b
 
     inv_ss = np.where(ss > 0.0, 1.0 / np.maximum(ss, 1e-37), 0.0)
     denom_s = 1.0 + 2.0 * smoothing
@@ -112,28 +105,26 @@ def solve_bunki(
 
     for k in range(1, max_iterations + 1):
         iterations = k
-        spl_old = spl.copy()
 
         inv_bcc = np.where(bcc > 0.0, 1.0 / np.maximum(bcc, 1e-37), 0.0)
         spll = spl * (aleth.T @ inv_bcc) * inv_ss
         spll = np.where(spll < 1e-37, 0.0, spll)
         spll = np.where(spl <= 0.0, 0.0, spll)
 
+        # Vectorized 3-point smoothing
         new_spl = spll.copy()
         if n > 2:
-            for j in range(2, n):
-                hi = spll[j + 1] if j + 1 < n else 0.0
-                new_spl[j] = (
-                    spll[j - 1] * smoothing + spll[j] + hi * smoothing
-                ) / denom_s
-        new_spl[0] = spll[0]
-        if n > 1:
-            new_spl[1] = spll[1]
+            # Interior points: weighted average of neighbors
+            new_spl[1:-1] = (
+                smoothing * spll[:-2] + spll[1:-1] + smoothing * spll[2:]
+            ) / denom_s
 
         bcc = aleth @ new_spl
+
+        # Convergence check with pre-allocated spl_old
+        rel = np.linalg.norm(new_spl - spl) / (np.linalg.norm(spl) + 1e-12)
         spl = new_spl
 
-        rel = np.linalg.norm(spl - spl_old) / (np.linalg.norm(spl_old) + 1e-12)
         if rel < tolerance:
             converged = True
             break

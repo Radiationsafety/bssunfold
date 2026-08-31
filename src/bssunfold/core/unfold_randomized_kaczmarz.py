@@ -1,7 +1,9 @@
-"""Landweber iteration unfolding method for neutron spectrum reconstruction.
+"""Randomized Kaczmarz unfolding method for neutron spectrum reconstruction.
 
-This module provides the core solve_landweber solver and the unfold_landweber
-wrapper for use with the Detector class.
+The randomized Kaczmarz method selects rows probabilistically with
+probability proportional to their squared norms, achieving faster
+convergence than the deterministic cyclic variant for ill-conditioned
+systems.  See Strohmer & Vershynin (2009).
 """
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -11,17 +13,19 @@ import numpy as np
 from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
-__all__ = ["solve_landweber", "unfold_landweber"]
+__all__ = ["solve_randomized_kaczmarz", "unfold_randomized_kaczmarz"]
 
 
-def solve_landweber(
+def solve_randomized_kaczmarz(
     A: np.ndarray,
     b: np.ndarray,
     x0: np.ndarray,
     max_iterations: int = 1000,
+    omega: float = 1.0,
     tolerance: float = 1e-6,
+    random_state: Optional[int] = None,
 ) -> Tuple[np.ndarray, int, bool]:
-    """Solve unfolding problem using Landweber iteration.
+    """Solve unfolding problem using the randomized Kaczmarz algorithm.
 
     Parameters
     ----------
@@ -32,76 +36,51 @@ def solve_landweber(
     x0 : np.ndarray
         Initial guess (n,).
     max_iterations : int, optional
-        Maximum iterations (default: 1000).
+        Maximum number of iterations (default: 1000).
+    omega : float, optional
+        Relaxation parameter (0 < omega <= 2), default: 1.0.
     tolerance : float, optional
-        Convergence tolerance (default: 1e-6).
+        Convergence tolerance on ``||x_k - x_{k-1}||`` checked after each
+        full sweep through the rows (default: 1e-6).
+    random_state : int, optional
+        Random seed for reproducibility.
 
     Returns
     -------
     Tuple[np.ndarray, int, bool]
         Tuple of (solution, iterations, converged).
     """
-    import warnings
-
     A, b, x0 = validate_system(
         A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
     )
+    m, _ = A.shape
     x = x0.copy()
-    sigma_max = np.linalg.norm(A, 2)
 
-    if sigma_max == 0:
-        warnings.warn("Response matrix has zero norm. Returning initial guess.")
-        return x, 0, False
+    rng = np.random.RandomState(random_state)
 
-    step_size = 1.0 / (sigma_max**2)
-    AT = A.T
+    row_norms_sq = np.sum(A * A, axis=1)
+    total_norm_sq = np.sum(row_norms_sq)
+    if total_norm_sq == 0:
+        return x, 0, True
+    probabilities = row_norms_sq / total_norm_sq
 
-    # Precompute ATb for efficiency
-    ATb = AT @ b
-
-    # Try Numba JIT path
-    try:
-        from ._numba_jit import NUMBA_AVAILABLE, _landweber_inner
-
-        if NUMBA_AVAILABLE:
-            return _landweber_inner(
-                np.ascontiguousarray(A, dtype=np.float64),
-                np.ascontiguousarray(AT, dtype=np.float64),
-                np.ascontiguousarray(b, dtype=np.float64),
-                x,
-                ATb,
-                step_size,
-                max_iterations,
-                tolerance,
-            )
-    except ImportError:
-        pass
-
-    # Fallback: optimized pure numpy implementation
     converged = False
     iterations = 0
+    x_old = x.copy()
 
-    # Pre-allocate work arrays to avoid repeated allocations
-    Ax = np.empty(A.shape[0])
-    grad = np.empty_like(x)
+    for k in range(max_iterations):
+        i = rng.choice(m, p=probabilities)
+        if row_norms_sq[i] > 0:
+            update = (b[i] - np.dot(A[i], x)) / row_norms_sq[i]
+            x += omega * update * A[i]
+            np.maximum(x, 0, out=x)
 
-    for i in range(max_iterations):
-        # Compute A @ x and gradient in-place
-        np.dot(A, x, out=Ax)
-        np.dot(AT, Ax, out=grad)
-        grad -= ATb
-
-        # Residual norm
-        residual_norm = np.linalg.norm(Ax - b)
-
-        if residual_norm < tolerance:
-            converged = True
-            iterations = i
-            break
-
-        # In-place update
-        x -= step_size * grad
-        np.maximum(x, 0, out=x)
+        if (k + 1) % m == 0:
+            if np.linalg.norm(x - x_old) < tolerance:
+                converged = True
+                iterations = k + 1
+                break
+            np.copyto(x_old, x)
 
     if not converged:
         iterations = max_iterations
@@ -109,7 +88,7 @@ def solve_landweber(
     return x, iterations, converged
 
 
-def unfold_landweber(
+def unfold_randomized_kaczmarz(
     detector_names: List[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
@@ -119,6 +98,7 @@ def unfold_landweber(
     readings: Dict[str, float],
     initial_spectrum: Optional[np.ndarray] = None,
     max_iterations: int = 1000,
+    omega: float = 1.0,
     tolerance: float = 1e-6,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
@@ -126,7 +106,7 @@ def unfold_landweber(
     save_result: bool = False,
     random_state: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Unfold using Landweber iteration method.
+    """Unfold neutron spectrum using the Randomized Kaczmarz algorithm.
 
     Parameters
     ----------
@@ -145,26 +125,28 @@ def unfold_landweber(
     readings : Dict[str, float]
         Detector readings.
     initial_spectrum : Optional[np.ndarray], optional
-        Initial spectrum guess.
+        Initial spectrum guess. If None, zero spectrum is used.
     max_iterations : int, optional
-        Maximum iterations (default: 1000).
+        Maximum number of iterations (default: 1000).
+    omega : float, optional
+        Relaxation parameter (default: 1.0).
     tolerance : float, optional
         Convergence tolerance (default: 1e-6).
     calculate_errors : bool, optional
-        Calculate Monte-Carlo errors (default: False).
+        Calculate uncertainty via Monte-Carlo (default: False).
     noise_level : float, optional
         Noise level for Monte-Carlo (default: 0.01).
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 
     Returns
     -------
     Dict[str, Any]
-        Unfolding results dictionary.
+        Dictionary containing unfolding results.
     """
     x0_default = np.zeros(n_energy_bins)
 
@@ -179,13 +161,19 @@ def unfold_landweber(
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
         solve_func=make_solve_wrapper(
-            solve_landweber,
+            solve_randomized_kaczmarz,
             max_iterations=max_iterations,
+            omega=omega,
             tolerance=tolerance,
+            random_state=random_state,
         ),
         solve_kwargs={},
-        method_name="Landweber",
-        extra_output={},
+        method_name="Randomized Kaczmarz",
+        extra_output={
+            "tolerance": tolerance,
+            "omega": omega,
+            "random_state": random_state,
+        },
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

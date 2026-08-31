@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from scipy.linalg import svd
 
+from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_tsvd", "unfold_tsvd"]
@@ -139,6 +140,7 @@ def solve_tsvd(
     np.ndarray
         Unfolded spectrum (n,).
     """
+    A, b, _ = validate_system(A, b)
     U, s, Vh = svd(A, full_matrices=False)
     V = Vh.T
 
