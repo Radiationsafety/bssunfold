@@ -7,6 +7,53 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.21.0] - 2026-08-31
+
+### Added
+- **Randomized Kaczmarz** — `unfold_randomized_kaczmarz` /
+  `solve_randomized_kaczmarz`: stochastic row-projection method with
+  probability proportional to squared row norms (Strohmer & Vershynin 2009),
+  achieving faster convergence than the cyclic variant for ill-conditioned
+  response matrices.  Core solver in `core/unfold_randomized_kaczmarz.py`,
+  Detector wrapper, Numba-free pure-NumPy fallback.
+- **Ensemble Kalman Inversion (EKI)** — `unfold_eki` / `solve_eki`:
+  Bayesian posterior approximation without MCMC, propagating an ensemble of
+  particles through the forward model and updating via the Kalman gain
+  equation (Iglesias et al. 2013).  Regularized variant adds `αI` to the
+  covariance matrices; covariance inflation prevents ensemble collapse.
+  Core solver in `core/unfold_eki.py`, Detector wrapper.
+- **Five new regularization-parameter selection criteria** in
+  `core/regularization.py`, all accessible via `select_regularization_parameter`:
+  - `quasi_optimality_selection` — minimises the noise component in the SVD
+    basis (Hochstenbach & Reichel 2015).
+  - `ncp_selection` — Normalized Cumulative Periodogram; KS-test on residual
+    whiteness selects α giving the whitest residuals.
+  - `snr_criterion_selection` — maximises the signal-to-noise ratio in the
+    Tikhonov solution.
+  - `weighted_gcv_poisson_selection` — GCV with Poisson variance weights for
+    heteroscedastic (counting) noise.
+  - `kfold_cv_selection` — K-fold cross-validation; noise-independent
+    alternative to GCV.
+- **IAEA validation test** (`tests/test_iaea_validation.py`) expanded from
+  21 to 54 methods, now covering all general-purpose `Detector.unfold_*`
+  methods including CGLS, GKS, Lanczos, FISTA, Tikhonov-TV, SAND-II,
+  OSEM, MAP-EM, BSREM, SART, BON95, BUNKI, BUNKI-UT, STAY'SL, IMAXED,
+  AMAXED, CRYSTAL BALL, RECONST, EPIC, iterative refinement, hybrid GMRES,
+  FERDOR, ReBUNKI, NSDUAZ, RFSP-JUL, ensemble, cascade, composite, MAEO,
+  randomized Kaczmarz, and EKI.
+- **New test files**:
+  - `tests/test_randomized_kaczmarz_eki.py` — 16 tests for both solvers
+    (basic, deterministic, zero-input, relaxation, ensemble size, Detector
+    wrapper, save_result, Monte-Carlo errors, exports).
+  - `tests/test_regularization_new_criteria.py` — 22 tests for the five
+    new selection criteria (basic, ill-conditioned, white-noise, custom range,
+    reproducibility, dispatcher integration).
+- **New example notebooks**:
+  - `examples/36-randomized-kaczmarz-eki.ipynb` — side-by-side comparison
+    of randomized Kaczmarz and EKI with established methods.
+  - `examples/37-regularization-criteria.ipynb` — visual comparison of all
+    nine regularization selection criteria.
+
 ## [0.20.0] - 2026-08-28
 
 ### Added

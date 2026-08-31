@@ -54,6 +54,7 @@ categories:
         C --> C6["unfold_doroshenko"]
         C --> C7["unfold_kaczmarz"]
         C --> C8["unfold_sart"]
+        C --> C9["unfold_randomized_kaczmarz"]
 
        K --> K1["unfold_osem"]
        K --> K2["unfold_mapem"]
@@ -70,6 +71,7 @@ categories:
         D --> D2["unfold_bayes_spline_regularization"]
         D --> D3["unfold_mcmc"]
         D --> D4["unfold_zfit"]
+        D --> D5["unfold_eki"]
 
         E --> E1["unfold_maxed"]
         E --> E2["unfold_imaxed"]
@@ -546,6 +548,18 @@ Method Reference
       - `first_pass_kwargs`, `second_pass_kwargs`, `alpha`, `max_alpha_search`
       - —
       - Two-pass refinement: an initial unfold is refined by a second pass with an automatically selected blending factor α between the two spectra
+    * - 69
+      - ``unfold_randomized_kaczmarz``
+      - Iterative
+      - `max_iterations`, `omega`, `tolerance`, `random_state`
+      - —
+      - Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems
+    * - 70
+      - ``unfold_eki``
+      - Bayesian
+      - `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state`
+      - —
+      - Ensemble Kalman Inversion (Iglesias et al. 2013): Bayesian posterior approximation without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance
 
 
 
@@ -556,6 +570,47 @@ Method Reference
    ``n_montecarlo``, ``save_result``, ``random_state``.
 
    See the :ref:`genindex` or :doc:`detector` for complete API signatures.
+
+Regularization Parameter Selection
+-----------------------------------
+
+Nine automatic regularization parameter selection methods are available via
+:func:`bssunfold.core.regularization.select_regularization_parameter`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 65
+
+   * - Method key
+     - Reference
+     - Description
+   * - ``'lcurve'``
+     - Hansen 1992
+     - L-curve corner heuristic (max distance from chord in log-log)
+   * - ``'gcv'``
+     - Golub et al. 1979
+     - Generalized Cross Validation (minimises GCV function)
+   * - ``'dp'``
+     - Morozov 1966
+     - Discrepancy principle (residual ≈ noise level)
+   * - ``'cosine'``
+     - —
+     - Maximises cosine similarity to a reference spectrum
+   * - ``'quasi_optimality'``
+     - Hochstenbach & Reichel 2015
+     - Minimises the noise component in the SVD basis
+   * - ``'ncp'``
+     - —
+     - Normalized Cumulative Periodogram: KS-test on residual whiteness
+   * - ``'snr'``
+     - —
+     - Maximises signal-to-noise ratio in the Tikhonov solution
+   * - ``'weighted_gcv_poisson'``
+     - —
+     - GCV with Poisson variance weights for heteroscedastic noise
+   * - ``'kfold_cv'``
+     - —
+     - K-fold cross-validation; noise-independent alternative to GCV
 
 Built-in Response Functions
 ---------------------------

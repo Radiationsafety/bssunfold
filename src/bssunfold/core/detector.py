@@ -55,6 +55,7 @@ from .unfold_cs import unfold_cs as unfold_cs_impl
 from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
+from .unfold_eki import unfold_eki as unfold_eki_impl
 from .unfold_ensemble import unfold_ensemble as unfold_ensemble_impl
 from .unfold_epic import unfold_epic as unfold_epic_impl
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
@@ -102,6 +103,9 @@ from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
 from .unfold_qubo import unfold_qubo as unfold_qubo_impl
+from .unfold_randomized_kaczmarz import (
+    unfold_randomized_kaczmarz as unfold_randomized_kaczmarz_impl,
+)
 from .unfold_rebunki import unfold_rebunki as unfold_rebunki_impl
 from .unfold_reconst import unfold_reconst as unfold_reconst_impl
 from .unfold_rfsp_jul import unfold_rfsp_jul as unfold_rfsp_jul_impl
@@ -2864,6 +2868,78 @@ class Detector:
 
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_kaczmarz_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            omega=omega,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_randomized_kaczmarz(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 1000,
+        omega: float = 1.0,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the Randomized Kaczmarz algorithm.
+
+        Row selection is probabilistic with probability proportional to the
+        squared row norm, achieving faster convergence than the cyclic variant
+        for ill-conditioned systems (Strohmer & Vershynin, 2009).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 1000).
+        omega : float, optional
+            Relaxation parameter (default: 1.0).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Maximum neutron energy cutoff.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_randomized_kaczmarz_impl(
             detector_names=self.detector_names,
             n_energy_bins=int(mask.sum()),
             E_MeV=self.E_MeV[mask],
@@ -5733,6 +5809,86 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+
+    def unfold_eki(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_ensemble: int = 50,
+        n_iterations: int = 50,
+        regularization: float = 1e-4,
+        inflation: float = 1.02,
+        noise_std: Optional[float] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Ensemble Kalman Inversion (EKI).
+
+        Approximates the Bayesian posterior without MCMC by propagating an
+        ensemble of particles through the forward model and updating via
+        the Kalman gain equation (Iglesias et al., 2013).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (centre of the ensemble).
+        n_ensemble : int, optional
+            Number of ensemble members (default: 50).
+        n_iterations : int, optional
+            Number of EKI iterations (default: 50).
+        regularization : float, optional
+            Regularization for covariance stability (default: 1e-4).
+        inflation : float, optional
+            Covariance inflation factor (default: 1.02).
+        noise_std : float, optional
+            Measurement noise std (default: None = auto).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Maximum neutron energy cutoff.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_eki_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_ensemble=n_ensemble,
+            n_iterations=n_iterations,
+            regularization=regularization,
+            inflation=inflation,
+            noise_std=noise_std,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
 
     def plot_response_functions(
         self,
