@@ -265,3 +265,42 @@ readings.
    b = np.array([readings[n] for n in readings])
    spectrum, iterations, converged = solve_cs(A, b, n_atoms=80, sparsity=6)
    print(f"Converged: {converged}, iterations: {iterations}")
+
+Maximum Neutron Energy Cutoff
+-----------------------------
+
+All ``unfold_*`` methods accept a ``max_neutron_energy`` parameter (in MeV)
+that forces the reconstructed fluence to zero above the specified energy.
+This is useful when you know a priori that the neutron field does not contain
+neutrons above a certain energy, or when you want to isolate a particular
+energy region.
+
+Two internal strategies are used depending on the solver:
+
+- **UB array** (QP solvers — ``cvxpy``, ``qpsolvers``, ``docplex``, ``scip``,
+  ``mystic``): the full response matrix is passed to the solver; a per-bin
+  upper bound vector is set to 0 for bins above the cutoff.
+- **Trimming** (iterative / matrix solvers): the response matrix is sliced to
+  active energy bins, the reduced system is solved, and the result is expanded
+  back to the full grid with zeros above the cutoff.
+
+.. code-block:: python
+
+   import pandas as pd
+   from bssunfold import Detector, RF_LANL
+
+   df = pd.DataFrame.from_dict(RF_LANL, orient='columns')
+   det = Detector(df)
+
+   reference = pd.read_csv('MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv')
+   readings = det.get_effective_readings_for_spectra(reference[['E_MeV', 'ISO_ref_Cf252']])
+
+   # Restrict unfolding to energies below 10 MeV
+   result = det.unfold_cvxpy(readings, max_neutron_energy=10.0)
+
+   # Iterative method — same parameter
+   result2 = det.unfold_landweber(readings, max_neutron_energy=10.0)
+
+   # Verify zero fluence above cutoff
+   above = result['spectrum'][det.E_MeV > 10.0]
+   print(f"Max fluence above 10 MeV: {above.max():.2e}")  # 0.00e+00

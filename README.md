@@ -54,6 +54,11 @@
   - **Ensemble & Refinement**: Ensemble (robust combination of base solvers via weighted average, median, trimmed mean, or best residual) and Iterative refinement (two-pass unfold with an auto-selected blending factor)
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
+- **Maximum Energy Cutoff**: `max_neutron_energy` parameter on all `unfold_*`
+  methods — forces zero fluence above a user-specified energy. QP solvers
+  receive the full response matrix with a `ub` array; iterative solvers use
+  matrix trimming with automatic result expansion.
+
 - **Numba JIT-Accelerated Iterative Solvers**:
   - `@njit(cache=True)` compiled inner loops for Landweber, D'Agostini Bayes, Doroshenko, Kaczmarz, MLEM, GRAVEL
   - 3–50x speedup on iterative solvers (see [Performance](#-performance))
@@ -177,6 +182,13 @@ detector.plot_with_uncertainty(result, plot_style == 'errorbar')
 
 # Calculate and display dose rates
 print("Dose rates [pcSv/s]:", result['doserates'])
+
+# Restrict unfolding to energies below 10 MeV (zero fluence above cutoff)
+result_limited = detector.unfold_cvxpy(
+    readings,
+    regularization=1e-4,
+    max_neutron_energy=10.0
+)
 ```
 
 ## 📊 Input Data Structure

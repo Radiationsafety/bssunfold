@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning].
 ## [0.21.0] - 2026-08-31
 
 ### Added
+- **Maximum neutron energy cutoff** — `max_neutron_energy` parameter on every
+  `unfold_*` method (including `unfold_maeo`, `unfold_interpret`): pass
+  e.g. `max_neutron_energy=10.0` to force zero fluence above 10 MeV.
+  Two internal strategies:
+  - **UB array** for QP solvers (`cvxpy`, `qpsolvers`, `docplex`, `scip`,
+    `mystic`): full response matrix + per-bin upper bound `ub = 0` above the
+    cutoff is passed to the solver.
+  - **Trimming** for iterative / matrix solvers (all others): response matrix
+    is sliced to active energy bins, solved, and expanded back with zeros above
+    the cutoff.
+  New helper module `core/_max_energy.py` (`upper_bounds`, `max_energy_mask`).
+  10 dedicated tests in `TestMaxNeutronEnergy`.
 - **Randomized Kaczmarz** — `unfold_randomized_kaczmarz` /
   `solve_randomized_kaczmarz`: stochastic row-projection method with
   probability proportional to squared row norms (Strohmer & Vershynin 2009),
