@@ -26,6 +26,13 @@ from .unfold_bayes_spline_regularization import (
     unfold_bayes_spline_regularization,
 )
 from .unfold_bayesian_parametric import solve_bayesian_parametric
+from .unfold_binned import (
+    build_bin_lookup,
+    load_bin_lookup,
+    save_bin_lookup,
+    solve_binned,
+    unfold_binned,
+)
 from .unfold_bsrem import solve_bsrem, unfold_bsrem
 from .unfold_bunki import solve_bunki, unfold_bunki
 from .unfold_bunkiut import solve_bunkiut, unfold_bunkiut
@@ -236,6 +243,12 @@ __all__ = [
     # cascade / composite (ensemble) methods
     "unfold_cascade",
     "unfold_composite",
+    # bin-wise adaptive method
+    "build_bin_lookup",
+    "load_bin_lookup",
+    "save_bin_lookup",
+    "solve_binned",
+    "unfold_binned",
     # ensemble method
     "solve_ensemble",
     "unfold_ensemble",

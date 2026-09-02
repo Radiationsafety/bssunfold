@@ -156,6 +156,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_composite.unfold_composite
 
+.. autofunction:: bssunfold.core.unfold_binned.unfold_binned
+
 .. autofunction:: bssunfold.core.unfold_ensemble.unfold_ensemble
 
 .. autofunction:: bssunfold.core.unfold_iterative_refinement.unfold_iterative_refinement
@@ -270,6 +272,10 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_randomized_kaczmarz.solve_randomized_kaczmarz
 
 .. autofunction:: bssunfold.core.unfold_eki.solve_eki
+
+.. autofunction:: bssunfold.core.unfold_binned.solve_binned
+
+.. autofunction:: bssunfold.core.unfold_binned.build_bin_lookup
 
 Comparison Methods
 ==================

@@ -97,6 +97,7 @@ categories:
         H --> H3["unfold_composite"]
         H --> H4["unfold_ensemble"]
         H --> H5["unfold_iterative_refinement"]
+        H --> H6["unfold_binned"]
 
        I --> I1["unfold_parametric"]
        I --> I2["unfold_parametric_cvxpy"]
@@ -560,6 +561,12 @@ Method Reference
       - `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state`
       - —
       - Ensemble Kalman Inversion (Iglesias et al. 2013): Bayesian posterior approximation without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance
+    * - 71
+      - ``unfold_binned``
+      - Ensemble/Adaptive
+      - `bin_lookup`, `lookup_path`, `timeout_per_method`
+      - —
+      - Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (67 methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as ``data/bin_lookup.json``
 
 
 

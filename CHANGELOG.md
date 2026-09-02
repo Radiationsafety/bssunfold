@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.22.0] - 2026-09-02
+
+### Added
+- **Bin-wise adaptive unfolding** — `unfold_binned` / `solve_binned`: for each
+  of the 60 energy bins, selects the best-performing method from a pre-computed
+  benchmark lookup table (built from 67 methods x 271 reference spectra across
+  41 quality metrics) and assembles the final spectrum by direct bin-picking.
+  The lookup ships as `data/bin_lookup.json` (51 unique candidate methods,
+  top-5 per bin).  Core solver in `core/unfold_binned.py`, Detector wrapper,
+  I/O helpers (`load_bin_lookup`, `save_bin_lookup`, `build_bin_lookup`).
+  Pre-computation script: `tools/build_bin_lookup.py`.
+  13 dedicated tests in `tests/test_binned.py`.
+  Example notebook: `examples/39-unfold-binned.ipynb`.
+- **Pre-computed bin lookup table** (`src/bssunfold/data/bin_lookup.json`)
+  built from the MC + Compendium gridsearch benchmark.  Contains per-bin
+  method rankings (mean absolute error across spectra) for 67 unfolding
+  methods, with top-5 kept per bin.
+
 ## [0.21.0] - 2026-08-31
 
 ### Added
