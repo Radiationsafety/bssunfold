@@ -65,7 +65,7 @@ def _load_pymc() -> Any:
             import pymc as _pm_mod
 
             _pm, _az = _pm_mod, _az_mod
-        except ImportError:
+        except Exception:
             _pm, _az = None, None
         _pymc_checked = True
     return _pm, _az
