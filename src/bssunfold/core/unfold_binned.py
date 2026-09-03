@@ -118,30 +118,19 @@ class _MethodTimeout(Exception):
     """Raised when an individual method exceeds its wall-clock timeout."""
 
 
-def _timeout_handler(signum, frame):  # noqa: ANN001, ARG001
-    raise _MethodTimeout()
-
-
 def _run_with_timeout(fn, timeout: float):  # noqa: ANN001
     """Execute *fn* with a per-method wall-clock timeout.
 
-    Uses ``SIGALRM`` on Unix.  On platforms without ``SIGALRM`` (e.g.
-    Windows) a ``threading``-based fallback is used instead.
+    Uses a ``threading``-based approach on all platforms to avoid SIGALRM
+    interrupting C-extension code (e.g. llvmlite/LLVM) mid-execution, which
+    can leave native objects in an inconsistent state and cause segfaults
+    during garbage collection.  Falls back to ``SIGALRM`` only when threads
+    are unavailable.
     """
-    import signal
     import threading
 
     if timeout is None or timeout <= 0:
         return fn()
-
-    if hasattr(signal, "SIGALRM"):
-        old = signal.signal(signal.SIGALRM, _timeout_handler)
-        signal.alarm(int(np.ceil(timeout)))
-        try:
-            return fn()
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old)
 
     result: list = []
     exc: list = []
