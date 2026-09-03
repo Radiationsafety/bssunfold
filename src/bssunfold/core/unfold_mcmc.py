@@ -75,6 +75,8 @@ def _load_pymc() -> Any:
         except Exception:
             _pm, _az = None, None
         _pymc_checked = True
+        # Keep the cached PYMC_AVAILABLE flag in module globals in sync.
+        globals()["PYMC_AVAILABLE"] = _pm is not None
     return _pm, _az
 
 
