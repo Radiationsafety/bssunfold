@@ -147,7 +147,7 @@ presentation/
 presentation.zip
 addon/
 plans/
-data/
+/data/
 .streamlit
 .codeassistant
 __marimo__

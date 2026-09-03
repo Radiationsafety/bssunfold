@@ -2483,6 +2483,60 @@ class Detector:
         )
         return self._expand_result(result, mask, readings)
 
+    def unfold_binned(
+        self,
+        readings: Dict[str, float],
+        bin_lookup: Optional[Dict[str, Any]] = None,
+        lookup_path: Optional[str] = None,
+        timeout_per_method: float = 30.0,
+        save_result: bool = False,
+        max_neutron_energy: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Bin-wise adaptive unfolding: best method per energy bin.
+
+        For each of the 60 energy bins, selects the unfolding method that
+        performed best in that bin during benchmarking, and assembles the
+        final spectrum by picking the winning value at every bin.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        bin_lookup : dict, optional
+            Pre-computed per-bin method ranking.  If *None*, loaded from
+            *lookup_path* (or the built-in default shipped with the package).
+        lookup_path : str, optional
+            Path to a JSON lookup file.  Ignored when *bin_lookup* is given.
+        timeout_per_method : float
+            Wall-clock timeout per individual method (seconds).
+        save_result : bool
+            Persist result to detector history.
+        max_neutron_energy : float, optional
+            Upper cut-off for the energy grid.
+
+        Returns
+        -------
+        dict
+            Standard bssunfold result dict with extra keys ``method_map``,
+            ``successful_methods``, ``individual_spectra``.
+
+        See Also
+        --------
+        unfold_composite : Confidence-weighted ensemble of methods.
+        """
+        from .unfold_binned import unfold_binned as _unfold_binned
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = _unfold_binned(
+            self,
+            readings,
+            bin_lookup=bin_lookup,
+            lookup_path=lookup_path,
+            timeout_per_method=timeout_per_method,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
     def unfold_interpret(
         self,
         readings: Dict[str, float],

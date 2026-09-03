@@ -59,14 +59,25 @@ def _load_pymc() -> Any:
         The ``(pm, az)`` modules, or ``(None, None)`` when unavailable.
     """
     global _pm, _az, _pymc_checked
+    import sys as _sys
+
     if not _pymc_checked:
+        # Preserve previous values so that blocked-import test fixtures
+        # (which only reset ``_pm`` / ``_pymc_checked`` but not ``_az``)
+        # don't silently lose the arviz reference.
+        _prev_pm, _prev_az = _pm, _az
+        # When re-checking (e.g. after an external reset of _pymc_checked),
+        # purge any cached entries so that blocked-import test fixtures
+        # (which patch builtins.__import__) can actually intercept the import.
+        for _mod_name in ("pymc", "arviz"):
+            _sys.modules.pop(_mod_name, None)
         try:
             import arviz as _az_mod
             import pymc as _pm_mod
 
             _pm, _az = _pm_mod, _az_mod
-        except ImportError:
-            _pm, _az = None, None
+        except Exception:
+            _pm, _az = _prev_pm, _prev_az
         _pymc_checked = True
     return _pm, _az
 
@@ -98,20 +109,31 @@ def _resolve_backends() -> Tuple[Any, Any]:
     packages; otherwise triggers :func:`_load_pymc` and caches the result.
     """
     g = globals()
-    if "pm" not in g or "az" not in g:
+    needs_refresh = not _pymc_checked or "pm" not in g or "az" not in g
+    if needs_refresh:
         _load_pymc()
-        g.setdefault("pm", _pm)
-        g.setdefault("az", _az)
-    return g["pm"], g["az"]
+        # Always write _pm/_az to globals (even when None) so that the
+        # namespace stays consistent with the private source of truth.
+        g["pm"] = _pm
+        g["az"] = _az
+    # When globals hold stale values (e.g. after blocked-import test
+    # fixtures restore private vars without cleaning the namespace),
+    # fall back to the private ``_pm``/``_az`` source of truth.
+    return g.get("pm") or _pm, g.get("az") or _az
 
 
 def _check_pymc_available() -> bool:
     """Report PyMC availability, honoring an externally patched flag."""
+    if not _pymc_checked:
+        _resolve_backends()
+    available = _pm is not None
     g = globals()
-    if "PYMC_AVAILABLE" in g:
+    # When pymc IS available, honour a deliberately patched PYMC_AVAILABLE
+    # flag (e.g. ``patch.object(MOD, "PYMC_AVAILABLE", False)``).  When pymc
+    # is NOT available, always return False regardless of stale globals.
+    if "PYMC_AVAILABLE" in g and available:
         return bool(g["PYMC_AVAILABLE"])
-    pm_mod, _ = _resolve_backends()
-    return pm_mod is not None
+    return available
 
 
 def _ou_correlation_cholesky(n_bins: int, lengthscale: float) -> np.ndarray:

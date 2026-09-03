@@ -51,7 +51,7 @@
   - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
   - **Advanced Proximal**: ODL PDHG, ODL Douglas-Rachford (Total Variation regularization)
   - **Pipeline**: Combined approach for chaining multiple methods
-  - **Ensemble & Refinement**: Ensemble (robust combination of base solvers via weighted average, median, trimmed mean, or best residual) and Iterative refinement (two-pass unfold with an auto-selected blending factor)
+  - **Ensemble & Refinement**: Ensemble (robust combination of base solvers via weighted average, median, trimmed mean, or best residual), Iterative refinement (two-pass unfold with an auto-selected blending factor), and **Bin-wise adaptive** (per-bin best method selection from pre-computed benchmark lookup)
   - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
 
 - **Maximum Energy Cutoff**: `max_neutron_energy` parameter on all `unfold_*`
@@ -325,6 +325,7 @@ graph TD
     H --> H3[unfold_composite]
     H --> H4[unfold_ensemble]
     H --> H5[unfold_iterative_refinement]
+    H --> H6[unfold_binned]
 
     I --> I1[unfold_parametric]
     I --> I2[unfold_parametric_cvxpy]
@@ -424,6 +425,7 @@ graph TD
 | 66 | `unfold_mystic_hybrid` | Optimization | `global_solver` (diffev2), `local_solver` (fmin_powell), `global_maxiter`, `global_maxfun`, `local_maxiter`, `local_maxfun`, `npop`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `regularization_method` | mystic | Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; usable in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'` |
 | 67 | `unfold_randomized_kaczmarz` | Iterative | `max_iterations`, `omega`, `tolerance`, `random_state` | — | Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems |
 | 68 | `unfold_eki` | Bayesian | `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state` | — | Ensemble Kalman Inversion (Iglesias et al. 2013): approximates the Bayesian posterior without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance |
+| 69 | `unfold_binned` | Ensemble/Adaptive | `bin_lookup`, `lookup_path`, `timeout_per_method` | — | Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (60+ methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as `data/bin_lookup.json` |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
