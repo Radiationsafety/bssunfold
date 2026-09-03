@@ -123,18 +123,43 @@ def _timeout_handler(signum, frame):  # noqa: ANN001, ARG001
 
 
 def _run_with_timeout(fn, timeout: float):  # noqa: ANN001
-    """Execute *fn* with a per-method wall-clock timeout (SIGALRM on Unix)."""
-    import signal
+    """Execute *fn* with a per-method wall-clock timeout.
 
-    if timeout is None or timeout <= 0 or not hasattr(signal, "SIGALRM"):
+    Uses ``SIGALRM`` on Unix.  On platforms without ``SIGALRM`` (e.g.
+    Windows) a ``threading``-based fallback is used instead.
+    """
+    import signal
+    import threading
+
+    if timeout is None or timeout <= 0:
         return fn()
-    old = signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(int(np.ceil(timeout)))
-    try:
-        return fn()
-    finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old)
+
+    if hasattr(signal, "SIGALRM"):
+        old = signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(int(np.ceil(timeout)))
+        try:
+            return fn()
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old)
+
+    result: list = []
+    exc: list = []
+
+    def _target():
+        try:
+            result.append(fn())
+        except Exception as e:
+            exc.append(e)
+
+    t = threading.Thread(target=_target, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        raise _MethodTimeout()
+    if exc:
+        raise exc[0]
+    return result[0]
 
 
 # ── Lookup I/O ────────────────────────────────────────────────────────────
