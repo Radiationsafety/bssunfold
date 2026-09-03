@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning].
 ### Added
 - **Bin-wise adaptive unfolding** — `unfold_binned` / `solve_binned`: for each
   of the 60 energy bins, selects the best-performing method from a pre-computed
-  benchmark lookup table (built from 67 methods x 271 reference spectra across
+  benchmark lookup table (built from 60+ methods x 271 reference spectra across
   41 quality metrics) and assembles the final spectrum by direct bin-picking.
   The lookup ships as `data/bin_lookup.json` (51 unique candidate methods,
   top-5 per bin).  Core solver in `core/unfold_binned.py`, Detector wrapper,
