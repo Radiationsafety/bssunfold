@@ -7,6 +7,54 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+- **Non-negative K-SVD unfolding method** — `unfold_nnksvd` /
+  `solve_nnksvd_unfold`, implementing the BNCT epithermal neutron
+  spectrum unfolding method of Xu et al. (NIMA 2026,
+  https://doi.org/10.1016/j.nima.2026.172070).  The pipeline combines:
+  - **Non-negative K-SVD dictionary learning** (`solve_nnksvd`) — K-SVD
+    with non-negative truncation of dictionary atoms during the rank-1
+    SVD update, plus an automatically-derived training-sample-driven
+    prior (`alpha_prior` = mean sparse code of the training signals).
+  - **Three sparse-coding strategies**, switchable via the
+    `sparse_coder` keyword argument:
+    - `"nnls_topk"` (the article's proposed method) — global NNLS
+      coarse solution → top-K atom screening → local NNLS fine
+      optimization.  Hierarchical strategy that avoids the cumulative
+      selection error of greedy algorithms.
+    - `"omp"` — classic Orthogonal Matching Pursuit.
+    - `"nn_omp"` — OMP with non-negativity constraint on the support
+      least-squares step (solved as NNLS).
+  - **Tikhonov-regularized NNLS via augmented-matrix form**
+    (`solve_tikhonov_nnls`) — Eq. 2.5 / 2.6 of the article, solvable
+    by any off-the-shelf NNLS routine, with an optional
+    training-sample prior constraint.
+  - **Equivalent (column-normalized) detection dictionary**
+    `M_norm = normalize(R @ D)` (Eq. 2.4) — removes the interference
+    caused by atom-amplitude differences.
+  Default hyperparameters follow the article: `lambda_tik=0.01`,
+    `prior_wt=0.5`, `n_dictionary_iterations=80`, `n_atoms=15`,
+    `sparsity=2`, `random_state=42` (the article's optimal
+    configuration: 15 atoms, sparsity K=2).
+  Core solver in `core/unfold_nnksvd.py`, Detector wrapper,
+  helper functions `solve_nn_omp`, `solve_nnls_topk`,
+  `solve_tikhonov_nnls`.  52 dedicated tests in
+  `tests/test_nnksvd.py`.
+- **Three new spectrum-comparison metrics** from Xu et al. (NIMA 2026,
+  Section 2.2.3) in `utils/comparison.py`:
+  - `relative_flux_error` — Eq. 2.7: `||phi_true - phi_hat|| / ||phi_true||`.
+  - `flux_correlation_coefficient` — Eq. 2.8: Pearson correlation
+    between the true and reconstructed spectra.
+  - `comprehensive_score` — Eq. 2.9: `flux_err - 0.5 * flux_corr`
+    (lower is better; the article's best score is `-0.3612`).
+  All three are exposed by `compare_spectra`, registered in
+  `DEFAULT_UNFOLD_BENCHMARK_METRICS`, and the three NN-KSVD sparse
+  coders are registered in `DEFAULT_UNFOLD_BENCHMARK_METHODS` as
+  `nnksvd_nnls_topk`, `nnksvd_omp`, `nnksvd_nn_omp`.
+
+
 ## [0.22.0] - 2026-09-02
 
 ### Added

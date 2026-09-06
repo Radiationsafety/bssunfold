@@ -91,6 +91,7 @@ from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
 from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
 from .unfold_mystic import unfold_mystic as unfold_mystic_impl
 from .unfold_mystic import unfold_mystic_hybrid as unfold_mystic_hybrid_impl
+from .unfold_nnksvd import unfold_nnksvd as unfold_nnksvd_impl
 from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
 from .unfold_odl_advanced import (
     unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
@@ -1661,6 +1662,134 @@ class Detector:
             L=L,
             max_iterations=max_iterations,
             tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_nnksvd(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_atoms: int = 15,
+        sparsity: int = 2,
+        dictionary: Optional[np.ndarray] = None,
+        training_signals: Optional[np.ndarray] = None,
+        n_dictionary_iterations: int = 80,
+        lambda_tik: float = 0.01,
+        prior_wt: float = 0.5,
+        sparse_coder: str = "nnls_topk",
+        tolerance: float = 1e-6,
+        n_nnls_iter: Optional[int] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Non-negative K-SVD (NN-KSVD).
+
+        Implements the BNCT epithermal neutron spectrum unfolding method
+        of Xu et al. (NIMA 2026,
+        https://doi.org/10.1016/j.nima.2026.172070).  A non-negative
+        dictionary is learned with non-negative K-SVD (non-negative
+        truncation of dictionary atoms during the rank-1 SVD update),
+        the spectrum is then represented as ``phi = D @ alpha`` where
+        ``alpha`` is a non-negative K-sparse coefficient vector
+        recovered on the equivalent (column-normalized) detection
+        dictionary ``M_norm = normalize(R @ D)``.
+
+        Three sparse-coding strategies are supported:
+
+        * ``"nnls_topk"`` (default, the article's proposed method):
+          global NNLS coarse solution → top-K atom screening → local
+          NNLS fine optimization.  Achieves ~0.97 correlation and
+          ~12.5% relative flux error with the article's optimal
+          configuration (15 atoms, K=2).
+        * ``"omp"`` — classic Orthogonal Matching Pursuit (greedy).
+        * ``"nn_omp"`` — OMP with non-negativity constraint on the
+          support LS step (solved as NNLS).
+
+        The reconstruction objective is a Tikhonov-regularized
+        non-negative least-squares (Eq. 2.5/2.6 of the article) solved
+        via augmented-matrix NNLS, with an optional training-sample
+        prior constraint (``prior_wt > 0``).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.  Used to seed training signals when
+            no ``training_signals`` is supplied.
+        n_atoms : int, optional
+            Number of dictionary atoms (default: 15, the article's
+            optimum).
+        sparsity : int, optional
+            Target sparsity ``K`` (default: 2, the article's optimum).
+        dictionary : np.ndarray, optional
+            Pre-learned non-negative dictionary (n x n_atoms).  Bypasses
+            online K-SVD training.
+        training_signals : np.ndarray, optional
+            Training signals for online K-SVD (n x m).  If not provided,
+            smooth cosine basis vectors plus the initial guess are used.
+        n_dictionary_iterations : int, optional
+            K-SVD iterations (default: 80, as in the article).
+        lambda_tik : float, optional
+            Tikhonov smoothing regularization weight (default: 0.01).
+        prior_wt : float, optional
+            Training-sample-driven prior weight (default: 0.5).
+        sparse_coder : str, optional
+            Sparse-coding strategy: ``"nnls_topk"``, ``"omp"`` or
+            ``"nn_omp"`` (default: ``"nnls_topk"``).
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        n_nnls_iter : int, optional
+            Maximum NNLS iterations.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Optional upper energy cutoff (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with standard fields plus
+            ``n_atoms``, ``sparsity``, ``sparse_coder``, ``lambda_tik``,
+            ``prior_wt``.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_nnksvd_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_atoms=n_atoms,
+            sparsity=sparsity,
+            dictionary=dictionary,
+            training_signals=training_signals,
+            n_dictionary_iterations=n_dictionary_iterations,
+            lambda_tik=lambda_tik,
+            prior_wt=prior_wt,
+            sparse_coder=sparse_coder,
+            tolerance=tolerance,
+            n_nnls_iter=n_nnls_iter,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

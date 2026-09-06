@@ -426,6 +426,7 @@ graph TD
 | 67 | `unfold_randomized_kaczmarz` | Iterative | `max_iterations`, `omega`, `tolerance`, `random_state` | — | Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems |
 | 68 | `unfold_eki` | Bayesian | `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state` | — | Ensemble Kalman Inversion (Iglesias et al. 2013): approximates the Bayesian posterior without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance |
 | 69 | `unfold_binned` | Ensemble/Adaptive | `bin_lookup`, `lookup_path`, `timeout_per_method` | — | Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (60+ methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as `data/bin_lookup.json` |
+| 70 | `unfold_nnksvd` | Dictionary / Sparse | `n_atoms`, `sparsity`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter` | — | Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — `nnls_topk` (proposed), `omp`, `nn_omp`; training-sample prior via `prior_wt`. Optimal hyperparameters reported: 15 atoms, K=2, `lambda_tik=0.01`, `prior_wt=0.5`, `max_iter=80`, `seed=42` |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -534,7 +535,7 @@ print(kl_divergence(s1, s2))
 
 ```mermaid
 graph TD
-    A[Comparison Metrics<br/>41 total] --> B[Entropy]
+    A[Comparison Metrics<br/>44 total] --> B[Entropy]
     A --> C[Distribution]
     A --> D[Correlation]
     A --> E[Error]
@@ -543,6 +544,7 @@ graph TD
     A --> H[Statistical]
     A --> I[EURADOS Integral]
     A --> J[Spectral Diagnostics]
+    A --> K[Xu 2026 BNCT]
 
     B --> B1[kl_divergence]
     B --> B2[cross_entropy]
@@ -594,14 +596,20 @@ graph TD
     J --> J9[dose_weighted_error]
     J --> J10[response_matrix_consistency]
 
+    K --> K1[relative_flux_error]
+    K --> K2[flux_correlation_coefficient]
+    K --> K3[comprehensive_score]
+
     style A fill:#4a90d9,color:#fff
 ```
 
-### All 41 Metrics
+### All 44 Metrics
 
-The 27 simple metrics below are always computed. The **EURADOS Integral**
+The 30 simple metrics below are always computed. The **EURADOS Integral**
 and **Spectral Diagnostics** groups require an energy grid (pass `energy=`
 or use unfolded result dicts, which carry it) and follow Gomez-Ros et al. 2022.
+The **Xu 2026 (BNCT)** group is computed by default alongside the simple
+metrics and follows Xu et al. (NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070).
 
 | Category | Metric Key | Description | Range |
 |----------|-----------|-------------|-------|
@@ -646,6 +654,9 @@ or use unfolded result dicts, which carry it) and follow Gomez-Ros et al. 2022.
 | | `peak_width_error` | Relative error in FWHM (%) | [0, ∞) |
 | | `dose_weighted_error` | Dose-weighted mean squared error | [0, ∞) |
 | | `response_matrix_consistency` | Consistency of unfolded spectrum with measured readings (χ²) | [0, ∞) |
+| **Xu 2026 (BNCT)** | `relative_flux_error` | Eq. 2.7: ‖φ_true − φ_hat‖₂ / ‖φ_true‖₂ | [0, ∞) |
+| | `flux_correlation_coefficient` | Eq. 2.8: Pearson correlation between true and reconstructed spectra | [-1, 1] |
+| | `comprehensive_score` | Eq. 2.9: `flux_err − 0.5 · flux_corr` (lower is better; best = -0.3612) | (-∞, ∞) |
 
 The simple metrics are implemented with pure NumPy/SciPy — no extra
 dependencies required. The integral quantities additionally use the
@@ -878,6 +889,7 @@ bssunfold/
             ├── unfold_mlem_odl.py
             ├── unfold_mlem_stop.py
             ├── unfold_mystic.py
+            ├── unfold_nnksvd.py
             ├── unfold_nsduaz.py
             ├── unfold_odl_advanced.py
             ├── unfold_osem.py
@@ -966,17 +978,17 @@ If you use BSSUnfold in your research, please cite paper:
 or software:
 ```bibtex
 @misc{konstantin_radiationsafetybssunfold_2025,
-	title = {Radiationsafety/bssunfold},
-	copyright = {GNU General Public License v3.0 only},
-	shorttitle = {Radiationsafety/bssunfold},
-	url = {https://zenodo.org/doi/10.5281/zenodo.18056376},
-	abstract = {first published version of package},
-	urldate = {2026-01-12},
-	publisher = {Zenodo},
-	author = {Chizhov, Konstantin},
-	month = dec,
-	year = {2025},
-	doi = {10.5281/ZENODO.18056376},
+        title = {Radiationsafety/bssunfold},
+        copyright = {GNU General Public License v3.0 only},
+        shorttitle = {Radiationsafety/bssunfold},
+        url = {https://zenodo.org/doi/10.5281/zenodo.18056376},
+        abstract = {first published version of package},
+        urldate = {2026-01-12},
+        publisher = {Zenodo},
+        author = {Chizhov, Konstantin},
+        month = dec,
+        year = {2025},
+        doi = {10.5281/ZENODO.18056376},
 }
 ```
 

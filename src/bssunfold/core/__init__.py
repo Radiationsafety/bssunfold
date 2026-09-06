@@ -81,6 +81,14 @@ from .unfold_mystic import (
     unfold_mystic,
     unfold_mystic_hybrid,
 )
+from .unfold_nnksvd import (
+    solve_nn_omp,
+    solve_nnksvd,
+    solve_nnksvd_unfold,
+    solve_nnls_topk,
+    solve_tikhonov_nnls,
+    unfold_nnksvd,
+)
 from .unfold_nsduaz import (
     builtin_catalogue,
     select_catalogue_initial,
@@ -178,6 +186,12 @@ __all__ = [
     "solve_staysl",
     "solve_ksvd",
     "solve_sl0",
+    # Non-negative K-SVD (Xu et al. NIMA 2026)
+    "solve_nnksvd",
+    "solve_nnksvd_unfold",
+    "solve_nnls_topk",
+    "solve_nn_omp",
+    "solve_tikhonov_nnls",
     # unfold modules
     "unfold_cvxpy",
     "unfold_landweber",
@@ -268,6 +282,8 @@ __all__ = [
     "unfold_amaxed",
     "solve_amaxed_regularization",
     "unfold_amaxed_regularization",
+    # Non-negative K-SVD unfold (Xu et al. NIMA 2026)
+    "unfold_nnksvd",
     # regularization
     "select_regularization_parameter",
     "lcurve_selection",

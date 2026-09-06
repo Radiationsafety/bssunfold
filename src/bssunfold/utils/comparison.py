@@ -58,6 +58,10 @@ __all__ = [
     "peak_width_error",
     "dose_weighted_error",
     "response_matrix_consistency",
+    # Xu et al. (NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070) metrics
+    "relative_flux_error",
+    "flux_correlation_coefficient",
+    "comprehensive_score",
     "benchmark_unfold_methods",
     "DEFAULT_UNFOLD_BENCHMARK_METRICS",
     "DEFAULT_UNFOLD_BENCHMARK_METHODS",
@@ -405,6 +409,124 @@ def mmd_rbf(
     YY = np.exp(-gamma * cdist(Y, Y, metric="sqeuclidean"))
     XY = np.exp(-gamma * cdist(X, Y, metric="sqeuclidean"))
     return float(np.mean(XX) + np.mean(YY) - 2.0 * np.mean(XY))
+
+
+# ─── Xu et al. (NIMA 2026) BNCT unfolding metrics ──────────────────
+#
+# Reference: H.-l. Xu, S.-W. Jing, Z. Li et al., "Application of
+# Non-negative K-SVD in Epithermal Neutron Spectrum Unfolding for BNCT",
+# Nuclear Instruments and Methods in Physics Research A (2026),
+# https://doi.org/10.1016/j.nima.2026.172070
+#
+# These three metrics are used in Section 2.2.3 of the article to
+# evaluate spectrum-unfolding performance from the perspectives of
+# amplitude accuracy and spectral-shape consistency.
+
+
+def relative_flux_error(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
+    """Relative flux error (Eq. 2.7 of Xu et al. 2026).
+
+    Quantifies the overall amplitude deviation between the true
+    energy-spectrum ``phi_true`` and the reconstructed spectrum
+    ``phi_hat``::
+
+        flux_err = || phi_true - phi_hat ||_2 / || phi_true ||_2
+
+    A lower value corresponds to higher reconstruction accuracy.  A value
+    of 0 indicates a perfect match; a value near 1 indicates that the
+    residual is of the same magnitude as the reference spectrum (i.e.
+    reconstruction failure).
+
+    Parameters
+    ----------
+    phi_true : np.ndarray
+        Reference / true energy spectrum.
+    phi_hat : np.ndarray
+        Reconstructed energy spectrum.
+
+    Returns
+    -------
+    float
+        Relative flux error (dimensionless, ``>= 0``).
+    """
+    _check_same_length(phi_true, phi_hat)
+    p_true = np.asarray(phi_true, dtype=float)
+    p_hat = np.asarray(phi_hat, dtype=float)
+    denom = float(np.linalg.norm(p_true))
+    if denom == 0.0:
+        # If the reference is identically zero, the relative error is
+        # 0 only when the reconstruction is also zero; otherwise 1.
+        return 0.0 if np.linalg.norm(p_hat) == 0.0 else 1.0
+    return float(np.linalg.norm(p_true - p_hat) / denom)
+
+
+def flux_correlation_coefficient(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
+    """Pearson correlation coefficient for spectral shape (Eq. 2.8).
+
+    Characterizes the consistency of the spectrum waveform, peak
+    positions and fluctuation trends.  A value closer to 1 indicates
+    superior spectral-shape fitting performance.  Returns 0.0 if either
+    spectrum has zero variance (constant).
+
+    Parameters
+    ----------
+    phi_true : np.ndarray
+        Reference / true energy spectrum.
+    phi_hat : np.ndarray
+        Reconstructed energy spectrum.
+
+    Returns
+    -------
+    float
+        Pearson correlation coefficient (in ``[-1, 1]``).
+    """
+    _check_same_length(phi_true, phi_hat)
+    p_true = np.asarray(phi_true, dtype=float)
+    p_hat = np.asarray(phi_hat, dtype=float)
+    if np.std(p_true) == 0 or np.std(p_hat) == 0:
+        return 0.0
+    # Reuse the existing pearson_r implementation for numerical
+    # consistency with the rest of the package.
+    return pearson_r(p_true, p_hat)
+
+
+def comprehensive_score(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
+    """Comprehensive-score index (Eq. 2.9 of Xu et al. 2026).
+
+    Integrates the flux-amplitude error and the spectral-shape
+    correlation to balance reconstruction accuracy and spectral-shape
+    consistency::
+
+        score = flux_err - 0.5 * flux_corr
+
+    where ``flux_err = relative_flux_error(phi_true, phi_hat)`` and
+    ``flux_corr = flux_correlation_coefficient(phi_true, phi_hat)``.
+
+    A **lower** score indicates better overall unfolding performance
+    (low amplitude error combined with high shape correlation, which
+    drives the score toward ``-0.5``).
+
+    The optimal value reported by Xu et al. (2026) for their NNLS+TopK
+    method is ``score = -0.3612`` (relative flux error 12.5%,
+    correlation coefficient 0.973).
+
+    Parameters
+    ----------
+    phi_true : np.ndarray
+        Reference / true energy spectrum.
+    phi_hat : np.ndarray
+        Reconstructed energy spectrum.
+
+    Returns
+    -------
+    float
+        Comprehensive score (lower is better).
+    """
+    _check_same_length(phi_true, phi_hat)
+    flux_err = relative_flux_error(phi_true, phi_hat)
+    flux_corr = flux_correlation_coefficient(phi_true, phi_hat)
+    return float(flux_err - 0.5 * flux_corr)
+
 
 
 # ─── Chi-squared family (power divergence) ────────────────────────
@@ -1022,6 +1144,9 @@ _ALL_METRICS: Dict[str, str] = {
     "peak_width_error": "Peak width error (%)",
     "dose_weighted_error": "Dose-weighted error",
     "response_matrix_consistency": "Response matrix consistency (χ²)",
+    "relative_flux_error": "Relative flux error (Xu 2026)",
+    "flux_correlation_coefficient": "Flux correlation (Xu 2026)",
+    "comprehensive_score": "Comprehensive score (Xu 2026)",
 }
 
 _METRIC_FUNCTIONS: Dict[str, callable] = {
@@ -1052,6 +1177,10 @@ _METRIC_FUNCTIONS: Dict[str, callable] = {
     "wilcoxon_test": wilcoxon_test,
     "mannwhitneyu_test": mannwhitneyu_test,
     "spectral_shape_similarity": spectral_shape_similarity,
+    # Xu et al. (NIMA 2026) — simple spectra-only metrics
+    "relative_flux_error": relative_flux_error,
+    "flux_correlation_coefficient": flux_correlation_coefficient,
+    "comprehensive_score": comprehensive_score,
 }
 
 # Metrics requiring additional parameters (energy, response matrix, etc.)
@@ -1299,6 +1428,9 @@ DEFAULT_UNFOLD_BENCHMARK_METRICS: List[str] = [
     "wasserstein_dist",
     "kl_divergence",
     "cosine_similarity",
+    "relative_flux_error",
+    "flux_correlation_coefficient",
+    "comprehensive_score",
 ]
 
 #: Default method registry: ``name -> {"method": <Detector method or callable>,
@@ -1380,6 +1512,29 @@ DEFAULT_UNFOLD_BENCHMARK_METHODS: Dict[str, Dict[str, object]] = {
     "fista": {
         "method": "unfold_fista",
         "params": [{"max_iterations": 10}, {"max_iterations": 50}],
+    },
+    # Non-negative K-SVD unfolding (Xu et al. NIMA 2026,
+    # https://doi.org/10.1016/j.nima.2026.172070).  Three sparse-coding
+    # strategies: NNLS+TopK (proposed), OMP, NN-OMP.  Default
+    # hyperparameters from the article: lambda_tik=0.01, prior_wt=0.5,
+    # max_iter=80, n_atoms=15, sparsity=2, seed=42.
+    "nnksvd_nnls_topk": {
+        "method": "unfold_nnksvd",
+        "params": [
+            {"sparse_coder": "nnls_topk", "n_atoms": 15, "sparsity": 2},
+        ],
+    },
+    "nnksvd_omp": {
+        "method": "unfold_nnksvd",
+        "params": [
+            {"sparse_coder": "omp", "n_atoms": 15, "sparsity": 2},
+        ],
+    },
+    "nnksvd_nn_omp": {
+        "method": "unfold_nnksvd",
+        "params": [
+            {"sparse_coder": "nn_omp", "n_atoms": 15, "sparsity": 2},
+        ],
     },
 }
 
