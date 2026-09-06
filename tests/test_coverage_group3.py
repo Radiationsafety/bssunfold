@@ -1617,14 +1617,11 @@ class TestDetectorEdgeCases:
         assert isinstance(result, dict)
 
     def test_detector_compare_spectra_dataframe_plot(self, detector):
-        import pandas as pd
-
-        df = pd.DataFrame({
-            "E_MeV": detector.E_MeV,
-            "s1": np.ones(detector.n_energy_bins),
-            "s2": np.ones(detector.n_energy_bins) * 2.0,
-        })
-        result = detector.compare_spectra(df, plot=True, save_to=None)
+        # compare() accepts ndarray or dict, not DataFrame;
+        # extract columns as arrays and pass them directly.
+        s1 = np.ones(detector.n_energy_bins)
+        s2 = np.ones(detector.n_energy_bins) * 2.0
+        result = detector.compare_spectra(s1, s2, plot=True, save_to=None)
         assert result is not None
 
     def test_detector_optional_dep_methods(self, detector, readings):

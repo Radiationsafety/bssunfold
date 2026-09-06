@@ -5712,3 +5712,6 @@ class Detector:
         if return_fig:
             return result, fig, ax_left, ax_right
         return result
+
+    # Backward-compatible alias
+    compare_spectra = compare
