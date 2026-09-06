@@ -51,6 +51,7 @@ from .unfold_cgls import unfold_cgls as unfold_cgls_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
 from .unfold_composite import unfold_composite as unfold_composite_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
+from .unfold_nksvd import unfold_nksvd as unfold_nksvd_impl
 from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
@@ -1516,6 +1517,97 @@ class Detector:
             random_state=random_state,
         )
 
+    def unfold_nksvd(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_atoms: int = 15,
+        sparsity: int = 2,
+        dictionary: Optional[np.ndarray] = None,
+        training_signals: Optional[np.ndarray] = None,
+        n_dictionary_iterations: int = 80,
+        lambda_tik: float = 0.01,
+        sparse_method: str = "nnls_topk",
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using Non-negative K-SVD (Xu et al. 2026).
+
+        Two-step method: non-negative K-SVD dictionary learning followed by
+        Tikhonov-regularized sparse inversion.  Three sparse coding strategies
+        are available: NNLS+TopK (default, best), NN-OMP, and OMP.
+
+        Reference: Xu, Jing, Li et al., "Application of Non-negative K-SVD
+        in Epithermal Neutron Spectrum Unfolding for BNCT", NIMA (2026).
+        https://doi.org/10.1016/j.nima.2026.172070
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        n_atoms : int, optional
+            Number of dictionary atoms (default: 15, per paper).
+        sparsity : int, optional
+            Target sparsity (default: 2, per paper).
+        dictionary : np.ndarray, optional
+            Pre-learned dictionary (n x n_atoms).
+        training_signals : np.ndarray, optional
+            Training signals for dictionary learning (n x m).
+        n_dictionary_iterations : int, optional
+            Max K-SVD iterations (default: 80, per paper).
+        lambda_tik : float, optional
+            Tikhonov regularization weight (default: 0.01, per paper).
+        sparse_method : str, optional
+            Sparse coding strategy: ``"nnls_topk"`` (default),
+            ``"nn_omp"``, or ``"omp"``.
+        tolerance : float, optional
+            Convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed (default: 42, per paper).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        return unfold_nksvd_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_atoms=n_atoms,
+            sparsity=sparsity,
+            dictionary=dictionary,
+            training_signals=training_signals,
+            n_dictionary_iterations=n_dictionary_iterations,
+            lambda_tik=lambda_tik,
+            sparse_method=sparse_method,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+
     def unfold_reconst(
         self,
         readings: Dict[str, float],
@@ -2268,6 +2360,51 @@ class Detector:
             energy=energy,
             method_names=method_names,
             ensemble_weights=ensemble_weights,
+        )
+
+    def unfold_composite_per_bin(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        methods: Optional[Dict[str, Tuple[Callable, Dict[str, Any]]]] = None,
+        bin_method_map: Optional[List[str]] = None,
+        smooth_sigma: float = 0.0,
+        timeout_per_method: float = 30.0,
+        fallback_combination: str = "weighted_average",
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Per-bin best-method composite (chimera) unfolding.
+
+        For each energy bin, selects the spectrum value from the unfolding
+        method that historically performs best for that bin, as determined
+        by calibration against 251 IAEA + 20 MC reference spectra.
+
+        See :func:`bssunfold.core.unfold_composite_per_bin.unfold_composite_per_bin`.
+        """
+        from .unfold_composite_per_bin import unfold_composite_per_bin as _impl
+        return _impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            methods=methods,
+            bin_method_map=bin_method_map,
+            smooth_sigma=smooth_sigma,
+            timeout_per_method=timeout_per_method,
+            fallback_combination=fallback_combination,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
         )
 
     def unfold_interpret(

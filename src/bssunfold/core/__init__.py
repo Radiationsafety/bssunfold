@@ -33,6 +33,14 @@ from .unfold_cascade import unfold_cascade
 from .unfold_cgls import solve_cgls, unfold_cgls
 from .unfold_combined import unfold_combined
 from .unfold_composite import unfold_composite
+from .unfold_composite_per_bin import (
+    build_bin_method_map,
+    DEFAULT_BIN_METHOD_MAP,
+    load_bin_method_map,
+    save_bin_method_map,
+    solve_composite_per_bin,
+    unfold_composite_per_bin,
+)
 from .unfold_cs import solve_cs, solve_ksvd, solve_omp, solve_sl0, unfold_cs
 from .unfold_cvxpy import solve_cvxpy, unfold_cvxpy
 from .unfold_docplex import solve_docplex, unfold_docplex
@@ -104,6 +112,18 @@ from .unfold_statreg import solve_statreg, unfold_statreg
 from .unfold_tikhonov_legendre import solve_tikhonov_legendre, unfold_tikhonov_legendre
 from .unfold_tikhonov_tv import solve_tikhonov_tv, unfold_tikhonov_tv
 from .unfold_tsvd import solve_tsvd, unfold_tsvd
+from .unfold_nksvd import (
+    compute_comprehensive_score,
+    compute_flux_error,
+    compute_spectral_correlation,
+    solve_nksvd,
+    solve_nksvd_unfold,
+    solve_nn_omp,
+    solve_nnls_topk,
+    solve_omp_standard,
+    solve_tikhonov_nnls,
+    unfold_nksvd,
+)
 from .unfold_zfit import solve_zfit_unfold, unfold_zfit
 
 __all__ = [
@@ -224,6 +244,13 @@ __all__ = [
     # cascade / composite (ensemble) methods
     "unfold_cascade",
     "unfold_composite",
+    # composite per-bin method
+    "solve_composite_per_bin",
+    "unfold_composite_per_bin",
+    "build_bin_method_map",
+    "load_bin_method_map",
+    "save_bin_method_map",
+    "DEFAULT_BIN_METHOD_MAP",
     # ensemble method
     "solve_ensemble",
     "unfold_ensemble",
@@ -253,4 +280,15 @@ __all__ = [
     "randomization_experiment",
     # dose calculation
     "calculate_dose_rates",
+    # Non-negative K-SVD methods (Xu et al. 2026)
+    "solve_nksvd",
+    "solve_nksvd_unfold",
+    "solve_nnls_topk",
+    "solve_nn_omp",
+    "solve_omp_standard",
+    "solve_tikhonov_nnls",
+    "unfold_nksvd",
+    "compute_flux_error",
+    "compute_spectral_correlation",
+    "compute_comprehensive_score",
 ]
