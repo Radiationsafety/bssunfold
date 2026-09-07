@@ -163,7 +163,10 @@ Usage
    print(result["nev"], result["acceptable"])   # paper's statistic
    print(result["H_history"])                   # convergence trace
 
-See ``examples/41-nspline.ipynb`` for a worked comparison with GRAVEL.
+See ``examples/41-nspline.ipynb`` for a worked comparison with GRAVEL on
+a synthetic spectrum, and ``examples/42-nspline-iaea.ipynb`` for
+unfolding an IAEA Compendium Monte-Carlo BSA spectrum
+(``t4-14-s.txt_1``) from GSF Bonner-sphere readings.
 
 Notes and limitations
 ---------------------

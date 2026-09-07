@@ -44,9 +44,13 @@ and this project adheres to [Semantic Versioning].
     `"C0C1"` (default), `"C0"` or `"none"`.
   - `Detector.unfold_nspline` wrapper (full `calculate_errors`
     Monte-Carlo support, `max_neutron_energy` truncation), exports in
-    `bssunfold.core`, Sphinx page `docs/nspline.rst`, worked example
-    `examples/41-nspline.ipynb` (comparison with GRAVEL) and test
-    suite `tests/test_nspline.py` (32 tests).
+    `bssunfold.core`, Sphinx page `docs/nspline.rst`, worked examples
+    `examples/41-nspline.ipynb` (comparison with GRAVEL on a synthetic
+    spectrum) and `examples/42-nspline-iaea.ipynb` (IAEA Compendium
+    Monte-Carlo BSA spectrum `t4-14-s.txt_1` unfolded from GSF
+    readings; N-spline recovers the shape at ~0.25 dex while GRAVEL /
+    MLEM diverge from a flat prior) and test suite
+    `tests/test_nspline.py` (32 tests).
 
 
 ## [0.23.0] - 2026-09-07
