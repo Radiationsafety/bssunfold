@@ -577,6 +577,12 @@ Method Reference
       - `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter`
       - —
       - Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — ``nnls_topk`` (proposed), ``omp``, ``nn_omp``; default training signals are log-spaced Gaussian bumps on the energy grid; training-sample prior via ``prior_wt``
+    * - 73
+      - ``unfold_nspline``
+      - Maximum entropy / parametric
+      - `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments`
+      - —
+      - N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity; directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria and ``nev <= 1 + 2/sqrt(N)`` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper
 
 
 
