@@ -36,7 +36,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (60+ methods):
+- **Multiple Unfolding Algorithms** (70+ methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD), EPIC (Equal Posterior Information Condition)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
@@ -47,7 +47,8 @@
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
     IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
   - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst)
-  - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired annealing)
+   - **Dictionary / Sparse**: NN-KSVD (non-negative K-SVD with NNLS-TopK/OMP/NN-OMP sparse coders, Xu et al. NIMA 2026), CS (compressive sensing with K-SVD + SL0)
+   - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired annealing)
   - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
   - **Advanced Proximal**: ODL PDHG, ODL Douglas-Rachford (Total Variation regularization)
   - **Pipeline**: Combined approach for chaining multiple methods
@@ -276,6 +277,7 @@ graph TD
     A --> E[Maximum Entropy]
     A --> F[Statistical Regularization]
     A --> G[Optimization-based]
+    A --> L[Dictionary / Sparse]
     A --> H[Pipeline]
     A --> I[Parametric]
     A --> K[Classic codes]
@@ -315,10 +317,12 @@ graph TD
     G --> GH[unfold_mystic_hybrid]
     G --> G4[unfold_smt]
     G --> G5[unfold_genetic]
-    G --> G6[unfold_cs]
-    G --> G7[unfold_scip]
-    G --> G8[unfold_docplex]
-    G --> G9[unfold_epic]
+    G --> G6[unfold_scip]
+    G --> G7[unfold_docplex]
+    G --> G8[unfold_epic]
+
+    L --> L1[unfold_cs]
+    L --> L2[unfold_nnksvd]
 
     H --> H1[unfold_combined]
     H --> H2[unfold_cascade]
@@ -351,6 +355,7 @@ graph TD
     style I fill:#e8f0fe
     style J fill:#e8f0fe
     style K fill:#e8f0fe
+    style L fill:#e8f0fe
 ```
 
 ### Method Reference Table
@@ -426,7 +431,7 @@ graph TD
 | 67 | `unfold_randomized_kaczmarz` | Iterative | `max_iterations`, `omega`, `tolerance`, `random_state` | — | Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems |
 | 68 | `unfold_eki` | Bayesian | `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state` | — | Ensemble Kalman Inversion (Iglesias et al. 2013): approximates the Bayesian posterior without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance |
 | 69 | `unfold_binned` | Ensemble/Adaptive | `bin_lookup`, `lookup_path`, `timeout_per_method` | — | Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (60+ methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as `data/bin_lookup.json` |
-| 70 | `unfold_nnksvd` | Dictionary / Sparse | `n_atoms`, `sparsity`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter` | — | Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — `nnls_topk` (proposed), `omp`, `nn_omp`; training-sample prior via `prior_wt`. Optimal hyperparameters reported: 15 atoms, K=2, `lambda_tik=0.01`, `prior_wt=0.5`, `max_iter=80`, `seed=42` |
+| 70 | `unfold_nnksvd` | Dictionary / Sparse | `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter` | — | Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — `nnls_topk` (proposed), `omp`, `nn_omp`; training-sample prior via `prior_wt`. Default training signals are log-spaced Gaussian bumps on the energy grid. Optimal hyperparameters reported: 15 atoms, K=2, `lambda_tik=0.01`, `prior_wt=0.5`, `max_iter=80`, `seed=42` |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -759,7 +764,7 @@ bssunfold/
 │   ├── examples.rst
 │   ├── conf.py
 │   └── requirements.txt
-├── examples/                    # Jupyter notebooks (38 notebooks)
+├── examples/                    # Jupyter notebooks (40 notebooks)
 ├── scripts/                     # Standalone analysis / benchmark scripts
 │   ├── rank_methods.py
 │   ├── optimize_defaults_and_new_methods.py
@@ -843,7 +848,7 @@ bssunfold/
             ├── _numba_jit.py        # Numba JIT inner loops
             ├── _parametric_shared.py # Shared parametric constants
             ├── _solver_backends.py  # Shared solver-backend resolution
-            ├── detector.py          # Main Detector class (65 unfold_* methods)
+            ├── detector.py          # Main Detector class (70 unfold_* methods)
             ├── dose_calculation.py
             ├── regularization.py    # L-curve, GCV, DP, cosine, NCP, etc.
             ├── unfold_amaxed.py

@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 60+ unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 70+ unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 60+ methods are accessible as instance methods on the
+All 70+ methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -25,8 +25,9 @@ categories:
        A --> D["Bayesian"]
        A --> E["Maximum Entropy"]
        A --> F["Statistical Regularization"]
-       A --> G["Optimization-based"]
-       A --> H["Pipeline"]
+        A --> G["Optimization-based"]
+        A --> P["Dictionary / Sparse"]
+        A --> H["Pipeline"]
        A --> I["Parametric"]
        A --> J["Krylov/hybrid"]
        A --> K["EM family"]
@@ -85,12 +86,14 @@ categories:
        G --> G3["unfold_mystic"]
        G --> GH["unfold_mystic_hybrid"]
        G --> G4["unfold_smt"]
-       G --> G5["unfold_genetic"]
-       G --> G6["unfold_cs"]
-       G --> G7["unfold_scip"]
+        G --> G5["unfold_genetic"]
+        G --> G7["unfold_scip"]
        G --> G8["unfold_docplex"]
         G --> G9["unfold_epic"]
         G --> G10["unfold_qubo"]
+
+        P --> P1["unfold_cs"]
+        P --> P2["unfold_nnksvd"]
 
         H --> H1["unfold_combined"]
         H --> H2["unfold_cascade"]
@@ -127,6 +130,7 @@ categories:
          style M fill:#e8f0fe
          style N fill:#e8f0fe
          style O fill:#e8f0fe
+         style P fill:#e8f0fe
 
 Method Reference
 ~~~~~~~~~~~~~~~~
@@ -567,6 +571,12 @@ Method Reference
       - `bin_lookup`, `lookup_path`, `timeout_per_method`
       - —
       - Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (67 methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as ``data/bin_lookup.json``
+    * - 72
+      - ``unfold_nnksvd``
+      - Dictionary / Sparse
+      - `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter`
+      - —
+      - Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — ``nnls_topk`` (proposed), ``omp``, ``nn_omp``; default training signals are log-spaced Gaussian bumps on the energy grid; training-sample prior via ``prior_wt``
 
 
 

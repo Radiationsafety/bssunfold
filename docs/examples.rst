@@ -266,6 +266,46 @@ readings.
    spectrum, iterations, converged = solve_cs(A, b, n_atoms=80, sparsity=6)
    print(f"Converged: {converged}, iterations: {iterations}")
 
+Non-negative K-SVD (NN-KSVD) Unfolding
+---------------------------------------
+
+The ``unfold_nnksvd`` method implements the BNCT epithermal neutron spectrum
+unfolding approach of Xu et al. (NIMA 2026). It combines non-negative K-SVD
+dictionary learning with three sparse-coding strategies: ``nnls_topk``
+(proposed), ``omp``, and ``nn_omp``.
+
+.. code-block:: python
+
+   import pandas as pd
+   from bssunfold import Detector
+
+   detector = Detector(pd.read_csv('response_functions.csv'))
+   readings = {"0in": 0.0003, "2in": 0.0099, "3in": 0.0536, "5in": 0.1841}
+
+   # NN-KSVD unfolding with the proposed NNLS-TopK coder
+   result = detector.unfold_nnksvd(
+       readings,
+       n_atoms=15,          # number of dictionary atoms
+       sparsity=4,          # sparsity level K
+       n_dictionary_iterations=80,
+       lambda_tik=0.01,     # Tikhonov regularization
+       prior_wt=0.5,        # training-sample prior weight
+       sparse_coder='nnls_topk',
+       random_state=42,
+       calculate_errors=True,
+   )
+
+   print("NN-KSVD spectrum shape:", result['spectrum'].shape)
+
+   # Standalone solver
+   from bssunfold.core.unfold_nnksvd import solve_nnksvd_unfold
+   import numpy as np
+
+   A = np.array([detector.sensitivities[n] for n in readings])
+   b = np.array([readings[n] for n in readings])
+   spectrum = solve_nnksvd_unfold(A, b, detector.E_MeV, n_atoms=15, sparsity=4)
+   print("Spectrum shape:", spectrum.shape)
+
 Maximum Neutron Energy Cutoff
 -----------------------------
 

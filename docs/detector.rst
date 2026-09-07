@@ -166,6 +166,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_eki.unfold_eki
 
+.. autofunction:: bssunfold.core.unfold_nnksvd.unfold_nnksvd
+
 Core Functions
 ==============
 
@@ -276,6 +278,16 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_binned.solve_binned
 
 .. autofunction:: bssunfold.core.unfold_binned.build_bin_lookup
+
+.. autofunction:: bssunfold.core.unfold_nnksvd.solve_nnksvd_unfold
+
+.. autofunction:: bssunfold.core.unfold_nnksvd.solve_nnksvd
+
+.. autofunction:: bssunfold.core.unfold_nnksvd.solve_nnls_topk
+
+.. autofunction:: bssunfold.core.unfold_nnksvd.solve_nn_omp
+
+.. autofunction:: bssunfold.core.unfold_nnksvd.solve_tikhonov_nnls
 
 Comparison Methods
 ==================
