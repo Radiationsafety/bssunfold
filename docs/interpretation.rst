@@ -112,6 +112,11 @@ Basic usage
    ir = detector.interpret_result(readings, tolerance=1e-5)
    tables = ir["tables"]  # pandas DataFrames: summary, duals, detectors, ...
 
+   # 3) L1 norm with automatic ridge for numerical stability
+   result = detector.unfold_interpret(
+       readings, norm=1, ridge_coeff="auto",  # default; or 0.0 to disable
+   )
+
 .. note::
 
    **About ``tolerance``:** pyoptexplain's backend can report ``iteration_limit``
@@ -120,6 +125,18 @@ Basic usage
    enough for an ``optimal`` status with a residual below 0.3 % — a good
    compromise for analysis-grade work. See the worked example in
    ``examples/24-interpret.ipynb``.
+
+.. note::
+
+   **About ``norm=1`` and the ``ridge_coeff`` parameter:** when the L1 penalty
+   norm is used (``norm=1``), the QP matrix ``P = A'A`` can be rank-deficient
+   if the number of detectors is much smaller than the number of energy bins.
+   This causes OSQP to stall at the iteration limit. To cure this,
+   ``build_interpretation_qp`` adds a small diagonal ridge to ``P`` by default
+   (``ridge_coeff="auto"``, which computes ``1e-8 * trace(P) / n``). The ridge
+   makes ``P`` positive definite without noticeably affecting the L1 solution.
+   You can override it with an explicit float (e.g. ``ridge_coeff=1e-6``) or
+   disable it entirely with ``ridge_coeff=0.0``.
 
 How to use it to interpret a spectrum
 -------------------------------------

@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [Unreleased]
+## [0.23.0] - 2026-09-07
 
 ### Added
 - **Non-negative K-SVD unfolding method** — `unfold_nnksvd` /
@@ -53,6 +53,18 @@ and this project adheres to [Semantic Versioning].
   `DEFAULT_UNFOLD_BENCHMARK_METRICS`, and the three NN-KSVD sparse
   coders are registered in `DEFAULT_UNFOLD_BENCHMARK_METHODS` as
   `nnksvd_nnls_topk`, `nnksvd_omp`, `nnksvd_nn_omp`.
+
+### Fixed
+- **`unfold_interpret` / `interpret_qp` convergence for `norm=1`** — when the
+  L1 penalty norm is used, the QP matrix ``P = A'A`` can be rank-deficient
+  (e.g. 11 detectors × 60 energy bins). OSQP's default tolerance was too
+  strict for this ill-conditioned problem, causing ``iteration_limit`` and NaN
+  metrics. A small diagonal ridge (``ridge_coeff``, default ``"auto"`` =
+  ``1e-8 * trace(P) / n``) is now added to ``P`` when ``norm == 1`` and
+  ``smoothness_order == 0``, making it positive definite without distorting the
+  L1 solution. The parameter is exposed at all three API levels
+  (``build_interpretation_qp``, ``interpret_qp``, ``unfold_interpret``) and can
+  be set to ``0.0`` to restore the legacy behaviour.
 
 
 ## [0.22.0] - 2026-09-02

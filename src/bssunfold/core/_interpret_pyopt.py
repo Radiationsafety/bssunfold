@@ -81,6 +81,7 @@ def build_interpretation_qp(
     lower_bound: float = 0.0,
     variable_names: Optional[Sequence[str]] = None,
     equality_name: str = "norm",
+    ridge_coeff: Any = "auto",
 ) -> Any:
     """Build the pyoptexplain QP handle for the unfolding problem.
 
@@ -120,6 +121,11 @@ def build_interpretation_qp(
         Names of the energy-group variables (default: ``E0..E{n-1}``).
     equality_name : str, optional
         Name of the norm equality block (default: ``"norm"``).
+    ridge_coeff : float or ``"auto"``, optional
+        Diagonal ridge added to ``Q`` when ``norm == 1`` and
+        ``smoothness_order == 0`` to cure rank deficiency of ``A'A``.
+        ``"auto"`` (default) uses ``1e-8 * trace(Q) / n``.  Set to
+        ``0.0`` to disable the ridge.
 
     Returns
     -------
@@ -167,6 +173,17 @@ def build_interpretation_qp(
         P = P + alpha * smoothness_weight * (L.T @ L)
     elif norm == 2:
         P = P + alpha * np.eye(n)
+    elif norm == 1:
+        if ridge_coeff == "auto":
+            ridge = 1e-8 * float(np.trace(P)) / n
+        else:
+            ridge = float(ridge_coeff)
+        if ridge > 0:
+            P = P + ridge * np.eye(n)
+            logger.info(
+                "norm=1: adding ridge %.2e to P for numerical stability",
+                ridge,
+            )
 
     if norm == 1:
         c = -A.T @ b + alpha * np.ones(n)
@@ -209,6 +226,7 @@ def _make_analyzer(
     handle: Any,
     py: SimpleNamespace,
     tolerance: float,
+    extra_options: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """Construct a pyoptexplain Analyzer over a handle's quadratic surface.
 
@@ -226,6 +244,7 @@ def _make_analyzer(
         options=py.SolveParameters(
             feasibility_tolerance=tolerance,
             optimality_tolerance=tolerance,
+            extra_options=extra_options or {},
         ),
     )
 
@@ -242,6 +261,7 @@ def solve_interpret(
     x0: Optional[np.ndarray] = None,
     tolerance: float = 1e-8,
     variable_names: Optional[Sequence[str]] = None,
+    ridge_coeff: Any = "auto",
 ) -> np.ndarray:
     """Solve the unfolding QP through pyoptexplain and return the spectrum.
 
@@ -269,6 +289,8 @@ def solve_interpret(
         Solver feasibility/optimality tolerance (default: 1e-8).
     variable_names : sequence of str, optional
         Energy-group variable names.
+    ridge_coeff : float or ``"auto"``, optional
+        Diagonal ridge for ``norm == 1`` (default: ``"auto"``).
 
     Returns
     -------
@@ -291,6 +313,7 @@ def solve_interpret(
         enforce_norm=enforce_norm,
         norm_value=norm_value,
         variable_names=variable_names,
+        ridge_coeff=ridge_coeff,
     )
     analyzer = _make_analyzer(handle, py, tolerance)
     result = analyzer.solve()

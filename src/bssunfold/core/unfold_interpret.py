@@ -97,6 +97,7 @@ def interpret_qp(
     E_MeV: Optional[np.ndarray] = None,
     detector_names: Optional[Sequence[str]] = None,
     tolerance: float = 1e-8,
+    ridge_coeff: Any = "auto",
     relative_deltas: Sequence[float] = _DEFAULT_RELATIVE_DELTAS,
     relaxation_deltas: Sequence[float] = _DEFAULT_RELAXATION_DELTAS,
     nonneg_deltas: Sequence[float] = _DEFAULT_NONNEG_DELTAS,
@@ -134,6 +135,11 @@ def interpret_qp(
         Names of the detector rows of ``A``/``b``.
     tolerance : float, optional
         Solver feasibility/optimality tolerance (default: 1e-8).
+    ridge_coeff : float or ``"auto"``, optional
+        Diagonal ridge added to ``Q`` when ``norm == 1`` and
+        ``smoothness_order == 0`` to cure rank deficiency of ``A'A``.
+        ``"auto"`` (default) uses ``1e-8 * trace(Q) / n``.  Set to
+        ``0.0`` to disable the ridge.
     relative_deltas : sequence of float, optional
         Relative perturbations for the robustness analysis (default: -5..5%).
     relaxation_deltas : sequence of float, optional
@@ -172,6 +178,7 @@ def interpret_qp(
         "smoothness_weight": smoothness_weight,
         "enforce_norm": enforce_norm,
         "norm_value": norm_value,
+        "ridge_coeff": ridge_coeff,
     }
 
     handle = build_interpretation_qp(A, b, alpha, **build_kwargs)
@@ -461,6 +468,7 @@ def unfold_interpret(
     save_result: bool = False,
     random_state: Optional[int] = None,
     tolerance: float = 1e-8,
+    ridge_coeff: Any = "auto",
     interpret_options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Unfold and interpret a neutron spectrum with pyoptexplain.
@@ -520,6 +528,11 @@ def unfold_interpret(
         Solver feasibility/optimality tolerance (default: 1e-8). Pyoptexplain's
         backend may fail with ``iteration_limit`` on large problems at the
         strictest tolerance; relax it (e.g. 1e-5) in that case.
+    ridge_coeff : float or ``"auto"``, optional
+        Diagonal ridge added to ``Q`` when ``norm == 1`` and
+        ``smoothness_order == 0`` to cure rank deficiency of ``A'A``.
+        ``"auto"`` (default) uses ``1e-8 * trace(Q) / n``.  Set to
+        ``0.0`` to disable the ridge.
     interpret_options : dict, optional
         Extra keyword arguments forwarded to :func:`interpret_qp`.
 
@@ -579,6 +592,7 @@ def unfold_interpret(
             norm_value=norm_value,
             tolerance=tolerance,
             x0=x0,
+            ridge_coeff=ridge_coeff,
         )
 
     output = run_unfolding(
@@ -612,6 +626,7 @@ def unfold_interpret(
 
     options = dict(interpret_options or {})
     options.setdefault("tolerance", tolerance)
+    options.setdefault("ridge_coeff", ridge_coeff)
     interpretation = interpret_qp(
         A,
         b,

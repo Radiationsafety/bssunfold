@@ -365,6 +365,53 @@ def test_unfold_interpret_tolerance_full_lanl():
     assert result["interpretation_metrics"]["success"] is True
 
 
+def test_solve_interpret_norm1_converges():
+    """norm=1 with full LANL converges via the automatic ridge on P.
+
+    Without the ridge, P = A'A is rank-deficient (rank 11, n=60) and OSQP
+    hits the iteration limit at tolerance=1e-8.
+    """
+    import pandas as pd
+
+    from bssunfold import RF_LANL
+    from bssunfold.core.unfold_interpret import solve_interpret
+
+    det = Detector(RF_LANL)
+    ref = pd.read_csv(
+        "tests/MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
+    )
+    readings = det.get_effective_readings_for_spectra(
+        ref[["E_MeV", "ISO_ref_Cf252"]]
+    )
+    A, b, _ = det._build_system(readings)
+    x = solve_interpret(A, b, 1e-4, norm=1)
+    assert x.shape == (A.shape[1],)
+    assert np.all(x >= -1e-8)
+    residual_rel = np.linalg.norm(A @ x - b) / np.linalg.norm(b)
+    assert residual_rel < 1.0
+
+
+def test_solve_interpret_norm1_custom_ridge():
+    """A custom ridge_coeff is accepted and produces a valid spectrum."""
+    from bssunfold.core.unfold_interpret import solve_interpret
+
+    rng = np.random.default_rng(42)
+    A, b = rng.random((6, 20)), rng.random(6)
+    x = solve_interpret(A, b, 1e-4, norm=1, ridge_coeff=1e-6)
+    assert x.shape == (A.shape[1],)
+    assert np.all(x >= -1e-8)
+
+
+def test_solve_interpret_norm1_ridge_zero():
+    """ridge_coeff=0.0 disables the ridge (legacy behaviour)."""
+    from bssunfold.core.unfold_interpret import solve_interpret
+
+    rng = np.random.default_rng(42)
+    A, b = rng.random((6, 20)), rng.random(6)
+    x = solve_interpret(A, b, 1e-4, norm=1, ridge_coeff=0.0)
+    assert x.shape == (A.shape[1],)
+
+
 def test_unfold_interpret_import_error(detector, small_readings):
     """Missing pyoptexplain raises a helpful ImportError in the wrapper."""
     _reset_pyopt_cache()
