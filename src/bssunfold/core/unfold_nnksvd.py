@@ -544,6 +544,7 @@ def solve_nnksvd_unfold(
     random_state: Optional[int] = None,
     tolerance: float = 1e-6,
     n_nnls_iter: Optional[int] = None,
+    E_MeV: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, int, bool]:
     """Unfold a neutron spectrum using the non-negative K-SVD pipeline.
 
@@ -580,7 +581,8 @@ def solve_nnksvd_unfold(
         K-SVD training.
     training_signals : np.ndarray, optional
         Training signals for online K-SVD (n x m).  If not provided,
-        smooth cosine basis vectors plus the initial guess are used.
+        log-spaced Gaussian bumps on the energy grid plus the initial
+        guess are used.
     n_dictionary_iterations : int, optional
         K-SVD iterations (default: 80, as in the article).
     lambda_tik : float, optional
@@ -595,6 +597,11 @@ def solve_nnksvd_unfold(
         Convergence tolerance for K-SVD and OMP-style coders.
     n_nnls_iter : int, optional
         Maximum NNLS iterations (passed through to scipy.optimize.nnls).
+    E_MeV : np.ndarray, optional
+        Energy grid in MeV (n,).  When provided, the default training
+        signals are log-spaced Gaussian bumps on the log-energy grid,
+        which ensures the dictionary covers the full spectral range.
+        Falls back to a uniform normalised index when not supplied.
 
     Returns
     -------
@@ -630,7 +637,7 @@ def solve_nnksvd_unfold(
                 )
             signals = np.maximum(signals, 0.0)
         else:
-            # Synthesize smooth training signals (cosine basis + prior peak).
+            # Synthesize training signals for online K-SVD.
             if x0 is not None and np.any(x0):
                 base = np.maximum(x0, 0)
                 norm = np.linalg.norm(base)
@@ -641,17 +648,37 @@ def solve_nnksvd_unfold(
             else:
                 base = np.ones(n) / np.sqrt(n)
 
-            t = np.linspace(0.0, np.pi, n)
+            # Build non-negative training signals that cover the full
+            # spectral range.  When E_MeV is supplied we place log-spaced
+            # Gaussian bumps on the log-energy grid so that the learned
+            # dictionary atoms span the entire energy domain (thermal
+            # through fast).  Without E_MeV we fall back to a uniform
+            # normalised index.
             n_basis = max(n_atoms * 2, 8)
             n_basis = min(n_basis, n)
-            signals = np.zeros((n, n_basis + 1))
-            for i in range(n_basis):
-                col = np.cos(i * t)
-                col = np.maximum(col, 0.0)  # non-negative prior
-                norm = np.linalg.norm(col)
-                if norm > 0:
-                    col = col / norm
-                signals[:, i] = col
+
+            if E_MeV is not None and np.any(E_MeV > 0):
+                log_E = np.log10(np.maximum(np.asarray(E_MeV, dtype=float), 1e-15))
+                centers = np.linspace(log_E[0], log_E[-1], n_basis)
+                width = (log_E[-1] - log_E[0]) / max(n_basis * 1.5, 1.0)
+                signals = np.zeros((n, n_basis + 1))
+                for i in range(n_basis):
+                    col = np.exp(-((log_E - centers[i]) ** 2) / (2 * width ** 2))
+                    norm = np.linalg.norm(col)
+                    if norm > 0:
+                        col = col / norm
+                    signals[:, i] = col
+            else:
+                t = np.linspace(0.0, 1.0, n)
+                signals = np.zeros((n, n_basis + 1))
+                for i in range(n_basis):
+                    center = (i + 1) / (n_basis + 1)
+                    col = np.exp(-((t - center) ** 2) / (2 * (1.0 / n_basis) ** 2))
+                    norm = np.linalg.norm(col)
+                    if norm > 0:
+                        col = col / norm
+                    signals[:, i] = col
+
             signals[:, -1] = base
 
         D, alpha_prior = solve_nnksvd(
@@ -786,7 +813,8 @@ def unfold_nnksvd(
     dictionary : np.ndarray, optional
         Pre-learned non-negative dictionary (n x p).
     training_signals : np.ndarray, optional
-        Training signals for online K-SVD (n x m).
+        Training signals for online K-SVD (n x m).  If not provided,
+        log-spaced Gaussian bumps on the energy grid are used.
     n_dictionary_iterations : int, optional
         K-SVD iterations (default: 80).
     lambda_tik : float, optional
@@ -809,6 +837,12 @@ def unfold_nnksvd(
         Convergence tolerance (default: 1e-6).
     n_nnls_iter : int, optional
         Maximum NNLS iterations.
+    E_MeV : np.ndarray, optional
+        Energy grid in MeV.  Passed through to
+        :func:`solve_nnksvd_unfold` for log-spaced Gaussian training
+        signal generation.  When ``None``, the energy grid stored in
+        the ``E_MeV`` parameter of this function (the detector grid)
+        is used.
 
     Returns
     -------
@@ -839,6 +873,7 @@ def unfold_nnksvd(
             sparse_coder=sparse_coder,
             tolerance=tolerance,
             n_nnls_iter=n_nnls_iter,
+            E_MeV=E_MeV,
         ),
         solve_kwargs={},
         method_name="NNKSVD",

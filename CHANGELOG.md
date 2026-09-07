@@ -54,6 +54,19 @@ and this project adheres to [Semantic Versioning].
   coders are registered in `DEFAULT_UNFOLD_BENCHMARK_METHODS` as
   `nnksvd_nnls_topk`, `nnksvd_omp`, `nnksvd_nn_omp`.
 
+### Changed
+- **`unfold_nnksvd` training signals: truncated cosines → log-spaced Gaussians**
+  — the default training signals for the K-SVD dictionary learning were
+  truncated cosines (`max(0, cos(i·t))`) that all peak at the lowest energy
+  bin, producing a dictionary blind to the fast and epithermal regions.
+  Replaced with 30 log-spaced Gaussian bumps spanning the full energy grid
+  (plus a flat prior), so dictionary atoms cover the full spectral range
+  from thermal to fast energies.  New `E_MeV` parameter on
+  `solve_nnksvd_unfold`, `unfold_nnksvd`, and `Detector.unfold_nnksvd`
+  provides the energy grid for training-signal generation.  Example notebook
+  `examples/40-nnksvd.ipynb` updated with IAEA Compendium reference spectrum
+  and parameter grid sweep showing optimal configuration per detector.
+
 ### Fixed
 - **`unfold_interpret` / `interpret_qp` convergence for `norm=1`** — when the
   L1 penalty norm is used, the QP matrix ``P = A'A`` can be rank-deficient

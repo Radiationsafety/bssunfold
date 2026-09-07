@@ -1736,7 +1736,7 @@ class Detector:
             online K-SVD training.
         training_signals : np.ndarray, optional
             Training signals for online K-SVD (n x m).  If not provided,
-            smooth cosine basis vectors plus the initial guess are used.
+            log-spaced Gaussian bumps on the energy grid are used.
         n_dictionary_iterations : int, optional
             K-SVD iterations (default: 80, as in the article).
         lambda_tik : float, optional
