@@ -179,7 +179,7 @@ result = detector.unfold_cvxpy(
 )
 
 # Visualize results
-detector.plot_with_uncertainty(result, plot_style == 'errorbar')
+detector.plot_with_uncertainty(result, plot_style='errorbar')
 
 # Calculate and display dose rates
 print("Dose rates [pcSv/s]:", result['doserates'])
@@ -434,25 +434,6 @@ graph TD
 | 70 | `unfold_nnksvd` | Dictionary / Sparse | `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter` | — | Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — `nnls_topk` (proposed), `omp`, `nn_omp`; training-sample prior via `prior_wt`. Default training signals are log-spaced Gaussian bumps on the energy grid. Optimal hyperparameters reported: 15 atoms, K=2, `lambda_tik=0.01`, `prior_wt=0.5`, `max_iter=80`, `seed=42` |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
-
-### Basic Example
-
-```python
-import pandas as pd
-from bssunfold import Detector
-
-detector = Detector(pd.read_csv("response_functions.csv"))
-readings = {"0in": 0.0003, "2in": 0.0099, "3in": 0.0536, "5in": 0.1841}
-
-# Convex optimization
-result = detector.unfold_cvxpy(readings, regularization=1e-4, calculate_errors=True)
-
-# Dose rates
-print(result["doserates"])
-
-# Plot with uncertainty
-detector.plot_with_uncertainty(result)
-```
 
 ### Pipeline Example
 
@@ -1033,7 +1014,7 @@ For questions, bug reports, or feature requests:
 
 - ICRP and IAEA for data
 - Contributors and testers
-- Joint Institure for Nuclear Research (JINR)
+- Joint Institute for Nuclear Research (JINR)
 - University "Dubna", School of Big Data Analytics
 
 ## 🎓  Publications

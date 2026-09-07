@@ -53,11 +53,15 @@ from .unfold_composite import unfold_composite as unfold_composite_impl
 from .unfold_crystal_ball import unfold_crystal_ball as unfold_crystal_ball_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
 from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
+from .unfold_directed_divergence import (
+    unfold_directed_divergence as unfold_directed_divergence_impl,
+)
 from .unfold_docplex import unfold_docplex as unfold_docplex_impl
 from .unfold_doroshenko import unfold_doroshenko as unfold_doroshenko_impl
 from .unfold_eki import unfold_eki as unfold_eki_impl
 from .unfold_ensemble import unfold_ensemble as unfold_ensemble_impl
 from .unfold_epic import unfold_epic as unfold_epic_impl
+from .unfold_express import unfold_express as unfold_express_impl
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
 from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
@@ -2996,6 +3000,88 @@ class Detector:
             max_iterations=max_iterations,
             tolerance=tolerance,
             regularization=regularization,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_directed_divergence(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        max_iterations: int = 200,
+        tol_chi2: float = 1.0,
+        tol_rel: float = 1e-6,
+        relative_uncertainty: float = 0.05,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 0.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Unfold sphere readings with the directed-divergence iteration."""
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_directed_divergence_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tol_chi2=tol_chi2,
+            tol_rel=tol_rel,
+            relative_uncertainty=relative_uncertainty,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_express(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        n_groups: int = 6,
+        interval_boundaries: Optional[np.ndarray] = None,
+        max_iterations: int = 3,
+        tol_iteration: float = 0.05,
+        relative_uncertainty: float = 0.05,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Unfold sphere readings with the piecewise-exponential Express model."""
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_express_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_groups=n_groups,
+            interval_boundaries=interval_boundaries,
+            max_iterations=max_iterations,
+            tol_iteration=tol_iteration,
+            relative_uncertainty=relative_uncertainty,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
