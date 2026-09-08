@@ -53,7 +53,7 @@
   - **Advanced Proximal**: ODL PDHG, ODL Douglas-Rachford (Total Variation regularization)
   - **Pipeline**: Combined approach for chaining multiple methods
   - **Ensemble & Refinement**: Ensemble (robust combination of base solvers via weighted average, median, trimmed mean, or best residual), Iterative refinement (two-pass unfold with an auto-selected blending factor), and **Bin-wise adaptive** (per-bin best method selection from pre-computed benchmark lookup)
-  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations
+  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations; **N-spline** directed-divergence unfolding (Islamgulov & Lartsev, Atomic Energy 104(5) 2008) with C0/C1 knot continuity and BARS-5/IGRIK/YAGUAR knot presets
 
 - **Maximum Energy Cutoff**: `max_neutron_energy` parameter on all `unfold_*`
   methods — forces zero fluence above a user-specified energy. QP solvers
@@ -339,6 +339,7 @@ graph TD
     I --> I6[unfold_fruit_like]
     I --> I7[unfold_hybrid_parametric]
     I --> I8[unfold_bayesian_parametric]
+    I --> I9[unfold_nspline]
 
     K --> K1[unfold_crystal_ball]
     K --> K2[unfold_rfsp_jul]
@@ -432,6 +433,7 @@ graph TD
 | 68 | `unfold_eki` | Bayesian | `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state` | — | Ensemble Kalman Inversion (Iglesias et al. 2013): approximates the Bayesian posterior without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance |
 | 69 | `unfold_binned` | Ensemble/Adaptive | `bin_lookup`, `lookup_path`, `timeout_per_method` | — | Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (60+ methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as `data/bin_lookup.json` |
 | 70 | `unfold_nnksvd` | Dictionary / Sparse | `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter` | — | Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — `nnls_topk` (proposed), `omp`, `nn_omp`; training-sample prior via `prior_wt`. Default training signals are log-spaced Gaussian bumps on the energy grid. Optimal hyperparameters reported: 15 atoms, K=2, `lambda_tik=0.01`, `prior_wt=0.5`, `max_iter=80`, `seed=42` |
+| 71 | `unfold_nspline` | Maximum entropy / parametric | `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments` | — | N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity (DX=0, KKT system); directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria `H ≤ ½Σp(ΔQ/Q)²` and `nev ≤ 1 + 2/√N` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -462,6 +464,24 @@ result = detector.unfold_parametric(
 
 # The parametric model fit yields spectrum components
 print(result['doserates'])
+```
+
+### N-spline Example
+
+```python
+# N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 2008)
+# spectrum = exp(a_k + q_k ln E + r_k E) per segment, MIRD directed-divergence loop
+result = detector.unfold_nspline(
+    readings=readings,
+    knots="BARS5_channel",       # or None (auto log-uniform), or explicit MeV knots
+    continuity="C0C1",           # spline continuity at interior knots
+    relative_uncertainty=0.05,
+    max_iterations=300,
+)
+
+# Paper's quality control: nev statistic and acceptability bound
+print(result["nev"], result["acceptable"])   # nev <= 1 + 2/sqrt(N)
+print(result["H_history"])                   # directed-divergence convergence trace
 ```
 
 ## 📊 5-Detector Comparison
@@ -877,6 +897,7 @@ bssunfold/
             ├── unfold_mystic.py
             ├── unfold_nnksvd.py
             ├── unfold_nsduaz.py
+            ├── unfold_nspline.py
             ├── unfold_odl_advanced.py
             ├── unfold_osem.py
             ├── unfold_parametric.py
@@ -920,7 +941,7 @@ bssunfold/
 - `odl` — Operator Discretization Library (unfold_mlem_odl)
 - `pymc` + `arviz` — Bayesian MCMC/NUTS sampling (unfold_mcmc)
 
-All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre) have **no extra dependencies** beyond NumPy/SciPy.
+All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre, NSpline) have **no extra dependencies** beyond NumPy/SciPy.
 
 See [pyproject.toml](https://github.com/Radiationsafety/bssunfold/blob/main/pyproject.toml) for version constraints.
 

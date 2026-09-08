@@ -554,43 +554,49 @@ Method Reference
      - Optimization
      - `global_solver` (diffev2), `local_solver` (fmin_powell), `global_maxiter`, `global_maxfun`, `local_maxiter`, `local_maxfun`, `npop`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `regularization_method`
      - mystic
-      - Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; registered in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'`
-    * - 67
-      - ``unfold_ensemble``
-      - Ensemble
-      - `methods`, `weights`, `combination` (weighted_average/median/trimmed_mean/best_residual), `trim_fraction`
-      - —
-      - Robust ensemble combining several base solvers (default MLEM/Bayes/Landweber/CGLS/GRAVEL) via inverse-residual weighting or robust statistics to reduce method-specific bias
-    * - 68
-      - ``unfold_iterative_refinement``
-      - Ensemble/Refinement
-      - `first_pass_kwargs`, `second_pass_kwargs`, `alpha`, `max_alpha_search`
-      - —
-      - Two-pass refinement: an initial unfold is refined by a second pass with an automatically selected blending factor α between the two spectra
-    * - 69
-      - ``unfold_randomized_kaczmarz``
-      - Iterative
-      - `max_iterations`, `omega`, `tolerance`, `random_state`
-      - —
-      - Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems
-    * - 70
-      - ``unfold_eki``
-      - Bayesian
-      - `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state`
-      - —
-      - Ensemble Kalman Inversion (Iglesias et al. 2013): Bayesian posterior approximation without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance
-    * - 71
-      - ``unfold_binned``
-      - Ensemble/Adaptive
-      - `bin_lookup`, `lookup_path`, `timeout_per_method`
-      - —
-      - Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (67 methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as ``data/bin_lookup.json``
-    * - 72
-      - ``unfold_nnksvd``
-      - Dictionary / Sparse
-      - `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter`
-      - —
-      - Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — ``nnls_topk`` (proposed), ``omp``, ``nn_omp``; default training signals are log-spaced Gaussian bumps on the energy grid; training-sample prior via ``prior_wt``
+     - Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; registered in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'`
+   * - 67
+     - ``unfold_ensemble``
+     - Ensemble
+     - `methods`, `weights`, `combination` (weighted_average/median/trimmed_mean/best_residual), `trim_fraction`
+     - —
+     - Robust ensemble combining several base solvers (default MLEM/Bayes/Landweber/CGLS/GRAVEL) via inverse-residual weighting or robust statistics to reduce method-specific bias
+   * - 68
+     - ``unfold_iterative_refinement``
+     - Ensemble/Refinement
+     - `first_pass_kwargs`, `second_pass_kwargs`, `alpha`, `max_alpha_search`
+     - —
+     - Two-pass refinement: an initial unfold is refined by a second pass with an automatically selected blending factor α between the two spectra
+   * - 69
+     - ``unfold_randomized_kaczmarz``
+     - Iterative
+     - `max_iterations`, `omega`, `tolerance`, `random_state`
+     - —
+     - Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems
+   * - 70
+     - ``unfold_eki``
+     - Bayesian
+     - `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state`
+     - —
+     - Ensemble Kalman Inversion (Iglesias et al. 2013): Bayesian posterior approximation without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance
+   * - 71
+     - ``unfold_binned``
+     - Ensemble/Adaptive
+     - `bin_lookup`, `lookup_path`, `timeout_per_method`
+     - —
+     - Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (67 methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as ``data/bin_lookup.json``
+   * - 72
+     - ``unfold_nnksvd``
+     - Dictionary / Sparse
+     - `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter`
+     - —
+     - Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — ``nnls_topk`` (proposed), ``omp``, ``nn_omp``; default training signals are log-spaced Gaussian bumps on the energy grid; training-sample prior via ``prior_wt``
+   * - 73
+     - ``unfold_nspline``
+     - Maximum entropy / parametric
+     - `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments`
+     - —
+     - N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity; directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria and ``nev <= 1 + 2/sqrt(N)`` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper
 
 
 
@@ -1045,18 +1051,18 @@ All iterative solvers use Numba JIT-compiled inner loops when numba is installed
      - 2.7 ms
      - 0.4 ms
      - **7x**
-    * - GRAVEL
-      - ~2 ms
-      - 0.6 ms
-      - **3x**
-    * - Landweber
-      - 2.8 ms
-      - 0.23 ms
-      - **12x**
-    * - Bayes (D'Agostini)
-      - 7.9 ms
-      - 0.36 ms
-      - **22x**
+   * - GRAVEL
+     - ~2 ms
+     - 0.6 ms
+     - **3x**
+   * - Landweber
+     - 2.8 ms
+     - 0.23 ms
+     - **12x**
+   * - Bayes (D'Agostini)
+     - 7.9 ms
+     - 0.36 ms
+     - **22x**
    * - cvxpy
      - 84 ms
      - 78 ms

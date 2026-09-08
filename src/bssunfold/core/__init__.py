@@ -100,6 +100,17 @@ from .unfold_nsduaz import (
     solve_nsduaz,
     unfold_nsduaz,
 )
+from .unfold_nspline import (
+    NSPLINE_KNOT_PRESETS,
+    auto_knots,
+    build_continuity_matrix,
+    directed_divergence,
+    fit_nspline,
+    nspline_eval,
+    solve_nspline,
+    solve_nspline_full,
+    unfold_nspline,
+)
 from .unfold_odl_advanced import (
     solve_odl_douglas_rachford,
     solve_odl_pdhg,
@@ -168,6 +179,15 @@ __all__ = [
     "solve_nsduaz",
     "select_catalogue_initial",
     "builtin_catalogue",
+    # N-spline method (Islamgulov & Lartsev, Atomic Energy 104(5) 2008)
+    "solve_nspline",
+    "solve_nspline_full",
+    "NSPLINE_KNOT_PRESETS",
+    "auto_knots",
+    "build_continuity_matrix",
+    "fit_nspline",
+    "nspline_eval",
+    "directed_divergence",
     "solve_osem",
     "solve_mapem",
     "solve_bsrem",
@@ -234,6 +254,7 @@ __all__ = [
     "unfold_ferdor",
     "unfold_rebunki",
     "unfold_nsduaz",
+    "unfold_nspline",
     "unfold_osem",
     "unfold_mapem",
     "unfold_bsrem",

@@ -97,6 +97,7 @@ from .unfold_mystic import unfold_mystic as unfold_mystic_impl
 from .unfold_mystic import unfold_mystic_hybrid as unfold_mystic_hybrid_impl
 from .unfold_nnksvd import unfold_nnksvd as unfold_nnksvd_impl
 from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
+from .unfold_nspline import unfold_nspline as unfold_nspline_impl
 from .unfold_odl_advanced import (
     unfold_odl_douglas_rachford as unfold_odl_douglas_rachford_impl,
 )
@@ -4740,6 +4741,113 @@ class Detector:
             smoothing=smoothing,
             max_iterations=max_iterations,
             tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_nspline(
+        self,
+        readings: Dict[str, float],
+        initial_spectrum: Optional[np.ndarray] = None,
+        knots: Optional[Any] = None,
+        continuity: str = "C0C1",
+        relative_uncertainty: float = 0.1,
+        max_iterations: int = 200,
+        tol: float = 1e-3,
+        step_theta: float = 0.1,
+        smoothing: bool = True,
+        n_segments: Optional[int] = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: Optional[int] = None,
+        max_neutron_energy: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Unfold neutron spectrum using the N-spline method (2008).
+
+        Implements Islamgulov & Lartsev (Atomic Energy 104(5), 295-302,
+        2008): the spectrum is parameterised by a "neutron" spline
+        ``N(E) = exp(a + q ln E + r E)`` with C0/C1 continuity at the
+        knots, and the activation equations are solved by the directed
+        divergence (MIRD) minimisation loop with an N-spline smoothing
+        at every iteration.  The result includes the paper's
+        acceptability statistic ``nev`` (acceptable when
+        ``nev <= 1 + 2/sqrt(N)``).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess; the paper recommends a Monte-Carlo
+            calculated spectrum.  A flat spectrum is used when ``None``.
+        knots : Optional[Any], optional
+            N-spline knots: ``None`` (automatic log-uniform grid), a
+            preset name from ``bssunfold.core.NSPLINE_KNOT_PRESETS``
+            ("BARS5_channel", "IGRIK_channel", "IGRIK_surface",
+            "YAGUAR_channel") or an explicit increasing sequence (MeV).
+        continuity : str, optional
+            Spline continuity: ``"C0C1"`` (default), ``"C0"`` or
+            ``"none"``.
+        relative_uncertainty : float, optional
+            Relative measurement uncertainty dQ/Q for the stopping
+            criteria and the ``nev`` statistic (default: 0.1).
+        max_iterations : int, optional
+            Iteration budget (default: 200).
+        tol : float, optional
+            Relative H-decrease stopping tolerance (default: 1e-3).
+        step_theta : float, optional
+            Conservative MIRD step factor (default: 0.1).
+        smoothing : bool, optional
+            Per-iteration N-spline smoothing (default: True, as in the
+            paper; ``False`` reduces the loop to the plain MIRD update).
+        n_segments : int, optional
+            Number of spline segments when ``knots=None``.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Truncate the energy grid at this value (default: None).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary enriched with ``H``,
+            ``H_history``, ``H_target``, ``nev``, ``nev_limit``,
+            ``acceptable``, ``stop_reason``, ``fluence``,
+            ``mean_energy``, ``knots`` and ``knots_source`` keys.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_nspline_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            knots=knots,
+            continuity=continuity,
+            relative_uncertainty=relative_uncertainty,
+            max_iterations=max_iterations,
+            tol=tol,
+            step_theta=step_theta,
+            smoothing=smoothing,
+            n_segments=n_segments,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

@@ -9,6 +9,7 @@ bssunfold is a Python package for neutron spectrum unfolding using various algor
 
    overview
    detector
+   nspline
    interpretation
    examples
    reconst_comparison
@@ -40,7 +41,7 @@ Features
   - **Advanced proximal**: ODL-style Primal-Dual Hybrid Gradient (PDHG) and Douglas-Rachford splitting with TV (pure-NumPy)
   - **Evolutionary**: MAEO (multi-island NSGA-III / C-TAEA / AGE-MOEA-II / SPEA2 ensemble)
   - **Pipeline**: Combined (chaining), Cascade (sequential coarse-to-fine multi-resolution), Composite (adaptive ensemble / stacked generalization)
-  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations; hybrid parametric + iterative refinement
+  - **Parametric**: FRUIT-style thermal/epithermal/fast model (lmfit, cvxpy SQP, qpsolvers SQP, combined); BON95 4-component model with directed-divergence iterations; hybrid parametric + iterative refinement; N-spline directed-divergence unfolding (Islamgulov & Lartsev, Atomic Energy 104(5) 2008) with C0/C1 knot continuity and BARS-5/IGRIK/YAGUAR knot presets
 
 - **Numba JIT-Accelerated Iterative Solvers**:
   - ``@njit(cache=True)`` compiled inner loops for Doroshenko, Kaczmarz, MLEM, GRAVEL
