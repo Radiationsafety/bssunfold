@@ -179,7 +179,7 @@ result = detector.unfold_cvxpy(
 )
 
 # Visualize results
-detector.plot_with_uncertainty(result, plot_style == 'errorbar')
+detector.plot_with_uncertainty(result, plot_style='errorbar')
 
 # Calculate and display dose rates
 print("Dose rates [pcSv/s]:", result['doserates'])
@@ -436,25 +436,6 @@ graph TD
 | 71 | `unfold_nspline` | Maximum entropy / parametric | `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments` | — | N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity (DX=0, KKT system); directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria `H ≤ ½Σp(ΔQ/Q)²` and `nev ≤ 1 + 2/√N` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
-
-### Basic Example
-
-```python
-import pandas as pd
-from bssunfold import Detector
-
-detector = Detector(pd.read_csv("response_functions.csv"))
-readings = {"0in": 0.0003, "2in": 0.0099, "3in": 0.0536, "5in": 0.1841}
-
-# Convex optimization
-result = detector.unfold_cvxpy(readings, regularization=1e-4, calculate_errors=True)
-
-# Dose rates
-print(result["doserates"])
-
-# Plot with uncertainty
-detector.plot_with_uncertainty(result)
-```
 
 ### Pipeline Example
 
@@ -1054,7 +1035,7 @@ For questions, bug reports, or feature requests:
 
 - ICRP and IAEA for data
 - Contributors and testers
-- Joint Institure for Nuclear Research (JINR)
+- Joint Institute for Nuclear Research (JINR)
 - University "Dubna", School of Big Data Analytics
 
 ## 🎓  Publications

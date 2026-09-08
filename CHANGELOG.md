@@ -56,6 +56,19 @@ and this project adheres to [Semantic Versioning].
 ## [0.23.0] - 2026-09-07
 
 ### Added
+- **Directed-divergence unfolding for Bonner spheres** — new standalone
+  `unfold_directed_divergence` / `solve_directed_divergence` methods that
+  expose the multiplicative I-divergence iteration previously used only as a
+  BON95 refinement step. The solver operates directly on the detector
+  response matrix, supports optional first- and second-order smoothness
+  regularization, and is available both as a core function and a
+  `Detector` method.
+- **Express unfolding for Bonner spheres** — new standalone
+  `unfold_express` / `solve_express` methods that adapt the historical
+  Express idea to sphere response functions by fitting a piecewise-
+  exponential spectrum model directly to the measured readings. The method
+  accepts explicit coarse-group boundaries, works with the existing response
+  matrix, and is exposed through the core API and `Detector` wrapper.
 - **Non-negative K-SVD unfolding method** — `unfold_nnksvd` /
   `solve_nnksvd_unfold`, implementing the BNCT epithermal neutron
   spectrum unfolding method of Xu et al. (NIMA 2026,

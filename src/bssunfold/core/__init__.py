@@ -43,10 +43,15 @@ from .unfold_composite import unfold_composite
 from .unfold_crystal_ball import solve_crystal_ball, unfold_crystal_ball
 from .unfold_cs import solve_cs, solve_ksvd, solve_omp, solve_sl0, unfold_cs
 from .unfold_cvxpy import solve_cvxpy, unfold_cvxpy
+from .unfold_directed_divergence import (
+    solve_directed_divergence,
+    unfold_directed_divergence,
+)
 from .unfold_docplex import solve_docplex, unfold_docplex
 from .unfold_doroshenko import solve_doroshenko, unfold_doroshenko
 from .unfold_ensemble import solve_ensemble, unfold_ensemble
 from .unfold_epic import solve_epic, unfold_epic
+from .unfold_express import solve_express, unfold_express
 from .unfold_ferdor import solve_ferdor, unfold_ferdor
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_genetic import solve_genetic, unfold_genetic
@@ -150,6 +155,7 @@ __all__ = [
     "solve_mystic_hybrid",
     "solve_genetic",
     "solve_doroshenko",
+    "solve_directed_divergence",
     "solve_kaczmarz",
     "solve_lmfit",
     "solve_gravel",
@@ -204,6 +210,7 @@ __all__ = [
     "solve_crystal_ball",
     "solve_rfsp_jul",
     "solve_staysl",
+    "solve_express",
     "solve_ksvd",
     "solve_sl0",
     # Non-negative K-SVD (Xu et al. NIMA 2026)
@@ -221,6 +228,7 @@ __all__ = [
     "unfold_mystic_hybrid",
     "unfold_genetic",
     "unfold_doroshenko",
+    "unfold_directed_divergence",
     "unfold_kaczmarz",
     "unfold_lmfit",
     "unfold_mlem_odl",
@@ -240,6 +248,7 @@ __all__ = [
     "unfold_gks",
     "unfold_tikhonov_tv",
     "unfold_sandii",
+    "unfold_express",
     "unfold_bunki",
     "unfold_bunkiut",
     "unfold_ferdor",

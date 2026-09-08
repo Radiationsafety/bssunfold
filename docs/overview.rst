@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSUnfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 70+ unfolding algorithms, 25 spectrum
+Spectrometers (BSS). It provides 72+ unfolding algorithms, 25 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 70+ methods are accessible as instance methods on the
+All 72+ methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -66,7 +66,8 @@ categories:
        L --> L3["unfold_bunkiut"]
        L --> L4["unfold_rebunki"]
        L --> L5["unfold_nsduaz"]
-       L --> L6["unfold_ferdor"]
+        L --> L6["unfold_ferdor"]
+        L --> L7["unfold_directed_divergence"]
 
         D --> D1["unfold_bayes"]
         D --> D2["unfold_bayes_spline_regularization"]
@@ -110,6 +111,7 @@ categories:
        I --> I6["unfold_fruit_like"]
        I --> I7["unfold_hybrid_parametric"]
         I --> I8["unfold_bayesian_parametric"]
+        I --> I9["unfold_express"]
         M --> M1["unfold_odl_pdhg"]
         M --> M2["unfold_odl_douglas_rachford"]
          N --> N1["unfold_maeo"]
@@ -421,29 +423,41 @@ Method Reference
      - `max_iterations`, `tolerance`, `relaxation`, `noise_level`
      - —
      - Simultaneous algebraic reconstruction technique: relaxed, residual-normalised additive correction
-   * - 47
-     - ``unfold_ferdor``
-     - Multi-sphere deconvolution
-     - `max_iterations`, `tolerance`, `smoothing`, `chi_squared_target`, `relative_uncertainty`
-     - —
-     - FERDOR few-channel unfolding: constrained least squares with an automatically adjusted smoothing weight chosen by the discrepancy principle
-   * - 48
-     - ``unfold_rebunki``
-     - Multi-sphere ratio
-     - `smoothing`, `max_iterations`, `tolerance`
-     - —
-     - ReBUNKI (SPUNIT) few-iteration spectral stripping with three-point smoothing and ~1% convergence tolerance
-   * - 49
-     - ``unfold_nsduaz``
-     - Multi-sphere ratio
-     - `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance`
-     - —
-     - NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode
-   * - 50
-     - ``unfold_fista``
-     - Krylov/hybrid
-     - `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta`
-     - —
+    * - 47
+      - ``unfold_ferdor``
+      - Multi-sphere deconvolution
+      - `max_iterations`, `tolerance`, `smoothing`, `chi_squared_target`, `relative_uncertainty`
+      - —
+      - FERDOR few-channel unfolding: constrained least squares with an automatically adjusted smoothing weight chosen by the discrepancy principle
+    * - 47a
+      - ``unfold_directed_divergence``
+      - Multi-sphere ratio
+      - `max_iterations`, `tol_chi2`, `tol_rel`, `smoothness_order`, `smoothness_weight`
+      - —
+      - Directed-divergence I-divergence unfolding on Bonner-sphere response matrices with optional smoothness regularisation
+    * - 48
+      - ``unfold_rebunki``
+      - Multi-sphere ratio
+      - `smoothing`, `max_iterations`, `tolerance`
+      - —
+      - ReBUNKI (SPUNIT) few-iteration spectral stripping with three-point smoothing and ~1% convergence tolerance
+    * - 49
+      - ``unfold_nsduaz``
+      - Multi-sphere ratio
+      - `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance`
+      - —
+      - NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode
+    * - 50a
+      - ``unfold_express``
+      - Parametric
+      - `n_groups`, `interval_boundaries`, `max_iterations`, `tol_iteration`, `relative_uncertainty`
+      - scipy
+      - Piecewise-exponential Express fit adapted to Bonner-sphere response functions using direct least-squares on the measured readings
+    * - 50
+      - ``unfold_fista``
+      - Krylov/hybrid
+      - `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta`
+      - —
      - FISTA (Fast Iterative Shrinkage-Thresholding Algorithm): accelerated proximal gradient method for L1/L2/TV regularized problems with box constraints; O(1/k²) convergence
    * - 51
      - ``unfold_hybrid_gmres``

@@ -38,6 +38,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_doroshenko.unfold_doroshenko
 
+.. autofunction:: bssunfold.core.unfold_directed_divergence.unfold_directed_divergence
+
 .. autofunction:: bssunfold.core.unfold_kaczmarz.unfold_kaczmarz
 
 .. autofunction:: bssunfold.core.unfold_lmfit.unfold_lmfit
@@ -84,6 +86,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_staysl.unfold_staysl
 
+.. autofunction:: bssunfold.core.unfold_express.unfold_express
+
 .. autofunction:: bssunfold.core.unfold_bunki.unfold_bunki
 
 .. autofunction:: bssunfold.core.unfold_bunkiut.unfold_bunkiut
@@ -97,6 +101,8 @@ The following unfolding methods are available through the Detector class:
 .. autofunction:: bssunfold.core.unfold_sart.unfold_sart
 
 .. autofunction:: bssunfold.core.unfold_ferdor.unfold_ferdor
+
+.. autofunction:: bssunfold.core.unfold_express.unfold_express
 
 .. autofunction:: bssunfold.core.unfold_rebunki.unfold_rebunki
 
@@ -213,6 +219,10 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_doroshenko.solve_doroshenko
 
+.. autofunction:: bssunfold.core.unfold_directed_divergence.solve_directed_divergence
+
+.. autofunction:: bssunfold.core.unfold_directed_divergence.solve_directed_divergence
+
 .. autofunction:: bssunfold.core.unfold_kaczmarz.solve_kaczmarz
 
 .. autofunction:: bssunfold.core.unfold_lmfit.solve_lmfit
@@ -253,6 +263,8 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_staysl.solve_staysl
 
+.. autofunction:: bssunfold.core.unfold_express.solve_express
+
 .. autofunction:: bssunfold.core.unfold_bunki.solve_bunki
 
 .. autofunction:: bssunfold.core.unfold_bunkiut.solve_bunkiut
@@ -266,6 +278,8 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_sart.solve_sart
 
 .. autofunction:: bssunfold.core.unfold_ferdor.solve_ferdor
+
+.. autofunction:: bssunfold.core.unfold_express.solve_express
 
 .. autofunction:: bssunfold.core.unfold_rebunki.solve_rebunki
 
