@@ -316,8 +316,8 @@ def test_core_exports():
     """All new solvers and wrappers are exported from bssunfold.core."""
     from bssunfold.core import (
         solve_directed_divergence,
-        unfold_directed_divergence,
         solve_express,
+        unfold_directed_divergence,
         unfold_express,
     )
 
