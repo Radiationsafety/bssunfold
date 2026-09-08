@@ -7,6 +7,52 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+- **N-spline unfolding method** — `unfold_nspline` / `solve_nspline` /
+  `solve_nspline_full`, implementing the neutron spectrum unfolding
+  approach of Islamgulov & Lartsev, "Reconstruction of neutron spectra
+  from activation measurements in the form of N-splines",
+  Atomic Energy 104(5), 295-302 (2008) (RFNC-VNIITF).  The method:
+  - **N-spline parameterisation** — the spectrum is represented by
+    `N(E) = exp(a_k + q_k ln E + r_k E)` on each segment
+    `[E_k, E_{k+1}]` (Eq. 2 of the paper) with C0/C1 continuity at the
+    interior knots imposed through the block constraint matrix
+    `D X = 0` (Eqs. 3-5); `build_continuity_matrix` assembles `D`,
+    `fit_nspline` solves the weighted log-domain least-squares
+    approximation (Eqs. 6-7) via the KKT system, and `nspline_eval`
+    evaluates the spline.
+  - **Directed-divergence (MIRD) unfolding loop** — the functional
+    `H = sum_i [pN_i ln(pN_i/p_i) - pN_i + p_i]` (Eqs. 8-9) is
+    minimised by the flux-conserving gradient iteration with the
+    paper's conservative step `dmu = 0.1/sup|R - Rbar|` and
+    backtracking; the spectrum is re-fitted by the N-spline after
+    every iteration (the paper's regularisation, `smoothing=True`;
+    `smoothing=False` reduces to the plain MIRD loop).
+  - **Paper's stopping criteria and quality control** — iterations stop
+    at the measurement-error level `H <= 0.5 sum_i p_i (dQ_i/Q_i)^2`
+    or on stalled relative decrease; the reconstruction is qualified
+    by `nev = sqrt(1/(N-1) sum_i ((Qr_i-Q_i)/dQ_i)^2)` with the
+    acceptance bound `nev <= 1 + 2/sqrt(N)`; results expose `H`,
+    `H_history`, `H_target`, `nev`, `nev_limit`, `acceptable`,
+    `fluence`, `mean_energy` and the spline parameters.
+  - **Knot presets from the paper** — `NSPLINE_KNOT_PRESETS` with the
+    BARS-5 channel, IGRIK channel/surface and YAGUAR channel knot sets
+    (MeV); automatic log-uniform knots (`auto_knots`) and explicit
+    user knots are also supported; `continuity` option selects
+    `"C0C1"` (default), `"C0"` or `"none"`.
+  - `Detector.unfold_nspline` wrapper (full `calculate_errors`
+    Monte-Carlo support, `max_neutron_energy` truncation), exports in
+    `bssunfold.core`, Sphinx page `docs/nspline.rst`, worked examples
+    `examples/41-nspline.ipynb` (comparison with GRAVEL on a synthetic
+    spectrum) and `examples/42-nspline-iaea.ipynb` (IAEA Compendium
+    Monte-Carlo BSA spectrum `t4-14-s.txt_1` unfolded from GSF
+    readings; N-spline recovers the shape at ~0.25 dex while GRAVEL /
+    MLEM diverge from a flat prior) and test suite
+    `tests/test_nspline.py` (32 tests).
+
+
 ## [0.23.0] - 2026-09-07
 
 ### Added
