@@ -6,8 +6,7 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
-
-## [Unreleased]
+## [0.23.0] - 2026-09-08
 
 ### Added
 - **N-spline unfolding method** — `unfold_nspline` / `solve_nspline` /
@@ -51,11 +50,6 @@ and this project adheres to [Semantic Versioning].
     readings; N-spline recovers the shape at ~0.25 dex while GRAVEL /
     MLEM diverge from a flat prior) and test suite
     `tests/test_nspline.py` (32 tests).
-
-
-## [0.23.0] - 2026-09-07
-
-### Added
 - **Directed-divergence unfolding for Bonner spheres** — new standalone
   `unfold_directed_divergence` / `solve_directed_divergence` methods that
   expose the multiplicative I-divergence iteration previously used only as a
