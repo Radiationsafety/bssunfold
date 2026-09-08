@@ -152,13 +152,13 @@ Method Reference
      - Tikhonov
      - `regularization`, `norm` (1/2), `solver`, `regularization_method`
      - cvxpy
-     - Convex optimization with Tikhonov regularization
+     - Convex optimization with Tikhonov regularization. See :ref:`math-tikhonov`.
    * - 2
      - ``unfold_qpsolvers``
      - Tikhonov
      - `regularization`, `norm` (1/2), `solver`, `smoothness_order`, `smoothness_weight`, `regularization_method`
      - qpsolvers
-     - QP-based unfolding with L1/L2/smoothness norms
+     - QP-based unfolding with L1/L2/smoothness norms. See :ref:`math-tikhonov`.
    * - 3
      - ``unfold_tsvd``
      - Tikhonov
@@ -176,13 +176,13 @@ Method Reference
      - Tikhonov
      - `delta`, `n_polynomials`
      - —
-     - Tikhonov regularization in Legendre polynomial basis
+     - Tikhonov regularization in Legendre polynomial basis. See :ref:`math-tikhonov`.
    * - 6
      - ``unfold_landweber``
      - Iterative
      - `max_iterations`, `tolerance`
      - —
-     - Landweber fixed-point iteration
+     - Landweber fixed-point iteration. See :ref:`math-iterative`.
    * - 7
      - ``unfold_mlem``
      - Iterative
@@ -194,7 +194,7 @@ Method Reference
      - Iterative
      - `max_iterations`, `cps_crossover`, `j_threshold`
      - —
-     - MLEM with J-factor early stopping criterion (Montgomery et al. 2020)
+     - MLEM with J-factor early stopping criterion (Montgomery et al. 2020). See :ref:`math-em`.
    * - 9
      - ``unfold_mlem_odl``
      - Iterative
@@ -236,13 +236,13 @@ Method Reference
      - MaxEnt
      - `sigma_factor`, `max_iterations`, `tolerance`
      - —
-     - Maximum entropy deconvolution (Reginatto & Goldhagen)
+     - Maximum entropy deconvolution (Reginatto & Goldhagen). See :ref:`math-maxent`.
    * - 16
      - ``unfold_statreg``
      - Statistical Reg.
      - `unfoldermethod` (EmpiricalBayes/...), `regularization`, `basis_name`, `boundary`, `derivative_degree`
      - —
-     - Turchin's statistical regularization
+     - Turchin's statistical regularization. See :ref:`math-tikhonov`.
    * - 17
      - ``unfold_reconst``
      - Statistical Reg.
@@ -272,7 +272,7 @@ Method Reference
      - Parametric
      - `parametric_method`, `optimizer`, `solver_backend`, `initial_params`
      - lmfit, cvxpy, qpsolvers
-     - FRUIT-style thermal/epithermal/fast model
+     - FRUIT-style thermal/epithermal/fast model. See :ref:`math-parametric`.
    * - 22
      - ``unfold_parametric_cvxpy``
      - Parametric
@@ -320,7 +320,7 @@ Method Reference
      - Optimization
      - `regularization`, `norm` (1/2), `solver` (fmin/fmin_powell/diffev/diffev2), `maxiter`, `maxfun`, `smoothness_order`, `smoothness_weight`, `regularization_method`
      - mystic
-     - Direct-search minimization of the penalized least-squares objective
+     - Direct-search minimization of the penalized least-squares objective. See :ref:`math-tikhonov`.
    * - 30
      - ``unfold_smt``
      - Optimization
@@ -368,7 +368,7 @@ Method Reference
      - Krylov/iterative
      - `max_iterations`, `tolerance`, `regularization`, `smoothness_order`, `noise_level`
      - —
-     - CGLS (conjugate gradient for least squares) with optional ``||L x||^2`` Tikhonov term and discrepancy-principle stopping; nonnegative spectrum via clamping
+     - CGLS (conjugate gradient for least squares) with optional ``||L x||^2`` Tikhonov term and discrepancy-principle stopping; nonnegative spectrum via clamping. See :ref:`math-krylov`.
    * - 38
      - ``unfold_gks``
      - Krylov/hybrid
@@ -380,7 +380,7 @@ Method Reference
      - Regularization
      - `epsilon`, `mu`, `max_iterations`, `type_` (TT/TV/T), `beta` (float or ``'adapt'``), `zthr`, `tolerance`, `noise_level`
      - —
-     - Noise-constrained Tikhonov+TV via ADMM (Gazzola & Gholami); adaptive balancing of the TV and Tikhonov terms
+     - Noise-constrained Tikhonov+TV via ADMM (Gazzola & Gholami); adaptive balancing of the TV and Tikhonov terms. See :ref:`math-tikhonov`.
    * - 40
      - ``unfold_sandii``
      - Multi-sphere ratio
@@ -423,42 +423,42 @@ Method Reference
      - `max_iterations`, `tolerance`, `relaxation`, `noise_level`
      - —
      - Simultaneous algebraic reconstruction technique: relaxed, residual-normalised additive correction
-    * - 47
-      - ``unfold_ferdor``
-      - Multi-sphere deconvolution
-      - `max_iterations`, `tolerance`, `smoothing`, `chi_squared_target`, `relative_uncertainty`
-      - —
-      - FERDOR few-channel unfolding: constrained least squares with an automatically adjusted smoothing weight chosen by the discrepancy principle
-    * - 47a
-      - ``unfold_directed_divergence``
-      - Multi-sphere ratio
-      - `max_iterations`, `tol_chi2`, `tol_rel`, `smoothness_order`, `smoothness_weight`
-      - —
-      - Directed-divergence I-divergence unfolding on Bonner-sphere response matrices with optional smoothness regularisation
-    * - 48
-      - ``unfold_rebunki``
-      - Multi-sphere ratio
-      - `smoothing`, `max_iterations`, `tolerance`
-      - —
-      - ReBUNKI (SPUNIT) few-iteration spectral stripping with three-point smoothing and ~1% convergence tolerance
-    * - 49
-      - ``unfold_nsduaz``
-      - Multi-sphere ratio
-      - `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance`
-      - —
-      - NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode
-    * - 50a
-      - ``unfold_express``
-      - Parametric
-      - `n_groups`, `interval_boundaries`, `max_iterations`, `tol_iteration`, `relative_uncertainty`
-      - scipy
-      - Piecewise-exponential Express fit adapted to Bonner-sphere response functions using direct least-squares on the measured readings
-    * - 50
-      - ``unfold_fista``
-      - Krylov/hybrid
-      - `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta`
-      - —
-     - FISTA (Fast Iterative Shrinkage-Thresholding Algorithm): accelerated proximal gradient method for L1/L2/TV regularized problems with box constraints; O(1/k²) convergence
+   * - 47
+     - ``unfold_ferdor``
+     - Multi-sphere deconvolution
+     - `max_iterations`, `tolerance`, `smoothing`, `chi_squared_target`, `relative_uncertainty`
+     - —
+     - FERDOR few-channel unfolding: constrained least squares with an automatically adjusted smoothing weight chosen by the discrepancy principle
+   * - 47a
+     - ``unfold_directed_divergence``
+     - Multi-sphere ratio
+     - `max_iterations`, `tol_chi2`, `tol_rel`, `smoothness_order`, `smoothness_weight`
+     - —
+     - Directed-divergence I-divergence unfolding on Bonner-sphere response matrices with optional smoothness regularisation
+   * - 48
+     - ``unfold_rebunki``
+     - Multi-sphere ratio
+     - `smoothing`, `max_iterations`, `tolerance`
+     - —
+     - ReBUNKI (SPUNIT) few-iteration spectral stripping with three-point smoothing and ~1% convergence tolerance
+   * - 49
+     - ``unfold_nsduaz``
+     - Multi-sphere ratio
+     - `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance`
+     - —
+     - NSDUAZ unfolding: catalogue-selected initial spectrum (nuclear-data reference fluxes) refined by the SPUNIT iteration, with a flat-spectrum mode
+   * - 50a
+     - ``unfold_express``
+     - Parametric
+     - `n_groups`, `interval_boundaries`, `max_iterations`, `tol_iteration`, `relative_uncertainty`
+     - scipy
+     - Piecewise-exponential Express fit adapted to Bonner-sphere response functions using direct least-squares on the measured readings
+   * - 50
+     - ``unfold_fista``
+     - Krylov/hybrid
+     - `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta`
+     - —
+     - FISTA (Fast Iterative Shrinkage-Thresholding Algorithm): accelerated proximal gradient method for L1/L2/TV regularized problems with box constraints; O(1/k²) convergence. See :ref:`math-iterative`.
    * - 51
      - ``unfold_hybrid_gmres``
      - Krylov/hybrid
@@ -494,7 +494,7 @@ Method Reference
      - Bayesian
      - `sigma_prior`, `lambda_prior`, `n_samples`, `tune`, `chains`, `target_accept`, `use_hierarchical`, `progressbar`
      - pymc, arviz
-     - Full Bayesian unfolding with the NUTS (Hamiltonian Monte Carlo) sampler: mean posterior spectrum, 95% HPD credible intervals, per-bin posterior std and R-hat / ESS convergence diagnostics under `mcmc_stats`
+     - Full Bayesian unfolding with the NUTS (Hamiltonian Monte Carlo) sampler: mean posterior spectrum, 95% HPD credible intervals, per-bin posterior std and R-hat / ESS convergence diagnostics under `mcmc_stats`. See :ref:`math-bayesian`.
    * - 57
      - ``unfold_zfit``
      - Bayesian
@@ -578,7 +578,7 @@ Method Reference
      - Bayesian
      - `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state`
      - —
-     - Ensemble Kalman Inversion (Iglesias et al. 2013): Bayesian posterior approximation without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance
+     - Ensemble Kalman Inversion (Iglesias et al. 2013): Bayesian posterior approximation without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance. See :ref:`math-bayesian`.
    * - 71
      - ``unfold_binned``
      - Ensemble/Adaptive
@@ -596,7 +596,7 @@ Method Reference
      - Maximum entropy / parametric
      - `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments`
      - —
-     - N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity; directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria and ``nev <= 1 + 2/sqrt(N)`` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper
+     - N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity; directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria and ``nev <= 1 + 2/sqrt(N)`` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper. See :ref:`math-parametric`.
 
 
 
