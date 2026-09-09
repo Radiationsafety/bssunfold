@@ -60,7 +60,6 @@ __all__ = [
     "response_matrix_consistency",
     # Xu et al. (NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070) metrics
     "relative_flux_error",
-    "flux_correlation_coefficient",
     "comprehensive_score",
     "benchmark_unfold_methods",
     "DEFAULT_UNFOLD_BENCHMARK_METRICS",
@@ -418,9 +417,10 @@ def mmd_rbf(
 # Nuclear Instruments and Methods in Physics Research A (2026),
 # https://doi.org/10.1016/j.nima.2026.172070
 #
-# These three metrics are used in Section 2.2.3 of the article to
+# These two metrics are used in Section 2.2.3 of the article to
 # evaluate spectrum-unfolding performance from the perspectives of
-# amplitude accuracy and spectral-shape consistency.
+# amplitude accuracy and spectral-shape consistency.  Eq. 2.8
+# (Pearson correlation) is not duplicated — use ``pearson_r`` directly.
 
 
 def relative_flux_error(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
@@ -460,36 +460,6 @@ def relative_flux_error(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
     return float(np.linalg.norm(p_true - p_hat) / denom)
 
 
-def flux_correlation_coefficient(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
-    """Pearson correlation coefficient for spectral shape (Eq. 2.8).
-
-    Characterizes the consistency of the spectrum waveform, peak
-    positions and fluctuation trends.  A value closer to 1 indicates
-    superior spectral-shape fitting performance.  Returns 0.0 if either
-    spectrum has zero variance (constant).
-
-    Parameters
-    ----------
-    phi_true : np.ndarray
-        Reference / true energy spectrum.
-    phi_hat : np.ndarray
-        Reconstructed energy spectrum.
-
-    Returns
-    -------
-    float
-        Pearson correlation coefficient (in ``[-1, 1]``).
-    """
-    _check_same_length(phi_true, phi_hat)
-    p_true = np.asarray(phi_true, dtype=float)
-    p_hat = np.asarray(phi_hat, dtype=float)
-    if np.std(p_true) == 0 or np.std(p_hat) == 0:
-        return 0.0
-    # Reuse the existing pearson_r implementation for numerical
-    # consistency with the rest of the package.
-    return pearson_r(p_true, p_hat)
-
-
 def comprehensive_score(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
     """Comprehensive-score index (Eq. 2.9 of Xu et al. 2026).
 
@@ -500,7 +470,8 @@ def comprehensive_score(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
         score = flux_err - 0.5 * flux_corr
 
     where ``flux_err = relative_flux_error(phi_true, phi_hat)`` and
-    ``flux_corr = flux_correlation_coefficient(phi_true, phi_hat)``.
+    ``flux_corr = pearson_r(phi_true, phi_hat)`` (Eq. 2.8 was the
+    Pearson correlation and is not duplicated in this package).
 
     A **lower** score indicates better overall unfolding performance
     (low amplitude error combined with high shape correlation, which
@@ -524,7 +495,7 @@ def comprehensive_score(phi_true: np.ndarray, phi_hat: np.ndarray) -> float:
     """
     _check_same_length(phi_true, phi_hat)
     flux_err = relative_flux_error(phi_true, phi_hat)
-    flux_corr = flux_correlation_coefficient(phi_true, phi_hat)
+    flux_corr = pearson_r(phi_true, phi_hat)
     return float(flux_err - 0.5 * flux_corr)
 
 
@@ -1145,7 +1116,6 @@ _ALL_METRICS: Dict[str, str] = {
     "dose_weighted_error": "Dose-weighted error",
     "response_matrix_consistency": "Response matrix consistency (χ²)",
     "relative_flux_error": "Relative flux error (Xu 2026)",
-    "flux_correlation_coefficient": "Flux correlation (Xu 2026)",
     "comprehensive_score": "Comprehensive score (Xu 2026)",
 }
 
@@ -1179,7 +1149,6 @@ _METRIC_FUNCTIONS: Dict[str, callable] = {
     "spectral_shape_similarity": spectral_shape_similarity,
     # Xu et al. (NIMA 2026) — simple spectra-only metrics
     "relative_flux_error": relative_flux_error,
-    "flux_correlation_coefficient": flux_correlation_coefficient,
     "comprehensive_score": comprehensive_score,
 }
 
@@ -1429,7 +1398,6 @@ DEFAULT_UNFOLD_BENCHMARK_METRICS: List[str] = [
     "kl_divergence",
     "cosine_similarity",
     "relative_flux_error",
-    "flux_correlation_coefficient",
     "comprehensive_score",
 ]
 

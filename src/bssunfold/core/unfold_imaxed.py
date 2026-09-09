@@ -32,8 +32,14 @@ def solve_imaxed(
 ) -> Tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using IMAXED (Improved MAXED).
 
-    Uses gradient-based optimization with cross-entropy regularization
-    for stable and reliable convergence.
+    Newton iteration in phi-space with Armijo backtracking line search.
+
+    Minimises ``f(phi) = 0.5*(A phi - b)^T S_b (A phi - b)
+    + sum_i phi_i*log(phi_i/phi0_i) - phi_i + phi0_i`` where
+    ``S_b = diag(1/sigma^2)``, ``sigma = sigma_factor * max(b, eps)``.
+    Gradient ``g = A^T S_b (A phi - b) + log(phi/phi0)``,
+    Hessian ``H = A^T S_b A + diag(1/phi)``.  ``line_search_tol``
+    is the Armijo ``c1`` constant (``0 < c1 < 1``).
 
     Parameters
     ----------
@@ -46,73 +52,95 @@ def solve_imaxed(
     sigma_factor : float, optional
         Relative measurement uncertainty (default: 0.1).
     max_iterations : int, optional
-        Maximum iterations (default: 5000).
+        Maximum Newton iterations (default: 5000).
     tolerance : float, optional
         Gradient convergence tolerance (default: 1e-8).
     line_search_tol : float, optional
-        Line search tolerance (default: 1e-6).
+        Armijo line-search constant c1 (default: 1e-6).
 
     Returns
     -------
     Tuple[np.ndarray, int, bool]
         (solution spectrum, iterations used, converged flag).
     """
-    from scipy.optimize import minimize
+    _m, n = A.shape
 
-    m, n = A.shape
+    phi_floor = 1e-12
 
-    # Measurement uncertainties
-    b_safe = np.maximum(b, 1e-300)
+    b_arr = np.asarray(b, dtype=float).ravel()
+    b_safe = np.maximum(b_arr, 1e-300)
     sigma = sigma_factor * b_safe
-    S_b = np.diag(1.0 / (sigma**2))  # Inverse covariance matrix
+    S_b = np.diag(1.0 / (sigma**2))
 
-    # Reference spectrum (strictly positive)
-    phi_0 = np.maximum(x0, 1e-300)
+    phi_0 = np.maximum(np.asarray(x0, dtype=float).ravel(), 1e-300)
+    if phi_0.size != n:
+        raise ValueError(f"x0 length {phi_0.size} != n {n}")
+    log_phi_0 = np.log(phi_0)
 
-    def objective_and_gradient(y: np.ndarray):
-        """Compute objective and gradient in log-space."""
-        x = np.exp(y)
+    At_Sb_A = A.T @ S_b @ A
 
-        # Forward model
-        Ax = A @ x
-        residual = Ax - b
+    def _objective(phi: np.ndarray) -> float:
+        p = np.maximum(phi, phi_floor)
+        residual = A @ p - b_arr
+        chi2 = 0.5 * float(residual @ (S_b @ residual))
+        kl = float(np.sum(p * (np.log(p + 1e-300) - log_phi_0) - p + phi_0))
+        return chi2 + kl
 
-        # Chi-squared term
-        chi2 = 0.5 * residual @ S_b @ residual
+    def _gradient(phi: np.ndarray) -> np.ndarray:
+        p = np.maximum(phi, phi_floor)
+        residual = A @ p - b_arr
+        return A.T @ (S_b @ residual) + np.log(p + 1e-300) - log_phi_0
 
-        # Cross-entropy regularization (relative to prior)
-        log_phi_0 = np.log(phi_0)
-        entropy = np.sum(x * (np.log(x + 1e-300) - log_phi_0) - x + phi_0)
+    def _hessian(phi: np.ndarray) -> np.ndarray:
+        p = np.maximum(phi, phi_floor)
+        return At_Sb_A + np.diag(1.0 / (p + 1e-300))
 
-        # Total objective
-        f = chi2 + entropy
+    phi = phi_0.copy()
+    # Clamp Armijo constant to (0,1) — callers may pass 1e-6..1e-4
+    c1 = float(np.clip(line_search_tol, 1e-12, 0.5))
 
-        # Gradient
-        AT_Sb_res = A.T @ (S_b @ residual)
-        grad_x = AT_Sb_res + np.log(x + 1e-300) - log_phi_0
+    grad_norm = np.inf
+    iteration = 0
+    for iteration in range(max_iterations):
+        grad = _gradient(phi)
+        grad_norm = float(np.linalg.norm(grad))
+        if grad_norm < tolerance:
+            break
 
-        # Gradient in y-space: df/dy = x * df/dx
-        grad_y = x * grad_x
+        Hess = _hessian(phi)
+        try:
+            delta = np.linalg.solve(Hess, -grad)
+        except np.linalg.LinAlgError:
+            reg = 1e-6 * float(np.max(np.abs(np.diag(Hess)))) or 1e-12
+            Hess_reg = Hess + reg * np.eye(n)
+            delta = np.linalg.solve(Hess_reg, -grad)
 
-        return f, grad_y
+        # Ensure descent direction
+        slope = float(np.dot(grad, delta))
+        if slope >= 0:
+            delta = -grad
+            slope = float(np.dot(grad, delta))
 
-    # Initial point in log-space
-    y0 = np.log(phi_0)
+        base = _objective(phi)
+        beta = 1.0
+        accepted = False
+        for _ in range(30):
+            trial = np.maximum(phi + beta * delta, phi_floor)
+            if _objective(trial) <= base + c1 * beta * slope:
+                accepted = True
+                break
+            beta *= 0.5
+        if not accepted:
+            beta = 0.01
 
-    # Optimize using L-BFGS-B
-    result = minimize(
-        objective_and_gradient,
-        y0,
-        jac=True,
-        method="L-BFGS-B",
-        options={"maxiter": max_iterations, "gtol": tolerance, "ftol": 0},
-    )
+        phi = np.maximum(phi + beta * delta, phi_floor)
+    else:
+        # loop exhausted without break — recompute grad norm at last phi
+        grad_norm = float(np.linalg.norm(_gradient(phi)))
 
-    x_opt = np.exp(result.x)
-    iterations = result.nit if hasattr(result, "nit") else 0
-    converged = result.success or result.status == 0
-
-    return x_opt, iterations, converged
+    iterations = iteration + 1
+    converged = bool(grad_norm < tolerance)
+    return phi, iterations, converged
 
 
 def unfold_imaxed(

@@ -95,14 +95,13 @@ and this project adheres to [Semantic Versioning].
   helper functions `solve_nn_omp`, `solve_nnls_topk`,
   `solve_tikhonov_nnls`.  52 dedicated tests in
   `tests/test_nnksvd.py`.
-- **Three new spectrum-comparison metrics** from Xu et al. (NIMA 2026,
+- **Two new spectrum-comparison metrics** from Xu et al. (NIMA 2026,
   Section 2.2.3) in `utils/comparison.py`:
   - `relative_flux_error` — Eq. 2.7: `||phi_true - phi_hat|| / ||phi_true||`.
-  - `flux_correlation_coefficient` — Eq. 2.8: Pearson correlation
-    between the true and reconstructed spectra.
   - `comprehensive_score` — Eq. 2.9: `flux_err - 0.5 * flux_corr`
-    (lower is better; the article's best score is `-0.3612`).
-  All three are exposed by `compare_spectra`, registered in
+    (lower is better; the article's best score is `-0.3612`; Eq. 2.8
+    Pearson correlation is `pearson_r` — not duplicated).
+  Both are exposed by `compare_spectra`, registered in
   `DEFAULT_UNFOLD_BENCHMARK_METRICS`, and the three NN-KSVD sparse
   coders are registered in `DEFAULT_UNFOLD_BENCHMARK_METHODS` as
   `nnksvd_nnls_topk`, `nnksvd_omp`, `nnksvd_nn_omp`.

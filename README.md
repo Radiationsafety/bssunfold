@@ -603,15 +603,14 @@ graph TD
     J --> J10[response_matrix_consistency]
 
     K --> K1[relative_flux_error]
-    K --> K2[flux_correlation_coefficient]
-    K --> K3[comprehensive_score]
+    K --> K2[comprehensive_score]
 
     style A fill:#4a90d9,color:#fff
 ```
 
-### All 44 Metrics
+### All 43 Metrics
 
-The 30 simple metrics below are always computed. The **EURADOS Integral**
+The 29 simple metrics below are always computed. The **EURADOS Integral**
 and **Spectral Diagnostics** groups require an energy grid (pass `energy=`
 or use unfolded result dicts, which carry it) and follow Gomez-Ros et al. 2022.
 The **Xu 2026 (BNCT)** group is computed by default alongside the simple
@@ -661,8 +660,7 @@ metrics and follows Xu et al. (NIMA 2026, https://doi.org/10.1016/j.nima.2026.17
 | | `dose_weighted_error` | Dose-weighted mean squared error | [0, ∞) |
 | | `response_matrix_consistency` | Consistency of unfolded spectrum with measured readings (χ²) | [0, ∞) |
 | **Xu 2026 (BNCT)** | `relative_flux_error` | Eq. 2.7: ‖φ_true − φ_hat‖₂ / ‖φ_true‖₂ | [0, ∞) |
-| | `flux_correlation_coefficient` | Eq. 2.8: Pearson correlation between true and reconstructed spectra | [-1, 1] |
-| | `comprehensive_score` | Eq. 2.9: `flux_err − 0.5 · flux_corr` (lower is better; best = -0.3612) | (-∞, ∞) |
+| | `comprehensive_score` | Eq. 2.9: `flux_err − 0.5 · pearson_r` (lower is better; best = -0.3612, Eq.2.8 Pearson via `pearson_r`) | (-∞, ∞) |
 
 The simple metrics are implemented with pure NumPy/SciPy — no extra
 dependencies required. The integral quantities additionally use the

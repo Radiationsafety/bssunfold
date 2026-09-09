@@ -31,7 +31,7 @@ from bssunfold.core.unfold_nnksvd import (
 from bssunfold.utils.comparison import (
     compare_spectra,
     comprehensive_score,
-    flux_correlation_coefficient,
+    pearson_r,
     relative_flux_error,
 )
 
@@ -613,7 +613,7 @@ class TestDetectorUnfoldNNKSVD:
         for coder in results:
             err = relative_flux_error(phi_true, results[coder]["spectrum"])
             assert np.isfinite(err) and err >= 0.0
-            corr = flux_correlation_coefficient(phi_true, results[coder]["spectrum"])
+            corr = pearson_r(phi_true, results[coder]["spectrum"])
             assert np.isfinite(corr) and -1.0 - 1e-9 <= corr <= 1.0 + 1e-9
 
 
@@ -648,40 +648,20 @@ class TestXu2026Metrics:
         s2 = np.array([0.0, 1.0])
         assert np.isclose(relative_flux_error(s1, s2), np.sqrt(2.0), atol=1e-12)
 
-    def test_flux_correlation_identical(self, energy_grid):
-        """Identical spectra have correlation 1."""
-        s = np.abs(np.sin(np.linspace(0, np.pi, len(energy_grid))))
-        assert np.isclose(flux_correlation_coefficient(s, s), 1.0, atol=1e-12)
-
-    def test_flux_correlation_constant(self):
-        """Constant spectra yield 0 (no variance)."""
-        s1 = np.ones(5)
-        s2 = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        assert flux_correlation_coefficient(s1, s2) == 0.0
-        assert flux_correlation_coefficient(s2, s1) == 0.0
-
-    def test_flux_correlation_anticorrelated(self):
-        """Anti-correlated spectra yield correlation -1."""
-        s1 = np.array([1.0, 2.0, 3.0, 4.0])
-        s2 = -s1 + 10  # perfect anti-correlation
-        assert np.isclose(flux_correlation_coefficient(s1, s2), -1.0, atol=1e-12)
-
     def test_comprehensive_score_identical(self, energy_grid):
         """Identical spectra give the optimal score -0.5."""
         s = np.abs(np.sin(np.linspace(0, np.pi, len(energy_grid))))
         assert np.isclose(comprehensive_score(s, s), -0.5, atol=1e-12)
 
     def test_comprehensive_score_formula(self, energy_grid):
-        """Comprehensive score = flux_err - 0.5 * flux_corr (Eq. 2.9)."""
+        """Comprehensive score = flux_err - 0.5 * pearson_r (Eq. 2.9)."""
         s1 = np.abs(np.sin(np.linspace(0, np.pi, len(energy_grid))))
         s2 = 0.7 * s1 + 0.3 * np.abs(np.cos(np.linspace(0, np.pi, len(energy_grid))))
-        expected = relative_flux_error(s1, s2) - 0.5 * flux_correlation_coefficient(
-            s1, s2
-        )
+        expected = relative_flux_error(s1, s2) - 0.5 * pearson_r(s1, s2)
         assert np.isclose(comprehensive_score(s1, s2), expected, atol=1e-12)
 
     def test_compare_spectra_returns_all_three_metrics(self, energy_grid):
-        """compare_spectra exposes the three Xu 2026 metrics by name."""
+        """compare_spectra exposes the Xu 2026 metrics by name."""
         s1 = np.abs(np.sin(np.linspace(0, np.pi, len(energy_grid))))
         s2 = 0.8 * s1 + 0.2 * np.abs(np.cos(np.linspace(0, np.pi, len(energy_grid))))
         result = compare_spectra(
@@ -689,12 +669,12 @@ class TestXu2026Metrics:
             s2,
             metrics=[
                 "relative_flux_error",
-                "flux_correlation_coefficient",
+                "pearson_r",
                 "comprehensive_score",
             ],
         )
         assert "relative_flux_error" in result
-        assert "flux_correlation_coefficient" in result
+        assert "pearson_r" in result
         assert "comprehensive_score" in result
 
     def test_compare_spectra_default_includes_xu_metrics(self, energy_grid):
@@ -703,14 +683,12 @@ class TestXu2026Metrics:
         s2 = 0.9 * s1
         result = compare_spectra(s1, s2)
         assert "relative_flux_error" in result
-        assert "flux_correlation_coefficient" in result
+        assert "pearson_r" in result
         assert "comprehensive_score" in result
 
     def test_length_mismatch_raises(self):
         """Metric functions validate that the inputs have equal length."""
         with pytest.raises(ValueError):
             relative_flux_error(np.ones(5), np.ones(6))
-        with pytest.raises(ValueError):
-            flux_correlation_coefficient(np.ones(5), np.ones(6))
         with pytest.raises(ValueError):
             comprehensive_score(np.ones(5), np.ones(6))
