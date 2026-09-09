@@ -6105,6 +6105,7 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         random_state: int | None = None,
+        max_neutron_energy: float | None = None,
     ) -> dict[str, Any]:
         """Unfold neutron spectrum using the BON95 parametric method.
 
@@ -6156,18 +6157,22 @@ class Detector:
             Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV. Bins above this energy are excluded
+            from the unfolding and set to zero in the returned spectrum.
 
         Returns
         -------
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_parametric2_impl(
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_parametric2_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -6187,6 +6192,7 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_eki(
         self,
