@@ -16,7 +16,7 @@ optionally under a non-negativity constraint on the model parameters.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from scipy.optimize import least_squares, nnls
@@ -29,7 +29,7 @@ __all__ = ["solve_epic", "unfold_epic"]
 
 def _compute_bounds(
     k_center: float = 0.0, distance: float = 2.0
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Compute bounds for the betas to avoid floating point rounding errors.
 
     Port of ``beta_bounds.compute_bounds`` from EPIC_LS. Returns the largest
@@ -84,8 +84,8 @@ def _default_target_sigmas(
 
 
 def _build_precision(
-    A: np.ndarray, noise_var: Optional[float]
-) -> Tuple[np.ndarray, np.ndarray]:
+    A: np.ndarray, noise_var: float | None
+) -> tuple[np.ndarray, np.ndarray]:
     """Build the precision matrix P = A^T inv(Cx) A and the misfit weight Wx.
 
     With ``noise_var=None`` the misfit covariance is the identity matrix;
@@ -131,14 +131,14 @@ def _calc_epic_ch(
     P: np.ndarray,
     H: np.ndarray,
     target_sigmas: np.ndarray,
-    X0: Optional[np.ndarray] = None,
-    V: Optional[np.ndarray] = None,
-    LSQpar: Optional[Dict[str, Any]] = None,
+    X0: np.ndarray | None = None,
+    V: np.ndarray | None = None,
+    LSQpar: dict[str, Any] | None = None,
     homogeneous_step: bool = True,
     beta_shift_k: float = 0,
     beta_distance: float = 2,
-    EPIC_bool: Optional[np.ndarray] = None,
-    regularize: Optional[Dict[str, Any]] = None,
+    EPIC_bool: np.ndarray | None = None,
+    regularize: dict[str, Any] | None = None,
 ):
     """Solve the EPIC condition for the prior variances.
 
@@ -311,18 +311,18 @@ def _final_solve(
 def _epic_weights(
     A: np.ndarray,
     b: np.ndarray,
-    target_sigmas: Optional[np.ndarray],
+    target_sigmas: np.ndarray | None,
     regularization_order: int,
-    noise_var: Optional[float],
+    noise_var: float | None,
     homogeneous_step: bool,
-    regularize: Optional[Dict[str, Any]],
+    regularize: dict[str, Any] | None,
     beta_shift_k: float,
     beta_distance: float,
-    EPIC_bool: Optional[np.ndarray],
-    V: Optional[np.ndarray],
-    LSQpar: Optional[Dict[str, Any]],
+    EPIC_bool: np.ndarray | None,
+    V: np.ndarray | None,
+    LSQpar: dict[str, Any] | None,
     sigma_frac: float,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, Any]]:
     """Compute the EPIC regularization weights and optimization metadata.
 
     Returns a tuple ``(Wx, H, Wh, meta)`` where ``Wx`` and ``Wh`` are the
@@ -401,19 +401,19 @@ def _epic_weights(
 def solve_epic(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    target_sigmas: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    target_sigmas: np.ndarray | None = None,
     sigma_frac: float = 0.1,
     regularization_order: int = 1,
     non_neg: bool = True,
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     homogeneous_step: bool = True,
-    regularize: Optional[Dict[str, Any]] = None,
+    regularize: dict[str, Any] | None = None,
     beta_shift_k: float = 0,
     beta_distance: float = 2,
-    EPIC_bool: Optional[np.ndarray] = None,
-    V: Optional[np.ndarray] = None,
-    LSQpar: Optional[Dict[str, Any]] = None,
+    EPIC_bool: np.ndarray | None = None,
+    V: np.ndarray | None = None,
+    LSQpar: dict[str, Any] | None = None,
 ) -> np.ndarray:
     """Solve the unfolding problem with EPIC Tikhonov regularization.
 
@@ -500,32 +500,32 @@ def solve_epic(
 
 
 def unfold_epic(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    target_sigmas: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    target_sigmas: np.ndarray | None = None,
     sigma_frac: float = 0.1,
     regularization_order: int = 1,
     non_neg: bool = True,
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     homogeneous_step: bool = True,
-    regularize: Optional[Dict[str, Any]] = None,
+    regularize: dict[str, Any] | None = None,
     beta_shift_k: float = 0,
     beta_distance: float = 2,
-    EPIC_bool: Optional[np.ndarray] = None,
-    V: Optional[np.ndarray] = None,
-    LSQpar: Optional[Dict[str, Any]] = None,
+    EPIC_bool: np.ndarray | None = None,
+    V: np.ndarray | None = None,
+    LSQpar: dict[str, Any] | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold a spectrum using EPIC Tikhonov regularization.
 
     The EPIC weights are computed once from the response matrix and the

@@ -24,7 +24,7 @@ module adapts the ADMM scheme to the 1D Bonner-sphere spectrum unfolding
 problem.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -90,15 +90,15 @@ def _gamma_from_cubic(pp: float, qq: float) -> float:
 def solve_tikhonov_tv(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    epsilon: Optional[float] = None,
-    mu: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    x0: np.ndarray | None = None,
+    epsilon: float | None = None,
+    mu: tuple[float, float, float] = (1.0, 1.0, 1.0),
     max_iterations: int = 100,
     type_: str = "TT",
     beta: float = 1.0,
     zthr: float = 2.5,
     tolerance: float = 1e-4,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve the noise-constrained Tikhonov-TV unfolding problem.
 
     Solves ``min f(m)`` subject to ``||A m - b||^2 = epsilon`` with the
@@ -255,27 +255,27 @@ def solve_tikhonov_tv(
 
 
 def unfold_tikhonov_tv(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    epsilon: Optional[float] = None,
-    mu: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    epsilon: float | None = None,
+    mu: tuple[float, float, float] = (1.0, 1.0, 1.0),
     max_iterations: int = 100,
     type_: str = "TT",
     beta: float = 1.0,
     zthr: float = 2.5,
     tolerance: float = 1e-4,
-    noise_level: Optional[float] = None,
+    noise_level: float | None = None,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold a neutron spectrum with noise-constrained Tikhonov-TV.
 
     Parameters

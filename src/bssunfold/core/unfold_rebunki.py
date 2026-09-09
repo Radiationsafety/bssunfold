@@ -16,7 +16,7 @@ which implements the same SPUNIT scheme; the Detector-facing entry point is
 ``Detector.unfold_rebunki``.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -33,8 +33,8 @@ def solve_rebunki(
     smoothing: float = 0.1,
     max_iterations: int = 1000,
     tolerance: float = 0.01,
-    lethargy_weights: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    lethargy_weights: np.ndarray | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the ReBUNKI (SPUNIT) algorithm.
 
     This is the SPUNIT iteration of BUNKI/ReBUNKI; see
@@ -78,14 +78,14 @@ def solve_rebunki(
 
 
 def unfold_rebunki(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     smoothing: float = 0.1,
     max_iterations: int = 1000,
     tolerance: float = 0.01,
@@ -93,8 +93,8 @@ def unfold_rebunki(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the ReBUNKI (SPUNIT) algorithm.
 
     Parameters

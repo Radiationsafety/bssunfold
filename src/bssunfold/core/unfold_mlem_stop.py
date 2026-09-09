@@ -10,7 +10,7 @@ Reference C++ implementation:
     https://github.com/kildealab/Neutron-Spectrometry
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -40,8 +40,8 @@ def solve_mlem_stop(
     x0: np.ndarray,
     max_iterations: int = 15000,
     cps_crossover: float = 30000.0,
-    j_threshold: Optional[float] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    j_threshold: float | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using MLEM with J-factor stopping criterion.
 
     Parameters
@@ -90,23 +90,23 @@ def solve_mlem_stop(
 
 
 def unfold_mlem_stop(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 15000,
     cps_crossover: float = 30000.0,
-    j_threshold: Optional[float] = None,
+    j_threshold: float | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold using MLEM-STOP algorithm with J-factor stopping criterion.
 
     Parameters
@@ -140,7 +140,7 @@ def unfold_mlem_stop(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

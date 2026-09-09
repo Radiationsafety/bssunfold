@@ -5,20 +5,21 @@ results via Monte-Carlo simulation, eliminating code duplication across the
 various unfold_* methods in the Detector class.
 """
 
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
 
 def monte_carlo_uncertainty(
     func: Callable[..., np.ndarray],
-    readings: Dict[str, float],
+    readings: dict[str, float],
     noise_level: float,
     n_samples: int,
     n_energy_bins: int,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     **kwargs: Any,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Estimate unfolding uncertainty via Monte-Carlo simulation.
 
     Adds Gaussian noise to readings, runs the unfolding function for each
@@ -98,10 +99,10 @@ def monte_carlo_uncertainty(
 
 
 def _add_noise(
-    readings: Dict[str, float],
+    readings: dict[str, float],
     noise_level: float,
     rng: np.random.Generator,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Add Gaussian noise to readings using a provided RNG.
 
     Parameters

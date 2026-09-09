@@ -4,7 +4,7 @@ This module provides the core solve_landweber solver and the unfold_landweber
 wrapper for use with the Detector class.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -20,7 +20,7 @@ def solve_landweber(
     x0: np.ndarray,
     max_iterations: int = 1000,
     tolerance: float = 1e-6,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using Landweber iteration.
 
     Parameters
@@ -110,22 +110,22 @@ def solve_landweber(
 
 
 def unfold_landweber(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 1000,
     tolerance: float = 1e-6,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold using Landweber iteration method.
 
     Parameters
@@ -157,7 +157,7 @@ def unfold_landweber(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

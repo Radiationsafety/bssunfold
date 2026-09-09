@@ -14,7 +14,7 @@ and b_i is background.
 Requires: zfit, tensorflow (or zfit without TF backend)
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -24,14 +24,14 @@ from ._base_unfolder import run_unfolding
 def solve_zfit_unfold(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     max_iterations: int = 100,
     use_mcmc: bool = False,
     n_samples: int = 1000,
     regularization: float = 0.1,
     smoothness_weight: float = 0.01,
-    random_state: Optional[int] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    random_state: int | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using zfit Bayesian inference.
 
     Parameters
@@ -199,14 +199,14 @@ def solve_zfit_unfold(
 
 
 def unfold_zfit(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
     use_mcmc: bool = False,
     n_samples: int = 1000,
@@ -216,8 +216,8 @@ def unfold_zfit(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold using zfit Bayesian inference.
 
     Parameters

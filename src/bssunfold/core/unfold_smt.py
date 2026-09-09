@@ -10,7 +10,7 @@ both single and multiple solution variants, plus the ``solve_smt`` /
 
 import fractions
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -89,7 +89,7 @@ def _validate_system(A, b):
 
 def solve_integer_linear_eqs(
     A: np.ndarray, b: np.ndarray
-) -> Optional[List[int]]:
+) -> list[int] | None:
     """Solve a system of linear equations over the integers.
 
     Port of ``solveIntegerLinearEqs`` from the linearEqSolver library.
@@ -127,7 +127,7 @@ def solve_integer_linear_eqs(
 
 def solve_integer_linear_eqs_all(
     A: np.ndarray, b: np.ndarray, max_solutions: int = 10
-) -> List[List[int]]:
+) -> list[list[int]]:
     """Solve a system of linear equations over the integers, all solutions.
 
     Port of ``solveIntegerLinearEqsAll`` from the linearEqSolver library.
@@ -165,7 +165,7 @@ def solve_integer_linear_eqs_all(
 
 def solve_rational_linear_eqs(
     A: np.ndarray, b: np.ndarray
-) -> Optional[List[float]]:
+) -> list[float] | None:
     """Solve a system of linear equations over the rationals.
 
     Port of ``solveRationalLinearEqs`` from the linearEqSolver library.
@@ -198,7 +198,7 @@ def solve_rational_linear_eqs(
 
 def solve_rational_linear_eqs_all(
     A: np.ndarray, b: np.ndarray, max_solutions: int = 10
-) -> List[List[float]]:
+) -> list[list[float]]:
     """Solve a system of linear equations over the rationals, all solutions.
 
     Port of ``solveRationalLinearEqsAll`` from the linearEqSolver library.
@@ -290,7 +290,7 @@ def _solve_smt_l2(
     nonneg: bool,
     timeout_ms: int,
     z3,
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """Minimize the L2 residual ``||A x - b||_2`` via the KKT conditions.
 
     The non-negative least-squares optimum ``min ||A x - b||_2^2 s.t.
@@ -355,10 +355,10 @@ def _solve_smt_l2(
 def solve_smt(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     nonneg: bool = True,
     timeout_ms: int = 10000,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     objective: str = "l2",
 ) -> np.ndarray:
     """Solve the unfolding problem with an SMT solver.
@@ -427,14 +427,14 @@ def solve_smt(
 
 
 def unfold_smt(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     nonneg: bool = True,
     timeout_ms: int = 10000,
     objective: str = "l2",
@@ -442,8 +442,8 @@ def unfold_smt(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold a neutron spectrum using an SMT solver.
 
     Minimizes the L2 residual ``||A x - b||_2`` (via the exact KKT
@@ -482,7 +482,7 @@ def unfold_smt(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples, default: 100.
     save_result : bool, optional
-        Save result to history, default: True.
+        Save result to history, default: False.
     random_state : int, optional
         Random seed for reproducibility.
 

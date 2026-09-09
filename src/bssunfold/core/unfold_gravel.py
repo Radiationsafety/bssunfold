@@ -4,7 +4,7 @@ This module provides the core solve_gravel solver and the unfold_gravel
 wrapper for use with the Detector class.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from numpy import exp, log
@@ -22,7 +22,7 @@ def solve_gravel(
     tolerance: float = 1e-8,
     max_iterations: int = 1000,
     regularization: float = 0.0,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the GRAVEL algorithm.
 
     Parameters
@@ -118,14 +118,14 @@ def solve_gravel(
 
 
 def unfold_gravel(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     tolerance: float = 1e-8,
     max_iterations: int = 1000,
     regularization: float = 0.0,
@@ -133,8 +133,8 @@ def unfold_gravel(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the GRAVEL algorithm.
 
     Parameters
@@ -168,7 +168,7 @@ def unfold_gravel(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

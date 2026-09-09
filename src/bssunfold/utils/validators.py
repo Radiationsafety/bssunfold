@@ -5,7 +5,6 @@ detector readings, energy grids, and spectra.
 """
 
 import warnings
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -20,10 +19,10 @@ __all__ = [
 
 
 def validate_readings(
-    readings: Dict[str, float],
-    detector_names: List[str],
+    readings: dict[str, float],
+    detector_names: list[str],
     allow_zero: bool = True,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Validate detector readings.
 
     Parameters
@@ -76,8 +75,8 @@ def validate_readings(
 def validate_energy_grid(
     E_MeV: np.ndarray,
     min_points: int = 2,
-    Emin: Optional[float] = None,
-    Emax: Optional[float] = None,
+    Emin: float | None = None,
+    Emax: float | None = None,
 ) -> np.ndarray:
     """Validate energy grid array.
 
@@ -186,7 +185,7 @@ def validate_response_matrix(
     A: np.ndarray,
     b: np.ndarray,
     check_rank: bool = False,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Validate response matrix and measurement vector.
 
     Parameters
@@ -246,10 +245,10 @@ def validate_response_matrix(
 def validate_system(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    max_iterations: Optional[int] = None,
-    tolerance: Optional[float] = None,
-) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
+    x0: np.ndarray | None = None,
+    max_iterations: int | None = None,
+    tolerance: float | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
     """Validate system matrix, measurement vector, and optional initial guess.
 
     This is a convenience wrapper used by iterative solvers to perform
@@ -327,8 +326,8 @@ def validate_solver_params(
     regularization_alpha: float = 0.0,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
-    random_state: Optional[int] = None,
-) -> Dict[str, Optional[int]]:
+    random_state: int | None = None,
+) -> dict[str, int | None]:
     """Validate common solver parameters.
 
     Parameters

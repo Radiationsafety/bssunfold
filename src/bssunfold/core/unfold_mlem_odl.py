@@ -6,7 +6,7 @@ MLEM solver for use with the Detector class.
 Requires the 'odl' package to be installed.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -14,22 +14,22 @@ from ._base_unfolder import run_unfolding
 
 
 def unfold_mlem_odl(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     tolerance: float = 1e-6,
     max_iterations: int = 1000,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold using MLEM with ODL (Operator Discretization Library).
 
     Parameters
@@ -61,7 +61,7 @@ def unfold_mlem_odl(
     n_montecarlo : int, optional
         Number of Monte Carlo samples for error calculation. Default is 100.
     save_result : bool, optional
-        If True, save result to internal history. Default is True.
+        If True, save result to internal history. Default is False.
     random_state : int, optional
         Random seed for reproducibility.
 

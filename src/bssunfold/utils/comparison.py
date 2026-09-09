@@ -6,8 +6,8 @@ Each function follows single-responsibility principle and operates on
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -103,7 +103,7 @@ def _compute_log_steps(energy: np.ndarray) -> np.ndarray:
 
 
 def _extract_cc_array(
-    cc_icrp116: Optional[Dict[str, np.ndarray]],
+    cc_icrp116: dict[str, np.ndarray] | None,
     energy: np.ndarray,
     preferred_geom: str = "AP",
 ) -> np.ndarray:
@@ -128,7 +128,7 @@ def _extract_cc_array(
 
 def _get_ade_cc(
     energy: np.ndarray,
-    cc_ade: Optional[Union[Dict[str, np.ndarray], np.ndarray]] = None,
+    cc_ade: dict[str, np.ndarray] | np.ndarray | None = None,
 ) -> np.ndarray:
     """Get ICRP-74 ADE (ambient dose equivalent H*(10)) coefficients.
 
@@ -384,7 +384,7 @@ def cosine_similarity(p: np.ndarray, q: np.ndarray) -> float:
 
 
 def mmd_rbf(
-    p: np.ndarray, q: np.ndarray, gamma: Optional[float] = None
+    p: np.ndarray, q: np.ndarray, gamma: float | None = None
 ) -> float:
     """Maximum Mean Discrepancy with RBF kernel.
 
@@ -607,7 +607,7 @@ def standardized_mean_difference(p: np.ndarray, q: np.ndarray) -> float:
 def fluence_difference_percent(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
-    energy_bins: Optional[np.ndarray] = None,
+    energy_bins: np.ndarray | None = None,
 ) -> float:
     """Relative difference in total fluence between two spectra (%).
 
@@ -642,7 +642,7 @@ def energy_group_fluence_diff(
     energy: np.ndarray,
     thermal_max: float = 0.4e-6,
     epithermal_max: float = 0.1,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Relative difference in fluence for three energy groups (%).
 
     Groups: thermal (E < 0.4 eV), epithermal (0.4 eV <= E < 0.1 MeV),
@@ -670,7 +670,7 @@ def energy_group_fluence_diff(
     epithermal_mask = (e >= thermal_max) & (e < epithermal_max)
     fast_mask = e >= epithermal_max
 
-    result: Dict[str, float] = {}
+    result: dict[str, float] = {}
     for name, mask in [
         ("thermal", thermal_mask),
         ("epithermal", epithermal_mask),
@@ -692,7 +692,7 @@ def dose_difference_percent(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
     energy: np.ndarray,
-    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
+    cc_icrp116: dict[str, np.ndarray] | None = None,
 ) -> float:
     """Relative difference in ambient dose equivalent H*(10) (%).
 
@@ -751,7 +751,7 @@ def dose_averaged_energy_diff(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
     energy: np.ndarray,
-    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
+    cc_icrp116: dict[str, np.ndarray] | None = None,
 ) -> float:
     """Relative difference in H*(10)-averaged energy (%).
 
@@ -806,7 +806,7 @@ def energy_group_fluence(
     energy: np.ndarray,
     thermal_max: float = 0.4e-6,
     epithermal_max: float = 0.1,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Fluence rate per energy group for a single spectrum.
 
     Groups (EURADOS): thermal (E < 0.4 eV), epithermal
@@ -833,7 +833,7 @@ def energy_group_fluence(
     epithermal_mask = (e >= thermal_max) & (e < epithermal_max)
     fast_mask = e >= epithermal_max
 
-    result: Dict[str, float] = {}
+    result: dict[str, float] = {}
     for name, mask in [
         ("thermal", thermal_mask),
         ("epithermal", epithermal_mask),
@@ -849,7 +849,7 @@ def energy_group_fluence(
 def dose_averaged_energy(
     spectrum: np.ndarray,
     energy: np.ndarray,
-    cc_ade: Optional[Union[Dict[str, np.ndarray], np.ndarray]] = None,
+    cc_ade: dict[str, np.ndarray] | np.ndarray | None = None,
 ) -> float:
     """Ambient dose equivalent-averaged energy <E>_H (MeV).
 
@@ -876,7 +876,7 @@ def dose_averaged_energy(
 def ambient_dose_equivalent_rate(
     spectrum: np.ndarray,
     energy: np.ndarray,
-    cc_ade: Optional[Union[Dict[str, np.ndarray], np.ndarray]] = None,
+    cc_ade: dict[str, np.ndarray] | np.ndarray | None = None,
 ) -> float:
     """Ambient dose equivalent rate H*(10) of a single spectrum.
 
@@ -1016,7 +1016,7 @@ def dose_weighted_error(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
     energy: np.ndarray,
-    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
+    cc_icrp116: dict[str, np.ndarray] | None = None,
 ) -> float:
     """Dose-weighted mean squared error.
 
@@ -1073,7 +1073,7 @@ def response_matrix_consistency(
 
 # ─── High-level comparison functions ──────────────────────────────
 
-_ALL_METRICS: Dict[str, str] = {
+_ALL_METRICS: dict[str, str] = {
     "kl_divergence": "KL divergence",
     "cross_entropy": "Cross entropy",
     "entropy_difference_percent": "Entropy difference (%)",
@@ -1119,7 +1119,7 @@ _ALL_METRICS: Dict[str, str] = {
     "comprehensive_score": "Comprehensive score (Xu 2026)",
 }
 
-_METRIC_FUNCTIONS: Dict[str, callable] = {
+_METRIC_FUNCTIONS: dict[str, callable] = {
     "kl_divergence": kl_divergence,
     "cross_entropy": cross_entropy,
     "entropy_difference_percent": entropy_difference_percent,
@@ -1153,7 +1153,7 @@ _METRIC_FUNCTIONS: Dict[str, callable] = {
 }
 
 # Metrics requiring additional parameters (energy, response matrix, etc.)
-_METRIC_FUNCTIONS_WITH_PARAMS: Dict[str, callable] = {
+_METRIC_FUNCTIONS_WITH_PARAMS: dict[str, callable] = {
     "fluence_difference_percent": fluence_difference_percent,
     "energy_group_fluence_diff": energy_group_fluence_diff,
     "dose_difference_percent": dose_difference_percent,
@@ -1169,7 +1169,7 @@ _METRIC_FUNCTIONS_WITH_PARAMS: Dict[str, callable] = {
 # Single-spectrum integral quantities (EURADOS, Gomez-Ros et al. 2022).
 # Computed for each spectrum in a comparison and reported with _ref/_test
 # suffixes. These require the energy grid.
-_SINGLE_SPECTRUM_METRICS: Dict[str, callable] = {
+_SINGLE_SPECTRUM_METRICS: dict[str, callable] = {
     "fluence_averaged_energy": fluence_averaged_energy,
     "energy_group_fluence": energy_group_fluence,
     "dose_averaged_energy": dose_averaged_energy,
@@ -1180,14 +1180,14 @@ _SINGLE_SPECTRUM_METRICS: Dict[str, callable] = {
 def compare_spectra(
     spectrum1: np.ndarray,
     spectrum2: np.ndarray,
-    metrics: Optional[Union[str, List[str]]] = None,
-    bins: Optional[np.ndarray] = None,
-    energy: Optional[np.ndarray] = None,
-    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
-    readings1: Optional[np.ndarray] = None,
-    readings2: Optional[np.ndarray] = None,
-    response_matrix: Optional[np.ndarray] = None,
-) -> Dict[str, float]:
+    metrics: str | list[str] | None = None,
+    bins: np.ndarray | None = None,
+    energy: np.ndarray | None = None,
+    cc_icrp116: dict[str, np.ndarray] | None = None,
+    readings1: np.ndarray | None = None,
+    readings2: np.ndarray | None = None,
+    response_matrix: np.ndarray | None = None,
+) -> dict[str, float]:
     """Compare two spectra using selected metrics.
 
     Parameters
@@ -1257,7 +1257,7 @@ def compare_spectra(
             avail = all_simple + all_eurados + all_single
             raise ValueError(f"Unknown metric(s) {unknown}. Available: {avail}")
 
-    results: Dict[str, float] = {}
+    results: dict[str, float] = {}
     for key in simple_keys:
         try:
             results[key] = _METRIC_FUNCTIONS[key](spectrum1, spectrum2)
@@ -1342,10 +1342,10 @@ def compare_spectra(
 
 
 def compare_multiple(
-    spectra: List[np.ndarray],
-    metrics: Optional[Union[str, List[str]]] = None,
-    labels: Optional[List[str]] = None,
-) -> Dict[str, Dict[str, float]]:
+    spectra: list[np.ndarray],
+    metrics: str | list[str] | None = None,
+    labels: list[str] | None = None,
+) -> dict[str, dict[str, float]]:
     """Compare multiple spectra pairwise against the first one.
 
     Parameters
@@ -1371,7 +1371,7 @@ def compare_multiple(
         raise ValueError("Number of labels must match number of spectra")
 
     ref = spectra[0]
-    results: Dict[str, Dict[str, float]] = {}
+    results: dict[str, dict[str, float]] = {}
     for i in range(1, n):
         key = f"{labels[0]} vs {labels[i]}"
         results[key] = compare_spectra(ref, spectra[i], metrics=metrics)
@@ -1389,7 +1389,7 @@ def compare_multiple(
 
 #: Default metric keys used to rank unfolding methods. All are supported by
 #: :meth:`bssunfold.Detector.compare`.
-DEFAULT_UNFOLD_BENCHMARK_METRICS: List[str] = [
+DEFAULT_UNFOLD_BENCHMARK_METRICS: list[str] = [
     "r2_score",
     "pearson_r",
     "root_mean_squared_error",
@@ -1404,7 +1404,7 @@ DEFAULT_UNFOLD_BENCHMARK_METRICS: List[str] = [
 #: Default method registry: ``name -> {"method": <Detector method or callable>,
 #: "params": [param dict, ...]}``. Parameter names follow the current API
 #: (``max_iterations``, ``k``, ``epsilon``, ``sigma_factor``, ``solver``).
-DEFAULT_UNFOLD_BENCHMARK_METHODS: Dict[str, Dict[str, object]] = {
+DEFAULT_UNFOLD_BENCHMARK_METHODS: dict[str, dict[str, object]] = {
     "mlem": {
         "method": "unfold_mlem",
         "params": [
@@ -1533,7 +1533,7 @@ class BenchmarkResult:
     report: str
 
 
-def _resolve_method(detector: object, method: Union[str, Callable]) -> Callable:
+def _resolve_method(detector: object, method: str | Callable) -> Callable:
     """Return a callable ``func(readings, **params)`` for a method spec."""
     if isinstance(method, str):
         if not hasattr(detector, method):
@@ -1587,10 +1587,10 @@ def _as_reference_dict(reference_spectra, spectrum_names):
 
 def benchmark_unfold_methods(
     detector: object,
-    reference_spectra: Union[pd.DataFrame, Dict],
-    methods: Optional[Dict[str, Dict[str, object]]] = None,
-    metrics: Optional[List[str]] = None,
-    spectrum_names: Optional[List[str]] = None,
+    reference_spectra: pd.DataFrame | dict,
+    methods: dict[str, dict[str, object]] | None = None,
+    metrics: list[str] | None = None,
+    spectrum_names: list[str] | None = None,
     rank_by: str = "r2_score",
     progress: bool = False,
 ) -> BenchmarkResult:
@@ -1650,13 +1650,13 @@ def benchmark_unfold_methods(
     asc_metrics = ("error", "rmse", "mape", "kl_", "wasserstein", "max_error")
     ascending = any(token in rank_by for token in asc_metrics)
 
-    rows: List[Dict[str, object]] = []
+    rows: list[dict[str, object]] = []
     for spec_name, ref in refs.items():
         readings = detector.get_effective_readings_for_spectra(ref)
         for mname, minfo in methods.items():
             func = _resolve_method(detector, minfo["method"])
             for params in minfo["params"]:
-                row: Dict[str, object] = {
+                row: dict[str, object] = {
                     "method": mname,
                     "params": str(params),
                     "spectrum": spec_name,
@@ -1692,7 +1692,7 @@ def benchmark_unfold_methods(
     )
 
 
-def _summarize(results_df: pd.DataFrame, metric_cols: List[str]) -> pd.DataFrame:
+def _summarize(results_df: pd.DataFrame, metric_cols: list[str]) -> pd.DataFrame:
     """Build per-method mean/std summary table."""
     if results_df.empty:
         return pd.DataFrame(
@@ -1710,7 +1710,7 @@ def _summarize(results_df: pd.DataFrame, metric_cols: List[str]) -> pd.DataFrame
 
 def _rank(
     summary: pd.DataFrame,
-    metric_cols: List[str],
+    metric_cols: list[str],
     rank_by: str,
     ascending: bool,
 ) -> pd.DataFrame:

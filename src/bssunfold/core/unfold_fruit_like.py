@@ -10,7 +10,7 @@ Technique). The parametric model consists of:
 Reference: Bedogni et al., Nucl. Instrum. Methods A 580, 1301-1309 (2007)
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -110,9 +110,9 @@ def solve_fruit_like(
     b_readings: np.ndarray,
     E: np.ndarray,
     log_steps: np.ndarray,
-    initial_params: Optional[Dict[str, float]] = None,
+    initial_params: dict[str, float] | None = None,
     method: str = "leastsq",
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve unfolding problem using FRUIT-like parametric model.
 
     Parameters
@@ -186,22 +186,22 @@ def solve_fruit_like(
 
 
 def unfold_fruit_like(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    initial_params: Optional[Dict[str, float]] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    initial_params: dict[str, float] | None = None,
     method: str = "leastsq",
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using FRUIT-like parametric method.
 
     Parameters
@@ -233,7 +233,7 @@ def unfold_fruit_like(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

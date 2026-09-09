@@ -10,7 +10,6 @@ Public surface: :func:`parametric_model`, :func:`solve_parametric`.
 """
 
 import logging
-from typing import Dict, Optional, Tuple
 
 import numpy as np
 
@@ -168,12 +167,12 @@ def solve_parametric(
     b_readings: np.ndarray,
     E: np.ndarray,
     log_steps: np.ndarray,
-    initial_params: Optional[Dict[str, float]] = None,
+    initial_params: dict[str, float] | None = None,
     method: str = "leastsq",
     alpha: float = 0.0,
     alpha_auto: bool = False,
     n_restarts: int = 5,
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve unfolding using the FRUIT-based parametric model.
 
     Uses multi-start optimization: runs lmfit from the top N

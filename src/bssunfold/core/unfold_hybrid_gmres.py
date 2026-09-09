@@ -6,7 +6,8 @@ with Tikhonov regularization on projected problems.
 Based on IRtools IRhybrid_gmres.m by Silvia Gazzola et al.
 """
 
-from typing import Any, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -60,25 +61,25 @@ def _gcv_function(
 
 
 def unfold_hybrid_gmres(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
-    save_result_callback: Optional[callable] = None,
-    readings: Optional[Dict[str, float]] = None,
-    initial_spectrum: Optional[np.ndarray] = None,
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
+    save_result_callback: Callable | None = None,
+    readings: dict[str, float] | None = None,
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
     regularization_method: str = "gcv",
     regularization: float = 0.0,
-    noise_level: Optional[float] = None,
+    noise_level: float | None = None,
     eta: float = 1.01,
     reorthogonalization: bool = True,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Hybrid GMRES method.
 
     The hybrid GMRES method combines the GMRES iterative solver with

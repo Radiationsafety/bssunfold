@@ -5,7 +5,7 @@ This module provides functions for converting between different data formats
 """
 
 import math
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ __all__ = [
 
 
 def convert_to_dataframe(
-    data: Union[pd.DataFrame, Dict[str, Any]],
+    data: pd.DataFrame | dict[str, Any],
     energy_column: str = "E_MeV",
 ) -> pd.DataFrame:
     """Convert response function data to DataFrame format.
@@ -58,8 +58,8 @@ def convert_to_dataframe(
 
 
 def convert_to_dict(
-    data: Union[pd.DataFrame, Dict[str, Any]],
-) -> Dict[str, np.ndarray]:
+    data: pd.DataFrame | dict[str, Any],
+) -> dict[str, np.ndarray]:
     """Convert response function data to dictionary format.
 
     Parameters
@@ -85,10 +85,10 @@ def convert_to_dict(
 
 
 def convert_sensitivities_to_matrix(
-    sensitivities: Union[Dict[str, np.ndarray], np.ndarray],
+    sensitivities: dict[str, np.ndarray] | np.ndarray,
     E_MeV: np.ndarray,
-    detector_names: Optional[List[str]] = None,
-) -> Tuple[np.ndarray, List[str]]:
+    detector_names: list[str] | None = None,
+) -> tuple[np.ndarray, list[str]]:
     """Convert sensitivities to matrix format.
 
     Parameters
@@ -152,9 +152,9 @@ def convert_sensitivities_to_matrix(
 
 
 def extract_detector_names(
-    data: Union[pd.DataFrame, Dict[str, Any]],
+    data: pd.DataFrame | dict[str, Any],
     energy_column: str = "E_MeV",
-) -> List[str]:
+) -> list[str]:
     """Extract detector names from response function data.
 
     Parameters

@@ -7,7 +7,6 @@ come from ``_parametric_shared``; solver-backend resolution comes from
 """
 
 
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -122,8 +121,8 @@ def _solve_linear_coefficients(
     b: float,
     Tf: float,
     c: float,
-    weights: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, float]:
+    weights: np.ndarray | None = None,
+) -> tuple[np.ndarray, float]:
     """Solve for optimal linear coefficients a1..a4 given shape params.
 
     The model is: M_i = sum_j A_i(E_j) * Phi(E_j) * d(ln E)_j
@@ -209,12 +208,12 @@ def solve_bon95_parametric(
     b_readings: np.ndarray,
     E: np.ndarray,
     ln_steps: np.ndarray,
-    b_range: Tuple[float, float, int] = _DEFAULT_B_RANGE,
-    Tf_range: Tuple[float, float, int] = _DEFAULT_TF_RANGE,
-    c_range: Tuple[float, float, int] = _DEFAULT_C_RANGE,
-    b_meas: Optional[np.ndarray] = None,
+    b_range: tuple[float, float, int] = _DEFAULT_B_RANGE,
+    Tf_range: tuple[float, float, int] = _DEFAULT_TF_RANGE,
+    c_range: tuple[float, float, int] = _DEFAULT_C_RANGE,
+    b_meas: np.ndarray | None = None,
     top_n: int = 5,
-) -> Tuple[Dict[str, float], float, List[Dict[str, float]]]:
+) -> tuple[dict[str, float], float, list[dict[str, float]]]:
     """Grid search + NLS for the BON95 parametric model.
 
     Scans over (b, Tf, c) shape parameters, solves for optimal linear
@@ -442,13 +441,13 @@ def solve_bon95_cvxpy(
     b_readings: np.ndarray,
     E: np.ndarray,
     ln_steps: np.ndarray,
-    b_meas: Optional[np.ndarray] = None,
-    initial_params: Optional[Dict[str, float]] = None,
+    b_meas: np.ndarray | None = None,
+    initial_params: dict[str, float] | None = None,
     alpha: float = 1e-4,
     solver_backend: str = "auto",
     max_iter: int = 50,
     tol: float = 1e-6,
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve BON95 parametric fitting via sequential QP using cvxpy.
 
     Optimizes shape parameters (b, Tf, c) via SQP. At each iteration,
@@ -643,13 +642,13 @@ def solve_bon95_qpsolvers(
     b_readings: np.ndarray,
     E: np.ndarray,
     ln_steps: np.ndarray,
-    b_meas: Optional[np.ndarray] = None,
-    initial_params: Optional[Dict[str, float]] = None,
+    b_meas: np.ndarray | None = None,
+    initial_params: dict[str, float] | None = None,
     alpha: float = 1e-4,
     solver_backend: str = "auto",
     max_iter: int = 50,
     tol: float = 1e-6,
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve BON95 parametric fitting via sequential QP using qpsolvers.
 
     Same algorithm as solve_bon95_cvxpy but uses qpsolvers backends
@@ -855,12 +854,12 @@ def solve_bon95_combined(
     b_readings: np.ndarray,
     E: np.ndarray,
     ln_steps: np.ndarray,
-    b_meas: Optional[np.ndarray] = None,
+    b_meas: np.ndarray | None = None,
     alpha: float = 1e-4,
     solver_backend: str = "auto",
     max_iter_qp: int = 50,
     tol_qp: float = 1e-6,
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve BON95: grid search first, then SQP refinement.
 
     1. Grid search for best starting (b, Tf, c).

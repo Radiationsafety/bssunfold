@@ -16,7 +16,7 @@ where the spectrum is represented in binary encoding for QUBO compatibility.
 Requires: pyqubo, dwave-neal
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -26,7 +26,7 @@ from ._base_unfolder import run_unfolding
 def _spectrum_to_binary(
     spectrum: np.ndarray,
     n_bits: int = 8,
-    max_value: Optional[float] = None
+    max_value: float | None = None
 ) -> np.ndarray:
     """Convert continuous spectrum to binary representation.
 
@@ -104,15 +104,15 @@ def _binary_to_spectrum(
 def solve_qubo_unfold(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     n_bits: int = 6,
-    max_value: Optional[float] = None,
+    max_value: float | None = None,
     regularization: float = 0.01,
     max_iterations: int = 1000,
     annealing_time: int = 1000,
     num_reads: int = 10,
-    random_state: Optional[int] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    random_state: int | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using QUBO formulation with simulated annealing.
 
     Parameters
@@ -254,16 +254,16 @@ def solve_qubo_unfold(
 
 
 def unfold_qubo(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     n_bits: int = 6,
-    max_value: Optional[float] = None,
+    max_value: float | None = None,
     regularization: float = 0.01,
     max_iterations: int = 1000,
     annealing_time: int = 1000,
@@ -272,8 +272,8 @@ def unfold_qubo(
     noise_level: float = 0.01,
     n_montecarlo: int = 50,  # Reduced due to computational cost
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold using QUBO formulation with quantum-inspired annealing.
 
     Parameters

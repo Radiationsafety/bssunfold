@@ -8,7 +8,7 @@ is selected automatically on the small projected problem via Generalized
 Cross Validation (GCV). No a-priori spectrum is required.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -23,7 +23,7 @@ def _projected_gcv(
     bhat: np.ndarray,
     m: int,
     n_lambdas: int = 200,
-    lambda_range: Tuple[float, float] = (1e-12, 1e2),
+    lambda_range: tuple[float, float] = (1e-12, 1e2),
 ) -> float:
     """Select the regularization parameter on the projected problem by GCV.
 
@@ -66,11 +66,11 @@ def _projected_gcv(
 def solve_lanczos(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    max_iterations: Optional[int] = None,
+    x0: np.ndarray | None = None,
+    max_iterations: int | None = None,
     regularization: float = 1e-8,
-    noise_level: Optional[float] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    noise_level: float | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve the unfolding problem with a Lanczos-hybrid method.
 
     Performs Golub-Kahan bidiagonalization of ``A``, generating a sequence
@@ -119,8 +119,8 @@ def solve_lanczos(
     U = np.zeros((m, 1))
     U[:, 0] = b / beta
     V = np.empty((n, 0))
-    alphas: List[float] = []
-    betas: List[float] = []
+    alphas: list[float] = []
+    betas: list[float] = []
 
     best_x = np.zeros(n)
     iterations = 0
@@ -183,23 +183,23 @@ def solve_lanczos(
 
 
 def unfold_lanczos(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     regularization_method: str = "gcv",
-    max_iterations: Optional[int] = None,
+    max_iterations: int | None = None,
     regularization: float = 1e-8,
-    noise_level: Optional[float] = None,
+    noise_level: float | None = None,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold a neutron spectrum with the Lanczos-hybrid (Krylov) method.
 
     Parameters

@@ -55,7 +55,8 @@ deterministic methods (landweber, cvxpy, MLEM) the optimizer:
 """
 
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -124,7 +125,7 @@ def _normalize_solver(solver: str) -> str:
     return name
 
 
-def _build_seed(A: np.ndarray, b: np.ndarray, x0: Optional[np.ndarray]) -> np.ndarray:
+def _build_seed(A: np.ndarray, b: np.ndarray, x0: np.ndarray | None) -> np.ndarray:
     """Build the seed spectrum used to initialise the population.
 
     If a non-trivial initial guess ``x0`` is provided it is used directly.
@@ -227,7 +228,7 @@ def _make_starting_solutions(
     lb: np.ndarray,
     ub: np.ndarray,
     pop_size: int,
-    extra: Optional[np.ndarray] = None,
+    extra: np.ndarray | None = None,
 ) -> np.ndarray:
     """Build a starting-solutions matrix with the seed as the first individual.
 
@@ -279,7 +280,7 @@ def _build_model(mealpy, solver: str, epoch: int, pop_size: int):
     raise ValueError(f"Unsupported solver: {solver}")
 
 
-def _normalize_smoother(smoother: Optional[str]) -> str:
+def _normalize_smoother(smoother: str | None) -> str:
     """Normalise the post-processing smoother name, warning on unknown."""
     name = (smoother or "none").strip().lower().replace("-", "_")
     aliases = {
@@ -392,7 +393,7 @@ def _run_numpy_ga(
     mutation: str,
     pc: float,
     pm: float,
-    random_state: Optional[int],
+    random_state: int | None,
     verbose: bool,
 ) -> np.ndarray:
     """Self-contained numpy genetic algorithm with TGASU-style operators.
@@ -443,7 +444,7 @@ def _run_numpy_ga(
     elite = max(1, pop_size // 10)
     scale0 = 0.3
 
-    def _tournament_select() -> Tuple[int, int]:
+    def _tournament_select() -> tuple[int, int]:
         idx = rng.integers(0, pop_size, size=4)
         a, b1 = idx[0], idx[1]
         c, d = idx[2], idx[3]
@@ -491,7 +492,7 @@ def _run_numpy_ga(
     return np.maximum(np.exp(best), 0.0)
 
 
-def _fast_non_dominated_sort(fvals: np.ndarray) -> List[np.ndarray]:
+def _fast_non_dominated_sort(fvals: np.ndarray) -> list[np.ndarray]:
     """Return the Pareto fronts of a population (minimisation).
 
     Parameters
@@ -513,7 +514,7 @@ def _fast_non_dominated_sort(fvals: np.ndarray) -> List[np.ndarray]:
     dominates = np.all(leq, axis=2) & np.any(lt, axis=2)  # (N, N)
     np.fill_diagonal(dominates, False)
 
-    fronts: List[np.ndarray] = []
+    fronts: list[np.ndarray] = []
     remaining = np.arange(N)
     while remaining.size:
         # A remaining individual i is non-dominated if no other remaining j dominates i
@@ -605,10 +606,10 @@ def _run_nsga2(
     ub: np.ndarray,
     epoch: int,
     pop_size: int,
-    random_state: Optional[int],
+    random_state: int | None,
     pareto_select: str,
     entropy_weight: float = 1.0,
-) -> Tuple[np.ndarray, Dict[str, Any]]:
+) -> tuple[np.ndarray, dict[str, Any]]:
     """Run a real-coded NSGA-II over two objectives (relative error, entropy).
 
     The two objectives (both minimised) are:
@@ -750,7 +751,7 @@ def _run_nsga2(
 def solve_genetic(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     solver: str = "pso",
     epoch: int = 500,
     pop_size: int = 50,
@@ -760,18 +761,18 @@ def solve_genetic(
     smoothness_weight: float = 1.0,
     entropy_weight: float = 0.0,
     n_runs: int = 1,
-    early_stop: Optional[int] = None,
+    early_stop: int | None = None,
     half_range: float = 2.0,
     two_step: bool = False,
-    n_coarse: Optional[int] = None,
+    n_coarse: int | None = None,
     smoother: str = "none",
     sigma_smooth: float = 2.0,
     crossover: str = "single",
     mutation: str = "random",
     pareto_select: str = "knee",
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     verbose: bool = False,
-    extra_starting: Optional[np.ndarray] = None,
+    extra_starting: np.ndarray | None = None,
 ) -> np.ndarray:
     """Solve the unfolding problem using a meta-heuristic optimizer.
 
@@ -894,7 +895,7 @@ def solve_genetic(
 def _solve_genetic_impl(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray],
+    x0: np.ndarray | None,
     solver: str,
     epoch: int,
     pop_size: int,
@@ -904,18 +905,18 @@ def _solve_genetic_impl(
     smoothness_weight: float,
     entropy_weight: float,
     n_runs: int,
-    early_stop: Optional[int],
+    early_stop: int | None,
     half_range: float,
     two_step: bool,
-    n_coarse: Optional[int],
+    n_coarse: int | None,
     smoother: str,
     sigma_smooth: float,
     crossover: str,
     mutation: str,
     pareto_select: str,
-    random_state: Optional[int],
+    random_state: int | None,
     verbose: bool,
-    extra_starting: Optional[np.ndarray] = None,
+    extra_starting: np.ndarray | None = None,
 ) -> np.ndarray:
     mealpy = _import_mealpy()
     FloatVar, _, _, _, _, _, _, _ = mealpy
@@ -1121,14 +1122,14 @@ def _solve_genetic_impl(
 
 
 def unfold_genetic(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     solver: str = "pso",
     epoch: int = 500,
     pop_size: int = 50,
@@ -1138,10 +1139,10 @@ def unfold_genetic(
     smoothness_weight: float = 1.0,
     entropy_weight: float = 0.0,
     n_runs: int = 1,
-    early_stop: Optional[int] = None,
+    early_stop: int | None = None,
     half_range: float = 2.0,
     two_step: bool = False,
-    n_coarse: Optional[int] = None,
+    n_coarse: int | None = None,
     smoother: str = "none",
     sigma_smooth: float = 2.0,
     crossover: str = "single",
@@ -1151,9 +1152,9 @@ def unfold_genetic(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     verbose: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Unfold a neutron spectrum using a meta-heuristic algorithm.
 
     The optimizer searches in log space seeded with a Landweber warm-start

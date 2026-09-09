@@ -4,7 +4,6 @@ This module provides common matrix operations used across unfolding methods
 and regularization modules, avoiding code duplication.
 """
 
-from typing import Optional
 
 import numpy as np
 from scipy.sparse import csc_matrix, diags
@@ -53,7 +52,7 @@ def build_smoothness_penalty(
     alpha: float,
     smoothness_order: int,
     smoothness_weight: float = 1.0,
-) -> Optional[csc_matrix]:
+) -> csc_matrix | None:
     """Build the additive smoothness (Tikhonov) penalty matrix.
 
     Returns ``alpha * smoothness_weight * L.T @ L`` for the first/second-order
@@ -87,7 +86,7 @@ def make_regularization_operator(
     n: int,
     smoothness_order: int,
     identity_for_zero: bool = True,
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """Build the regularization operator L (dense) for a derivative order.
 
     A single source of truth for the repeated ``_make_regoperator`` helpers

@@ -6,7 +6,7 @@ is propagated through the forward model and updated via the Kalman gain
 equation with optional regularization for stability.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -24,9 +24,9 @@ def solve_eki(
     n_iterations: int = 50,
     regularization: float = 1e-4,
     inflation: float = 1.02,
-    noise_std: Optional[float] = None,
-    random_state: Optional[int] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    noise_std: float | None = None,
+    random_state: int | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using Ensemble Kalman Inversion.
 
     Parameters
@@ -104,25 +104,25 @@ def solve_eki(
 
 
 def unfold_eki(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     n_ensemble: int = 50,
     n_iterations: int = 50,
     regularization: float = 1e-4,
     inflation: float = 1.02,
-    noise_std: Optional[float] = None,
+    noise_std: float | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Ensemble Kalman Inversion.
 
     Parameters

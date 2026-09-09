@@ -337,6 +337,10 @@ output-format = "colorized"
 reports = false
 
 [tool.ruff]
+# Same as requires-python = ">=3.11": enables UP (pyupgrade) rewrites of
+# typing.Dict/List/Tuple/Optional to PEP 585/604 builtin/union syntax.
+target-version = "py311"
+
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
@@ -381,6 +385,7 @@ select = [
     "W",   # pycodestyle warnings (whitespace hygiene)
     "I",   # isort: import ordering
     "B",   # flake8-bugbear: likely bugs and design problems
+    "UP",  # pyupgrade: modernize typing and syntax for py311+
 ]
 ignore = [
     # --- deliberate project-wide allowances -------------------------------

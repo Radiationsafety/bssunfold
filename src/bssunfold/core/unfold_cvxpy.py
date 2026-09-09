@@ -6,7 +6,7 @@ wrapper with regularization selection for use with the Detector class.
 
 import logging
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -26,7 +26,7 @@ def _solve_cvxpy_problem(
     alpha: float,
     norm: int = 2,
     solver: str = "ECOS",
-    ub: Optional[np.ndarray] = None,
+    ub: np.ndarray | None = None,
 ) -> np.ndarray:
     """Solve cvxpy optimization problem."""
     try:
@@ -77,8 +77,8 @@ def solve_cvxpy(
     alpha: float,
     norm: int = 2,
     solver: str = "ECOS",
-    x0: Optional[np.ndarray] = None,
-    ub: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    ub: np.ndarray | None = None,
 ) -> np.ndarray:
     """Solve unfolding problem using cvxpy.
 
@@ -108,14 +108,14 @@ def solve_cvxpy(
 
 
 def unfold_cvxpy(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
     solver: str = "default",
@@ -124,10 +124,10 @@ def unfold_cvxpy(
     n_montecarlo: int = 100,
     save_result: bool = False,
     regularization_method: str = "manual",
-    noise_var: Optional[float] = None,
-    random_state: Optional[int] = None,
-    max_neutron_energy: Optional[float] = None,
-) -> Dict[str, Any]:
+    noise_var: float | None = None,
+    random_state: int | None = None,
+    max_neutron_energy: float | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using convex optimization (cvxpy).
 
     Parameters
@@ -161,7 +161,7 @@ def unfold_cvxpy(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     regularization_method : str, optional
         Method for selecting regularization parameter.
     noise_var : float, optional

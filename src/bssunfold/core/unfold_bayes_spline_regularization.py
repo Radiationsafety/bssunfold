@@ -7,7 +7,7 @@ in low-sensitivity bins from being amplified by the column-sum
 rescaling step.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -19,7 +19,7 @@ __all__ = ["solve_bayes_spline", "unfold_bayes_spline_regularization"]
 def solve_bayes_spline(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     max_iterations: int = 4000,
     tolerance: float = 1e-3,
     spline_degree: int = 3,
@@ -127,14 +127,14 @@ def solve_bayes_spline(
 
 
 def unfold_bayes_spline_regularization(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 4000,
     tolerance: float = 1e-3,
     spline_degree: int = 3,
@@ -143,8 +143,8 @@ def unfold_bayes_spline_regularization(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Bayes with spline regularization.
 
     Parameters
@@ -180,7 +180,7 @@ def unfold_bayes_spline_regularization(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

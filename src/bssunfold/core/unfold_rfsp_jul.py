@@ -22,7 +22,7 @@ normal equations (a symmetric positive-definite system solved directly):
         = sum_i W_i R_i / b_i  +  phi_prev / phi_prev^2
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -37,8 +37,8 @@ def solve_rfsp_jul(
     x0: np.ndarray,
     max_iterations: int = 200,
     tolerance: float = 1e-4,
-    weights: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    weights: np.ndarray | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the RFSP-JUL algorithm.
 
     Parameters
@@ -122,23 +122,23 @@ def solve_rfsp_jul(
 
 
 def unfold_rfsp_jul(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 200,
     tolerance: float = 1e-4,
-    weights: Optional[np.ndarray] = None,
+    weights: np.ndarray | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the RFSP-JUL algorithm.
 
     Parameters

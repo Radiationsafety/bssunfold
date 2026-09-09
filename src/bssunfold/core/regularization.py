@@ -5,7 +5,7 @@ using various heuristics: L-curve, GCV, Discrepancy Principle.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -54,8 +54,8 @@ def select_regularization_parameter(
     A: np.ndarray,
     b: np.ndarray,
     method: str = "lcurve",
-    noise_var: Optional[float] = None,
-    initial_spectrum: Optional[np.ndarray] = None,
+    noise_var: float | None = None,
+    initial_spectrum: np.ndarray | None = None,
     **kwargs,
 ) -> float:
     """Select regularization parameter using specified method.
@@ -116,7 +116,7 @@ def lcurve_selection(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using L-curve corner heuristic.
 
@@ -163,7 +163,7 @@ def _lcurve_fallback(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback L-curve implementation without pytikhonov."""
     alphas = np.logspace(
@@ -218,7 +218,7 @@ def gcv_selection(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using Generalized Cross Validation.
 
@@ -265,7 +265,7 @@ def _gcv_fallback(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback GCV implementation without pytikhonov.
 
@@ -309,9 +309,9 @@ def _gcv_fallback(
 def discrepancy_principle_selection(
     A: np.ndarray,
     b: np.ndarray,
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using Discrepancy Principle.
 
@@ -368,7 +368,7 @@ def _dp_fallback(
     b: np.ndarray,
     noise_var: float,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Fallback Discrepancy Principle implementation."""
     alphas = np.logspace(
@@ -407,7 +407,7 @@ def cosine_similarity_selection(
     b: np.ndarray,
     initial_spectrum: np.ndarray,
     n_alphas: int = 100,
-    alpha_range: Tuple[float, float] = (-9, 2),
+    alpha_range: tuple[float, float] = (-9, 2),
     norm: int = 2,
 ) -> float:
     """Select regularization parameter by maximizing cosine similarity.
@@ -468,7 +468,7 @@ def quasi_optimality_selection(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using the quasi-optimality criterion.
 
@@ -521,7 +521,7 @@ def ncp_selection(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
     significance: float = 0.05,
 ) -> float:
     """Select regularization parameter using the Normalized Cumulative Periodogram.
@@ -581,7 +581,7 @@ def snr_criterion_selection(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter by maximising signal-to-noise ratio.
 
@@ -642,7 +642,7 @@ def weighted_gcv_poisson_selection(
     A: np.ndarray,
     b: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
 ) -> float:
     """Select regularization parameter using weighted GCV for Poisson noise.
 
@@ -709,8 +709,8 @@ def kfold_cv_selection(
     b: np.ndarray,
     n_folds: int = 5,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-9, 1e2),
-    random_state: Optional[int] = None,
+    alpha_range: tuple[float, float] = (1e-9, 1e2),
+    random_state: int | None = None,
 ) -> float:
     """Select regularization parameter using K-fold cross-validation.
 
@@ -786,9 +786,9 @@ def resolve_regularization_parameter(
     regularization_method: str,
     regularization: float,
     n_energy_bins: int,
-    initial_spectrum: Optional[np.ndarray] = None,
+    initial_spectrum: np.ndarray | None = None,
     norm: int = 2,
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     verbose: bool = True,
 ) -> float:
     """Resolve the regularization parameter alpha from the requested method.
@@ -879,10 +879,10 @@ def resolve_regularization_parameter(
 def compare_regularization_methods(
     A: np.ndarray,
     b: np.ndarray,
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     plot: bool = False,
-    plot_path: Optional[str] = None,
-) -> Dict[str, Any]:
+    plot_path: str | None = None,
+) -> dict[str, Any]:
     """Compare regularization selection methods for given system.
 
     Parameters
@@ -957,11 +957,11 @@ def compare_regularization_methods(
 def randomization_experiment(
     A: np.ndarray,
     b: np.ndarray,
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     n_samples: int = 10,
     rseed: int = 0,
-    methods: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    methods: list[str] | None = None,
+) -> dict[str, Any]:
     """Run randomization experiments for regularization parameter selection.
 
     Parameters

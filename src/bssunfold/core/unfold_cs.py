@@ -20,7 +20,7 @@ problem where the number of energy groups (e.g. 300) greatly exceeds the number
 of detector readings (e.g. 7).
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -109,7 +109,7 @@ def solve_ksvd(
     n_atoms: int,
     n_iterations: int = 20,
     sparsity: int = 5,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> np.ndarray:
     """Learn a dictionary using the K-SVD algorithm.
 
@@ -271,10 +271,10 @@ def solve_sl0(
 def solve_cs(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    n_atoms: Optional[int] = None,
-    sparsity: Optional[int] = None,
-    dictionary: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    n_atoms: int | None = None,
+    sparsity: int | None = None,
+    dictionary: np.ndarray | None = None,
     n_dictionary_iterations: int = 20,
     sigma_min: float = 0.01,
     sigma_decrease_factor: float = 0.5,
@@ -282,8 +282,8 @@ def solve_cs(
     L: int = 3,
     max_iterations: int = 1000,
     tolerance: float = 1e-6,
-    random_state: Optional[int] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    random_state: int | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve the unfolding problem using Compressive Sensing (CS).
 
     The spectrum ``x`` is represented sparsely in a learned dictionary ``D`` as
@@ -409,17 +409,17 @@ def solve_cs(
 # unfold_cs wrapper
 # ---------------------------------------------------------------------------
 def unfold_cs(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    n_atoms: Optional[int] = None,
-    sparsity: Optional[int] = None,
-    dictionary: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    n_atoms: int | None = None,
+    sparsity: int | None = None,
+    dictionary: np.ndarray | None = None,
     n_dictionary_iterations: int = 20,
     sigma_min: float = 0.01,
     sigma_decrease_factor: float = 0.5,
@@ -431,8 +431,8 @@ def unfold_cs(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Compressive Sensing (CS).
 
     Parameters

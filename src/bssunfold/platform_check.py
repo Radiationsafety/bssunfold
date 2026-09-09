@@ -5,7 +5,7 @@ and proxsuite which are not available on Windows.
 """
 
 import sys
-from typing import Any, Dict
+from typing import Any
 
 __all__ = [
     "is_windows",
@@ -143,7 +143,7 @@ def check_docplex_availability() -> bool:
         return False
 
 
-def get_available_solvers() -> Dict[str, Any]:
+def get_available_solvers() -> dict[str, Any]:
     """Get dictionary of available solvers with their status.
 
     Returns

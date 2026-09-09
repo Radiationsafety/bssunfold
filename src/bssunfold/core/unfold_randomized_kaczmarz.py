@@ -6,7 +6,7 @@ convergence than the deterministic cyclic variant for ill-conditioned
 systems.  See Strohmer & Vershynin (2009).
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -23,8 +23,8 @@ def solve_randomized_kaczmarz(
     max_iterations: int = 1000,
     omega: float = 1.0,
     tolerance: float = 1e-6,
-    random_state: Optional[int] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    random_state: int | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the randomized Kaczmarz algorithm.
 
     Parameters
@@ -89,14 +89,14 @@ def solve_randomized_kaczmarz(
 
 
 def unfold_randomized_kaczmarz(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 1000,
     omega: float = 1.0,
     tolerance: float = 1e-6,
@@ -104,8 +104,8 @@ def unfold_randomized_kaczmarz(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the Randomized Kaczmarz algorithm.
 
     Parameters

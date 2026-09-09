@@ -7,7 +7,7 @@ lazily inside the functions that need it.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -34,12 +34,12 @@ class InterpretationResult:
 
     spectrum: np.ndarray
     status: str
-    objective_value: Optional[float]
+    objective_value: float | None
     report: str
-    metrics: Dict[str, Any]
-    tables: Dict[str, Any]
+    metrics: dict[str, Any]
+    tables: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Return ``report`` and ``metrics`` as a plain dictionary."""
         return {
             "spectrum": self.spectrum.tolist(),
@@ -81,7 +81,7 @@ def _df_to_markdown(df: Any, float_format: str = "{:.6g}") -> str:
         cells = [_fmt(row[col], float_format) for col in df.columns]
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
-def _rows_to_frame(rows: List[Dict[str, Any]]):
+def _rows_to_frame(rows: list[dict[str, Any]]):
     """Convert a list of dicts into a DataFrame without pandas at top level."""
     import pandas as pd
 
@@ -92,25 +92,25 @@ def _build_metrics(
     *,
     result: Any,
     x: np.ndarray,
-    E_MeV: Optional[np.ndarray],
+    E_MeV: np.ndarray | None,
     residual_norm: float,
     Q: np.ndarray,
-    model: Dict[str, Any],
-    active_groups: List[int],
-    zero_groups: List[int],
-    bound_duals: Dict[str, float],
-    norm_dual: Optional[float],
-    detector_rows: List[Dict[str, Any]],
-    sensitivity_rows: List[Dict[str, Any]],
+    model: dict[str, Any],
+    active_groups: list[int],
+    zero_groups: list[int],
+    bound_duals: dict[str, float],
+    norm_dual: float | None,
+    detector_rows: list[dict[str, Any]],
+    sensitivity_rows: list[dict[str, Any]],
     robustness_summary: Any,
     relaxation_df: Any,
-    nonneg_rows: List[Dict[str, Any]],
+    nonneg_rows: list[dict[str, Any]],
     scenario_df: Any,
-    sweep_rows: List[Dict[str, Any]],
+    sweep_rows: list[dict[str, Any]],
     capabilities_df: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Assemble the JSON-friendly metrics dictionary."""
-    metrics: Dict[str, Any] = {
+    metrics: dict[str, Any] = {
         "status": result.status,
         "success": bool(result.success),
         "objective_value": result.objective_value,
@@ -141,7 +141,7 @@ def _build_metrics(
     return metrics
 
 
-def _safe_cond(Q: np.ndarray) -> Optional[float]:
+def _safe_cond(Q: np.ndarray) -> float | None:
     try:
         value = float(np.linalg.cond(Q))
     except np.linalg.LinAlgError:
@@ -149,7 +149,7 @@ def _safe_cond(Q: np.ndarray) -> Optional[float]:
     return value if np.isfinite(value) else None
 
 
-def _effective_capabilities(capabilities_df: Any) -> List[str]:
+def _effective_capabilities(capabilities_df: Any) -> list[str]:
     if capabilities_df is None or len(capabilities_df) == 0:
         return []
     if "capability" not in capabilities_df.columns:
@@ -164,10 +164,10 @@ def _effective_capabilities(capabilities_df: Any) -> List[str]:
 
 
 def _detector_importance(
-    sensitivity_rows: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    sensitivity_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Rank detectors by their maximum spectral impact."""
-    by_name: Dict[str, float] = {}
+    by_name: dict[str, float] = {}
     for row in sensitivity_rows:
         name = row["detector"]
         by_name[name] = max(
@@ -180,7 +180,7 @@ def _detector_importance(
     ]
 
 
-def _robustness_metrics(robustness_summary: Any) -> Dict[str, Any]:
+def _robustness_metrics(robustness_summary: Any) -> dict[str, Any]:
     """Summarize the perturbation-robustness frame into scalar metrics."""
     if robustness_summary is None or len(robustness_summary) == 0:
         return {"cases": 0}
@@ -219,7 +219,7 @@ def _robustness_metrics(robustness_summary: Any) -> Dict[str, Any]:
     }
 
 
-def _float_or_none(value: Any) -> Optional[float]:
+def _float_or_none(value: Any) -> float | None:
     if value is None:
         return None
     try:
@@ -228,13 +228,13 @@ def _float_or_none(value: Any) -> Optional[float]:
         return None
 
 
-def _frame_records(frame: Any) -> List[Dict[str, Any]]:
+def _frame_records(frame: Any) -> list[dict[str, Any]]:
     if frame is None or len(frame) == 0:
         return []
     return frame.to_dict(orient="records")
 
 
-def _scenario_metrics(scenario_df: Any) -> List[Dict[str, Any]]:
+def _scenario_metrics(scenario_df: Any) -> list[dict[str, Any]]:
     """Extract compact per-scenario metrics (spectra dropped)."""
     if scenario_df is None or len(scenario_df) == 0:
         return []
@@ -254,25 +254,25 @@ def _scenario_metrics(scenario_df: Any) -> List[Dict[str, Any]]:
 def _build_report(
     *,
     x: np.ndarray,
-    E_MeV: Optional[np.ndarray],
+    E_MeV: np.ndarray | None,
     residual_norm: float,
     summary_df: Any,
     variables_df: Any,
     constraints_df: Any,
     binding_df: Any,
     duals_df: Any,
-    detector_rows: List[Dict[str, Any]],
-    sensitivity_rows: List[Dict[str, Any]],
+    detector_rows: list[dict[str, Any]],
+    sensitivity_rows: list[dict[str, Any]],
     robustness_summary: Any,
     relaxation_df: Any,
-    nonneg_rows: List[Dict[str, Any]],
+    nonneg_rows: list[dict[str, Any]],
     scenario_df: Any,
-    sweep_rows: List[Dict[str, Any]],
-    metrics: Dict[str, Any],
+    sweep_rows: list[dict[str, Any]],
+    metrics: dict[str, Any],
     enforce_norm: bool,
 ) -> str:
     """Render the Markdown report."""
-    sections: List[str] = [
+    sections: list[str] = [
         "# Unfolding interpretation report (pyoptexplain)",
         "",
     ]
@@ -383,9 +383,9 @@ def _build_report(
     return "\n".join(sections)
 
 
-def _conclusions(metrics: Dict[str, Any], enforce_norm: bool) -> List[str]:
+def _conclusions(metrics: dict[str, Any], enforce_norm: bool) -> list[str]:
     """Generate natural-language interpretation bullets."""
-    lines: List[str] = []
+    lines: list[str] = []
 
     active = metrics.get("active_groups") or []
     if active:

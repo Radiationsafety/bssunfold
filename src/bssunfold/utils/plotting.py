@@ -4,7 +4,6 @@ This module provides functions for visualizing spectra, response functions,
 and unfolding results.
 """
 
-from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,14 +20,14 @@ __all__ = [
 def plot_spectrum(
     E_MeV: np.ndarray,
     spectrum: np.ndarray,
-    ax: Optional[plt.Axes] = None,
-    label: Optional[str] = None,
+    ax: plt.Axes | None = None,
+    label: str | None = None,
     log_x: bool = True,
     log_y: bool = False,
     show: bool = True,
-    save_to: Optional[str] = None,
+    save_to: str | None = None,
     **plot_kwargs,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> tuple[plt.Figure, plt.Axes]:
     """Plot a spectrum.
 
     Parameters
@@ -88,13 +87,13 @@ def plot_spectrum(
 
 def plot_response_functions(
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    ax: Optional[plt.Axes] = None,
+    sensitivities: dict[str, np.ndarray],
+    ax: plt.Axes | None = None,
     log_x: bool = True,
     show: bool = True,
-    save_to: Optional[str] = None,
+    save_to: str | None = None,
     **plot_kwargs,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> tuple[plt.Figure, plt.Axes]:
     """Plot detector response functions.
 
     Parameters
@@ -149,16 +148,16 @@ def plot_response_functions(
 def plot_with_uncertainty(
     E_MeV: np.ndarray,
     spectrum: np.ndarray,
-    uncert_min: Optional[np.ndarray] = None,
-    uncert_max: Optional[np.ndarray] = None,
-    uncert_std: Optional[np.ndarray] = None,
-    reference_spectrum: Optional[Dict[str, np.ndarray]] = None,
-    ax: Optional[plt.Axes] = None,
+    uncert_min: np.ndarray | None = None,
+    uncert_max: np.ndarray | None = None,
+    uncert_std: np.ndarray | None = None,
+    reference_spectrum: dict[str, np.ndarray] | None = None,
+    ax: plt.Axes | None = None,
     plot_style: str = "fill_between",
     show: bool = True,
-    save_to: Optional[str] = None,
+    save_to: str | None = None,
     **plot_kwargs,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> tuple[plt.Figure, plt.Axes]:
     """Plot spectrum with uncertainty range.
 
     Parameters
@@ -282,11 +281,11 @@ def plot_with_uncertainty(
 def plot_residuals(
     measured: np.ndarray,
     calculated: np.ndarray,
-    detector_names: Optional[List[str]] = None,
-    ax: Optional[plt.Axes] = None,
+    detector_names: list[str] | None = None,
+    ax: plt.Axes | None = None,
     show: bool = True,
-    save_to: Optional[str] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+    save_to: str | None = None,
+) -> tuple[plt.Figure, plt.Axes]:
     """Plot residuals between measured and calculated readings.
 
     Parameters
@@ -342,15 +341,15 @@ def plot_residuals(
 
 
 def plot_comparison(
-    results: Dict[str, Dict],
-    readings: Dict[str, float],
-    reference_spectrum: Optional[Dict[str, np.ndarray]] = None,
-    figsize: Tuple[int, int] = (8, 8),
-    colors: Optional[List[str]] = None,
-    markers: Optional[List[str]] = None,
+    results: dict[str, dict],
+    readings: dict[str, float],
+    reference_spectrum: dict[str, np.ndarray] | None = None,
+    figsize: tuple[int, int] = (8, 8),
+    colors: list[str] | None = None,
+    markers: list[str] | None = None,
     show: bool = True,
-    save_to: Optional[str] = None,
-) -> Tuple[plt.Figure, np.ndarray]:
+    save_to: str | None = None,
+) -> tuple[plt.Figure, np.ndarray]:
     """Compare multiple unfolded spectra and their effective readings.
 
     Creates a two-panel figure: unfolded spectra (top) and a grouped bar chart

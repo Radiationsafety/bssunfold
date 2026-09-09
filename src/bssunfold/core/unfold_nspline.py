@@ -85,7 +85,8 @@ the standard bssunfold solver API:
   ``Detector.unfold_nspline``).
 """
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -113,7 +114,7 @@ if _trapezoid is None:  # numpy < 2.0 fallback
 
 # Knot presets (Eq. 2 knot sets, MeV) as used in the paper (section
 # "Vosstanovlenie spektrov reaktorov BARS-5, IGRIK, YaGUAR").
-NSPLINE_KNOT_PRESETS: Dict[str, Tuple[float, ...]] = {
+NSPLINE_KNOT_PRESETS: dict[str, tuple[float, ...]] = {
     # BARS-5 reactor channel
     "BARS5_channel": (
         1e-10, 1.3e-7, 3.83e-7, 8e-6, 2e-5, 3e-5, 7.3e-5,
@@ -142,7 +143,7 @@ NSPLINE_KNOT_PRESETS: Dict[str, Tuple[float, ...]] = {
 # ---------------------------------------------------------------------------
 
 
-def auto_knots(E_MeV: np.ndarray, n_segments: int = 12) -> Tuple[float, ...]:
+def auto_knots(E_MeV: np.ndarray, n_segments: int = 12) -> tuple[float, ...]:
     """Build a log-uniform knot grid spanning the energy range of ``E_MeV``.
 
     Parameters
@@ -178,10 +179,10 @@ def auto_knots(E_MeV: np.ndarray, n_segments: int = 12) -> Tuple[float, ...]:
 
 
 def _resolve_knots(
-    knots: Optional[Union[str, Sequence[float]]],
+    knots: str | Sequence[float] | None,
     E_MeV: np.ndarray,
-    n_segments: Optional[int] = None,
-) -> Tuple[Tuple[float, ...], str]:
+    n_segments: int | None = None,
+) -> tuple[tuple[float, ...], str]:
     """Resolve the knot specification to a valid knot tuple.
 
     ``knots`` may be ``None`` (auto log-uniform grid), a preset name from
@@ -232,7 +233,7 @@ def _resolve_knots(
     return tuple(float(x) for x in kn_arr), src
 
 
-def _segment_indices(E: np.ndarray, knots: Tuple[float, ...]) -> np.ndarray:
+def _segment_indices(E: np.ndarray, knots: tuple[float, ...]) -> np.ndarray:
     """Map energy points onto spline segment indices 0..M-1."""
     k = np.searchsorted(np.asarray(knots), E, side="right") - 1
     return np.clip(k, 0, len(knots) - 2)
@@ -386,11 +387,11 @@ def directed_divergence(
 def fit_nspline(
     E: np.ndarray,
     phi: np.ndarray,
-    knots: Union[str, Sequence[float], None] = None,
-    rel_err: Optional[np.ndarray] = None,
+    knots: str | Sequence[float] | None = None,
+    rel_err: np.ndarray | None = None,
     continuity: str = "C0C1",
-    n_segments: Optional[int] = None,
-) -> Tuple[np.ndarray, Dict[str, Any]]:
+    n_segments: int | None = None,
+) -> tuple[np.ndarray, dict[str, Any]]:
     """Approximate a pointwise spectrum by an N-spline (Eqs. 2, 5-7).
 
     Solves the weighted log-domain least-squares problem with continuity
@@ -487,7 +488,7 @@ def fit_nspline(
     resid = w * (G @ X - y)
     rms = float(np.sqrt(np.mean(resid**2)) / max(float(np.mean(w)), 1e-300))
 
-    info: Dict[str, Any] = {
+    info: dict[str, Any] = {
         "knots": kn,
         "knots_source": src,
         "continuity": continuity,
@@ -507,17 +508,17 @@ def fit_nspline(
 def solve_nspline_full(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    E_MeV: Optional[np.ndarray] = None,
-    knots: Union[str, Sequence[float], None] = None,
-    sigma_rel: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    E_MeV: np.ndarray | None = None,
+    knots: str | Sequence[float] | None = None,
+    sigma_rel: np.ndarray | None = None,
     continuity: str = "C0C1",
     max_iterations: int = 200,
     tol: float = 1e-3,
     step_theta: float = 0.1,
     smoothing: bool = True,
-    n_segments: Optional[int] = None,
-) -> Dict[str, Any]:
+    n_segments: int | None = None,
+) -> dict[str, Any]:
     """Full N-spline unfolding with diagnostics (Islamgulov & Lartsev, 2008).
 
     Iteratively minimises the directed divergence H between the measured
@@ -660,7 +661,7 @@ def solve_nspline_full(
         # Keep the activation scale after the shape-only spline fit.
         x *= float(b_v.sum()) / max(float((A_v @ x).sum()), 1e-300)
     else:
-        fit_info: Dict[str, Any] = {}
+        fit_info: dict[str, Any] = {}
 
     b_total = float(b_v.sum())
     eps_scale = 1e-12 * max(b_total, 1e-300)
@@ -675,7 +676,7 @@ def solve_nspline_full(
         """
         return xx * (b_total / max(float((A_v @ xx).sum()), 1e-300))
 
-    def _state(xx: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+    def _state(xx: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
         xx = np.maximum(xx, _PHI_FLOOR)
         Qc_ = np.maximum(A_v @ xx, eps_scale)
         pN_ = Qc_ / max(float(Qc_.sum()), 1e-300)
@@ -804,17 +805,17 @@ def solve_nspline_full(
 def solve_nspline(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    E_MeV: Optional[np.ndarray] = None,
-    knots: Union[str, Sequence[float], None] = None,
-    sigma_rel: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    E_MeV: np.ndarray | None = None,
+    knots: str | Sequence[float] | None = None,
+    sigma_rel: np.ndarray | None = None,
     continuity: str = "C0C1",
     max_iterations: int = 200,
     tol: float = 1e-3,
     step_theta: float = 0.1,
     smoothing: bool = True,
-    n_segments: Optional[int] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    n_segments: int | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve the unfolding problem using the N-spline method.
 
     Thin standard-API wrapper around :func:`solve_nspline_full` returning
@@ -871,28 +872,28 @@ def solve_nspline(
 
 
 def unfold_nspline(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    knots: Union[str, Sequence[float], None] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    knots: str | Sequence[float] | None = None,
     continuity: str = "C0C1",
     relative_uncertainty: float = 0.1,
     max_iterations: int = 200,
     tol: float = 1e-3,
     step_theta: float = 0.1,
     smoothing: bool = True,
-    n_segments: Optional[int] = None,
+    n_segments: int | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the N-spline method (2008).
 
     Detector-facing wrapper of the Islamgulov & Lartsev N-spline /
@@ -955,7 +956,7 @@ def unfold_nspline(
         ``nev_limit``, ``acceptable``, ``stop_reason``, ``fluence``,
         ``mean_energy``, ``knots``, ``knots_source``).
     """
-    diag: Dict[str, Any] = {
+    diag: dict[str, Any] = {
         "continuity": continuity,
         "relative_uncertainty": float(relative_uncertainty),
     }

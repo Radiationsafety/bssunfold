@@ -19,7 +19,8 @@ second pass corrects systematic errors that EM-type methods tend to
 leave behind.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -34,14 +35,14 @@ logger = get_logger("unfold_iterative_refinement")
 def solve_iterative_refinement(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    first_pass_solver: Optional[Callable] = None,
-    second_pass_solver: Optional[Callable] = None,
-    first_pass_kwargs: Optional[Dict[str, Any]] = None,
-    second_pass_kwargs: Optional[Dict[str, Any]] = None,
-    alpha: Optional[float] = None,
+    x0: np.ndarray | None = None,
+    first_pass_solver: Callable | None = None,
+    second_pass_solver: Callable | None = None,
+    first_pass_kwargs: dict[str, Any] | None = None,
+    second_pass_kwargs: dict[str, Any] | None = None,
+    alpha: float | None = None,
     max_alpha_search: int = 20,
-) -> Tuple[np.ndarray, Dict[str, Any]]:
+) -> tuple[np.ndarray, dict[str, Any]]:
     """Solve unfolding problem using iterative refinement (two-pass method).
 
     Parameters
@@ -137,24 +138,24 @@ def solve_iterative_refinement(
 
 
 def unfold_iterative_refinement(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    first_pass_kwargs: Optional[Dict[str, Any]] = None,
-    second_pass_kwargs: Optional[Dict[str, Any]] = None,
-    alpha: Optional[float] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    first_pass_kwargs: dict[str, Any] | None = None,
+    second_pass_kwargs: dict[str, Any] | None = None,
+    alpha: float | None = None,
     max_alpha_search: int = 20,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using iterative refinement.
 
     Parameters

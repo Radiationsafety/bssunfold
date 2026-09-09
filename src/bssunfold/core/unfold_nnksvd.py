@@ -41,7 +41,8 @@ and the comprehensive-score index) live in
 convenience.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 from scipy.optimize import nnls
@@ -69,7 +70,7 @@ def _normalize_dictionary(D: np.ndarray) -> np.ndarray:
     return D / norms
 
 
-def _nnls(A: np.ndarray, b: np.ndarray, max_iter: Optional[int] = None) -> np.ndarray:
+def _nnls(A: np.ndarray, b: np.ndarray, max_iter: int | None = None) -> np.ndarray:
     """Solve ``min || A x - b ||`` s.t. ``x >= 0`` via scipy.optimize.nnls.
 
     Returns a 1-D array shaped like ``A.shape[1]``.
@@ -121,8 +122,8 @@ def solve_tikhonov_nnls(
     y: np.ndarray,
     lambda_tik: float = 0.01,
     prior_wt: float = 0.0,
-    alpha_prior: Optional[np.ndarray] = None,
-    max_iter: Optional[int] = None,
+    alpha_prior: np.ndarray | None = None,
+    max_iter: int | None = None,
 ) -> np.ndarray:
     """Tikhonov-regularized Non-Negative Least Squares.
 
@@ -231,7 +232,7 @@ def solve_nn_omp(
     n, p = D.shape
     alpha = np.zeros(p)
     residual = y.copy()
-    support: List[int] = []
+    support: list[int] = []
 
     # Normalize dictionary columns for atom selection (does not affect NNLS).
     norms = np.linalg.norm(D, axis=0)
@@ -269,8 +270,8 @@ def solve_nnls_topk(
     sparsity: int,
     lambda_tik: float = 0.01,
     prior_wt: float = 0.0,
-    alpha_prior: Optional[np.ndarray] = None,
-    max_iter: Optional[int] = None,
+    alpha_prior: np.ndarray | None = None,
+    max_iter: int | None = None,
 ) -> np.ndarray:
     """NNLS+TopK sparse coding strategy (Xu et al. 2026, proposed method).
 
@@ -363,9 +364,9 @@ def solve_nnksvd(
     lambda_tik: float = 0.01,
     prior_wt: float = 0.5,
     sparse_coder: str = "nnls_topk",
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     tolerance: float = 1e-6,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Non-negative K-SVD dictionary learning.
 
     K-SVD variant with non-negativity constraints on both dictionary
@@ -532,20 +533,20 @@ def solve_nnksvd(
 def solve_nnksvd_unfold(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     n_atoms: int = 15,
     sparsity: int = 2,
-    dictionary: Optional[np.ndarray] = None,
-    training_signals: Optional[np.ndarray] = None,
+    dictionary: np.ndarray | None = None,
+    training_signals: np.ndarray | None = None,
     n_dictionary_iterations: int = 80,
     lambda_tik: float = 0.01,
     prior_wt: float = 0.5,
     sparse_coder: str = "nnls_topk",
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     tolerance: float = 1e-6,
-    n_nnls_iter: Optional[int] = None,
-    E_MeV: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    n_nnls_iter: int | None = None,
+    E_MeV: np.ndarray | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Unfold a neutron spectrum using the non-negative K-SVD pipeline.
 
     Two operating modes:
@@ -757,18 +758,18 @@ def solve_nnksvd_unfold(
 # Detector-level wrapper (for use with the Detector class)
 # ---------------------------------------------------------------------------
 def unfold_nnksvd(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
-    save_result_callback: Callable[[Dict[str, Any]], str],
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
+    save_result_callback: Callable[[dict[str, Any]], str],
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     n_atoms: int = 15,
     sparsity: int = 2,
-    dictionary: Optional[np.ndarray] = None,
-    training_signals: Optional[np.ndarray] = None,
+    dictionary: np.ndarray | None = None,
+    training_signals: np.ndarray | None = None,
     n_dictionary_iterations: int = 80,
     lambda_tik: float = 0.01,
     prior_wt: float = 0.5,
@@ -777,10 +778,10 @@ def unfold_nnksvd(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     tolerance: float = 1e-6,
-    n_nnls_iter: Optional[int] = None,
-) -> Dict[str, Any]:
+    n_nnls_iter: int | None = None,
+) -> dict[str, Any]:
     """Detector-level wrapper for the non-negative K-SVD unfolding method.
 
     See :func:`solve_nnksvd_unfold` for the algorithmic details; this

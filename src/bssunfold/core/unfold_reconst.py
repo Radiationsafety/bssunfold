@@ -11,7 +11,7 @@ RECONST.FOR — Program for neutron spectrum unfolding by statistical
 regularization.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -109,7 +109,7 @@ def _reg1(
     alpha: float,
     beta: float,
     ich: int,
-) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
+) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
     """Build system, invert if ich > 0, return D_inv, FI, SIGMA."""
     D = _build_system_matrix(B, OMO, n, alpha, beta)
 
@@ -262,7 +262,7 @@ def _streg1(
     beta: float,
     pp: float,
     ainf: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Core STREG1 algorithm."""
     sa = np.exp(np.mean(np.log(np.maximum(S, 1e-300))))
     S_norm = S / sa
@@ -354,12 +354,12 @@ def _streg1(
 def solve_reconst(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    E_MeV: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    E_MeV: np.ndarray | None = None,
     pp: float = 1e-3,
     alpha: float = -1.0,
     beta: float = 0.0,
-    sigma_b: Optional[np.ndarray] = None,
+    sigma_b: np.ndarray | None = None,
 ) -> np.ndarray:
     """Solve unfolding problem using Turchin's statistical regularization.
 
@@ -408,14 +408,14 @@ def solve_reconst(
 
 
 def unfold_reconst(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     pp: float = 1e-3,
     alpha: float = -1.0,
     beta: float = 0.0,
@@ -423,8 +423,8 @@ def unfold_reconst(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Turchin's statistical regularization.
 
     Parameters
@@ -458,7 +458,7 @@ def unfold_reconst(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result (default: True).
+        Save result (default: False).
     random_state : int, optional
         Random seed.
 
