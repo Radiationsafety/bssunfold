@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
+
+## [0.23.1] - 2026-09-08
+
+### Changed
+- python 3.11 syntax
+- max_neutron_energy for unfold_parametric
+
 ## [0.23.0] - 2026-09-08
 
 ### Added
