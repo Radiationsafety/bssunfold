@@ -5,7 +5,7 @@ of unfolding methods sequentially, optionally using the result of each method
 as the initial guess for the next.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -15,17 +15,17 @@ logger = get_logger("detector")
 
 
 def unfold_combined(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    pipeline: List[Dict[str, Any]],
+    readings: dict[str, float],
+    pipeline: list[dict[str, Any]],
     calculate_errors: bool = False,
     verbose: bool = True,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Combined unfolding method applying multiple methods sequentially.
 
     Parameters

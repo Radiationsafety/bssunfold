@@ -32,9 +32,10 @@ References:
 
 import signal
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -45,7 +46,7 @@ logger = get_logger("cascade")
 
 
 # Mapping from short method name -> Detector.unfold_* wrapper attribute.
-METHOD_DISPATCH: Dict[str, str] = {
+METHOD_DISPATCH: dict[str, str] = {
     "tsvd": "unfold_tsvd",
     "bayes": "unfold_bayes",
     "cvxpy": "unfold_cvxpy",
@@ -104,15 +105,15 @@ class CascadeStage:
     """
 
     method: str
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
     use_as_initial: bool = True
     use_as_prior: bool = False
     store_intermediate: bool = False
-    quality_threshold: Optional[float] = None
-    max_iterations: Optional[int] = None
+    quality_threshold: float | None = None
+    max_iterations: int | None = None
     timeout: float = 60.0
     coarse: bool = False
-    coarse_bins: Optional[int] = None
+    coarse_bins: int | None = None
 
 
 @dataclass
@@ -125,13 +126,13 @@ class CascadeResult:
     documentation and type-checking convenience.
     """
 
-    spectrum: Optional[np.ndarray]
+    spectrum: np.ndarray | None
     stages_run: int
     total_time: float
-    intermediate_results: Dict[str, Any]
-    quality_metrics: Dict[str, float]
-    method_sequence: List[str]
-    convergence_history: List[Dict[str, float]]
+    intermediate_results: dict[str, Any]
+    quality_metrics: dict[str, float]
+    method_sequence: list[str]
+    convergence_history: list[dict[str, float]]
     status: str
     message: str
 
@@ -166,7 +167,7 @@ def compute_quality_metrics(
     reconstructed_readings: np.ndarray,
     measured_readings: np.ndarray,
     energy: np.ndarray,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Compute quality metrics for a spectrum solution.
 
     Parameters
@@ -242,8 +243,8 @@ def compute_quality_metrics(
 
 
 def select_next_method(
-    current_metrics: Dict[str, float],
-    available_methods: List[str],
+    current_metrics: dict[str, float],
+    available_methods: list[str],
     stage_number: int,
 ) -> str:
     """Select next method based on current quality metrics.
@@ -301,14 +302,14 @@ def _build_response_matrix(detector) -> np.ndarray:
 
 def unfold_cascade(
     detector,
-    readings: Dict[str, float],
-    cascade_stages: Optional[List[CascadeStage]] = None,
+    readings: dict[str, float],
+    cascade_stages: list[CascadeStage] | None = None,
     calculate_errors: bool = False,
     verbose: bool = True,
     save_result: bool = False,
     multi_resolution: bool = False,
-    coarse_bins: Optional[int] = None,
-) -> Dict[str, Any]:
+    coarse_bins: int | None = None,
+) -> dict[str, Any]:
     """Perform cascade unfolding with sequential method refinement.
 
     This function applies unfolding methods in sequence, where each method
@@ -365,8 +366,8 @@ def unfold_cascade(
 
     start_time = time.time()
     current_spectrum = None
-    intermediate_results: Dict[str, Any] = {}
-    convergence_history: List[Dict[str, float]] = []
+    intermediate_results: dict[str, Any] = {}
+    convergence_history: list[dict[str, float]] = []
     stages_run = 0
 
     A = _build_response_matrix(detector)
@@ -374,7 +375,7 @@ def unfold_cascade(
         [readings[d] for d in detector.detector_names]
     )
 
-    coarse_cache: Dict[int, Any] = {}
+    coarse_cache: dict[int, Any] = {}
 
     for stage_idx, stage in enumerate(cascade_stages):
         method_name = stage.method
@@ -551,7 +552,7 @@ def _accepted_params(func) -> set:
     }
 
 
-def create_default_cascade(spectrum_type: str = "general") -> List[CascadeStage]:
+def create_default_cascade(spectrum_type: str = "general") -> list[CascadeStage]:
     """Create default cascade configuration for different spectrum types.
 
     Parameters
@@ -656,15 +657,15 @@ def create_default_cascade(spectrum_type: str = "general") -> List[CascadeStage]
 
 def unfold_adaptive_cascade(
     detector,
-    readings: Dict[str, float],
+    readings: dict[str, float],
     max_stages: int = 5,
     initial_method: str = "tsvd",
     calculate_errors: bool = False,
     verbose: bool = True,
     save_result: bool = False,
     multi_resolution: bool = False,
-    coarse_bins: Optional[int] = None,
-) -> Dict[str, Any]:
+    coarse_bins: int | None = None,
+) -> dict[str, Any]:
     """Perform adaptive cascade unfolding with dynamic method selection.
 
     Starts with an ``initial_method`` and adaptively selects subsequent
@@ -703,9 +704,9 @@ def unfold_adaptive_cascade(
         "parametric2", "hybrid_parametric", "tikhonov_tv", "gravel",
     ]
 
-    cascade_stages: List[CascadeStage] = []
+    cascade_stages: list[CascadeStage] = []
     current_metrics = {"smoothness": 0.5, "chi_square": 10.0, "flux_error": 1.0}
-    convergence_history: List[Dict[str, float]] = []
+    convergence_history: list[dict[str, float]] = []
 
     for stage_idx in range(max_stages):
         used = {s.method for s in cascade_stages}

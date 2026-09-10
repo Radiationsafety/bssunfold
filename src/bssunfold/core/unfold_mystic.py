@@ -13,7 +13,7 @@ precise local convergence.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -55,8 +55,8 @@ def _nonneg_condition(x: np.ndarray) -> float:
 def _build_bounds(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray],
-    ub_cutoff: Optional[np.ndarray] = None,
+    x0: np.ndarray | None,
+    ub_cutoff: np.ndarray | None = None,
 ) -> list:
     """Build non-negativity bounds for population-based solvers.
 
@@ -82,13 +82,13 @@ def solve_mystic(
     alpha: float,
     norm: int = 2,
     solver: str = "fmin_powell",
-    x0: Optional[np.ndarray] = None,
-    maxiter: Optional[int] = None,
-    maxfun: Optional[int] = None,
+    x0: np.ndarray | None = None,
+    maxiter: int | None = None,
+    maxfun: int | None = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
-    E_MeV: Optional[np.ndarray] = None,
-    max_neutron_energy: Optional[float] = None,
+    E_MeV: np.ndarray | None = None,
+    max_neutron_energy: float | None = None,
 ) -> np.ndarray:
     """Solve unfolding problem using mystic.
 
@@ -197,30 +197,30 @@ def solve_mystic(
 
 
 def unfold_mystic(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
     solver: str = "fmin_powell",
-    maxiter: Optional[int] = 2000,
-    maxfun: Optional[int] = 20000,
+    maxiter: int | None = 2000,
+    maxfun: int | None = 20000,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
     regularization_method: str = "manual",
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
-    random_state: Optional[int] = None,
-    max_neutron_energy: Optional[float] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+    max_neutron_energy: float | None = None,
+) -> dict[str, Any]:
     """Unfold using mystic with regularization selection.
 
     Parameters
@@ -258,7 +258,7 @@ def unfold_mystic(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples, default: 100.
     save_result : bool, optional
-        Save result to history, default: True.
+        Save result to history, default: False.
     regularization_method : str, optional
         Method for selecting regularization parameter.
     noise_var : float, optional
@@ -373,18 +373,18 @@ def solve_mystic_hybrid(
     b: np.ndarray,
     alpha: float,
     norm: int = 2,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     global_solver: str = "diffev2",
     local_solver: str = "fmin_powell",
-    global_maxiter: Optional[int] = None,
-    global_maxfun: Optional[int] = None,
-    local_maxiter: Optional[int] = None,
-    local_maxfun: Optional[int] = None,
-    npop: Optional[int] = None,
+    global_maxiter: int | None = None,
+    global_maxfun: int | None = None,
+    local_maxiter: int | None = None,
+    local_maxfun: int | None = None,
+    npop: int | None = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
-    E_MeV: Optional[np.ndarray] = None,
-    max_neutron_energy: Optional[float] = None,
+    E_MeV: np.ndarray | None = None,
+    max_neutron_energy: float | None = None,
 ) -> np.ndarray:
     """Two-stage hybrid solver: global search then local refinement.
 
@@ -586,34 +586,34 @@ def solve_mystic_hybrid(
 
 
 def unfold_mystic_hybrid(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
     global_solver: str = "diffev2",
     local_solver: str = "fmin_powell",
-    global_maxiter: Optional[int] = None,
-    global_maxfun: Optional[int] = None,
-    local_maxiter: Optional[int] = None,
-    local_maxfun: Optional[int] = None,
-    npop: Optional[int] = None,
+    global_maxiter: int | None = None,
+    global_maxfun: int | None = None,
+    local_maxiter: int | None = None,
+    local_maxfun: int | None = None,
+    npop: int | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
     regularization_method: str = "manual",
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
-    random_state: Optional[int] = None,
-    max_neutron_energy: Optional[float] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+    max_neutron_energy: float | None = None,
+) -> dict[str, Any]:
     """Two-stage hybrid unfolding: global search + local refinement.
 
     Stage 1 uses a population-based solver (``diffev2`` by default) with

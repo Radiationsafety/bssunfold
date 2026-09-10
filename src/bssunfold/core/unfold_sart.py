@@ -12,7 +12,8 @@ the update by the back-projected unit image (``A^T 1``); the relaxation
 sequence ``alpha(n)`` controls the step size.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -28,8 +29,8 @@ def solve_sart(
     x0: np.ndarray,
     max_iterations: int = 50,
     tolerance: float = 1e-6,
-    relaxation: Optional[Union[float, Callable[[int], float]]] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    relaxation: float | Callable[[int], float] | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using SART.
 
     Parameters
@@ -114,23 +115,23 @@ def solve_sart(
 
 
 def unfold_sart(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 50,
     tolerance: float = 1e-6,
-    relaxation: Optional[Union[float, Callable[[int], float]]] = None,
+    relaxation: float | Callable[[int], float] | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the SART algorithm.
 
     Parameters

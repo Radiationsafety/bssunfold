@@ -14,7 +14,7 @@ References:
 
 import signal
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -25,7 +25,7 @@ logger = get_logger("composite")
 
 
 # Mapping from short method name -> Detector.unfold_* wrapper attribute.
-METHOD_DISPATCH: Dict[str, str] = {
+METHOD_DISPATCH: dict[str, str] = {
     "tsvd": "unfold_tsvd",
     "bayes": "unfold_bayes",
     "cvxpy": "unfold_cvxpy",
@@ -51,7 +51,7 @@ METHOD_DISPATCH: Dict[str, str] = {
 }
 
 # Default method pools per spectrum-hardness bin (matches the documented table).
-DEFAULT_BIN_METHODS: Dict[str, List[str]] = {
+DEFAULT_BIN_METHODS: dict[str, list[str]] = {
     "very_soft": ["tsvd", "bayes", "cvxpy", "statreg", "lanczos"],
     "soft": ["mlem", "landweber", "bayes_spline", "gravel", "qpsolvers"],
     "intermediate": ["cvxpy", "qpsolvers", "hybrid_parametric", "parametric2"],
@@ -61,7 +61,7 @@ DEFAULT_BIN_METHODS: Dict[str, List[str]] = {
 
 # A curated, fast and robust pool used when no spectrum is supplied for
 # classification (e.g. when only readings are available).
-GENERAL_METHODS: List[str] = [
+GENERAL_METHODS: list[str] = [
     "tsvd",
     "mlem",
     "cvxpy",
@@ -70,7 +70,7 @@ GENERAL_METHODS: List[str] = [
 ]
 
 # Optional base weights per method (1.0 == equal contribution).
-DEFAULT_ENSEMBLE_WEIGHTS: Dict[str, float] = {
+DEFAULT_ENSEMBLE_WEIGHTS: dict[str, float] = {
     "tsvd": 1.0,
     "bayes": 1.0,
     "cvxpy": 1.0,
@@ -123,7 +123,7 @@ def _run_with_timeout(fn: Any, timeout: float) -> Any:
 
 def compute_spectrum_features(
     spectrum: np.ndarray, energy: np.ndarray
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Compute simple discriminating features of a spectrum.
 
     Parameters
@@ -158,7 +158,7 @@ def compute_spectrum_features(
     }
 
 
-def classify_spectrum_by_hardness(features: Dict[str, float]) -> str:
+def classify_spectrum_by_hardness(features: dict[str, float]) -> str:
     """Classify a spectrum into a hardness bin from its features.
 
     Thresholds are applied to ``features['hardness_ratio']`` (mean energy, MeV):
@@ -177,7 +177,7 @@ def classify_spectrum_by_hardness(features: Dict[str, float]) -> str:
     return "very_hard"
 
 
-def _confidence_weight(spectrum: np.ndarray, others: List[np.ndarray]) -> float:
+def _confidence_weight(spectrum: np.ndarray, others: list[np.ndarray]) -> float:
     """Confidence of a single solution relative to the ensemble mean."""
     if not others:
         return 1.0
@@ -190,15 +190,15 @@ def _confidence_weight(spectrum: np.ndarray, others: List[np.ndarray]) -> float:
 
 def unfold_composite(
     detector,
-    readings: Dict[str, float],
+    readings: dict[str, float],
     n_methods: int = 5,
     timeout_per_method: float = 30.0,
     save_result: bool = False,
-    spectrum: Optional[np.ndarray] = None,
-    energy: Optional[np.ndarray] = None,
-    method_names: Optional[List[str]] = None,
-    ensemble_weights: Optional[Dict[str, float]] = None,
-) -> Dict[str, Any]:
+    spectrum: np.ndarray | None = None,
+    energy: np.ndarray | None = None,
+    method_names: list[str] | None = None,
+    ensemble_weights: dict[str, float] | None = None,
+) -> dict[str, Any]:
     """Run an adaptive ensemble of unfolding methods and combine results.
 
     Parameters
@@ -246,9 +246,9 @@ def unfold_composite(
 
     candidates = candidates[:n_methods]
 
-    individual_spectra: Dict[str, np.ndarray] = {}
-    successful_methods: List[str] = []
-    messages: Dict[str, str] = {}
+    individual_spectra: dict[str, np.ndarray] = {}
+    successful_methods: list[str] = []
+    messages: dict[str, str] = {}
 
     for name in candidates:
         func = getattr(detector, METHOD_DISPATCH.get(name, ""), None)
@@ -290,7 +290,7 @@ def unfold_composite(
     # Confidence-weighted combination.
     combined = np.zeros_like(stacked[0])
     total_weight = 0.0
-    used_weights: Dict[str, float] = {}
+    used_weights: dict[str, float] = {}
     for i, name in enumerate(names):
         others = [stacked[j] for j in range(len(names)) if j != i]
         conf = _confidence_weight(stacked[i], others)

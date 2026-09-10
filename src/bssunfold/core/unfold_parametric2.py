@@ -31,7 +31,7 @@ After parametric fitting, the result is refined by directed-divergence
 (I-divergence / Itakura-Saito) iterations.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -74,11 +74,11 @@ def directed_divergence_iteration(
     E: np.ndarray,
     ln_steps: np.ndarray,
     phi0: np.ndarray,
-    b_meas: Optional[np.ndarray] = None,
+    b_meas: np.ndarray | None = None,
     max_iter: int = 200,
     tol_chi2: float = 1.0,
     tol_rel: float = 1e-6,
-) -> Tuple[np.ndarray, int, float, bool]:
+) -> tuple[np.ndarray, int, float, bool]:
     """Refine spectrum via directed-divergence (I-divergence) iterations.
 
     Multiplicative update rule (Itakura-Saito / Csiszar-Tusnady):
@@ -185,18 +185,18 @@ def solve_parametric2(
     b_readings: np.ndarray,
     E: np.ndarray,
     ln_steps: np.ndarray,
-    b_meas: Optional[np.ndarray] = None,
+    b_meas: np.ndarray | None = None,
     optimizer: str = "grid",
-    b_range: Tuple[float, float, int] = _DEFAULT_B_RANGE,
-    Tf_range: Tuple[float, float, int] = _DEFAULT_TF_RANGE,
-    c_range: Tuple[float, float, int] = _DEFAULT_C_RANGE,
+    b_range: tuple[float, float, int] = _DEFAULT_B_RANGE,
+    Tf_range: tuple[float, float, int] = _DEFAULT_TF_RANGE,
+    c_range: tuple[float, float, int] = _DEFAULT_C_RANGE,
     alpha: float = 1e-4,
     solver_backend: str = "auto",
     max_iter_qp: int = 50,
     tol_qp: float = 1e-6,
     max_iter: int = 200,
     tol_chi2: float = 1.0,
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve unfolding using the full BON95 parametric pipeline.
 
     1. Parametric fit using the selected optimizer.
@@ -363,18 +363,18 @@ def solve_parametric2(
 
 
 def unfold_parametric2(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     optimizer: str = "grid",
-    b_range: Tuple[float, float, int] = _DEFAULT_B_RANGE,
-    Tf_range: Tuple[float, float, int] = _DEFAULT_TF_RANGE,
-    c_range: Tuple[float, float, int] = _DEFAULT_C_RANGE,
+    b_range: tuple[float, float, int] = _DEFAULT_B_RANGE,
+    Tf_range: tuple[float, float, int] = _DEFAULT_TF_RANGE,
+    c_range: tuple[float, float, int] = _DEFAULT_C_RANGE,
     alpha: float = 1e-4,
     solver_backend: str = "auto",
     max_iter_qp: int = 50,
@@ -385,8 +385,8 @@ def unfold_parametric2(
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the BON95 parametric method.
 
     Uses the four-component parameterization from Sannikov BON95:

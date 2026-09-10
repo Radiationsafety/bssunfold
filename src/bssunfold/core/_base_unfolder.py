@@ -12,7 +12,8 @@ duplication across all unfold_* methods in the Detector class. It handles:
 7. Result saving
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -52,30 +53,30 @@ def make_solve_wrapper(solve_func, **fixed_params):
 def run_unfolding(
     *,
     # Detector instance data (passed from self)
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
-    save_result_callback: Callable[[Dict[str, Any]], str],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
+    save_result_callback: Callable[[dict[str, Any]], str],
     # User-provided inputs
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray],
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None,
     default_initial: np.ndarray,
     # Core solver
     solve_func: Callable[..., np.ndarray],
-    solve_kwargs: Dict[str, Any],
+    solve_kwargs: dict[str, Any],
     # Method metadata
     method_name: str,
-    extra_output: Optional[Dict[str, Any]] = None,
+    extra_output: dict[str, Any] | None = None,
     # Monte-Carlo options
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     # Result saving
     save_result: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run a complete unfolding workflow with unified logic.
 
     Parameters
@@ -222,10 +223,10 @@ def run_unfolding(
 
 
 def _build_system(
-    readings: Dict[str, float],
-    detector_names: List[str],
-    sensitivities: Dict[str, np.ndarray],
-) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    readings: dict[str, float],
+    detector_names: list[str],
+    sensitivities: dict[str, np.ndarray],
+) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """Build response matrix A and measurement vector b from readings."""
     selected = [name for name in detector_names if name in readings]
     b = np.array([readings[name] for name in selected], dtype=float)
@@ -234,7 +235,7 @@ def _build_system(
 
 
 def _normalize_initial(
-    initial_spectrum: Optional[np.ndarray],
+    initial_spectrum: np.ndarray | None,
     default_initial: np.ndarray,
     n_energy_bins: int,
 ) -> np.ndarray:
@@ -266,11 +267,11 @@ def _standardize_output(
     A: np.ndarray,
     b: np.ndarray,
     E_MeV: np.ndarray,
-    selected: List[str],
-    cc_icrp116: Dict[str, np.ndarray],
+    selected: list[str],
+    cc_icrp116: dict[str, np.ndarray],
     method: str,
-    extra: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Create standardized output dictionary."""
     from .dose_calculation import calculate_dose_rates
 
@@ -298,22 +299,22 @@ def _standardize_output(
 
 
 def _add_montecarlo_uncertainty(
-    output: Dict[str, Any],
+    output: dict[str, Any],
     solve_func: Callable,
-    readings: Dict[str, float],
+    readings: dict[str, float],
     noise_level: float,
     n_montecarlo: int,
     n_energy_bins: int,
-    random_state: Optional[int],
-    solve_kwargs: Dict[str, Any],
-    detector_names: List[str],
-    sensitivities: Dict[str, np.ndarray],
+    random_state: int | None,
+    solve_kwargs: dict[str, Any],
+    detector_names: list[str],
+    sensitivities: dict[str, np.ndarray],
     x0: np.ndarray,
 ) -> None:
     """Run Monte-Carlo uncertainty and update output dict in-place."""
     logger.info(f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples...")
 
-    def _mc_solver(noisy_readings: Dict[str, float], **kwargs) -> np.ndarray:
+    def _mc_solver(noisy_readings: dict[str, float], **kwargs) -> np.ndarray:
         A_noisy, b_noisy, _ = _build_system(
             noisy_readings,
             kwargs["detector_names"],

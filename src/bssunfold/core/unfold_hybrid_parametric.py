@@ -8,7 +8,7 @@ The parametric model provides a physically motivated initial guess,
 which is then refined using iterative methods to better fit the data.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -20,9 +20,9 @@ __all__ = ["solve_hybrid_parametric", "unfold_hybrid_parametric"]
 
 def _parametric_initial_guess(
     E: np.ndarray,
-    readings: Dict[str, float],
-    detector_names: List[str],
-    sensitivities: Dict[str, np.ndarray],
+    readings: dict[str, float],
+    detector_names: list[str],
+    sensitivities: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Generate initial spectrum guess from parametric model.
 
@@ -61,7 +61,7 @@ def _landweber_iteration(
     step_size: float,
     max_iter: int,
     tolerance: float,
-) -> Tuple[np.ndarray, int]:
+) -> tuple[np.ndarray, int]:
     """Single Landweber iteration refinement."""
     x = spectrum.copy()
     for i in range(max_iter):
@@ -81,7 +81,7 @@ def _mlem_iteration(
     b: np.ndarray,
     max_iter: int,
     tolerance: float,
-) -> Tuple[np.ndarray, int]:
+) -> tuple[np.ndarray, int]:
     """Single MLEM iteration refinement."""
     x = spectrum.copy()
     x = np.maximum(x, 1e-15)
@@ -107,7 +107,7 @@ def solve_hybrid_parametric(
     max_iterations: int = 100,
     tolerance: float = 1e-6,
     step_size: float = 0.01,
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve unfolding problem using hybrid parametric-nonparametric method.
 
     Parameters
@@ -190,14 +190,14 @@ def solve_hybrid_parametric(
 
 
 def unfold_hybrid_parametric(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     refinement_method: str = "landweber",
     max_iterations: int = 100,
     tolerance: float = 1e-6,
@@ -206,8 +206,8 @@ def unfold_hybrid_parametric(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using hybrid parametric-nonparametric method.
 
     Parameters
@@ -243,7 +243,7 @@ def unfold_hybrid_parametric(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

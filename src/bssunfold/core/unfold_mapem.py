@@ -18,7 +18,7 @@ priors (after PyTomography's ``QuadraticPrior``, ``LogCoshPrior`` and
 Set ``prior='none'`` to recover plain MLEM.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -40,7 +40,7 @@ def solve_mapem(
     gamma: float = 1.0,
     max_iterations: int = 50,
     tolerance: float = 1e-6,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using penalised EM (OSMAPOSL, one-step-late).
 
     Parameters
@@ -110,14 +110,14 @@ def solve_mapem(
 
 
 def unfold_mapem(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     prior: str = "quadratic",
     beta: float = 1e-3,
     prior_delta: float = 1.0,
@@ -128,8 +128,8 @@ def unfold_mapem(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using penalised EM (MAP-EM).
 
     Parameters

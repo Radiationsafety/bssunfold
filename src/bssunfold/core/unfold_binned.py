@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -31,7 +31,7 @@ _DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 _DEFAULT_LOOKUP = _DATA_DIR / "bin_lookup.json"
 
 # Mapping short name -> Detector.unfold_* attribute.
-METHOD_DISPATCH: Dict[str, str] = {
+METHOD_DISPATCH: dict[str, str] = {
     "tsvd": "unfold_tsvd",
     "bayes": "unfold_bayes",
     "cvxpy": "unfold_cvxpy",
@@ -102,7 +102,7 @@ METHOD_DISPATCH: Dict[str, str] = {
 }
 
 # Aliases that map to a base method with fixed extra params.
-_ALIASES: Dict[str, Tuple[str, Dict[str, Any]]] = {
+_ALIASES: dict[str, tuple[str, dict[str, Any]]] = {
     "unfold_parametric_cvxpy": ("unfold_parametric", {"optimizer": "cvxpy"}),
     "unfold_parametric_qpsolvers": ("unfold_parametric",
                                     {"optimizer": "qpsolvers"}),
@@ -153,7 +153,7 @@ def _run_with_timeout(fn, timeout: float):  # noqa: ANN001
 
 # ── Lookup I/O ────────────────────────────────────────────────────────────
 
-def load_bin_lookup(path: str | Path | None = None) -> Dict[str, Any]:
+def load_bin_lookup(path: str | Path | None = None) -> dict[str, Any]:
     """Load a pre-computed bin lookup table from a JSON file.
 
     Parameters
@@ -176,7 +176,7 @@ def load_bin_lookup(path: str | Path | None = None) -> Dict[str, Any]:
             f"Bin lookup not found at {path}.  "
             "Run ``python tools/build_bin_lookup.py`` to generate it."
         )
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         raw = json.load(fh)
     raw["bin_to_methods"] = {
         int(k): v for k, v in raw["bin_to_methods"].items()
@@ -184,7 +184,7 @@ def load_bin_lookup(path: str | Path | None = None) -> Dict[str, Any]:
     return raw
 
 
-def save_bin_lookup(lookup: Dict[str, Any], path: str | Path) -> None:
+def save_bin_lookup(lookup: dict[str, Any], path: str | Path) -> None:
     """Persist a bin lookup table to JSON."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -207,7 +207,7 @@ def build_bin_lookup(
     references_csv: str | Path,
     n_bins: int = 60,
     top_k: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Analyse benchmark unfolded spectra and build a per-bin method ranking.
 
     Parameters
@@ -260,7 +260,7 @@ def build_bin_lookup(
     if not method_files:
         raise FileNotFoundError(f"No unfold_*.npz files in {spectra_dir}")
 
-    method_data: Dict[str, Dict[str, np.ndarray]] = {}
+    method_data: dict[str, dict[str, np.ndarray]] = {}
     for fpath in method_files:
         method_short = fpath.stem.replace("unfold_", "")
         data = np.load(fpath, allow_pickle=True)
@@ -285,7 +285,7 @@ def build_bin_lookup(
             bin_errors[m_idx, :] = per_bin_accum / count
 
     # ── 4. Rank methods per bin, keep top_k ──────────────────────────────
-    bin_to_methods: Dict[int, List[Tuple[str, float]]] = {}
+    bin_to_methods: dict[int, list[tuple[str, float]]] = {}
     all_method_names: set = set()
 
     for b in range(n_bins):
@@ -311,11 +311,11 @@ def build_bin_lookup(
 def solve_binned(
     A: np.ndarray,
     b: np.ndarray,
-    bin_lookup: Dict[str, Any],
-    methods: Dict[str, Tuple[callable, dict]],
-    x0: Optional[np.ndarray] = None,
+    bin_lookup: dict[str, Any],
+    methods: dict[str, tuple[callable, dict]],
+    x0: np.ndarray | None = None,
     timeout_per_method: float = 30.0,
-) -> Tuple[np.ndarray, Dict[str, Any]]:
+) -> tuple[np.ndarray, dict[str, Any]]:
     """Run candidate methods and assemble a spectrum bin-by-bin.
 
     Parameters
@@ -357,9 +357,9 @@ def solve_binned(
         candidate_names = sorted(seen)
 
     # ── Run each candidate ───────────────────────────────────────────────
-    spectra: Dict[str, np.ndarray] = {}
-    successes: List[str] = []
-    errors: Dict[str, str] = {}
+    spectra: dict[str, np.ndarray] = {}
+    successes: list[str] = []
+    errors: dict[str, str] = {}
 
     for name in candidate_names:
         entry = methods.get(name)
@@ -416,13 +416,13 @@ def solve_binned(
 
 def unfold_binned(
     detector,
-    readings: Dict[str, float],
-    bin_lookup: Optional[Dict[str, Any]] = None,
-    lookup_path: Optional[str | Path] = None,
+    readings: dict[str, float],
+    bin_lookup: dict[str, Any] | None = None,
+    lookup_path: str | Path | None = None,
     timeout_per_method: float = 30.0,
     save_result: bool = False,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Bin-wise adaptive unfolding: best method per energy bin.
 
     Parameters
@@ -462,7 +462,7 @@ def unfold_binned(
 
     # Build solver callables for each candidate method.
     candidate_names = bin_lookup.get("unique_methods", [])
-    solver_dict: Dict[str, Tuple[callable, dict]] = {}
+    solver_dict: dict[str, tuple[callable, dict]] = {}
 
     for name in candidate_names:
         dispatch_name = METHOD_DISPATCH.get(name)
@@ -498,7 +498,7 @@ def unfold_binned(
     computed_readings = A @ spectrum_nonneg
     residual = b - computed_readings
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "energy": energy.copy(),
         "spectrum": spectrum_nonneg,
         "spectrum_absolute": spectrum_nonneg.copy(),

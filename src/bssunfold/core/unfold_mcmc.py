@@ -25,7 +25,7 @@ Key advantages over point-estimate methods:
 4. Robustness: Better handling of ill-posed problems through proper regularization
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -101,7 +101,7 @@ def __getattr__(name: str) -> Any:
     )
 
 
-def _resolve_backends() -> Tuple[Any, Any]:
+def _resolve_backends() -> tuple[Any, Any]:
     """Return the currently active ``(pm, az)`` modules.
 
     Reads the module namespace first so that externally patched stand-ins
@@ -164,7 +164,7 @@ def _ou_correlation_cholesky(n_bins: int, lengthscale: float) -> np.ndarray:
 def _prior_center(
     A_matrix: np.ndarray,
     b_readings: np.ndarray,
-    initial_spectrum: Optional[np.ndarray],
+    initial_spectrum: np.ndarray | None,
     n_energy: int,
 ) -> np.ndarray:
     """Data-driven log-space prior center for the spectrum.
@@ -243,7 +243,7 @@ def _run_nuts_pymc(
     tune: int,
     chains: int,
     target_accept: float,
-    random_state: Optional[int],
+    random_state: int | None,
     progressbar: bool,
 ):
     """Run the NUTS sampler in a way that works across PyMC/ArviZ versions.
@@ -284,11 +284,11 @@ def solve_bayesian_mcmc(
     tune: int = 1000,
     chains: int = 2,
     target_accept: float = 0.95,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     use_hierarchical: bool = False,
-    initial_spectrum: Optional[np.ndarray] = None,
+    initial_spectrum: np.ndarray | None = None,
     progressbar: bool = False,
-) -> Tuple[np.ndarray, Dict[str, Any]]:
+) -> tuple[np.ndarray, dict[str, Any]]:
     """Solve unfolding problem using Bayesian MCMC with NUTS sampler.
 
     The spectrum is modelled on the log scale with a smoothness (Ornstein-
@@ -483,14 +483,14 @@ def solve_bayesian_mcmc(
 
 
 def unfold_mcmc(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     sigma_prior: float = 0.05,
     lambda_prior: float = 0.5,
     lengthscale: float = 3.0,
@@ -503,9 +503,9 @@ def unfold_mcmc(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     progressbar: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Bayesian MCMC with NUTS sampler.
 
     This method implements a full Bayesian approach to neutron spectrum
@@ -651,7 +651,7 @@ def unfold_mcmc(
 
     # The main solve is captured in a holder so its MCMC statistics (trace,
     # samples, diagnostics) can be merged into the standardized output.
-    holder: Dict[str, Any] = {}
+    holder: dict[str, Any] = {}
 
     def _solve_mcmc(A, b, **kwargs):
         x0 = kwargs.get("x0")

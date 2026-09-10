@@ -4,8 +4,9 @@ This module contains the main Detector class which provides methods for
 neutron spectrum unfolding using various algorithms.
 """
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -194,9 +195,9 @@ class Detector:
 
     def __init__(
         self,
-        response_functions: Optional[Union[pd.DataFrame, Dict]] = None,
-        E_MeV: Optional[np.ndarray] = None,
-        sensitivities: Optional[Union[Dict, np.ndarray]] = None,
+        response_functions: pd.DataFrame | dict | None = None,
+        E_MeV: np.ndarray | None = None,
+        sensitivities: dict | np.ndarray | None = None,
         cc_type: str = "ICRP116",
     ):
         """Initialize Detector with response functions.
@@ -254,14 +255,14 @@ class Detector:
         self.cc_icrp116 = get_coefficients(cc_type)
 
         # Initialize results storage
-        self.results_history: Dict[str, Dict[str, Any]] = {}
-        self.current_result: Optional[Dict[str, Any]] = None
+        self.results_history: dict[str, dict[str, Any]] = {}
+        self.current_result: dict[str, Any] | None = None
 
     def _process_input(
         self,
-        response_functions: Optional[Union[pd.DataFrame, Dict]],
-        E_MeV: Optional[np.ndarray],
-        sensitivities: Optional[Union[Dict, np.ndarray]],
+        response_functions: pd.DataFrame | dict | None,
+        E_MeV: np.ndarray | None,
+        sensitivities: dict | np.ndarray | None,
     ) -> pd.DataFrame:
         """Convert various input formats to a unified DataFrame."""
         # Case 1: response_functions is a DataFrame
@@ -386,7 +387,7 @@ class Detector:
         self.cc_icrp116 = get_coefficients(name)
         self.cc_type = name
 
-    def _get_interpolated_cc(self) -> Dict[str, np.ndarray]:
+    def _get_interpolated_cc(self) -> dict[str, np.ndarray]:
         """Get conversion coefficients interpolated to this detector's energy grid.
 
         Returns
@@ -397,14 +398,14 @@ class Detector:
         return interpolate_coefficients(self.cc_icrp116, self.E_MeV)
 
     def _validate_readings(
-        self, readings: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, readings: dict[str, float]
+    ) -> dict[str, float]:
         """Validate detector readings."""
         return validate_readings(readings, self.detector_names)
 
     def _build_system(
-        self, readings: Dict[str, float]
-    ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+        self, readings: dict[str, float]
+    ) -> tuple[np.ndarray, np.ndarray, list[str]]:
         """Build response matrix A and measurement vector b."""
         selected = [name for name in self.detector_names if name in readings]
         b = np.array([readings[name] for name in selected], dtype=float)
@@ -418,10 +419,10 @@ class Detector:
         spectrum: np.ndarray,
         A: np.ndarray,
         b: np.ndarray,
-        selected: List[str],
+        selected: list[str],
         method: str,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create standardized output dictionary."""
         spectrum_nonneg = np.maximum(spectrum, 0)
         computed_readings = A @ spectrum_nonneg
@@ -447,7 +448,7 @@ class Detector:
 
     def _convert_rf_to_matrix_variable_step(
         self, rf_df: pd.DataFrame, Emin: float = 1e-9
-    ) -> Tuple[np.ndarray, np.ndarray, List[str], np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, list[str], np.ndarray]:
         """Convert response functions to matrix with variable step correction."""
         if "E_MeV" in rf_df.columns:
             energies = rf_df["E_MeV"].values
@@ -474,7 +475,7 @@ class Detector:
 
         return rf_matrix, energies, sphere_names, log_steps
 
-    def _save_result(self, result: Dict[str, Any]) -> str:
+    def _save_result(self, result: dict[str, Any]) -> str:
         """Save unfolding result to history."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         method = result.get("method", "unknown")
@@ -488,13 +489,13 @@ class Detector:
         logger.info(f"Result saved with key: {key}")
         return key
 
-    def get_result(self, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_result(self, key: str | None = None) -> dict[str, Any] | None:
         """Get unfolding result from history."""
         if key is None:
             return self.current_result
         return self.results_history.get(key)
 
-    def list_results(self) -> List[str]:
+    def list_results(self) -> list[str]:
         """List all saved result keys."""
         return sorted(self.results_history.keys())
 
@@ -506,8 +507,8 @@ class Detector:
 
     def _normalize_initial_spectrum(
         self,
-        initial_spectrum: Optional[Union[np.ndarray, Dict, pd.DataFrame]],
-    ) -> Optional[np.ndarray]:
+        initial_spectrum: np.ndarray | dict | pd.DataFrame | None,
+    ) -> np.ndarray | None:
         """Normalize initial spectrum to detector's energy grid."""
         if initial_spectrum is None:
             return None
@@ -553,10 +554,10 @@ class Detector:
 
     def _add_noise(
         self,
-        readings: Dict[str, float],
+        readings: dict[str, float],
         noise_level: float = 0.01,
-        random_state: Optional[int] = None,
-    ) -> Dict[str, float]:
+        random_state: int | None = None,
+    ) -> dict[str, float]:
         """Add Gaussian noise to readings.
 
         Parameters
@@ -579,7 +580,7 @@ class Detector:
             for key, value in readings.items()
         }
 
-    def _max_energy_mask(self, max_neutron_energy: Optional[float]) -> np.ndarray:
+    def _max_energy_mask(self, max_neutron_energy: float | None) -> np.ndarray:
         """Boolean mask of energy bins with ``E_MeV <= max_neutron_energy``.
 
         Returns an all-True mask when ``max_neutron_energy`` is ``None``
@@ -602,10 +603,10 @@ class Detector:
 
     def _expand_result(
         self,
-        result: Dict[str, Any],
+        result: dict[str, Any],
         mask: np.ndarray,
-        readings: Dict[str, float],
-    ) -> Dict[str, Any]:
+        readings: dict[str, float],
+    ) -> dict[str, Any]:
         """Expand a reduced-grid unfolding result back to the full energy grid.
 
         Bins excluded by ``mask`` (i.e. ``E_MeV > max_neutron_energy``) are set
@@ -678,8 +679,8 @@ class Detector:
     # Public methods delegated to unfolding modules
     def unfold_cvxpy(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 1e-4,
         norm: int = 2,
         solver: str = "default",
@@ -688,10 +689,10 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         regularization_method: str = "manual",
-        noise_var: Optional[float] = None,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using convex optimization (cvxpy).
 
         Parameters
@@ -713,7 +714,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         regularization_method : str, optional
             Method for selecting regularization parameter.
         noise_var : float, optional
@@ -753,17 +754,17 @@ class Detector:
 
     def unfold_landweber(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using Landweber iteration method.
 
         Parameters
@@ -783,7 +784,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -815,17 +816,17 @@ class Detector:
 
     def unfold_mlem(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using MLEM algorithm.
 
         Parameters
@@ -845,7 +846,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -877,8 +878,8 @@ class Detector:
 
     def unfold_qpsolvers(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 1e-4,
         norm: int = 2,
         solver: str = "osqp",
@@ -887,12 +888,12 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         regularization_method: str = "manual",
-        noise_var: Optional[float] = None,
+        noise_var: float | None = None,
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using qpsolvers with regularization selection.
 
         Parameters
@@ -914,7 +915,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples, default: 100.
         save_result : bool, optional
-            Save result to history, default: True.
+            Save result to history, default: False.
         regularization_method : str, optional
             Method for selecting regularization parameter.
             Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
@@ -961,24 +962,24 @@ class Detector:
 
     def unfold_mystic(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 1e-4,
         norm: int = 2,
         solver: str = "fmin_powell",
-        maxiter: Optional[int] = 2000,
-        maxfun: Optional[int] = 20000,
+        maxiter: int | None = 2000,
+        maxfun: int | None = 20000,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
         regularization_method: str = "manual",
-        noise_var: Optional[float] = None,
+        noise_var: float | None = None,
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using mystic with regularization selection.
 
         Solves ``min ||A x - b||^2 + alpha * ||x||_norm`` subject to
@@ -1008,7 +1009,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples, default: 100.
         save_result : bool, optional
-            Save result to history, default: True.
+            Save result to history, default: False.
         regularization_method : str, optional
             Method for selecting regularization parameter.
             Options: 'manual', 'cosine', 'gcv', 'lcurve', 'dp'.
@@ -1057,28 +1058,28 @@ class Detector:
 
     def unfold_mystic_hybrid(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 1e-4,
         norm: int = 2,
         global_solver: str = "diffev2",
         local_solver: str = "fmin_powell",
-        global_maxiter: Optional[int] = None,
-        global_maxfun: Optional[int] = None,
-        local_maxiter: Optional[int] = None,
-        local_maxfun: Optional[int] = None,
-        npop: Optional[int] = None,
+        global_maxiter: int | None = None,
+        global_maxfun: int | None = None,
+        local_maxiter: int | None = None,
+        local_maxfun: int | None = None,
+        npop: int | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
         regularization_method: str = "manual",
-        noise_var: Optional[float] = None,
+        noise_var: float | None = None,
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Two-stage hybrid unfolding: global search + local refinement.
 
         Stage 1 uses a population-based solver (``diffev2`` by default)
@@ -1173,8 +1174,8 @@ class Detector:
 
     def unfold_genetic(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         solver: str = "pso",
         epoch: int = 500,
         pop_size: int = 50,
@@ -1184,10 +1185,10 @@ class Detector:
         smoothness_weight: float = 1.0,
         entropy_weight: float = 0.0,
         n_runs: int = 1,
-        early_stop: Optional[int] = None,
+        early_stop: int | None = None,
         half_range: float = 2.0,
         two_step: bool = False,
-        n_coarse: Optional[int] = None,
+        n_coarse: int | None = None,
         smoother: str = "none",
         sigma_smooth: float = 2.0,
         crossover: str = "single",
@@ -1197,10 +1198,10 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
+        random_state: int | None = None,
         verbose: bool = False,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using a meta-heuristic (evolutionary) algorithm.
 
         The optimizer searches in log space seeded with a Landweber
@@ -1321,8 +1322,8 @@ class Detector:
 
     def unfold_smt(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         nonneg: bool = True,
         timeout_ms: int = 10000,
         objective: str = "l2",
@@ -1330,9 +1331,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold a neutron spectrum using an SMT solver.
 
         Minimizes ``||A x - b||_2`` and then the total fluence ``sum(x)``
@@ -1359,7 +1360,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples, default: 100.
         save_result : bool, optional
-            Save result to history, default: True.
+            Save result to history, default: False.
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -1392,8 +1393,8 @@ class Detector:
 
     def unfold_scip(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 1e-4,
         norm: int = 2,
         timeout: float = 10.0,
@@ -1405,10 +1406,10 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         regularization_method: str = "manual",
-        noise_var: Optional[float] = None,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold a neutron spectrum using the SCIP optimizer.
 
         Minimizes the Tikhonov-regularized least-squares objective
@@ -1440,7 +1441,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples, default: 100.
         save_result : bool, optional
-            Save result to history, default: True.
+            Save result to history, default: False.
         regularization_method : str, optional
             Method for selecting the regularization parameter
             ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
@@ -1484,8 +1485,8 @@ class Detector:
 
     def unfold_docplex(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 1e-4,
         norm: int = 2,
         timeout: float = 10.0,
@@ -1497,10 +1498,10 @@ class Detector:
         n_montecarlo: int = 100,
         save_result: bool = False,
         regularization_method: str = "manual",
-        noise_var: Optional[float] = None,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold a neutron spectrum using CPLEX (docplex).
 
         Minimizes the Tikhonov-regularized least-squares objective
@@ -1533,7 +1534,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples, default: 100.
         save_result : bool, optional
-            Save result to history, default: True.
+            Save result to history, default: False.
         regularization_method : str, optional
             Method for selecting the regularization parameter
             ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
@@ -1577,11 +1578,11 @@ class Detector:
 
     def unfold_cs(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        n_atoms: Optional[int] = None,
-        sparsity: Optional[int] = None,
-        dictionary: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        n_atoms: int | None = None,
+        sparsity: int | None = None,
+        dictionary: np.ndarray | None = None,
         n_dictionary_iterations: int = 20,
         sigma_min: float = 0.01,
         sigma_decrease_factor: float = 0.5,
@@ -1593,9 +1594,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Compressive Sensing (CS).
 
         The spectrum is represented sparsely in a learned dictionary (K-SVD),
@@ -1677,25 +1678,25 @@ class Detector:
 
     def unfold_nnksvd(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         n_atoms: int = 15,
         sparsity: int = 2,
-        dictionary: Optional[np.ndarray] = None,
-        training_signals: Optional[np.ndarray] = None,
+        dictionary: np.ndarray | None = None,
+        training_signals: np.ndarray | None = None,
         n_dictionary_iterations: int = 80,
         lambda_tik: float = 0.01,
         prior_wt: float = 0.5,
         sparse_coder: str = "nnls_topk",
         tolerance: float = 1e-6,
-        n_nnls_iter: Optional[int] = None,
+        n_nnls_iter: int | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Non-negative K-SVD (NN-KSVD).
 
         Implements the BNCT epithermal neutron spectrum unfolding method
@@ -1805,8 +1806,8 @@ class Detector:
 
     def unfold_reconst(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         pp: float = 1e-3,
         alpha: float = -1.0,
         beta: float = 0.0,
@@ -1814,9 +1815,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Turchin's statistical regularization.
 
         Pure numpy port of the RECONST.FOR algorithm (STREG1).
@@ -1843,7 +1844,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -1876,24 +1877,24 @@ class Detector:
 
     def unfold_lmfit(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         method: str = "lbfgsb",
         model_name: str = "elastic",
         regularization: float = 1e-4,
         regularization2: float = 1e-4,
         l1_weight: float = 0.5,
         regularization_method: str = "manual",
-        lambda_range: Tuple[float, float] = (1e-6, 1e-1),
+        lambda_range: tuple[float, float] = (1e-6, 1e-1),
         n_lambda: int = 30,
         verbose: bool = True,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
 
         Parameters
@@ -1934,7 +1935,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples for error estimation, default: 100.
         save_result : bool, optional
-            If True, save result to internal history, default: True.
+            If True, save result to internal history, default: False.
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -1973,17 +1974,17 @@ class Detector:
 
     def unfold_mlem_odl(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         tolerance: float = 1e-6,
         max_iterations: int = 1000,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using MLEM with ODL (Operator Discretization Library).
 
         Requires the 'odl' package to be installed.
@@ -2005,7 +2006,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte Carlo samples for error calculation. Default is 100.
         save_result : bool, optional
-            If True, save result to internal history. Default is True.
+            If True, save result to internal history. Default is False.
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -2037,8 +2038,8 @@ class Detector:
 
     def unfold_imaxed(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         sigma_factor: float = 0.1,
         max_iterations: int = 5000,
         tolerance: float = 1e-8,
@@ -2047,9 +2048,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using the IMAXED algorithm (Wong 2024)."""
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -2076,10 +2077,10 @@ class Detector:
 
     def unfold_amaxed(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         sigma_factor: float = 0.1,
-        target_chi2: Optional[float] = None,
+        target_chi2: float | None = None,
         max_iterations: int = 5000,
         tolerance: float = 1e-8,
         line_search_tol: float = 1e-6,
@@ -2087,9 +2088,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using the AMAXED algorithm (Wong 2024)."""
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -2117,8 +2118,8 @@ class Detector:
 
     def unfold_amaxed_regularization(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         sigma_factor: float = 0.1,
         tau: float = 1.0,
         max_iterations: int = 5000,
@@ -2128,9 +2129,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using the AMAXED-Regularization algorithm (Wong 2024)."""
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -2158,11 +2159,11 @@ class Detector:
 
     def unfold_odl_pdhg(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 100,
-        tau: Optional[float] = None,
-        sigma: Optional[float] = None,
+        tau: float | None = None,
+        sigma: float | None = None,
         use_tv: bool = True,
         tv_weight: float = 0.1,
         nonnegativity: bool = True,
@@ -2170,9 +2171,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using the Primal-Dual Hybrid Gradient (PDHG) algorithm."""
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -2201,8 +2202,8 @@ class Detector:
 
     def unfold_odl_douglas_rachford(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 100,
         use_tv: bool = True,
         tv_weight: float = 0.1,
@@ -2211,9 +2212,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using Douglas-Rachford splitting."""
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -2240,10 +2241,10 @@ class Detector:
 
     def unfold_qubo(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         n_bits: int = 6,
-        max_value: Optional[float] = None,
+        max_value: float | None = None,
         regularization: float = 0.01,
         max_iterations: int = 1000,
         annealing_time: int = 1000,
@@ -2252,9 +2253,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 50,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using a QUBO formulation with quantum-inspired annealing."""
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -2283,8 +2284,8 @@ class Detector:
 
     def unfold_zfit(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 100,
         use_mcmc: bool = False,
         n_samples: int = 1000,
@@ -2294,9 +2295,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using zfit Bayesian inference."""
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -2324,18 +2325,18 @@ class Detector:
 
     def unfold_mlem_stop(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 15000,
         cps_crossover: float = 30000.0,
-        j_threshold: Optional[float] = None,
+        j_threshold: float | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold using MLEM-STOP with J-factor early stopping criterion.
 
         Uses the modified MLEM-STOP method from Montgomery et al. (2020).
@@ -2362,7 +2363,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -2395,27 +2396,27 @@ class Detector:
 
     def unfold_epic(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        target_sigmas: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        target_sigmas: np.ndarray | None = None,
         sigma_frac: float = 0.1,
         regularization_order: int = 1,
         non_neg: bool = True,
-        noise_var: Optional[float] = None,
+        noise_var: float | None = None,
         homogeneous_step: bool = True,
-        regularize: Optional[Dict[str, Any]] = None,
+        regularize: dict[str, Any] | None = None,
         beta_shift_k: float = 0,
         beta_distance: float = 2,
-        EPIC_bool: Optional[np.ndarray] = None,
-        V: Optional[np.ndarray] = None,
-        LSQpar: Optional[Dict[str, Any]] = None,
+        EPIC_bool: np.ndarray | None = None,
+        V: np.ndarray | None = None,
+        LSQpar: dict[str, Any] | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold a neutron spectrum using EPIC Tikhonov regularization.
 
         Selects the prior variances of the regularization operator such that the
@@ -2509,12 +2510,12 @@ class Detector:
 
     def unfold_combined(
         self,
-        readings: Dict[str, float],
-        pipeline: List[Dict[str, Any]],
+        readings: dict[str, float],
+        pipeline: list[dict[str, Any]],
         calculate_errors: bool = False,
         verbose: bool = True,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any] | None:
         """Combined unfolding method applying multiple methods sequentially.
 
         Parameters
@@ -2551,15 +2552,15 @@ class Detector:
 
     def unfold_cascade(
         self,
-        readings: Dict[str, float],
-        cascade_stages: Optional[List[CascadeStage]] = None,
+        readings: dict[str, float],
+        cascade_stages: list[CascadeStage] | None = None,
         calculate_errors: bool = False,
         verbose: bool = True,
         save_result: bool = False,
         multi_resolution: bool = False,
-        coarse_bins: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        coarse_bins: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Cascade unfolding with sequential method refinement.
 
         Applies unfolding methods in sequence; each stage may use the previous
@@ -2586,16 +2587,16 @@ class Detector:
 
     def unfold_composite(
         self,
-        readings: Dict[str, float],
+        readings: dict[str, float],
         n_methods: int = 5,
         timeout_per_method: float = 30.0,
         save_result: bool = False,
-        spectrum: Optional[np.ndarray] = None,
-        energy: Optional[np.ndarray] = None,
-        method_names: Optional[List[str]] = None,
-        ensemble_weights: Optional[Dict[str, float]] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        spectrum: np.ndarray | None = None,
+        energy: np.ndarray | None = None,
+        method_names: list[str] | None = None,
+        ensemble_weights: dict[str, float] | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Adaptive ensemble of unfolding methods with confidence-weighted combination.
 
         Classifies the unknown spectrum by hardness, runs a pool of suitable
@@ -2619,13 +2620,13 @@ class Detector:
 
     def unfold_binned(
         self,
-        readings: Dict[str, float],
-        bin_lookup: Optional[Dict[str, Any]] = None,
-        lookup_path: Optional[str] = None,
+        readings: dict[str, float],
+        bin_lookup: dict[str, Any] | None = None,
+        lookup_path: str | None = None,
         timeout_per_method: float = 30.0,
         save_result: bool = False,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Bin-wise adaptive unfolding: best method per energy bin.
 
         For each of the 60 energy bins, selects the unfolding method that
@@ -2673,8 +2674,8 @@ class Detector:
 
     def unfold_interpret(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 1e-4,
         norm: int = 2,
         smoothness_order: int = 0,
@@ -2682,16 +2683,16 @@ class Detector:
         enforce_norm: bool = False,
         norm_value: float = 1.0,
         regularization_method: str = "manual",
-        noise_var: Optional[float] = None,
+        noise_var: float | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
+        random_state: int | None = None,
         tolerance: float = 1e-8,
-        interpret_options: Optional[Dict[str, Any]] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        interpret_options: dict[str, Any] | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold a neutron spectrum and interpret the solution with pyoptexplain.
 
         Solves the same unfolding QP as :meth:`unfold_qpsolvers` through
@@ -2778,16 +2779,16 @@ class Detector:
 
     def interpret_result(
         self,
-        readings: Dict[str, float],
+        readings: dict[str, float],
         alpha: float = 1e-4,
         norm: int = 2,
         smoothness_order: int = 0,
         smoothness_weight: float = 1.0,
         enforce_norm: bool = False,
         norm_value: float = 1.0,
-        max_neutron_energy: Optional[float] = None,
+        max_neutron_energy: float | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Interpret a set of detector readings without unfolding.
 
         Builds the response matrix from ``readings`` and runs
@@ -2853,14 +2854,14 @@ class Detector:
 
     # Utility methods
     def discretize_spectra(
-        self, spectra: Union[pd.DataFrame, Dict]
+        self, spectra: pd.DataFrame | dict
     ) -> pd.DataFrame:
         """Interpolate spectra onto target energy grid."""
         return discretize_spectra(spectra, self.E_MeV)
 
     def get_effective_readings_for_spectra(
-        self, spectra: Union[pd.DataFrame, Dict]
-    ) -> Dict[str, float]:
+        self, spectra: pd.DataFrame | dict
+    ) -> dict[str, float]:
         """Calculate effective readings for a given spectrum."""
         if isinstance(spectra, dict):
             spectra_df = pd.DataFrame(spectra)
@@ -2922,7 +2923,7 @@ class Detector:
     def _save_figure(
         self,
         fig: "Any",
-        save_to: Optional[str] = None,
+        save_to: str | None = None,
         dpi: int = 300,
         bbox_inches: str = "tight",
         **savefig_kwargs,
@@ -2945,8 +2946,8 @@ class Detector:
 
     def unfold_doroshenko(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
         regularization: float = 0.0,
@@ -2954,9 +2955,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the Doroshenko coordinate update method.
 
         Parameters
@@ -2978,7 +2979,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples for error estimation, default: 100
         save_result : bool, optional
-            If True, save result to internal history, default: True
+            If True, save result to internal history, default: False
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3011,8 +3012,8 @@ class Detector:
 
     def unfold_directed_divergence(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 200,
         tol_chi2: float = 1.0,
         tol_rel: float = 1e-6,
@@ -3023,9 +3024,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold sphere readings with the directed-divergence iteration."""
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_directed_divergence_impl(
@@ -3053,10 +3054,10 @@ class Detector:
 
     def unfold_express(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         n_groups: int = 6,
-        interval_boundaries: Optional[np.ndarray] = None,
+        interval_boundaries: np.ndarray | None = None,
         max_iterations: int = 3,
         tol_iteration: float = 0.05,
         relative_uncertainty: float = 0.05,
@@ -3064,9 +3065,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold sphere readings with the piecewise-exponential Express model."""
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_express_impl(
@@ -3093,8 +3094,8 @@ class Detector:
 
     def unfold_kaczmarz(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 1000,
         omega: float = 1.0,
         tolerance: float = 1e-6,
@@ -3102,9 +3103,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the Kaczmarz algorithm (ART).
 
         Parameters
@@ -3126,7 +3127,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples for error estimation, default: 100
         save_result : bool, optional
-            If True, save result to internal history, default: True
+            If True, save result to internal history, default: False
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3159,8 +3160,8 @@ class Detector:
 
     def unfold_randomized_kaczmarz(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 1000,
         omega: float = 1.0,
         tolerance: float = 1e-6,
@@ -3168,9 +3169,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the Randomized Kaczmarz algorithm.
 
         Row selection is probabilistic with probability proportional to the
@@ -3231,8 +3232,8 @@ class Detector:
 
     def unfold_gravel(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         tolerance: float = 1e-8,
         max_iterations: int = 1000,
         regularization: float = 0.0,
@@ -3240,9 +3241,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the GRAVEL algorithm.
 
         Parameters
@@ -3264,7 +3265,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3297,8 +3298,8 @@ class Detector:
 
     def unfold_maxed(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         sigma_factor: float = 0.01,
         max_iterations: int = 5000,
         tolerance: float = 1e-6,
@@ -3306,9 +3307,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the MAXED algorithm.
 
         Parameters
@@ -3330,7 +3331,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3363,17 +3364,17 @@ class Detector:
 
     def unfold_tikhonov_legendre(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         delta: float = 0.05,
         n_polynomials: int = 15,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Tikhonov regularization with Legendre basis.
 
         Parameters
@@ -3393,7 +3394,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3425,17 +3426,17 @@ class Detector:
 
     def unfold_bayes(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 4000,
         tolerance: float = 1e-3,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Bayesian iterative unfolding (D'Agostini).
 
         Parameters
@@ -3455,7 +3456,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3487,8 +3488,8 @@ class Detector:
 
     def unfold_bayes_spline_regularization(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 4000,
         tolerance: float = 1e-3,
         spline_degree: int = 3,
@@ -3497,9 +3498,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Bayesian iterative unfolding with
         spline regularization.
 
@@ -3524,7 +3525,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3558,20 +3559,20 @@ class Detector:
 
     def unfold_statreg(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         unfoldermethod: str = "EmpiricalBayes",
-        regularization: Optional[float] = None,
+        regularization: float | None = None,
         basis_name: str = "CubicSplines",
-        boundary: Optional[str] = None,
+        boundary: str | None = None,
         derivative_degree: int = 2,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Turchin's method of statistical regularization.
 
         Parameters
@@ -3598,7 +3599,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3633,8 +3634,8 @@ class Detector:
 
     def unfold_scipy_direct_method(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         tolerance: float = 1e-8,
         max_iterations: int = 4000,
         method: str = "cg",
@@ -3642,9 +3643,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using scipy linear solvers.
 
         Parameters
@@ -3666,7 +3667,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3699,18 +3700,18 @@ class Detector:
 
     def unfold_tsvd(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         method: str = "discrepancy",
-        k: Optional[int] = None,
-        threshold: Optional[float] = None,
-        noise_level: Optional[float] = None,
+        k: int | None = None,
+        threshold: float | None = None,
+        noise_level: float | None = None,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Truncated SVD (TSVD).
 
         Parameters
@@ -3733,7 +3734,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -3766,18 +3767,18 @@ class Detector:
 
     def unfold_lanczos(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization_method: str = "gcv",
-        max_iterations: Optional[int] = None,
+        max_iterations: int | None = None,
         regularization: float = 1e-8,
-        noise_level: Optional[float] = None,
+        noise_level: float | None = None,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the Lanczos-hybrid (Krylov) method.
 
         Performs Golub-Kahan (Lanczos-type) bidiagonalization of the
@@ -3842,19 +3843,19 @@ class Detector:
 
     def unfold_cgls(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 100,
         tolerance: float = 1e-12,
         regularization: float = 0.0,
         smoothness_order: int = 0,
-        noise_level: Optional[float] = None,
+        noise_level: float | None = None,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the CGLS iterative method.
 
         CGLS (Conjugate Gradient for Least Squares) solves the least
@@ -3923,19 +3924,19 @@ class Detector:
 
     def unfold_gks(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        max_iterations: Optional[int] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int | None = None,
         smoothness_order: int = 2,
         regularization_method: str = "gcv",
         regularization: float = 1e-8,
-        noise_level: Optional[float] = None,
+        noise_level: float | None = None,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the GKS Krylov-hybrid method.
 
         GKS (Golub-Kahan hybrid) performs Lanczos-type bidiagonalization
@@ -4005,22 +4006,22 @@ class Detector:
 
     def unfold_tikhonov_tv(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        epsilon: Optional[float] = None,
-        mu: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        epsilon: float | None = None,
+        mu: tuple[float, float, float] = (1.0, 1.0, 1.0),
         max_iterations: int = 100,
         type_: str = "TT",
         beta: float = 1.0,
         zthr: float = 2.5,
         tolerance: float = 1e-4,
-        noise_level: Optional[float] = None,
+        noise_level: float | None = None,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum with noise-constrained Tikhonov-TV.
 
         Solves ``min f(x)`` subject to ``||A x - b||^2 = epsilon`` with the
@@ -4098,8 +4099,8 @@ class Detector:
 
     def unfold_sandii(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 50,
         tolerance: float = 1e-3,
         chi_fac: int = 1,
@@ -4108,9 +4109,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the SAND-II algorithm.
 
         Parameters
@@ -4171,16 +4172,16 @@ class Detector:
 
     def unfold_crystal_ball(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         regularization: float = 0.0,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the CRYSTAL BALL algorithm.
 
         CRYSTAL BALL is a direct (non-iterative) method that represents the
@@ -4235,18 +4236,18 @@ class Detector:
 
     def unfold_rfsp_jul(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 200,
         tolerance: float = 1e-4,
-        weights: Optional[np.ndarray] = None,
+        weights: np.ndarray | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the RFSP-JUL algorithm.
 
         RFSP-JUL is an iterative, damped least-squares method minimising a
@@ -4308,17 +4309,17 @@ class Detector:
 
     def unfold_staysl(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         relative_uncertainty: float = 0.1,
         prior_uncertainty: float = 1.0,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the STAY'SL Bayesian algorithm.
 
         STAY'SL is a single-step linear Bayesian least-squares update that
@@ -4377,8 +4378,8 @@ class Detector:
 
     def unfold_bunki(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         smoothing: float = 0.1,
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
@@ -4386,9 +4387,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the BUNKI (SPUNIT) algorithm.
 
         Parameters
@@ -4443,8 +4444,8 @@ class Detector:
 
     def unfold_bunkiut(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         smoothing: float = 0.05,
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
@@ -4452,9 +4453,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the BUNKI-UT (BON31G) algorithm.
 
         Parameters
@@ -4509,8 +4510,8 @@ class Detector:
 
     def unfold_ferdor(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 100,
         tolerance: float = 1e-3,
         smoothing: float = 1e-3,
@@ -4520,9 +4521,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the FERDOR algorithm.
 
         FERDOR (ORNL; Burrus, ORNL-4154) is a constrained least-squares
@@ -4590,8 +4591,8 @@ class Detector:
 
     def unfold_rebunki(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         smoothing: float = 0.1,
         max_iterations: int = 1000,
         tolerance: float = 0.01,
@@ -4599,9 +4600,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the ReBUNKI (SPUNIT) algorithm.
 
         ReBUNKI (Lacerda et al., 2018) is a modern open reimplementation of
@@ -4661,11 +4662,11 @@ class Detector:
 
     def unfold_nsduaz(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        catalogue: Optional[Dict[str, np.ndarray]] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        catalogue: dict[str, np.ndarray] | None = None,
         use_catalogue: bool = True,
-        reference_name: Optional[str] = None,
+        reference_name: str | None = None,
         smoothing: float = 0.1,
         max_iterations: int = 1000,
         tolerance: float = 0.01,
@@ -4673,9 +4674,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the NSDUAZ algorithm.
 
         NSDUAZ (Universidad Autonoma de Zacatecas; Ortiz-Rodriguez &
@@ -4751,23 +4752,23 @@ class Detector:
 
     def unfold_nspline(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        knots: Optional[Any] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        knots: Any | None = None,
         continuity: str = "C0C1",
         relative_uncertainty: float = 0.1,
         max_iterations: int = 200,
         tol: float = 1e-3,
         step_theta: float = 0.1,
         smoothing: bool = True,
-        n_segments: Optional[int] = None,
+        n_segments: int | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the N-spline method (2008).
 
         Implements Islamgulov & Lartsev (Atomic Energy 104(5), 295-302,
@@ -4858,8 +4859,8 @@ class Detector:
 
     def unfold_mcmc(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         sigma_prior: float = 0.05,
         lambda_prior: float = 0.5,
         lengthscale: float = 3.0,
@@ -4872,10 +4873,10 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
+        random_state: int | None = None,
         progressbar: bool = False,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Bayesian MCMC with NUTS sampler.
 
         Full Bayesian unfolding with the No-U-Turn Sampler (NUTS). The method
@@ -4977,21 +4978,21 @@ class Detector:
 
     def unfold_maeo(
         self,
-        readings: Dict[str, float],
+        readings: dict[str, float],
         n_cycles: int = 20,
         n_gen_per_cycle: int = 10,
         pop_size: int = 100,
-        algorithms: Optional[List[str]] = None,
+        algorithms: list[str] | None = None,
         lambda_smooth: float = 0.01,
-        prior_spectrum: Optional[np.ndarray] = None,
-        initial_spectrum: Optional[np.ndarray] = None,
+        prior_spectrum: np.ndarray | None = None,
+        initial_spectrum: np.ndarray | None = None,
         convergence_assist_ratio: float = 0.2,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         verbose: bool = False,
         save_result: bool = False,
-        max_neutron_energy: Optional[float] = None,
+        max_neutron_energy: float | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using MAEO ensemble optimization.
 
         This method implements the Multiobjective Animorphic Ensemble Optimization
@@ -5140,8 +5141,8 @@ class Detector:
 
     def unfold_osem(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 50,
         n_subsets: int = 1,
         tolerance: float = 1e-6,
@@ -5149,9 +5150,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the OSEM algorithm.
 
         Parameters
@@ -5207,8 +5208,8 @@ class Detector:
 
     def unfold_mapem(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         prior: str = "quadratic",
         beta: float = 1e-3,
         prior_delta: float = 1.0,
@@ -5219,9 +5220,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using penalised EM (MAP-EM).
 
         Parameters
@@ -5288,8 +5289,8 @@ class Detector:
 
     def unfold_bsrem(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         prior: str = "none",
         beta: float = 1e-3,
         prior_delta: float = 1.0,
@@ -5297,15 +5298,15 @@ class Detector:
         max_iterations: int = 50,
         n_subsets: int = 1,
         tolerance: float = 1e-6,
-        relaxation: Optional[Union[float, Callable[[int], float]]] = None,
+        relaxation: float | Callable[[int], float] | None = None,
         addition_after_iteration: float = 1e-4,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the BSREM algorithm.
 
         Parameters
@@ -5381,18 +5382,18 @@ class Detector:
 
     def unfold_sart(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 50,
         tolerance: float = 1e-6,
-        relaxation: Optional[Union[float, Callable[[int], float]]] = None,
+        relaxation: float | Callable[[int], float] | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the SART algorithm.
 
         Parameters
@@ -5447,8 +5448,8 @@ class Detector:
 
     def unfold_fista(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 500,
         tolerance: float = 1e-8,
         regularization: float = 0.0,
@@ -5457,14 +5458,14 @@ class Detector:
         nonnegativity: bool = True,
         x_min: float = 0.0,
         x_max: float = np.inf,
-        noise_level: Optional[float] = None,
+        noise_level: float | None = None,
         eta: float = 1.01,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using FISTA algorithm.
 
         The Fast Iterative Shrinkage-Thresholding Algorithm (FISTA) is an
@@ -5544,19 +5545,19 @@ class Detector:
 
     def unfold_ensemble(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        methods: Optional[List[Tuple[Callable, Dict[str, Any]]]] = None,
-        weights: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        methods: list[tuple[Callable, dict[str, Any]]] | None = None,
+        weights: np.ndarray | None = None,
         combination: str = "weighted_average",
         trim_fraction: float = 0.2,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using ensemble method.
 
         Combines results from multiple base unfolding methods for robust
@@ -5620,19 +5621,19 @@ class Detector:
 
     def unfold_iterative_refinement(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        first_pass_kwargs: Optional[Dict[str, Any]] = None,
-        second_pass_kwargs: Optional[Dict[str, Any]] = None,
-        alpha: Optional[float] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        first_pass_kwargs: dict[str, Any] | None = None,
+        second_pass_kwargs: dict[str, Any] | None = None,
+        alpha: float | None = None,
         max_alpha_search: int = 20,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using iterative refinement.
 
         Two-pass method: first pass (MLEM) captures gross structure,
@@ -5693,20 +5694,20 @@ class Detector:
 
     def unfold_hybrid_gmres(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 100,
         regularization_method: str = "gcv",
         regularization: float = 0.0,
-        noise_level: Optional[float] = None,
+        noise_level: float | None = None,
         eta: float = 1.01,
         reorthogonalization: bool = True,
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Hybrid GMRES method.
 
         The hybrid GMRES method combines the GMRES iterative solver with
@@ -5775,17 +5776,17 @@ class Detector:
 
     def unfold_fruit_like(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        initial_params: Optional[Dict[str, float]] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        initial_params: dict[str, float] | None = None,
         method: str = "leastsq",
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using FRUIT-like parametric method.
 
         Uses a parametric model with Maxwellian thermal component,
@@ -5809,7 +5810,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -5841,8 +5842,8 @@ class Detector:
 
     def unfold_hybrid_parametric(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         refinement_method: str = "landweber",
         max_iterations: int = 100,
         tolerance: float = 1e-6,
@@ -5851,9 +5852,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using hybrid parametric-nonparametric method.
 
         Combines parametric initial guess with iterative refinement using
@@ -5880,7 +5881,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -5914,8 +5915,8 @@ class Detector:
 
     def unfold_bayesian_parametric(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         sigma: float = 0.02,
         n_samples: int = 1000,
         burn_in: int = 200,
@@ -5924,9 +5925,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Bayesian parametric method.
 
         Uses Bayesian inference with MCMC sampling to estimate spectral
@@ -5953,7 +5954,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -5987,9 +5988,9 @@ class Detector:
 
     def unfold_parametric(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
-        initial_params: Optional[Dict[str, float]] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        initial_params: dict[str, float] | None = None,
         method: str = "leastsq",
         optimizer: str = "lmfit",
         alpha: float = 1e-4,
@@ -6001,9 +6002,9 @@ class Detector:
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the FRUIT-based parametric method.
 
         Uses the three-component parameterization from Bedogni FRUIT /
@@ -6049,7 +6050,7 @@ class Detector:
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
-            Save result to history (default: True).
+            Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
 
@@ -6087,12 +6088,12 @@ class Detector:
 
     def unfold_parametric2(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         optimizer: str = "grid",
-        b_range: Tuple[float, float, int] = (0.5, 2.0, 5),
-        Tf_range: Tuple[float, float, int] = (0.5, 10.0, 5),
-        c_range: Tuple[float, float, int] = (0.5, 3.0, 4),
+        b_range: tuple[float, float, int] = (0.5, 2.0, 5),
+        Tf_range: tuple[float, float, int] = (0.5, 10.0, 5),
+        c_range: tuple[float, float, int] = (0.5, 3.0, 4),
         alpha: float = 1e-4,
         solver_backend: str = "auto",
         max_iter_qp: int = 50,
@@ -6103,8 +6104,9 @@ class Detector:
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using the BON95 parametric method.
 
         Uses the four-component parameterization from Sannikov BON95:
@@ -6155,18 +6157,22 @@ class Detector:
             Save result to history (default: False).
         random_state : int, optional
             Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV. Bins above this energy are excluded
+            from the unfolding and set to zero in the returned spectrum.
 
         Returns
         -------
         Dict[str, Any]
             Unfolding results dictionary.
         """
-        return unfold_parametric2_impl(
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_parametric2_impl(
             detector_names=self.detector_names,
-            n_energy_bins=self.n_energy_bins,
-            E_MeV=self.E_MeV,
-            sensitivities=self.sensitivities,
-            cc_icrp116=self._get_interpolated_cc(),
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
             save_result_callback=self._save_result,
             readings=readings,
             initial_spectrum=initial_spectrum,
@@ -6186,23 +6192,24 @@ class Detector:
             save_result=save_result,
             random_state=random_state,
         )
+        return self._expand_result(result, mask, readings)
 
     def unfold_eki(
         self,
-        readings: Dict[str, float],
-        initial_spectrum: Optional[np.ndarray] = None,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
         n_ensemble: int = 50,
         n_iterations: int = 50,
         regularization: float = 1e-4,
         inflation: float = 1.02,
-        noise_std: Optional[float] = None,
+        noise_std: float | None = None,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
         save_result: bool = False,
-        random_state: Optional[int] = None,
-        max_neutron_energy: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
         """Unfold neutron spectrum using Ensemble Kalman Inversion (EKI).
 
         Approximates the Bayesian posterior without MCMC by propagating an
@@ -6269,7 +6276,7 @@ class Detector:
 
     def plot_response_functions(
         self,
-        save_to: Optional[str] = None,
+        save_to: str | None = None,
         show: bool = True,
         dpi: int = 300,
         bbox_inches: str = "tight",
@@ -6298,12 +6305,12 @@ class Detector:
 
     def plot_with_uncertainty(
         self,
-        result: Dict[str, Any],
-        reference_spectrum: Optional[Dict[str, np.ndarray]] = None,
-        save_to: Optional[str] = None,
+        result: dict[str, Any],
+        reference_spectrum: dict[str, np.ndarray] | None = None,
+        save_to: str | None = None,
         show: bool = True,
         **plot_kwargs,
-    ) -> Tuple["Any", "Any"]:
+    ) -> tuple["Any", "Any"]:
         """Plot unfolded spectrum with uncertainty range.
 
         Parameters
@@ -6346,11 +6353,11 @@ class Detector:
 
     def compare_regularization_methods(
         self,
-        readings: Dict[str, float],
-        noise_var: Optional[float] = None,
+        readings: dict[str, float],
+        noise_var: float | None = None,
         plot: bool = False,
-        plot_path: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        plot_path: str | None = None,
+    ) -> dict[str, Any]:
         """Compare regularization selection methods for given readings.
 
         Parameters
@@ -6377,12 +6384,12 @@ class Detector:
 
     def randomization_experiment(
         self,
-        readings: Dict[str, float],
-        noise_var: Optional[float] = None,
+        readings: dict[str, float],
+        noise_var: float | None = None,
         n_samples: int = 10,
         rseed: int = 0,
-        methods: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        methods: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Run randomization experiments for given readings.
 
         Parameters
@@ -6417,22 +6424,22 @@ class Detector:
     def compare(
         self,
         *spectra: Any,
-        metrics: Optional[Union[str, List[str]]] = None,
-        labels: Optional[List[str]] = None,
-        readings1: Optional[np.ndarray] = None,
-        readings2: Optional[np.ndarray] = None,
-        response_matrix: Optional[np.ndarray] = None,
+        metrics: str | list[str] | None = None,
+        labels: list[str] | None = None,
+        readings1: np.ndarray | None = None,
+        readings2: np.ndarray | None = None,
+        response_matrix: np.ndarray | None = None,
         plot: bool = False,
-        save_to: Optional[str] = None,
+        save_to: str | None = None,
         dpi: int = 300,
-        figsize: Tuple[int, int] = (14, 5),
+        figsize: tuple[int, int] = (14, 5),
         return_fig: bool = False,
         **plot_kwargs,
-    ) -> Union[
-        Dict[str, float],
-        pd.DataFrame,
-        Tuple[Union[Dict[str, float], pd.DataFrame], Any, Any],
-    ]:
+    ) -> (
+        dict[str, float]
+        | pd.DataFrame
+        | tuple[dict[str, float] | pd.DataFrame, Any, Any]
+    ):
         """Compare two or more spectra using comparison metrics.
 
         Each spectrum can be provided as:

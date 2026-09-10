@@ -15,7 +15,7 @@ The Bayesian framework provides:
 - Model comparison metrics
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -25,7 +25,7 @@ from ._matrix_utils import compute_log_steps
 __all__ = ["solve_bayesian_parametric", "unfold_bayesian_parametric"]
 
 
-def _log_prior(params: Dict[str, float]) -> float:
+def _log_prior(params: dict[str, float]) -> float:
     """Log prior probability for spectral parameters."""
     A_th = params.get("A_th", 0)
     T_th = params.get("T_th", 0.025e-6)
@@ -59,7 +59,7 @@ def _log_prior(params: Dict[str, float]) -> float:
 
 
 def _log_likelihood(
-    params: Dict[str, float],
+    params: dict[str, float],
     A_matrix: np.ndarray,
     b_readings: np.ndarray,
     E: np.ndarray,
@@ -86,7 +86,7 @@ def _log_likelihood(
 
 
 def _log_posterior(
-    params: Dict[str, float],
+    params: dict[str, float],
     A_matrix: np.ndarray,
     b_readings: np.ndarray,
     E: np.ndarray,
@@ -107,12 +107,12 @@ def _metropolis_hastings(
     E: np.ndarray,
     log_steps: np.ndarray,
     sigma: float,
-    initial_params: Dict[str, float],
+    initial_params: dict[str, float],
     n_samples: int = 1000,
     burn_in: int = 200,
     proposal_scale: float = 0.1,
-    random_state: Optional[int] = None,
-) -> Tuple[Dict[str, float], Dict[str, np.ndarray]]:
+    random_state: int | None = None,
+) -> tuple[dict[str, float], dict[str, np.ndarray]]:
     """Metropolis-Hastings MCMC sampling."""
     rng = np.random.default_rng(random_state)
 
@@ -158,12 +158,12 @@ def solve_bayesian_parametric(
     E: np.ndarray,
     log_steps: np.ndarray,
     sigma: float = 0.02,
-    initial_params: Optional[Dict[str, float]] = None,
+    initial_params: dict[str, float] | None = None,
     n_samples: int = 1000,
     burn_in: int = 200,
     proposal_scale: float = 0.1,
-    random_state: Optional[int] = None,
-) -> Tuple[np.ndarray, bool, str, int]:
+    random_state: int | None = None,
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve unfolding problem using Bayesian parametric method.
 
     Parameters
@@ -235,14 +235,14 @@ def solve_bayesian_parametric(
 
 
 def unfold_bayesian_parametric(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     sigma: float = 0.02,
     n_samples: int = 1000,
     burn_in: int = 200,
@@ -251,8 +251,8 @@ def unfold_bayesian_parametric(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Bayesian parametric method.
 
     Parameters
@@ -288,7 +288,7 @@ def unfold_bayesian_parametric(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

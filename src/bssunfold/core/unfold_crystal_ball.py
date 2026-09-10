@@ -24,7 +24,7 @@ of the integral operators ``int R_i(E) dE``, which is the essence of the
 CRYSTAL BALL approach.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -36,9 +36,9 @@ __all__ = ["solve_crystal_ball", "unfold_crystal_ball"]
 def solve_crystal_ball(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     regularization: float = 0.0,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the CRYSTAL BALL algorithm.
 
     The spectrum is approximated as a linear combination of the detector
@@ -89,21 +89,21 @@ def solve_crystal_ball(
 
 
 def unfold_crystal_ball(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     regularization: float = 0.0,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the CRYSTAL BALL algorithm.
 
     Parameters

@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import builtins
 import warnings
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 from unittest.mock import patch
 
 import numpy as np

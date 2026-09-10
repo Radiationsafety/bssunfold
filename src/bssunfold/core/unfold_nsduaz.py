@@ -28,7 +28,7 @@ overrides the built-in mini-catalogue of analytic standard spectra
 (241Am/9Be, 252Cf, thermal + 1/E + fission reactor-like).
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -77,7 +77,7 @@ def _reactor_spectrum(E_MeV: np.ndarray) -> np.ndarray:
     return spec / total if total > 0 else np.full_like(spec, 1.0 / len(spec))
 
 
-def builtin_catalogue(E_MeV: np.ndarray) -> Dict[str, np.ndarray]:
+def builtin_catalogue(E_MeV: np.ndarray) -> dict[str, np.ndarray]:
     """Build the built-in mini-catalogue of analytic standard spectra.
 
     Parameters
@@ -98,7 +98,7 @@ def builtin_catalogue(E_MeV: np.ndarray) -> Dict[str, np.ndarray]:
     }
 
 
-def _find_reference_index(detector_names: List[str], A: np.ndarray) -> int:
+def _find_reference_index(detector_names: list[str], A: np.ndarray) -> int:
     """Locate the reference sphere (20.32 cm diameter) index.
 
     Searches the detector names for the usual UTA/IAEA conventions
@@ -119,13 +119,13 @@ def _find_reference_index(detector_names: List[str], A: np.ndarray) -> int:
 
 
 def select_catalogue_initial(
-    readings: Dict[str, float],
-    detector_names: List[str],
-    sensitivities: Dict[str, np.ndarray],
-    catalogue: Optional[Dict[str, np.ndarray]] = None,
-    reference_name: Optional[str] = None,
-    E_MeV: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, str]:
+    readings: dict[str, float],
+    detector_names: list[str],
+    sensitivities: dict[str, np.ndarray],
+    catalogue: dict[str, np.ndarray] | None = None,
+    reference_name: str | None = None,
+    E_MeV: np.ndarray | None = None,
+) -> tuple[np.ndarray, str]:
     """Select the initial spectrum from a catalogue using a statistical test.
 
     The experimental count rates are normalised to the reading of the
@@ -231,8 +231,8 @@ def solve_nsduaz(
     smoothing: float = 0.1,
     max_iterations: int = 1000,
     tolerance: float = 0.01,
-    lethargy_weights: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    lethargy_weights: np.ndarray | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the NSDUAZ (SPUNIT) iteration.
 
     This is the SPUNIT iterative algorithm with the NSDUAZ default
@@ -280,17 +280,17 @@ def solve_nsduaz(
 
 
 def unfold_nsduaz(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    catalogue: Optional[Dict[str, np.ndarray]] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    catalogue: dict[str, np.ndarray] | None = None,
     use_catalogue: bool = True,
-    reference_name: Optional[str] = None,
+    reference_name: str | None = None,
     smoothing: float = 0.1,
     max_iterations: int = 1000,
     tolerance: float = 0.01,
@@ -298,8 +298,8 @@ def unfold_nsduaz(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the NSDUAZ algorithm.
 
     Parameters

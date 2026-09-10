@@ -38,7 +38,8 @@ What the interpretation answers:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -94,15 +95,15 @@ def interpret_qp(
     smoothness_weight: float = 1.0,
     enforce_norm: bool = False,
     norm_value: float = 1.0,
-    E_MeV: Optional[np.ndarray] = None,
-    detector_names: Optional[Sequence[str]] = None,
+    E_MeV: np.ndarray | None = None,
+    detector_names: Sequence[str] | None = None,
     tolerance: float = 1e-8,
     ridge_coeff: Any = "auto",
     relative_deltas: Sequence[float] = _DEFAULT_RELATIVE_DELTAS,
     relaxation_deltas: Sequence[float] = _DEFAULT_RELAXATION_DELTAS,
     nonneg_deltas: Sequence[float] = _DEFAULT_NONNEG_DELTAS,
     sensitivity_deltas: Sequence[float] = _DEFAULT_SENSITIVITY_DELTAS,
-    regularization_sweep: Optional[Sequence[float]] = None,
+    regularization_sweep: Sequence[float] | None = None,
     run_robustness: bool = True,
     run_scenarios: bool = True,
     run_detector_sensitivity: bool = True,
@@ -172,7 +173,7 @@ def interpret_qp(
     b = np.asarray(b, dtype=float)
     n = A.shape[1]
 
-    build_kwargs: Dict[str, Any] = {
+    build_kwargs: dict[str, Any] = {
         "norm": norm,
         "smoothness_order": smoothness_order,
         "smoothness_weight": smoothness_weight,
@@ -205,7 +206,7 @@ def interpret_qp(
     quadratic_df = analyzer.quadratic_objective()
 
     # --- detector diagnostics ------------------------------------------------
-    detector_rows: List[Dict[str, Any]] = []
+    detector_rows: list[dict[str, Any]] = []
     for i in range(b.shape[0]):
         name = detector_names[i] if detector_names is not None else str(i)
         reading = float(b[i])
@@ -223,7 +224,7 @@ def interpret_qp(
         )
 
     # --- duals ---------------------------------------------------------------
-    bound_duals: Dict[str, float] = {}
+    bound_duals: dict[str, float] = {}
     if len(duals_df) and "name" in duals_df.columns:
         for _, row in duals_df.iterrows():
             name = str(row["name"])
@@ -240,8 +241,8 @@ def interpret_qp(
             norm_dual = float(dual) if dual is not None else None
 
     # --- active groups -------------------------------------------------------
-    active_groups: List[int] = []
-    zero_groups: List[int] = []
+    active_groups: list[int] = []
+    zero_groups: list[int] = []
     if len(variables_df) and "name" in variables_df.columns:
         at_lower = (
             variables_df["at_lower_bound"].fillna(False).astype(bool)
@@ -291,7 +292,7 @@ def interpret_qp(
     # --- scenarios -----------------------------------------------------------
     scenario_df = None
     if run_scenarios:
-        scenarios: Dict[str, Any] = {
+        scenarios: dict[str, Any] = {
             "base": py.ScenarioCase(),
         }
         if enforce_norm:
@@ -320,7 +321,7 @@ def interpret_qp(
         scenario_df = scenario_analyzer.run_scenarios(scenarios)
 
     # --- detector sensitivity ------------------------------------------------
-    sensitivity_rows: List[Dict[str, Any]] = []
+    sensitivity_rows: list[dict[str, Any]] = []
     if run_detector_sensitivity:
         sensitivity_rows = _detector_sensitivity(
             A,
@@ -335,7 +336,7 @@ def interpret_qp(
         )
 
     # --- regularization sweep ------------------------------------------------
-    sweep_rows: List[Dict[str, Any]] = []
+    sweep_rows: list[dict[str, Any]] = []
     if run_regularization_sweep:
         sweep_rows = _regularization_sweep(
             A,
@@ -350,7 +351,7 @@ def interpret_qp(
         )
 
     # --- non-negativity relaxation ------------------------------------------
-    nonneg_rows: List[Dict[str, Any]] = []
+    nonneg_rows: list[dict[str, Any]] = []
     if run_nonnegativity_relaxation:
         nonneg_rows = _nonnegativity_relaxation(
             A,
@@ -364,7 +365,7 @@ def interpret_qp(
         )
 
     # --- tables --------------------------------------------------------------
-    tables: Dict[str, Any] = {
+    tables: dict[str, Any] = {
         "summary": summary_df,
         "variables": variables_df,
         "constraints": constraints_df,
@@ -446,14 +447,14 @@ def interpret_qp(
 
 
 def unfold_interpret(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
     smoothness_order: int = 0,
@@ -461,16 +462,16 @@ def unfold_interpret(
     enforce_norm: bool = False,
     norm_value: float = 1.0,
     regularization_method: str = "manual",
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     tolerance: float = 1e-8,
     ridge_coeff: Any = "auto",
-    interpret_options: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    interpret_options: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Unfold and interpret a neutron spectrum with pyoptexplain.
 
     The unfolding QP (identical to ``unfold_qpsolvers``) is solved through

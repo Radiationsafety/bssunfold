@@ -4,7 +4,6 @@ This module sets up logging for the package with configurable verbosity.
 """
 
 import logging
-from typing import Optional
 
 __all__ = [
     "get_logger",
@@ -15,12 +14,12 @@ __all__ = [
 PACKAGE_LOGGER_NAME = "bssunfold"
 
 # Module-level logger instance
-_logger: Optional[logging.Logger] = None
+_logger: logging.Logger | None = None
 
 
 def setup_logging(
     level: int = logging.WARNING,
-    format_string: Optional[str] = None,
+    format_string: str | None = None,
     use_handler: bool = False,
 ) -> logging.Logger:
     """Set up logging for the bssunfold package.
@@ -58,7 +57,7 @@ def setup_logging(
     return _logger
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger instance.
 
     Parameters

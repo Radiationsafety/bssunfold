@@ -14,7 +14,7 @@ Wong, O. (2024). Modernising neutron spectrum unfolding for fusion applications.
 PhD Thesis, Sheffield Hallam University. https://shura.shu.ac.uk/36014/
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -32,7 +32,7 @@ def solve_amaxed_regularization(
     max_iterations: int = 5000,
     tolerance: float = 1e-8,
     line_search_tol: float = 1e-6,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using AMAXED-Regularization.
 
     Uses Tikhonov-style regularization to simultaneously minimize chi-squared
@@ -185,14 +185,14 @@ def solve_amaxed_regularization(
 
 
 def unfold_amaxed_regularization(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     sigma_factor: float = 0.1,
     tau: float = 1.0,
     max_iterations: int = 5000,
@@ -202,8 +202,8 @@ def unfold_amaxed_regularization(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the AMAXED-Regularization algorithm.
 
     This method combines the advantages of AMAXED with Tikhonov regularization,
@@ -245,7 +245,7 @@ def unfold_amaxed_regularization(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

@@ -23,7 +23,7 @@ References
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -88,9 +88,9 @@ def _maeo_objectives(
     b: np.ndarray,
     D2: np.ndarray,
     lambda_smooth: float = 0.01,
-    prior_spectrum: Optional[np.ndarray] = None,
+    prior_spectrum: np.ndarray | None = None,
     log_space: bool = True,
-) -> Tuple[np.ndarray, bool]:
+) -> tuple[np.ndarray, bool]:
     """Compute multiobjective functions for MAEO unfolding.
 
     Objectives (all to be minimized):
@@ -218,15 +218,15 @@ def solve_maeo(
     n_cycles: int = 20,
     n_gen_per_cycle: int = 10,
     pop_size: int = 100,
-    algorithms: Optional[List[str]] = None,
+    algorithms: list[str] | None = None,
     lambda_smooth: float = 0.01,
-    prior_spectrum: Optional[np.ndarray] = None,
-    initial_spectrum: Optional[np.ndarray] = None,
+    prior_spectrum: np.ndarray | None = None,
+    initial_spectrum: np.ndarray | None = None,
     convergence_assist_ratio: float = 0.2,
-    seed: Optional[int] = None,
+    seed: int | None = None,
     verbose: bool = False,
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Solve neutron spectrum unfolding using MAEO ensemble optimization.
 
     This implements the Multiobjective Animorphic Ensemble Optimization (MAEO)
@@ -565,19 +565,19 @@ def solve_maeo(
 
 def unfold_maeo(
     detector: Any,
-    readings: Dict[str, float],
+    readings: dict[str, float],
     n_cycles: int = 20,
     n_gen_per_cycle: int = 10,
     pop_size: int = 100,
-    algorithms: Optional[List[str]] = None,
+    algorithms: list[str] | None = None,
     lambda_smooth: float = 0.01,
-    prior_spectrum: Optional[np.ndarray] = None,
-    initial_spectrum: Optional[np.ndarray] = None,
+    prior_spectrum: np.ndarray | None = None,
+    initial_spectrum: np.ndarray | None = None,
     convergence_assist_ratio: float = 0.2,
-    seed: Optional[int] = None,
+    seed: int | None = None,
     verbose: bool = False,
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Unfold neutron spectrum using MAEO ensemble optimization.
 
     This is the high-level interface for MAEO unfolding that integrates
@@ -690,17 +690,17 @@ def solve_maeo_ensemble(
     n_cycles: int = 25,
     n_gen_per_cycle: int = 8,
     pop_size: int = 100,
-    algorithms: Optional[List[str]] = None,
+    algorithms: list[str] | None = None,
     lambda_smooth: float = 0.01,
-    prior_spectrum: Optional[np.ndarray] = None,
-    initial_spectrum: Optional[np.ndarray] = None,
+    prior_spectrum: np.ndarray | None = None,
+    initial_spectrum: np.ndarray | None = None,
     convergence_assist_ratio: float = 0.2,
     migration_method: str = "hypervolume",
-    seed: Optional[int] = None,
+    seed: int | None = None,
     verbose: bool = False,
     parallel: bool = False,
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Solve unfolding with explicit MAEO ensemble control.
 
     This variant provides more control over the ensemble behavior,
@@ -773,9 +773,9 @@ def solve_maeo_ensemble(
 
 def unfold_maeo_ensemble(
     detector: Any,
-    readings: Dict[str, float],
+    readings: dict[str, float],
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Unfold with explicit MAEO ensemble control.
 
     High-level interface for solve_maeo_ensemble.

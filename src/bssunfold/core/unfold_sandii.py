@@ -18,7 +18,7 @@ of detectors (``chi_fac=1``) or when the maximum relative change of the
 spectrum drops below ``tolerance`` (``chi_fac=0``).
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -35,8 +35,8 @@ def solve_sandii(
     tolerance: float = 1e-3,
     chi_fac: int = 1,
     relative_uncertainty: float = 0.1,
-    sigma: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, int, bool]:
+    sigma: np.ndarray | None = None,
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using the SAND-II algorithm.
 
     Parameters
@@ -124,14 +124,14 @@ def solve_sandii(
 
 
 def unfold_sandii(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 50,
     tolerance: float = 1e-3,
     chi_fac: int = 1,
@@ -140,8 +140,8 @@ def unfold_sandii(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the SAND-II algorithm.
 
     Parameters

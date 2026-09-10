@@ -11,7 +11,7 @@ Douglas-Rachford solvers break on translated data terms). No external solver
  packages are required.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -57,15 +57,15 @@ def _tv_prox(f: np.ndarray, lam: float, n_iter: int = 200) -> np.ndarray:
 def solve_odl_pdhg(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     max_iterations: int = 100,
-    tau: Optional[float] = None,
-    sigma: Optional[float] = None,
+    tau: float | None = None,
+    sigma: float | None = None,
     use_tv: bool = True,
     tv_weight: float = 0.1,
     nonnegativity: bool = True,
     tolerance: float = 1e-6,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using Primal-Dual Hybrid Gradient (PDHG).
 
     A NumPy implementation of the Chambolle-Pock primal-dual algorithm
@@ -159,13 +159,13 @@ def solve_odl_pdhg(
 def solve_odl_douglas_rachford(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     max_iterations: int = 100,
     use_tv: bool = True,
     tv_weight: float = 0.1,
     nonnegativity: bool = True,
     tolerance: float = 1e-6,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using Douglas-Rachford splitting.
 
     Douglas-Rachford is an operator splitting method that can handle
@@ -241,17 +241,17 @@ def solve_odl_douglas_rachford(
 
 
 def unfold_odl_pdhg(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
-    tau: Optional[float] = None,
-    sigma: Optional[float] = None,
+    tau: float | None = None,
+    sigma: float | None = None,
     use_tv: bool = True,
     tv_weight: float = 0.1,
     nonnegativity: bool = True,
@@ -259,8 +259,8 @@ def unfold_odl_pdhg(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold using ODL PDHG with TV regularization.
 
     Parameters
@@ -348,14 +348,14 @@ def unfold_odl_pdhg(
 
 
 def unfold_odl_douglas_rachford(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
     use_tv: bool = True,
     tv_weight: float = 0.1,
@@ -364,8 +364,8 @@ def unfold_odl_douglas_rachford(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold using ODL Douglas-Rachford splitting with TV regularization.
 
     Parameters

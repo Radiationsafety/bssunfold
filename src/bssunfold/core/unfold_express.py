@@ -5,7 +5,7 @@ its piecewise-exponential spectrum model but evaluates the actual Bonner
 sphere response functions, so no effective-threshold table is required.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -27,13 +27,13 @@ def solve_express(
     A: np.ndarray,
     b: np.ndarray,
     E: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     n_groups: int = 6,
-    interval_boundaries: Optional[np.ndarray] = None,
+    interval_boundaries: np.ndarray | None = None,
     max_iterations: int = 3,
     tol_iteration: float = 0.05,
     relative_uncertainty: float = 0.05,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Fit a piecewise-exponential spectrum directly to sphere readings."""
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float)
@@ -86,16 +86,16 @@ def solve_express(
 
 
 def unfold_express(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     n_groups: int = 6,
-    interval_boundaries: Optional[np.ndarray] = None,
+    interval_boundaries: np.ndarray | None = None,
     max_iterations: int = 3,
     tol_iteration: float = 0.05,
     relative_uncertainty: float = 0.05,
@@ -103,8 +103,8 @@ def unfold_express(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold Bonner-sphere readings with a piecewise-exponential model."""
     boundaries = interval_boundaries
     if boundaries is None:

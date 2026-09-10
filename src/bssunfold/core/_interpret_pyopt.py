@@ -8,8 +8,9 @@ from here without a cycle.
 """
 
 import logging
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -20,7 +21,7 @@ class _PyOptExplainNamespace:
     """Lazily import the pyoptexplain pieces needed by this module."""
 
     def __init__(self) -> None:
-        self._loaded: Optional[SimpleNamespace] = None
+        self._loaded: SimpleNamespace | None = None
 
     def load(self) -> SimpleNamespace:
         if self._loaded is not None:
@@ -79,7 +80,7 @@ def build_interpretation_qp(
     enforce_norm: bool = False,
     norm_value: float = 1.0,
     lower_bound: float = 0.0,
-    variable_names: Optional[Sequence[str]] = None,
+    variable_names: Sequence[str] | None = None,
     equality_name: str = "norm",
     ridge_coeff: Any = "auto",
 ) -> Any:
@@ -226,7 +227,7 @@ def _make_analyzer(
     handle: Any,
     py: SimpleNamespace,
     tolerance: float,
-    extra_options: Optional[Dict[str, Any]] = None,
+    extra_options: dict[str, Any] | None = None,
 ) -> Any:
     """Construct a pyoptexplain Analyzer over a handle's quadratic surface.
 
@@ -258,9 +259,9 @@ def solve_interpret(
     smoothness_weight: float = 1.0,
     enforce_norm: bool = False,
     norm_value: float = 1.0,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     tolerance: float = 1e-8,
-    variable_names: Optional[Sequence[str]] = None,
+    variable_names: Sequence[str] | None = None,
     ridge_coeff: Any = "auto",
 ) -> np.ndarray:
     """Solve the unfolding QP through pyoptexplain and return the spectrum.
@@ -328,16 +329,16 @@ def _detector_sensitivity(
     A: np.ndarray,
     b: np.ndarray,
     alpha: float,
-    build_kwargs: Dict[str, Any],
+    build_kwargs: dict[str, Any],
     py: SimpleNamespace,
     tolerance: float,
     base_x: np.ndarray,
-    detector_names: Optional[Sequence[str]],
+    detector_names: Sequence[str] | None,
     deltas: Sequence[float],
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Perturb each detector reading one at a time and re-solve the QP."""
     base_l1 = max(1.0, float(np.sum(np.abs(base_x))))
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for i in range(b.shape[0]):
         name = str(detector_names[i]) if detector_names is not None else str(i)
         for delta in deltas:
@@ -368,13 +369,13 @@ def _regularization_sweep(
     A: np.ndarray,
     b: np.ndarray,
     base_alpha: float,
-    build_kwargs: Dict[str, Any],
+    build_kwargs: dict[str, Any],
     py: SimpleNamespace,
     tolerance: float,
     base_x: np.ndarray,
-    E_MeV: Optional[np.ndarray],
-    alphas: Optional[Sequence[float]],
-) -> List[Dict[str, Any]]:
+    E_MeV: np.ndarray | None,
+    alphas: Sequence[float] | None,
+) -> list[dict[str, Any]]:
     """Solve the QP across a grid of regularization parameters."""
     if alphas is None:
         if base_alpha > 0.0:
@@ -390,7 +391,7 @@ def _regularization_sweep(
         else:
             alphas = (0.0, 1e-5, 1e-4, 1e-3)
     base_l1 = max(1.0, float(np.sum(np.abs(base_x))))
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for alpha in alphas:
         handle = build_interpretation_qp(A, b, alpha, **build_kwargs)
         analyzer = _make_analyzer(handle, py, tolerance)
@@ -401,7 +402,7 @@ def _regularization_sweep(
             else base_x
         )
         peak_index = int(np.argmax(x)) if x.size else 0
-        row: Dict[str, Any] = {
+        row: dict[str, Any] = {
             "alpha": float(alpha),
             "status": result.status,
             "objective_value": result.objective_value,
@@ -421,15 +422,15 @@ def _nonnegativity_relaxation(
     A: np.ndarray,
     b: np.ndarray,
     alpha: float,
-    build_kwargs: Dict[str, Any],
+    build_kwargs: dict[str, Any],
     py: SimpleNamespace,
     tolerance: float,
     base_x: np.ndarray,
     deltas: Sequence[float],
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Allow small negative values and measure how the solution moves."""
     base_l1 = max(1.0, float(np.sum(np.abs(base_x))))
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for delta in deltas:
         if delta < 0.0 or not np.isfinite(delta):
             raise ValueError(

@@ -6,7 +6,8 @@ for solving regularized least squares problems with constraints.
 Based on IRtools IRfista.m by Silvia Gazzola et al.
 """
 
-from typing import Any, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -34,14 +35,14 @@ def _project_box(
 
 
 def unfold_fista(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
-    save_result_callback: Optional[callable] = None,
-    readings: Optional[Dict[str, float]] = None,
-    initial_spectrum: Optional[np.ndarray] = None,
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
+    save_result_callback: Callable | None = None,
+    readings: dict[str, float] | None = None,
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 500,
     tolerance: float = 1e-8,
     regularization: float = 0.0,
@@ -50,13 +51,13 @@ def unfold_fista(
     nonnegativity: bool = True,
     x_min: float = 0.0,
     x_max: float = np.inf,
-    noise_level: Optional[float] = None,
+    noise_level: float | None = None,
     eta: float = 1.01,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using FISTA algorithm.
 
     The Fast Iterative Shrinkage-Thresholding Algorithm (FISTA) is an

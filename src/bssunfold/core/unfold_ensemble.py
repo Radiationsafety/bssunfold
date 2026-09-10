@@ -14,7 +14,8 @@ Supported combination strategies:
   misfit.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -27,10 +28,10 @@ logger = get_logger("unfold_ensemble")
 
 
 # Default ensemble members: (display_name, solve_function)
-DEFAULT_METHODS: List[Tuple[str, Callable]] = []
+DEFAULT_METHODS: list[tuple[str, Callable]] = []
 
 
-def _ensure_default_methods() -> List[Tuple[str, Callable]]:
+def _ensure_default_methods() -> list[tuple[str, Callable]]:
     """Lazily import default ensemble methods to avoid circular imports."""
     if DEFAULT_METHODS:
         return DEFAULT_METHODS
@@ -53,7 +54,7 @@ def _ensure_default_methods() -> List[Tuple[str, Callable]]:
 
 
 def _compute_weights_from_residuals(
-    spectra: List[np.ndarray],
+    spectra: list[np.ndarray],
     A: np.ndarray,
     b: np.ndarray,
 ) -> np.ndarray:
@@ -73,12 +74,12 @@ def _compute_weights_from_residuals(
 def solve_ensemble(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    methods: Optional[List[Tuple[Callable, Dict[str, Any]]]] = None,
-    weights: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    methods: list[tuple[Callable, dict[str, Any]]] | None = None,
+    weights: np.ndarray | None = None,
     combination: str = "weighted_average",
     trim_fraction: float = 0.2,
-) -> Tuple[np.ndarray, Dict[str, Any]]:
+) -> tuple[np.ndarray, dict[str, Any]]:
     """Solve unfolding problem using an ensemble of base methods.
 
     Parameters
@@ -128,9 +129,9 @@ def solve_ensemble(
             f"Unknown combination '{combination}'. Choose from {valid_combinations}"
         )
 
-    spectra: List[np.ndarray] = []
-    residuals: List[float] = []
-    names: List[str] = []
+    spectra: list[np.ndarray] = []
+    residuals: list[float] = []
+    names: list[str] = []
 
     for idx, (solver, kwargs) in enumerate(methods):
         name = kwargs.get("_name", f"method_{idx}")
@@ -191,24 +192,24 @@ def solve_ensemble(
 
 
 def unfold_ensemble(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
-    methods: Optional[List[Tuple[Callable, Dict[str, Any]]]] = None,
-    weights: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
+    methods: list[tuple[Callable, dict[str, Any]]] | None = None,
+    weights: np.ndarray | None = None,
     combination: str = "weighted_average",
     trim_fraction: float = 0.2,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using ensemble method.
 
     Parameters

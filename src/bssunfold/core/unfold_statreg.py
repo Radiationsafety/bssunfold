@@ -10,7 +10,7 @@ Regularisation parameter α is selected either by the user or automatically
 via the L-curve heuristic (maximum curvature).
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -25,7 +25,7 @@ def _lcurve_statreg(
     b_tilde: np.ndarray,
     L: np.ndarray,
     n_alphas: int = 50,
-    alpha_range: Tuple[float, float] = (1e-8, 1e3),
+    alpha_range: tuple[float, float] = (1e-8, 1e3),
 ) -> float:
     """Select α by L-curve corner (maximum curvature).
 
@@ -77,12 +77,12 @@ def _lcurve_statreg(
 def solve_statreg(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
-    E_MeV: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
+    E_MeV: np.ndarray | None = None,
     unfoldermethod: str = "EmpiricalBayes",
-    regularization: Optional[float] = None,
+    regularization: float | None = None,
     basis_name: str = "CubicSplines",
-    boundary: Optional[str] = None,
+    boundary: str | None = None,
     derivative_degree: int = 2,
 ) -> np.ndarray:
     """Solve unfolding problem using Turchin's statistical regularisation.
@@ -155,25 +155,25 @@ def solve_statreg(
 
 
 def unfold_statreg(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     unfoldermethod: str = "EmpiricalBayes",
-    regularization: Optional[float] = None,
+    regularization: float | None = None,
     basis_name: str = "CubicSplines",
-    boundary: Optional[str] = None,
+    boundary: str | None = None,
     derivative_degree: int = 2,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using Turchin's statistical regularisation.
 
     Parameters
@@ -211,7 +211,7 @@ def unfold_statreg(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

@@ -5,7 +5,7 @@ wrapper with various regularization selection methods.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 from scipy.sparse import csc_matrix
@@ -24,11 +24,11 @@ def solve_qpsolvers(
     alpha: float,
     norm: int = 2,
     solver: str = "osqp",
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
-    ub: Optional[np.ndarray] = None,
-) -> Optional[np.ndarray]:
+    ub: np.ndarray | None = None,
+) -> np.ndarray | None:
     """Solve unfolding problem using qpsolvers.
 
     Parameters
@@ -126,14 +126,14 @@ def solve_qpsolvers(
 
 
 def unfold_qpsolvers(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
     solver: str = "osqp",
@@ -142,12 +142,12 @@ def unfold_qpsolvers(
     n_montecarlo: int = 100,
     save_result: bool = False,
     regularization_method: str = "manual",
-    noise_var: Optional[float] = None,
+    noise_var: float | None = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 1.0,
-    random_state: Optional[int] = None,
-    max_neutron_energy: Optional[float] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+    max_neutron_energy: float | None = None,
+) -> dict[str, Any]:
     """Unfold using qpsolvers with regularization selection.
 
     Parameters
@@ -181,7 +181,7 @@ def unfold_qpsolvers(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples, default: 100.
     save_result : bool, optional
-        Save result to history, default: True.
+        Save result to history, default: False.
     regularization_method : str, optional
         Method for selecting regularization parameter.
     noise_var : float, optional

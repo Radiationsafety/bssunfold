@@ -5,7 +5,7 @@ updates.  Optional first- or second-order Tikhonov smoothing is applied as a
 non-negative proximal step after each update.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -23,10 +23,10 @@ def solve_directed_divergence(
     tol_chi2: float = 1.0,
     tol_rel: float = 1e-6,
     relative_uncertainty: float = 0.05,
-    sigma: Optional[np.ndarray] = None,
+    sigma: np.ndarray | None = None,
     smoothness_order: int = 0,
     smoothness_weight: float = 0.0,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve a non-negative unfolding problem by directed divergence.
 
     ``A`` must be the response matrix used by :class:`Detector`; its columns
@@ -84,14 +84,14 @@ def solve_directed_divergence(
 
 
 def unfold_directed_divergence(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 200,
     tol_chi2: float = 1.0,
     tol_rel: float = 1e-6,
@@ -102,8 +102,8 @@ def unfold_directed_divergence(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold Bonner-sphere readings using directed divergence."""
     steps = compute_log_steps(np.asarray(E_MeV), n_energy_bins)
     default = np.ones(n_energy_bins)

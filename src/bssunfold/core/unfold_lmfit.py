@@ -5,7 +5,7 @@ wrapper for use with the Detector class.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -139,7 +139,7 @@ def _aic_bic_metrics(
     lambda2_reg: float,
     model_name: str,
     l1_weight: float,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Compute AIC/AICc/BIC for a given regularized solution.
 
     Assumes i.i.d. Gaussian residuals with variance estimated as
@@ -205,10 +205,10 @@ def select_regularization_aic_bic(
     regularization2: float = 1e-4,
     l1_weight: float = 0.5,
     criterion: str = "aic",
-    lambda_range: Tuple[float, float] = (1e-6, 1e-1),
+    lambda_range: tuple[float, float] = (1e-6, 1e-1),
     n_lambda: int = 30,
     verbose: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Select the lmfit regularization parameter by an information criterion.
 
     Sweeps ``n_lambda`` log-spaced regularization candidates, solves the
@@ -369,7 +369,7 @@ def solve_lmfit(
     regularization: float = 1e-4,
     regularization2: float = 1e-4,
     l1_weight: float = 0.5,
-) -> Tuple[np.ndarray, bool, str, int]:
+) -> tuple[np.ndarray, bool, str, int]:
     """Solve unfolding problem using lmfit with L1/L2/Elastic regularization.
 
     Parameters
@@ -439,29 +439,29 @@ def solve_lmfit(
 
 
 def unfold_lmfit(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     method: str = "lbfgsb",
     model_name: str = "elastic",
     regularization: float = 1e-4,
     regularization2: float = 1e-4,
     l1_weight: float = 0.5,
     regularization_method: str = "manual",
-    lambda_range: Tuple[float, float] = (1e-6, 1e-1),
+    lambda_range: tuple[float, float] = (1e-6, 1e-1),
     n_lambda: int = 30,
     verbose: bool = True,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using lmfit with L1/L2/Elastic regularization.
 
     Parameters
@@ -514,7 +514,7 @@ def unfold_lmfit(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples for error estimation, default: 100.
     save_result : bool, optional
-        If True, save result to internal history, default: True.
+        If True, save result to internal history, default: False.
     random_state : int, optional
         Random seed for reproducibility.
 

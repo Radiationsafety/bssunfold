@@ -227,11 +227,13 @@ class TestUnfoldDocplex:
     def test_solver_failure_returns_zero(self, detector, readings):
         with patch(
             "bssunfold.core.unfold_docplex.solve_docplex", return_value=None
-        ):
-            with pytest.warns(Warning):
+        ) as mock_solve:
+            with pytest.warns(UserWarning, match="Solution not found"):
                 result = detector.unfold_docplex(
                     readings, save_result=False, timeout=10.0
                 )
+            mock_solve.assert_called_once()
+        assert result["method"] == "docplex"
         assert np.all(result["spectrum"] == 0)
 
 

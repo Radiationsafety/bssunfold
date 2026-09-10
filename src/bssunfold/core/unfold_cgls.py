@@ -14,7 +14,7 @@ License) and its Python port in the TRIPs-Py library by Mirjeta Pasha
 and Silvia Gazzola (Apache-2.0).
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -28,13 +28,13 @@ __all__ = ["solve_cgls", "unfold_cgls"]
 def solve_cgls(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     max_iterations: int = 100,
     tolerance: float = 1e-12,
-    noise_level: Optional[float] = None,
+    noise_level: float | None = None,
     regularization: float = 0.0,
     smoothness_order: int = 0,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve the unfolding problem with the CGLS method.
 
     Applies the conjugate gradient algorithm implicitly to the normal
@@ -161,24 +161,24 @@ def solve_cgls(
 
 
 def unfold_cgls(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
     tolerance: float = 1e-12,
-    noise_level: Optional[float] = None,
+    noise_level: float | None = None,
     regularization: float = 0.0,
     smoothness_order: int = 0,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold a neutron spectrum with the CGLS method.
 
     Parameters

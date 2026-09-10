@@ -357,6 +357,47 @@ class TestDetectorUnfoldParametric2:
         assert "spectrum" in result
         assert result["spectrum"].shape == (detector.n_energy_bins,)
 
+    def test_max_neutron_energy_cutoff(self, detector):
+        """max_neutron_energy trims the solving grid; the result is
+        expanded back to the full grid with zeros above the cutoff."""
+        n = detector.n_energy_bins
+        true = np.zeros(n)
+        true[n // 2:] = 1.0
+        readings = {
+            name: float(np.dot(detector.sensitivities[name], true))
+            for name in detector.detector_names
+        }
+        Emax = detector.E_MeV[n // 2 - 1]
+
+        result = detector.unfold_parametric2(
+            readings=readings,
+            max_neutron_energy=Emax,
+            b_range=(0.8, 1.5, 3),
+            Tf_range=(1.0, 5.0, 3),
+            c_range=(0.8, 2.0, 3),
+        )
+
+        n_active = int((detector.E_MeV <= Emax).sum())
+        assert len(result["spectrum"]) == n
+        assert len(result["energy"]) == n
+        assert np.allclose(result["spectrum"][detector.E_MeV > Emax], 0.0)
+        assert np.all(result["spectrum"][detector.E_MeV <= Emax] >= -1e-9)
+        # Dose rates recomputed on the full grid and finite.
+        assert "doserates" in result
+        for v in result["doserates"].values():
+            assert np.isfinite(v)
+        assert np.allclose(
+            np.array(list(result["effective_readings"].values())),
+            np.array(
+                [
+                    detector.sensitivities[name] @ result["spectrum"]
+                    for name in result["effective_readings"]
+                ]
+            ),
+        )
+        # Sanity: the unfolded (reduced) problem itself is well posed.
+        assert n_active < n
+
 
 # ─── Comparison tests (parametric vs parametric2) ─────────────────
 

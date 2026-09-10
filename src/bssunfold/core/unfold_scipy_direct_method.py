@@ -4,7 +4,7 @@ This module provides the core solve_scipy_direct solver and the
 unfold_scipy_direct_method wrapper for use with the Detector class.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +16,7 @@ __all__ = ["solve_scipy_direct", "unfold_scipy_direct_method"]
 def solve_scipy_direct(
     A: np.ndarray,
     b: np.ndarray,
-    x0: Optional[np.ndarray] = None,
+    x0: np.ndarray | None = None,
     tolerance: float = 1e-8,
     max_iterations: int = 4000,
     method: str = "cg",
@@ -98,14 +98,14 @@ def solve_scipy_direct(
 
 
 def unfold_scipy_direct_method(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     tolerance: float = 1e-8,
     max_iterations: int = 4000,
     method: str = "cg",
@@ -113,8 +113,8 @@ def unfold_scipy_direct_method(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using scipy direct solvers.
 
     Parameters
@@ -148,7 +148,7 @@ def unfold_scipy_direct_method(
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
-        Save result to history (default: True).
+        Save result to history (default: False).
     random_state : int, optional
         Random seed for reproducibility.
 

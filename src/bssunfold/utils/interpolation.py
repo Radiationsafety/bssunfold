@@ -4,7 +4,6 @@ This module provides functions for interpolating spectra onto different
 energy grids using PCHIP interpolation.
 """
 
-from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -98,10 +97,10 @@ def interpolate_spectrum(
 
 
 def discretize_spectra(
-    spectra: Union[pd.DataFrame, Dict[str, np.ndarray]],
+    spectra: pd.DataFrame | dict[str, np.ndarray],
     target_E_MeV: np.ndarray,
     energy_column: str = "E_MeV",
-    Emin: Optional[float] = None,
+    Emin: float | None = None,
 ) -> pd.DataFrame:
     """Discretize spectra onto target energy grid.
 
@@ -165,10 +164,10 @@ def discretize_spectra(
 def resample_to_log_grid(
     spectrum: np.ndarray,
     E_MeV: np.ndarray,
-    n_points: Optional[int] = None,
-    Emin: Optional[float] = None,
-    Emax: Optional[float] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    n_points: int | None = None,
+    Emin: float | None = None,
+    Emax: float | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Resample spectrum to uniform logarithmic grid.
 
     Parameters

@@ -11,7 +11,7 @@ where ``m`` indexes the detector subset. With ``n_subsets=1`` the update
 reduces exactly to standard MLEM.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -27,7 +27,7 @@ def solve_osem(
     max_iterations: int = 50,
     n_subsets: int = 1,
     tolerance: float = 1e-6,
-) -> Tuple[np.ndarray, int, bool]:
+) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using OSEM (ordered-subset EM).
 
     Parameters
@@ -91,14 +91,14 @@ def solve_osem(
 
 
 def unfold_osem(
-    detector_names: List[str],
+    detector_names: list[str],
     n_energy_bins: int,
     E_MeV: np.ndarray,
-    sensitivities: Dict[str, np.ndarray],
-    cc_icrp116: Dict[str, np.ndarray],
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
-    readings: Dict[str, float],
-    initial_spectrum: Optional[np.ndarray] = None,
+    readings: dict[str, float],
+    initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 50,
     n_subsets: int = 1,
     tolerance: float = 1e-6,
@@ -106,8 +106,8 @@ def unfold_osem(
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
     save_result: bool = False,
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Unfold neutron spectrum using the OSEM algorithm.
 
     Parameters

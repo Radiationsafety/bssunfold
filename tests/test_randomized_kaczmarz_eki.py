@@ -1,6 +1,5 @@
 """Tests for Randomized Kaczmarz and Ensemble Kalman Inversion methods."""
 
-from typing import Dict
 
 import numpy as np
 import pytest
@@ -22,13 +21,13 @@ def detector():
 
 
 @pytest.fixture(scope="module")
-def readings(detector: Detector) -> Dict[str, float]:
+def readings(detector: Detector) -> dict[str, float]:
     ref = {"E_MeV": detector.E_MeV, "Phi": np.ones(len(detector.E_MeV)) * 1e-4}
     return detector.get_effective_readings_for_spectra(ref)
 
 
 @pytest.fixture(scope="module")
-def A(detector: Detector, readings: Dict[str, float]) -> np.ndarray:
+def A(detector: Detector, readings: dict[str, float]) -> np.ndarray:
     names = [n for n in detector.detector_names if n in readings]
     return np.array([detector.sensitivities[n] for n in names])
 

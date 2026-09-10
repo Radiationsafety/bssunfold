@@ -6,7 +6,6 @@ NRB99-2009, etc.).
 """
 
 import logging
-from typing import Dict, Optional
 
 import numpy as np
 
@@ -21,10 +20,10 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # Lazy-loaded ICRP-116 conversion coefficients
-ICRP116_COEFFICIENTS: Optional[Dict[str, np.ndarray]] = None
+ICRP116_COEFFICIENTS: dict[str, np.ndarray] | None = None
 
 # Registry of available dose conversion coefficient datasets
-DOSE_COEFFICIENTS_REGISTRY: Dict[str, Dict[str, np.ndarray]] = {}
+DOSE_COEFFICIENTS_REGISTRY: dict[str, dict[str, np.ndarray]] = {}
 
 
 def _build_registry() -> None:
@@ -49,7 +48,7 @@ def _build_registry() -> None:
     )
 
 
-def get_icrp116_coefficients() -> Dict[str, np.ndarray]:
+def get_icrp116_coefficients() -> dict[str, np.ndarray]:
     """Get ICRP-116 conversion coefficients.
 
     Returns
@@ -70,7 +69,7 @@ def get_icrp116_coefficients() -> Dict[str, np.ndarray]:
     return ICRP116_COEFFICIENTS
 
 
-def get_coefficients(name: str) -> Dict[str, np.ndarray]:
+def get_coefficients(name: str) -> dict[str, np.ndarray]:
     """Get dose conversion coefficients by name.
 
     Parameters
@@ -113,10 +112,10 @@ def get_coefficients(name: str) -> Dict[str, np.ndarray]:
 
 
 def interpolate_coefficients(
-    cc: Dict[str, np.ndarray],
+    cc: dict[str, np.ndarray],
     E_target: np.ndarray,
     fill_value: float = 0.0,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Interpolate conversion coefficients to a target energy grid.
 
     Uses linear interpolation (np.interp). For energy values outside the
@@ -165,9 +164,9 @@ def interpolate_coefficients(
 
 def calculate_dose_rates(
     spectrum: np.ndarray,
-    cc_icrp116: Optional[Dict[str, np.ndarray]] = None,
+    cc_icrp116: dict[str, np.ndarray] | None = None,
     dlnE: float = 0.2,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Calculate dose rates using conversion coefficients.
 
     Uses uniform logarithmic step for integration.
