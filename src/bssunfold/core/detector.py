@@ -92,6 +92,7 @@ from .unfold_mapem import unfold_mapem as unfold_mapem_impl
 from .unfold_maxed import unfold_maxed as unfold_maxed_impl
 from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
 from .unfold_mlem import unfold_mlem as unfold_mlem_impl
+from .unfold_mlem_bs import unfold_mlem_bs as unfold_mlem_bs_impl
 from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
 from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
 from .unfold_mystic import unfold_mystic as unfold_mystic_impl
@@ -632,6 +633,10 @@ class Detector:
             "spectrum_uncert_median",
             "spectrum_uncert_percentile_5",
             "spectrum_uncert_percentile_95",
+            "ci_low",
+            "ci_high",
+            "bootstrap_mean",
+            "bootstrap_std",
         )
         if n_active != n_full:
             for key in spectrum_keys:
@@ -1964,6 +1969,137 @@ class Detector:
             lambda_range=lambda_range,
             n_lambda=n_lambda,
             verbose=verbose,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_mlem_bs(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        n_basis: int | None = None,
+        spline_order: int = 4,
+        beta: float | None = None,
+        beta_relative: float | None = None,
+        knot_spacing: str = "auto",
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        auto_params: bool = False,
+        bootstrap_ci: bool = False,
+        n_bootstrap: int = 100,
+        ci_alpha: float = 0.05,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using the B-spline MLEM method with regularization.
+
+        Implements the MLEM-BS algorithm of Mazankova et al.
+        (CNDGS'2026, https://doi.org/10.47459/cndcgs.2026.61): the
+        spectrum is represented as a non-negative combination of
+        B-splines (B-spline sieve, Szkutik 2005) and the coefficients
+        are found with the regularized MLEM iteration (Eq. 4 of the
+        paper) using the second-derivative penalty
+        ``P(b) = ||D^(2) b||_2^2`` (Eq. 5).  The iteration count, the
+        B-spline space dimension ``N_s`` and the penalty strength can be
+        selected automatically by minimizing the ``K_S`` goodness-of-fit
+        statistic (Eq. 6).  Confidence intervals of the unfolded
+        spectrum can be estimated with the Poisson bootstrap of Eqs. 7-9.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess; projected onto the non-negative
+            B-spline sieve.  A flat spectrum is used when ``None``.
+        n_basis : Optional[int], optional
+            Dimension ``N_s`` of the B-spline space (default: ``None``
+            selects ``max(spline_order + 1, min(n_bins // 2, 40))``).
+            The paper optimizes ``N_s`` via the first local minimum of
+            ``K_S``; enable ``auto_params`` to reproduce that.
+        spline_order : int, optional
+            B-spline order ``p`` (degree ``p - 1``); the paper uses
+            ``p = 4`` (cubic).  Default: 4.
+        beta : Optional[float], optional
+            Absolute penalty strength of Eq. 4 (problem-scale
+            dependent; the paper uses 1.0e-17 for its counting setup).
+        beta_relative : Optional[float], optional
+            Scale-aware penalty strength: effective ``beta =
+            beta_relative * mean column sum of RB``.  Mutually exclusive
+            with ``beta``; default (both ``None``) disables the penalty.
+        knot_spacing : str, optional
+            Interior knot placement: ``"auto"`` (default; log knots for
+            grids spanning more than two decades, uniform knots
+            otherwise), ``"uniform"`` or ``"log"``.
+        max_iterations : int, optional
+            Iteration budget (default: 1000).
+        tolerance : float, optional
+            Relative coefficient-change convergence tolerance
+            (default: 1e-6).
+        auto_params : bool, optional
+            Select the iteration count, ``N_s`` and the penalty
+            strength by minimizing ``K_S`` (Eq. 6), following the
+            paper's parameter-optimization procedure (default: False).
+        bootstrap_ci : bool, optional
+            Estimate percentile confidence intervals with the Poisson
+            bootstrap (Eqs. 7-9).  Default: False.
+        n_bootstrap : int, optional
+            Number of bootstrap replicates (default: 100).
+        ci_alpha : float, optional
+            Significance level; 0.05 gives a 95% interval (default).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for the bootstrap resampling.
+        max_neutron_energy : Optional[float], optional
+            Truncate the energy grid at this value (default: None).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary enriched with ``ks_history``,
+            ``ks_final``, ``chi2_pearson``, ``n_basis``,
+            ``spline_order``, ``knot_spacing``, ``interior_knots``,
+            ``beta_effective``, ``beta_relative``, ``coefficients``
+            and, when requested, ``auto_selection``, ``ci_low`` and
+            ``ci_high`` keys.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mlem_bs_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_basis=n_basis,
+            spline_order=spline_order,
+            beta=beta,
+            beta_relative=beta_relative,
+            knot_spacing=knot_spacing,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            auto_params=auto_params,
+            bootstrap_ci=bootstrap_ci,
+            n_bootstrap=n_bootstrap,
+            ci_alpha=ci_alpha,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

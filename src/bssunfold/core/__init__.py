@@ -78,6 +78,15 @@ from .unfold_mapem import solve_mapem, unfold_mapem
 from .unfold_maxed import solve_maxed, unfold_maxed
 from .unfold_mcmc import solve_bayesian_mcmc, unfold_mcmc
 from .unfold_mlem import solve_mlem, unfold_mlem
+from .unfold_mlem_bs import (
+    AUTO_BETA_RELATIVE_GRID,
+    build_bspline_basis,
+    ks_statistic,
+    second_difference_matrix,
+    solve_mlem_bs,
+    solve_mlem_bs_full,
+    unfold_mlem_bs,
+)
 from .unfold_mlem_odl import unfold_mlem_odl
 from .unfold_mlem_stop import solve_mlem_stop, unfold_mlem_stop
 from .unfold_mystic import (
@@ -198,6 +207,13 @@ __all__ = [
     "solve_hybrid_parametric",
     "solve_bayesian_parametric",
     "solve_mlem_stop",
+    # B-spline MLEM-BS (Mazankova et al., CNDGS 2026)
+    "solve_mlem_bs",
+    "solve_mlem_bs_full",
+    "build_bspline_basis",
+    "second_difference_matrix",
+    "ks_statistic",
+    "AUTO_BETA_RELATIVE_GRID",
     "solve_integer_linear_eqs",
     "solve_integer_linear_eqs_all",
     "solve_rational_linear_eqs",
@@ -233,6 +249,7 @@ __all__ = [
     "unfold_lmfit",
     "unfold_mlem_odl",
     "unfold_mlem_stop",
+    "unfold_mlem_bs",
     "unfold_combined",
     "unfold_gravel",
     "unfold_maxed",

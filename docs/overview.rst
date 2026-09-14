@@ -597,6 +597,12 @@ Method Reference
      - `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments`
      - —
      - N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity; directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria and ``nev <= 1 + 2/sqrt(N)`` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper. See :ref:`math-parametric`.
+   * - 74
+     - ``unfold_mlem_bs``
+     - Iterative / Spline
+     - `n_basis`, `spline_order`, `beta`, `beta_relative`, `knot_spacing` (auto/uniform/log), `auto_params`, `bootstrap_ci`, `n_bootstrap`, `ci_alpha`, `max_iterations`, `tolerance`
+     - —
+     - B-spline MLEM (MLEM-BS, Mazankova et al., CNDGS'2026, https://doi.org/10.47459/cndcgs.2026.61): the spectrum is represented in a B-spline basis (effective matrix RB = R B) and the coefficients are found with the regularized MLEM iteration (Eq. 4) with the second-derivative penalty ``P(b) = ||D^(2) b||^2`` (Eq. 5) and the Szkutnik (2005) sieve restriction to non-negative coefficients; iterations, N_s and beta are selected by minimizing the K_S statistic (Eq. 6) with ``auto_params=True``; optional Poisson-bootstrap confidence intervals (Eqs. 7-9). See :doc:`mlem_bs`.
 
 
 

@@ -7,6 +7,52 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+- **B-spline MLEM unfolding method (MLEM-BS)** — `unfold_mlem_bs` /
+  `solve_mlem_bs` / `solve_mlem_bs_full`, implementing the neutron
+  spectrum unfolding algorithm of Mazankova et al., "Experimental
+  Measurement of Neutron Flux and Its Mathematical Data Processing",
+  Proceedings of CNDGS'2026 (Brno), https://doi.org/10.47459/cndcgs.2026.61.
+  The method:
+  - **B-spline parameterisation** — the spectrum is represented as
+    `x(E) = sum_s b_s B_s(E)` (clamped cubic B-splines, order `p = 4`
+    in the paper) so the effective system matrix is `RB = R B`;
+    `build_bspline_basis` assembles the design matrix with uniform or
+    logarithmic knot grids (`knot_spacing="auto"` selects log knots
+    when the energy grid spans more than two decades).
+  - **Regularized MLEM iteration** (Eq. 4 of the paper) on the
+    B-spline coefficients with the second-derivative penalty
+    `P(b) = ||D^(2) b||_2^2` (Eq. 5, `second_difference_matrix`) and
+    the sieve restriction to non-negative coefficients (Szkutnik,
+    J. Multivar. Anal. 93, 2005 — ref. [7] of the paper); the
+    multiplicative update preserves positivity automatically.
+    The absolute penalty `beta` of the paper is problem-scale
+    dependent (the paper uses `1.0e-17`), so a scale-free
+    `beta_relative` (relative to the mean MLEM sensitivity) is also
+    accepted.
+  - **K_S-based parameter selection** (Eq. 6) — the goodness-of-fit
+    statistic `K_S = |sum_i (n_i - model_i)^2 / sum_i model_i - 1|`
+    is tracked per iteration; `auto_params=True` selects the number
+    of iterations, the B-spline dimension `N_s` and the penalty
+    strength by minimizing `K_S` over a candidate grid
+    (`AUTO_BETA_RELATIVE_GRID`); in manual mode the iteration keeps
+    the best `K_S` iterate with `ks_patience` early stopping.
+  - **Poisson-bootstrap confidence intervals** (Eqs. 7-9) —
+    backward-reconstructed counts `n^(0) = R x^(0)` are resampled as
+    Poisson replicates, each replicate is unfolded and percentile
+    (alpha/2, 1-alpha/2) intervals are reported as `ci_low` /
+    `ci_high` (plus `bootstrap_mean` / `bootstrap_std`);
+    `bootstrap_ci=True, ci_alpha=0.05` gives the paper's 95% CI.
+  - `Detector.unfold_mlem_bs` wrapper (full `calculate_errors`
+    Monte-Carlo support, `max_neutron_energy` truncation), exports in
+    `bssunfold.core`, Sphinx page `docs/mlem_bs.rst`, worked example
+    `examples/44-mlem-bs.ipynb` and test suite `tests/test_mlem_bs.py`
+    (21 tests: basis/penalty/statistic units, noise suppression vs
+    plain MLEM, auto-selection, bootstrap coverage on an
+    overdetermined system, truncation and validation).
+
 ## [0.23.1] - 2026-09-08
 
 ### Changed

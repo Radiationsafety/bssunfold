@@ -300,6 +300,7 @@ graph TD
     C --> C5[unfold_gravel]
     C --> C6[unfold_doroshenko]
     C --> C7[unfold_kaczmarz]
+    C --> C8[unfold_mlem_bs]
 
     D --> D1[unfold_bayes]
     D --> D2[unfold_bayes_spline_regularization]
@@ -434,6 +435,7 @@ graph TD
 | 69 | `unfold_binned` | Ensemble/Adaptive | `bin_lookup`, `lookup_path`, `timeout_per_method` | — | Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (60+ methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as `data/bin_lookup.json` |
 | 70 | `unfold_nnksvd` | Dictionary / Sparse | `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter` | — | Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — `nnls_topk` (proposed), `omp`, `nn_omp`; training-sample prior via `prior_wt`. Default training signals are log-spaced Gaussian bumps on the energy grid. Optimal hyperparameters reported: 15 atoms, K=2, `lambda_tik=0.01`, `prior_wt=0.5`, `max_iter=80`, `seed=42` |
 | 71 | `unfold_nspline` | Maximum entropy / parametric | `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments` | — | N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity (DX=0, KKT system); directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria `H ≤ ½Σp(ΔQ/Q)²` and `nev ≤ 1 + 2/√N` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper |
+| 72 | `unfold_mlem_bs` | Iterative / Spline | `n_basis`, `spline_order`, `beta`, `beta_relative`, `knot_spacing` (auto/uniform/log), `auto_params`, `bootstrap_ci`, `n_bootstrap`, `ci_alpha`, `max_iterations`, `tolerance` | — | B-spline MLEM (MLEM-BS, Mazankova et al., CNDGS'2026, https://doi.org/10.47459/cndcgs.2026.61): spectrum represented in a B-spline basis (effective matrix RB = R·B) with the regularized MLEM iteration (Eq. 4) and second-derivative penalty ‖D⁽²⁾b‖² (Eq. 5); sieve restriction to non-negative coefficients (Szkutnik 2005); iterations, N_s and beta selected by minimizing the K_S statistic (Eq. 6) via `auto_params=True`; optional Poisson-bootstrap confidence intervals (Eqs. 7-9) |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -482,6 +484,27 @@ result = detector.unfold_nspline(
 # Paper's quality control: nev statistic and acceptability bound
 print(result["nev"], result["acceptable"])   # nev <= 1 + 2/sqrt(N)
 print(result["H_history"])                   # directed-divergence convergence trace
+```
+
+### B-spline MLEM Example
+
+```python
+# B-spline MLEM (MLEM-BS, Mazankova et al., CNDGS'2026)
+# spectrum = sum_s b_s B_s(E); regularized MLEM with D^(2) penalty + sieve
+result = detector.unfold_mlem_bs(
+    readings=readings,
+    n_basis=None,            # None -> automatic (log knots for wide grids)
+    beta_relative=None,      # None -> pure sieve MLEM (beta = 0)
+    max_iterations=500,
+    bootstrap_ci=True,       # Poisson bootstrap CI (Eqs. 7-9 of the paper)
+    n_bootstrap=100,
+    random_state=42,
+)
+
+# K_S goodness-of-fit statistic and automatic (N_s, beta, iterations) selection
+print(result["ks_final"], result["ks_history"])
+auto = detector.unfold_mlem_bs(readings, auto_params=True)
+print(auto["auto_selection"]["chosen"])
 ```
 
 ## 📊 5-Detector Comparison
@@ -890,6 +913,7 @@ bssunfold/
             ├── unfold_maxed.py
             ├── unfold_mcmc.py
             ├── unfold_mlem.py
+            ├── unfold_mlem_bs.py
             ├── unfold_mlem_odl.py
             ├── unfold_mlem_stop.py
             ├── unfold_mystic.py
