@@ -870,7 +870,7 @@ bssunfold/
             ├── _numba_jit.py        # Numba JIT inner loops
             ├── _parametric_shared.py # Shared parametric constants
             ├── _solver_backends.py  # Shared solver-backend resolution
-            ├── detector.py          # Main Detector class (70 unfold_* methods)
+            ├── detector.py          # Main Detector class (72 unfold_* methods)
             ├── dose_calculation.py
             ├── regularization.py    # L-curve, GCV, DP, cosine, NCP, etc.
             ├── unfold_amaxed.py
