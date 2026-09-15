@@ -380,6 +380,7 @@ class TestRegularization:
 
         A, b = ab
         with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
             randomization_experiment(
                 A, b, noise_var=0.01, n_samples=2, methods=["unknown_method"]
             )

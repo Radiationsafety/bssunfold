@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.24.1] - 2026-09-15
+### Fixed
+-  warnings.simplefilter("always") in test_randomization_experiment_unknown_method
+
 ## [0.24.0] - 2026-09-15
 
 ### Added
