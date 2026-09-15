@@ -32,6 +32,7 @@ from .unfold_amaxed import unfold_amaxed as unfold_amaxed_impl
 from .unfold_amaxed_regularization import (
     unfold_amaxed_regularization as unfold_amaxed_regularization_impl,
 )
+from .unfold_amg import unfold_amg as unfold_amg_impl
 from .unfold_bayes import unfold_bayes as unfold_bayes_impl
 from .unfold_bayes_spline_regularization import (
     unfold_bayes_spline_regularization as unfold_bayes_spline_impl,
@@ -109,6 +110,9 @@ from .unfold_odl_advanced import (
 from .unfold_osem import unfold_osem as unfold_osem_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
+from .unfold_pspline_reml import (
+    unfold_pspline_reml as unfold_pspline_reml_impl,
+)
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
 from .unfold_qubo import unfold_qubo as unfold_qubo_impl
 from .unfold_randomized_kaczmarz import (
@@ -873,6 +877,197 @@ class Detector:
             initial_spectrum=initial_spectrum,
             max_iterations=max_iterations,
             tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_amg(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        method: str = "cg",
+        preconditioner: str = "amg",
+        omega: float = 1.0,
+        max_iterations: int = 200,
+        tolerance: float = 1e-10,
+        outer_iterations: int = 3,
+        nonnegativity: bool = True,
+        regularization: float | None = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using AMG/stationary-preconditioned Krylov iteration.
+
+        Python analogue of the ``Rlinsolve`` iterative-solver family and
+        of algebraic multigrid preconditioning: the normal equations of
+        the least-squares unfolding problem are solved with
+        ``cg``/``bicgstab``/``gmres`` accelerated by a preconditioner
+        approximating ``(A^T A)^-1`` -- algebraic multigrid (optional
+        ``pyamg`` dependency) or one sweep of a classical stationary
+        iteration (Jacobi, Gauss-Seidel, SOR, SSOR).  Non-negativity is
+        enforced with projected outer restarts.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial guess for the Krylov iteration.
+        method : str, optional
+            Krylov solver: ``"cg"`` (default), ``"bicgstab"`` or
+            ``"gmres"``.
+        preconditioner : str, optional
+            ``"amg"`` (default), ``"jacobi"``, ``"gs"``, ``"sor"``,
+            ``"ssor"`` or ``"none"``.  ``"amg"`` falls back to Jacobi
+            with a warning when ``pyamg`` is not installed.
+        omega : float, optional
+            Relaxation factor for SOR/SSOR (default: 1.0).
+        max_iterations : int, optional
+            Maximum Krylov iterations per restart (default: 200).
+        tolerance : float, optional
+            Relative residual tolerance (default: 1e-10).
+        outer_iterations : int, optional
+            Number of projected non-negativity restarts (default: 3).
+        nonnegativity : bool, optional
+            Clamp between restarts (default: True).
+        regularization : float or None, optional
+            Tikhonov damping for the normal equations; ``None``
+            (default) selects ``1e-4 * mean(diag(A^T A))``
+            automatically, ``0.0`` disables the damping.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Relative noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_amg_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            method=method,
+            preconditioner=preconditioner,
+            omega=omega,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            outer_iterations=outer_iterations,
+            nonnegativity=nonnegativity,
+            regularization=regularization,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_pspline_reml(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        n_basis: int | None = None,
+        spline_order: int = 4,
+        diff_order: int = 2,
+        knot_spacing: str = "auto",
+        weights: str | np.ndarray | None = "uniform",
+        lam_relative: float | None = None,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using P-spline mixed-model REML smoothing selection.
+
+        Python analogue of the R package ``LMMsolver`` (Boer 2023): the
+        spectrum is represented as a P-spline, the spline coefficients
+        are split into an unpenalised fixed part (polynomial trend, the
+        null space of the difference penalty) and a penalised random
+        part (the range space), and the smoothing parameter is the
+        variance ratio estimated by maximising the REML profile
+        likelihood of the resulting linear mixed model.  The Henderson
+        mixed model equations are then solved for the final spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Unused (kept for API compatibility).
+        n_basis : Optional[int], optional
+            Dimension of the B-spline space (default: ``min(n//2, 30)``).
+        spline_order : int, optional
+            B-spline order (default: 4, cubic).
+        diff_order : int, optional
+            Difference order of the P-spline penalty (default: 2).
+        knot_spacing : str, optional
+            Interior knot placement: ``"auto"`` (default), ``"uniform"``
+            or ``"log"``.
+        weights : str or np.ndarray, optional
+            ``"uniform"`` (default), ``"poisson"`` (``w_i = 1 / b_i``)
+            or an explicit positive weight array.
+        lam_relative : Optional[float], optional
+            Fixed *relative* smoothing parameter; skips REML selection.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Relative noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional keys ``lam``,
+            ``lam_relative``, ``reml_loglik``, ``sigma2``, ``ed`` and
+            ``ed_norm``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_pspline_reml_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            n_basis=n_basis,
+            spline_order=spline_order,
+            diff_order=diff_order,
+            knot_spacing=knot_spacing,
+            weights=weights,
+            lam_relative=lam_relative,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
@@ -3842,6 +4037,7 @@ class Detector:
         k: int | None = None,
         threshold: float | None = None,
         noise_level: float | None = None,
+        svd_solver: str = "full",
         calculate_errors: bool = False,
         n_montecarlo: int = 100,
         save_result: bool = False,
@@ -3865,6 +4061,13 @@ class Detector:
             Threshold ratio for singular value truncation.
         noise_level : float, optional
             Noise level for discrepancy principle.
+        svd_solver : str, optional
+            SVD backend: ``'full'`` (dense LAPACK, default), ``'arpack'``
+            (implicit restarted Lanczos, the ``rARPACK`` analogue) or
+            ``'propack'`` (Lanczos bidiagonalization, the R ``svd``
+            PROPACK analogue).  The iterative backends are used when a
+            fixed ``k`` is provided; automatic k-selection always uses
+            the dense solver.
         calculate_errors : bool, optional
             Calculate Monte-Carlo errors (default: False).
         n_montecarlo : int, optional
@@ -3894,6 +4097,7 @@ class Detector:
             k=k,
             threshold=threshold,
             noise_level=noise_level,
+            svd_solver=svd_solver,
             calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,
             save_result=save_result,

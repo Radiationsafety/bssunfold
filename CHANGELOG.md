@@ -7,6 +7,49 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+- **P-spline mixed-model unfolding with REML smoothing selection**
+  (`unfold_pspline_reml` / `solve_pspline_reml` /
+  `solve_pspline_reml_full`, Python analogue of the R package
+  `LMMsolver`): the spectrum is represented as a P-spline; the spline
+  coefficients are split spectrally into an unpenalised fixed part
+  (polynomial trend, null space of the `d`-th order difference penalty)
+  and a penalised random part (range space), the smoothing parameter is
+  the variance ratio estimated by maximising the REML profile
+  likelihood on scale-free relative bounds, and the final spectrum is
+  obtained from the Henderson mixed-model equations.  Reports `lam`,
+  `lam_relative`, `reml_loglik`, `sigma2`, effective dimension (`ed`,
+  `ed_norm`).  Uniform / Poisson / explicit weights; uniform / log
+  knots; pure NumPy/SciPy (no new dependencies).
+- **AMG/stationary-preconditioned Krylov unfolding** (`unfold_amg` /
+  `solve_amg` / `build_preconditioner`, analogue of the R package
+  `Rlinsolve` + pyamg): damped normal equations
+  `(A^T A + reg I) x = A^T b` solved with `cg`/`bicgstab`/`gmres`
+  accelerated by an algebraic multigrid preconditioner (smoothed
+  aggregation, optional dependency `pyamg` — new extra
+  `bssunfold[amg]`) or by one sweep of a classical stationary
+  iteration (Jacobi / Gauss-Seidel / SOR / SSOR); nonsymmetric
+  `gs`/`sor` preconditioners are transparently swapped for `ssor` with
+  `cg` (warning); non-negativity enforced with projected outer
+  restarts; auto Tikhonov damping (`regularization=None` selects
+  `1e-4 * mean(diag(A^T A))`) stabilises rank-deficient normal
+  matrices and the AMG hierarchy; deterministic AMG setup.
+- **Selectable SVD backends for TSVD** (`svd_solver` parameter of
+  `unfold_tsvd` / `solve_tsvd`): `full` (dense LAPACK, default),
+  `arpack` (implicitly restarted Lanczos — the R `rARPACK`/`RSpectra`
+  analogue) and `propack` (Lanczos bidiagonalization — the R
+  `svd::propack.svd` analogue).  Iterative backends compute only the
+  leading `k` triplets when a fixed truncation `k` is given and
+  degrade gracefully to the dense solver (with a warning) on failure;
+  automatic k-selection keeps using the dense decomposition.
+
+### Fixed
+- `solve_tsvd` ignored the explicit `k` and `threshold` parameters:
+  the automatic k-selection unconditionally overwrote them.  Fixed to
+  match the documented behaviour (`k`/`threshold` override `method`).
+
 ## [0.24.1] - 2026-09-15
 ### Fixed
 -  warnings.simplefilter("always") in test_randomization_experiment_unknown_method

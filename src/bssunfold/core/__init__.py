@@ -20,6 +20,7 @@ from .unfold_amaxed_regularization import (
     solve_amaxed_regularization,
     unfold_amaxed_regularization,
 )
+from .unfold_amg import solve_amg, unfold_amg
 from .unfold_bayes import solve_bayes, unfold_bayes
 from .unfold_bayes_spline_regularization import (
     solve_bayes_spline,
@@ -128,6 +129,12 @@ from .unfold_odl_advanced import (
 )
 from .unfold_osem import solve_osem, unfold_osem
 from .unfold_parametric2 import solve_parametric2, unfold_parametric2
+from .unfold_pspline_reml import (
+    select_lambda_reml,
+    solve_pspline_reml,
+    solve_pspline_reml_full,
+    unfold_pspline_reml,
+)
 from .unfold_qpsolvers import solve_qpsolvers, unfold_qpsolvers
 from .unfold_qubo import solve_qubo_unfold, unfold_qubo
 from .unfold_rebunki import solve_rebunki, unfold_rebunki
@@ -176,6 +183,10 @@ __all__ = [
     "solve_reconst",
     "solve_scipy_direct",
     "solve_tsvd",
+    "solve_amg",
+    "solve_pspline_reml",
+    "solve_pspline_reml_full",
+    "select_lambda_reml",
     "solve_lanczos",
     "solve_cgls",
     "solve_gks",
@@ -260,6 +271,8 @@ __all__ = [
     "unfold_reconst",
     "unfold_scipy_direct_method",
     "unfold_tsvd",
+    "unfold_amg",
+    "unfold_pspline_reml",
     "unfold_lanczos",
     "unfold_cgls",
     "unfold_gks",

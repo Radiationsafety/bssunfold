@@ -2,6 +2,21 @@
 
 This module provides the core solve_tsvd solver and the unfold_tsvd
 wrapper for use with the Detector class.
+
+The SVD backend is selectable via the ``svd_solver`` parameter, which
+maps the R packages ``svd`` (PROPACK / Lanczos-bidiagonalization SVD)
+and ``rARPACK`` (ARPACK eigen/SVD solver) onto their SciPy equivalents:
+
+* ``"full"``    -- dense LAPACK SVD (``scipy.linalg.svd``), default;
+* ``"arpack"`` -- implicitly restarted Arnoldi/Lanczos (the same ARPACK
+  Fortran library wrapped by R's ``rARPACK``/``RSpectra``);
+* ``"propack"`` -- Lanczos bidiagonalization with partial reorthogonalization
+  (the same PROPACK algorithm as R's ``svd::propack.svd``).
+
+The iterative backends compute only the leading ``k`` singular triplets
+and are useful when a fixed truncation ``k`` is known; automatic
+k-selection methods require the full singular spectrum and always use
+the dense backend.
 """
 
 from typing import Any
@@ -13,6 +28,8 @@ from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 
 __all__ = ["solve_tsvd", "unfold_tsvd"]
+
+_VALID_SVD_SOLVERS = ("full", "arpack", "propack")
 
 
 def _automatic_k_selection(
@@ -106,6 +123,55 @@ def _automatic_k_selection(
     return int(np.sum(s >= mean_s))
 
 
+def _truncated_svd(
+    A: np.ndarray,
+    k: int | None,
+    svd_solver: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool]:
+    """Compute the (truncated) SVD triplets used by the solver.
+
+    Returns ``(U, s, Vh, full_spectrum)``.  For ``svd_solver='full'`` or
+    when automatic k-selection is requested (``k is None``) the dense
+    LAPACK SVD is returned; otherwise only the leading ``k`` triplets
+    are computed with the chosen iterative backend (ARPACK or PROPACK).
+    A failing iterative backend degrades to the dense solver with a
+    ``RuntimeWarning``.
+    """
+    if svd_solver not in _VALID_SVD_SOLVERS:
+        raise ValueError(
+            f"svd_solver must be one of {_VALID_SVD_SOLVERS}, "
+            f"got {svd_solver!r}"
+        )
+    m, n = A.shape
+    full_spectrum = svd_solver == "full" or k is None
+    if full_spectrum:
+        U, s, Vh = svd(A, full_matrices=False)
+        return U, s, Vh, True
+
+    k_eff = min(int(k), min(m, n) - 1)
+    if k_eff < 1:
+        U, s, Vh = svd(A, full_matrices=False)
+        return U, s, Vh, True
+    try:
+        from scipy.sparse.linalg import svds
+
+        U, s, Vh = svds(A, k=k_eff, solver=svd_solver)
+        # svds returns ascending singular values -- reverse to descending
+        order = np.argsort(s)[::-1]
+        return U[:, order], s[order], Vh[order, :], False
+    except (ImportError, np.linalg.LinAlgError, RuntimeError, ValueError) as exc:
+        import warnings
+
+        warnings.warn(
+            f"svd_solver={svd_solver!r} failed ({exc}); "
+            "falling back to the dense LAPACK SVD",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        U, s, Vh = svd(A, full_matrices=False)
+        return U, s, Vh, True
+
+
 def solve_tsvd(
     A: np.ndarray,
     b: np.ndarray,
@@ -114,6 +180,7 @@ def solve_tsvd(
     k: int | None = None,
     threshold: float | None = None,
     noise_level: float | None = None,
+    svd_solver: str = "full",
 ) -> np.ndarray:
     """Solve unfolding problem using Truncated SVD (TSVD).
 
@@ -134,6 +201,10 @@ def solve_tsvd(
         Threshold ratio for singular value truncation.
     noise_level : float, optional
         Noise level estimate for discrepancy principle.
+    svd_solver : str, optional
+        SVD backend: ``'full'`` (dense LAPACK, default), ``'arpack'`` or
+        ``'propack'``.  The iterative backends are only used when ``k``
+        is fixed; automatic k-selection falls back to the dense solver.
 
     Returns
     -------
@@ -141,14 +212,15 @@ def solve_tsvd(
         Unfolded spectrum (n,).
     """
     A, b, _ = validate_system(A, b)
-    U, s, Vh = svd(A, full_matrices=False)
+    U, s, Vh, _full_spectrum = _truncated_svd(A, k, svd_solver)
     V = Vh.T
 
     if k is not None:
         k = min(k, len(s))
     elif threshold is not None:
         k = np.sum(s / s[0] > threshold)
-    k = _automatic_k_selection(s, A, b, method=method, noise_level=noise_level)
+    else:
+        k = _automatic_k_selection(s, A, b, method=method, noise_level=noise_level)
 
     k = max(1, min(k, A.shape[0], A.shape[1]))
     s_k = s[:k]
@@ -172,6 +244,7 @@ def unfold_tsvd(
     k: int | None = None,
     threshold: float | None = None,
     noise_level: float | None = None,
+    svd_solver: str = "full",
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
@@ -205,6 +278,8 @@ def unfold_tsvd(
         Threshold ratio for truncation.
     noise_level : float, optional
         Noise level estimate.
+    svd_solver : str, optional
+        SVD backend: ``'full'`` (default), ``'arpack'`` or ``'propack'``.
     calculate_errors : bool, optional
         Calculate Monte-Carlo errors (default: False).
     n_montecarlo : int, optional
@@ -237,12 +312,14 @@ def unfold_tsvd(
             k=k,
             threshold=threshold,
             noise_level=noise_level,
+            svd_solver=svd_solver,
         ),
         solve_kwargs={},
         method_name="TSVD",
         extra_output={
             "k": k,
             "k_method": method,
+            "svd_solver": svd_solver,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level or 0.01,
