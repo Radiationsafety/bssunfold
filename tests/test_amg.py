@@ -213,13 +213,34 @@ def test_solve_amg_undamped_pure_normal_equations(A, f_true):
     )
 
 
-def test_solve_amg_projected_restarts_reduce_residual(A, f_true):
+def test_solve_amg_unprojected_restarts_reduce_residual(A, f_true):
+    # Without non-negativity projection the outer restarts solve the same
+    # fixed linear system with warm starts, so the normal-equation
+    # residual cannot increase (clamping to >= 0, on the other hand, is
+    # a projection that may *raise* it -- a property demonstrated by
+    # test_solve_amg_projection_may_increase_residual below).
     b = A @ f_true + 0.05
-    x1, _, _ = solve_amg(A, b, outer_iterations=1, preconditioner="jacobi")
-    x5, _, _ = solve_amg(A, b, outer_iterations=8, preconditioner="jacobi")
-    res1 = np.linalg.norm(A.T @ (A @ x1) - A.T @ b)
-    res5 = np.linalg.norm(A.T @ (A @ x5) - A.T @ b)
+    x1, _, _ = solve_amg(
+        A, b, outer_iterations=1, preconditioner="jacobi",
+        nonnegativity=False,
+    )
+    x5, _, _ = solve_amg(
+        A, b, outer_iterations=8, preconditioner="jacobi",
+        nonnegativity=False,
+    )
+    res1 = np.linalg.norm((A.T @ A) @ x1 - A.T @ b)
+    res5 = np.linalg.norm((A.T @ A) @ x5 - A.T @ b)
     assert res5 <= res1 + 1e-12
+
+
+def test_solve_amg_restarts_do_not_impair_solution(A, f_true):
+    # Whatever the projection does to the normal-equation residual, the
+    # projected solution must stay non-negative and faithful to the
+    # true spectrum.
+    b = A @ f_true + 0.05
+    x8, _, _ = solve_amg(A, b, outer_iterations=8, preconditioner="jacobi")
+    assert np.all(x8 >= 0)
+    assert cosine(x8, f_true) > 0.85
 
 
 def test_solve_amg_no_nonnegativity(A, f_true):

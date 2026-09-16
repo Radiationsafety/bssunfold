@@ -67,6 +67,7 @@ from .unfold_express import unfold_express as unfold_express_impl
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
 from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
+from .unfold_gee import unfold_gee as unfold_gee_impl
 from .unfold_genetic import unfold_genetic as unfold_genetic_impl
 from .unfold_gks import unfold_gks as unfold_gks_impl
 from .unfold_gravel import unfold_gravel as unfold_gravel_impl
@@ -136,6 +137,7 @@ from .unfold_tikhonov_legendre import (
 )
 from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
+from .unfold_uno import unfold_uno as unfold_uno_impl
 from .unfold_zfit import unfold_zfit as unfold_zfit_impl
 
 __all__ = ["Detector"]
@@ -1069,6 +1071,182 @@ class Detector:
             knot_spacing=knot_spacing,
             weights=weights,
             lam_relative=lam_relative,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_gee(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        family: str = "gaussian",
+        corstr: str = "exchangeable",
+        regularization: float = 1e-4,
+        max_iterations: int = 100,
+        tolerance: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold by generalized estimating equations (R ``gee`` port).
+
+        The detector spheres are treated as a correlated cluster of
+        observations of the measurement vector ``b = A x``; the GEE
+        score equations ``A^T R(alpha)^{-1} (b - A x) - lam G x = 0``
+        are solved by iterated reweighted least squares with an
+        exchangeable / AR-1 working correlation, and robust
+        Liang-Zeger sandwich uncertainties are reported for the
+        spectrum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (used as starting point).
+        family : str, optional
+            Quasi-likelihood family: ``"gaussian"`` (default),
+            ``"poisson"`` or ``"gamma"``.
+        corstr : str, optional
+            Working correlation: ``"exchangeable"`` (default),
+            ``"ar1"`` or ``"independence"``.
+        regularization : float, optional
+            Relative ridge on the second-difference roughness penalty
+            (default: 1e-4).
+        max_iterations : int, optional
+            Maximum GEE iterations (default: 100).
+        tolerance : float, optional
+            Relative convergence tolerance (default: 1e-6).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Relative noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional keys
+            ``alpha``, ``phi``, ``family``, ``corstr``, ``robust_se``,
+            ``naive_se``, ``spectrum_uncert_robust``,
+            ``pearson_chi2`` and ``gee_converged``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_gee_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            family=family,
+            corstr=corstr,
+            regularization=regularization,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_uno(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        preset: str = "filter_sqp",
+        weights: str | np.ndarray | None = "uniform",
+        regularization: float = 1e-3,
+        hessian: str = "exact",
+        max_iterations: int = 300,
+        tolerance: float = 1e-10,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold with an Uno-style Lagrange-Newton NLP preset.
+
+        Python analogue of the R package ``Uno`` (Vanaret & Leyffer
+        2024): the unfolding problem is solved as the constrained
+        non-linear program ``min 1/2||W(Ax-b)||^2 + lam/2||D2 x||^2
+        s.t. x >= 0`` either by the ``filterSQP`` preset (exact Hessian,
+        filter globalisation; the convex objective is solved exactly in
+        one QP sub-problem) or by the IPOPT-like primal-dual
+        interior-point method (exact or BFGS Hessian).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (interior-point start).
+        preset : str, optional
+            ``"filter_sqp"`` (default) or ``"ipopt_like"``.
+        weights : str or np.ndarray, optional
+            ``"uniform"`` (default), ``"poisson"`` or an explicit array.
+        regularization : float, optional
+            Relative roughness ridge (default: 1e-3).
+        hessian : str, optional
+            ``"exact"`` (default) or ``"bfgs"`` (interior-point preset).
+        max_iterations : int, optional
+            Maximum iterations (default: 300).
+        tolerance : float, optional
+            KKT tolerance (default: 1e-10).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Relative noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional keys
+            ``uno_preset``, ``objective``, ``constraint_violation``,
+            ``dual_infeasibility`` and ``uno_converged``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_uno_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            preset=preset,
+            weights=weights,
+            regularization=regularization,
+            hessian=hessian,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

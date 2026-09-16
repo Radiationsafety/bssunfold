@@ -7,9 +7,39 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [Unreleased]
+## [0.25.0] - 2026-09-16
 
 ### Added
+- **GEE unfolding** (`unfold_gee` / `solve_gee` / `solve_gee_full` /
+  `gee_fit`, Python analogue of the R package `gee` 4.13-30, Liang &
+  Zeger 1986): the detector spheres are treated as a correlated
+  cluster with a working correlation matrix `R(alpha)`
+  (`corstr="exchangeable"|"ar1"|"independence"`, moment-estimated from
+  the Pearson residuals each iteration) and a quasi-likelihood family
+  select (`family="gaussian"|"poisson"|"gamma"`); the penalised score
+  `A^T R(alpha)^-1 (b-Ax) - lam G x = 0` (second-difference roughness
+  ridge) is solved by the classical IRLS loop with projected
+  (non-negativity) fixed-point fallback.  Robust Liang-Zeger
+  sandwich uncertainties for the unfolded spectrum are reported as
+  `robust_se` / `naive_se` (with `spectrum_uncert_robust`) and the
+  full `cov_robust`/`cov_naive` matrices in the `_full` diagnostics,
+  plus `alpha`, `phi`, `pearson_chi2`, `df`, `iterations`,
+  `converged`.  Pure NumPy.
+- **Uno-style Lagrange-Newton constrained unfolding** (`unfold_uno` /
+  `solve_uno` / `solve_uno_full`, analogue of the R package `Uno`,
+  Vanaret & Leyffer 2024 arXiv:2406.13454): solves the constrained
+  non-linear program `min 1/2||W(Ax-b)||^2 + lam/2||D2 x||^2 s.t.
+  x >= 0` with two Uno presets: `filter_sqp` (Lagrange-Newton SQP with
+  the exact constant Hessian and the Fletcher-Leyffer filter
+  globalisation; the convex QP sub-problem is solved exactly in one
+  Lawson-Hanson active-set step on the stacked least-squares system)
+  and `ipopt_like` (primal-dual interior point with the log-barrier
+  regularisation `diag(mu/x^2)`, geometric mu schedule and the
+  fraction-to-the-boundary rule; `hessian="exact"|"bfgs"` Hessian
+  building blocks).  SolveStatistics-style quality diagnostics
+  (`objective`, `constraint_violation`, `dual_infeasibility`,
+  `n_iterations`, `converged`).  Pure NumPy/SciPy (the QP sub-solve
+  uses `scipy.optimize.nnls`).
 - **P-spline mixed-model unfolding with REML smoothing selection**
   (`unfold_pspline_reml` / `solve_pspline_reml` /
   `solve_pspline_reml_full`, Python analogue of the R package

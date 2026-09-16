@@ -439,6 +439,8 @@ graph TD
 | 73 | `unfold_amg` | Krylov / preconditioned | `method` (cg/bicgstab/gmres), `preconditioner` (amg/jacobi/gs/sor/ssor/none), `omega`, `max_iterations`, `tolerance`, `outer_iterations`, `nonnegativity`, `regularization` | pyamg (optional) | AMG/stationary-preconditioned Krylov unfolding (Rlinsolve/pyamg analogue): damped normal equations solved with cg/bicgstab/gmres accelerated by algebraic multigrid (smoothed aggregation) or one sweep of a classical stationary iteration (Jacobi/GS/SOR/SSOR); projected outer restarts enforce non-negativity; auto Tikhonov damping stabilises rank-deficient systems |
 | 74 | `unfold_pspline_reml` | Tikhonov / mixed-model | `n_basis`, `spline_order`, `diff_order`, `knot_spacing` (auto/uniform/log), `weights` (uniform/poisson/array), `lam_relative` | — | P-spline mixed-model unfolding with REML smoothing selection (LMMsolver analogue): spectrum represented as a P-spline, coefficients split into fixed (polynomial trend, null space of the difference penalty) and random (wiggly) parts; smoothing parameter = variance ratio estimated by maximising the REML profile likelihood (scale-free bounds); Henderson mixed-model equations solved for the final spectrum; reports lambda, effective dimension (ed) and REML diagnostics |
 | 75 | `unfold_ssr` | Robust / sign-based | `fn` (`"auto"`/int), `max_iterations`, `tolerance`, `smooth_every`, `inner_sweeps`, `fn_ladder_cap` | — | SSR Sign-Simplicity-Regression unfolding (Python port of the R package `sisireg` 1.2.1, Metzner 2020/2021): alternates MLEM data-fidelity updates with non-equidistant SSR QSOR sweeps of the spectrum over the energy grid; each sweep replaces interior bins by the simplicitic neighbour interpolation and reverts updates violating the partial sum criterion (`fn`), suppressing sign-inadequate wiggles; `fn="auto"` runs Metzner's minimum-statistic ladder on the data-space sign adequacy (partial sum / maximum run tests of the folded residuals) and parsimony (extrema); reports `fn`, `fn_start`, `k_run`, `n_extrema`, `ps_valid_data`, `run_valid_data`; pure NumPy, non-negativity preserved by construction |
+| 76 | `unfold_gee` | Statistical reg. / robust inference | `family` (gaussian/poisson/gamma), `corstr` (independence/exchangeable/ar1), `regularization`, `max_iterations`, `tolerance` | — | Generalized Estimating Equations unfolding (R `gee`-analogue, Liang & Zeger 1986): the spheres form a correlated cluster with a working correlation matrix `R(alpha)` (moment-estimated from the Pearson residuals); penalised GLS score `A^T R^-1 (b-Ax) - lam G x = 0` solved by the IRLS loop; robust Liang-Zeger sandwich uncertainties for the spectrum (`robust_se`, `spectrum_uncert_robust`, full `cov_robust`/`cov_naive` in the `_full` diag) plus `alpha`, `phi`, `pearson_chi2`, `gee_converged` |
+| 77 | `unfold_uno` | Optimization / NLP | `preset` (filter_sqp/ipopt_like), `weights` (uniform/poisson/array), `regularization`, `hessian` (exact/bfgs), `max_iterations`, `tolerance` | — | Uno-style Lagrange-Newton constrained unfolding (R `Uno` analogue, Vanaret & Leyffer 2024): solves `min 1/2||W(Ax-b)||^2 + lam/2||D2 x||^2 s.t. x >= 0` either by the `filterSQP` preset (exact Hessian, Fletcher-Leyffer filter; the convex QP is solved exactly in one Lawson-Hanson active-set sub-step) or the IPOPT-like primal-dual interior-point method (exact or BFGS Hessian, fraction-to-the-boundary rule); reports SolveStatistics-style quality (`objective`, `constraint_violation`, `dual_infeasibility`, `n_iterations`, `uno_converged`) |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -789,7 +791,7 @@ bssunfold/
 │   ├── examples.rst
 │   ├── conf.py
 │   └── requirements.txt
-├── examples/                    # Jupyter notebooks (40 notebooks)
+├── examples/                    # Jupyter notebooks (50 notebooks)
 ├── scripts/                     # Standalone analysis / benchmark scripts
 │   ├── rank_methods.py
 │   ├── optimize_defaults_and_new_methods.py
@@ -943,6 +945,8 @@ bssunfold/
             ├── unfold_tikhonov_legendre.py
             ├── unfold_tikhonov_tv.py
             ├── unfold_tsvd.py
+            ├── unfold_gee.py
+            ├── unfold_uno.py
             └── unfold_zfit.py
 ```
 
