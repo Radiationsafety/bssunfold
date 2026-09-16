@@ -65,6 +65,7 @@ from .unfold_ensemble import unfold_ensemble as unfold_ensemble_impl
 from .unfold_epic import unfold_epic as unfold_epic_impl
 from .unfold_express import unfold_express as unfold_express_impl
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
+from .unfold_fission_ga import unfold_fission_ga as unfold_fission_ga_impl
 from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_gee import unfold_gee as unfold_gee_impl
@@ -134,6 +135,9 @@ from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_staysl import unfold_staysl as unfold_staysl_impl
 from .unfold_tikhonov_legendre import (
     unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
+)
+from .unfold_tikhonov_sobolev_dp import (
+    unfold_tikhonov_sobolev_dp as unfold_tikhonov_sobolev_dp_impl,
 )
 from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
@@ -302,12 +306,9 @@ class Detector:
                     )
                 if sensitivities.shape[0] != len(E_MeV):
                     raise ValueError(
-                        "Number of rows in sensitivities must match "
-                        "length of E_MeV"
+                        "Number of rows in sensitivities must match length of E_MeV"
                     )
-                detector_names = [
-                    f"det_{i}" for i in range(sensitivities.shape[1])
-                ]
+                detector_names = [f"det_{i}" for i in range(sensitivities.shape[1])]
                 data = {"E_MeV": E_MeV}
                 for i, name in enumerate(detector_names):
                     data[name] = sensitivities[:, i]
@@ -315,11 +316,7 @@ class Detector:
             raise TypeError("sensitivities must be dict or np.ndarray")
 
         # Case 4: No arguments, use default
-        if (
-            response_functions is None
-            and E_MeV is None
-            and sensitivities is None
-        ):
+        if response_functions is None and E_MeV is None and sensitivities is None:
             return pd.DataFrame(RF_GSF)
 
         raise ValueError(
@@ -339,23 +336,18 @@ class Detector:
     def __repr__(self) -> str:
         """Technical string representation."""
         return (
-            f"Detector(E_MeV={self.E_MeV.tolist()}, "
-            f"sensitivities={self.sensitivities})"
+            f"Detector(E_MeV={self.E_MeV.tolist()}, sensitivities={self.sensitivities})"
         )
 
     def __getattr__(self, name: str):
         """Provide helpful error for unrecognized unfold_* methods."""
         if name.startswith("unfold_"):
-            available = [
-                m for m in dir(self.__class__) if m.startswith("unfold_")
-            ]
+            available = [m for m in dir(self.__class__) if m.startswith("unfold_")]
             raise AttributeError(
                 f"Unknown unfolding method 'Detector.{name}'. "
                 f"Available methods: {available}"
             )
-        raise AttributeError(
-            f"'Detector' object has no attribute '{name}'"
-        )
+        raise AttributeError(f"'Detector' object has no attribute '{name}'")
 
     @property
     def n_detectors(self) -> int:
@@ -405,9 +397,7 @@ class Detector:
         """
         return interpolate_coefficients(self.cc_icrp116, self.E_MeV)
 
-    def _validate_readings(
-        self, readings: dict[str, float]
-    ) -> dict[str, float]:
+    def _validate_readings(self, readings: dict[str, float]) -> dict[str, float]:
         """Validate detector readings."""
         return validate_readings(readings, self.detector_names)
 
@@ -417,9 +407,7 @@ class Detector:
         """Build response matrix A and measurement vector b."""
         selected = [name for name in self.detector_names if name in readings]
         b = np.array([readings[name] for name in selected], dtype=float)
-        A = np.array(
-            [self.sensitivities[name] for name in selected], dtype=float
-        )
+        A = np.array([self.sensitivities[name] for name in selected], dtype=float)
         return A, b, selected
 
     def _standardize_output(
@@ -441,8 +429,7 @@ class Detector:
             "spectrum": spectrum_nonneg.copy(),
             "spectrum_absolute": spectrum_nonneg.copy(),
             "effective_readings": {
-                name: float(val)
-                for name, val in zip(selected, computed_readings)
+                name: float(val) for name, val in zip(selected, computed_readings)
             },
             "residual": residual.copy(),
             "residual_norm": float(np.linalg.norm(residual)),
@@ -534,9 +521,7 @@ class Detector:
             if "Phi" in discretized.columns:
                 spectrum_col = "Phi"
             else:
-                non_energy_cols = [
-                    c for c in discretized.columns if c != "E_MeV"
-                ]
+                non_energy_cols = [c for c in discretized.columns if c != "E_MeV"]
                 if not non_energy_cols:
                     raise ValueError("No spectrum column found")
                 spectrum_col = non_energy_cols[0]
@@ -548,9 +533,7 @@ class Detector:
             f"pd.DataFrame. Got {type(initial_spectrum)}"
         )
 
-    def _cosine_similarity(
-        self, spectrum1: np.ndarray, spectrum2: np.ndarray
-    ) -> float:
+    def _cosine_similarity(self, spectrum1: np.ndarray, spectrum2: np.ndarray) -> float:
         """Compute cosine similarity between two spectra."""
         norm1 = np.linalg.norm(spectrum1)
         norm2 = np.linalg.norm(spectrum2)
@@ -602,9 +585,7 @@ class Detector:
         """Return a new Detector restricted to the bins selected by ``mask``."""
         sub = Detector(
             E_MeV=self.E_MeV[mask],
-            sensitivities={
-                k: v[mask] for k, v in self.sensitivities.items()
-            },
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
             cc_type=self.cc_type,
         )
         return sub
@@ -669,12 +650,8 @@ class Detector:
         eff = result.get("effective_readings")
         if isinstance(eff, dict) and eff:
             selected = list(eff.keys())
-            A = np.array(
-                [self.sensitivities[name] for name in selected], dtype=float
-            )
-            b_measured = np.array(
-                [readings[name] for name in selected], dtype=float
-            )
+            A = np.array([self.sensitivities[name] for name in selected], dtype=float)
+            b_measured = np.array([readings[name] for name in selected], dtype=float)
             computed = A @ spectrum
             result["effective_readings"] = {
                 name: float(v) for name, v in zip(selected, computed)
@@ -3363,9 +3340,7 @@ class Detector:
         }
 
     # Utility methods
-    def discretize_spectra(
-        self, spectra: pd.DataFrame | dict
-    ) -> pd.DataFrame:
+    def discretize_spectra(self, spectra: pd.DataFrame | dict) -> pd.DataFrame:
         """Interpolate spectra onto target energy grid."""
         return discretize_spectra(spectra, self.E_MeV)
 
@@ -3379,8 +3354,7 @@ class Detector:
             spectra_df = spectra.copy()
         else:
             raise TypeError(
-                "Input spectra must be DataFrame or dict. "
-                f"Got type: {type(spectra)}"
+                f"Input spectra must be DataFrame or dict. Got type: {type(spectra)}"
             )
 
         if "E_MeV" in spectra_df.columns:
@@ -4609,6 +4583,96 @@ class Detector:
             zthr=zthr,
             tolerance=tolerance,
             noise_level=noise_level,
+            calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_tikhonov_sobolev_dp(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        noise_level: float = 0.02,
+        delta: float | None = None,
+        penalty: str = "sobolev",
+        alpha_range: tuple[float, float] = (1e-10, 1e10),
+        max_iter: int = 100,
+        calculate_errors: bool = False,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using Tikhonov + generalized discrepancy (alfaFinder).
+
+        Python port of the energy-non-invariant apparatus-function
+        method of Ogorodnikov (2024), sections 3 and 5
+        (``alfaFinder()``): Tikhonov regularization with the discrete
+        Sobolev ``W_2^1`` penalty (first-difference operator, the
+        discrete analogue of the Euler equation
+        ``A*A z + alpha (z - z'') = A* u``), with the regularization
+        parameter ``alpha*`` selected by the generalized discrepancy
+        principle ``||A z - b||^2 = delta^2`` (root found by a
+        bracketing + Brent scheme combining the bisection and
+        chord/secant methods used in the article).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (accepted for API compatibility).
+        noise_level : float, optional
+            Relative noise level used to derive ``delta``
+            (default: 0.02, the article's 0-2 % range).
+        delta : float, optional
+            Explicit RMS noise level; overrides ``noise_level``.
+        penalty : str, optional
+            Penalty operator: ``"sobolev"`` (first difference,
+            default), ``"curvature"`` (second difference) or
+            ``"identity"`` (ridge).
+        alpha_range : tuple, optional
+            Search interval for the regularization parameter.
+        max_iter : int, optional
+            Maximum number of root-finder iterations (default: 100).
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty (default: False).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional keys
+            ``alpha`` (selected regularization parameter),
+            ``discrepancy_status`` (0 = root found, 1 = delta too
+            small, 2 = delta too large), ``dp_converged`` and
+            ``residual_sq``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_tikhonov_sobolev_dp_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            noise_level=noise_level,
+            delta=delta,
+            penalty=penalty,
+            alpha_range=alpha_range,
+            max_iter=max_iter,
             calculate_errors=calculate_errors,
             n_montecarlo=n_montecarlo,
             save_result=save_result,
@@ -6456,6 +6520,118 @@ class Detector:
         )
         return self._expand_result(result, mask, readings)
 
+    def unfold_fission_ga(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        initial_params: dict[str, float] | None = None,
+        fit_scale: bool = True,
+        ga_popsize: int = 15,
+        ga_maxiter: int = 100,
+        ga_tol: float = 1e-10,
+        lm_method: str = "trf",
+        lm_max_nfev: int = 2000,
+        eps_threshold: float = 0.05,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using the Fission-model GA+LM algorithm (BonnerFinder).
+
+        Python port of the multisphere unfolding algorithm of
+        Ogorodnikov (2024), sections 4-5 (``BonnerFinder()``), which
+        follows the FRUIT paradigm of parameterized model curves.  The
+        spectrum is modelled by the three-fraction Fission model
+        (thermal Maxwellian, epithermal tail with cutoff, Watt-type
+        fast fission peak) with seven free parameters.  Stage 1 searches
+        the parameter hypercube globally with a genetic (differential
+        evolution) algorithm minimizing the L1 discrepancy of the folded
+        readings; stage 2 refines the best point with a nonlinear
+        least-squares routine.  The article's validation criteria
+        (per-sphere relative uncertainties, sign alternation, FOM,
+        spectrum norm) are attached to the result.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused by the parametric method).
+        initial_params : Optional[Dict[str, float]], optional
+            Optional starting parameter values (``a1, a2, a3, b, beta,
+            alpha, TF``, optionally ``phi_scale``); refined as an extra
+            stage-2 start.
+        fit_scale : bool, optional
+            Fit a free overall scale factor so the model matches
+            absolutely calibrated readings (default: True).  Set False
+            for the exact 7-parameter normalized formulation of the
+            article (adds the norm-in-[0.6, 1.2] validation check).
+        ga_popsize : int, optional
+            Population multiplier of the genetic algorithm (default: 15).
+        ga_maxiter : int, optional
+            Maximum number of GA generations (default: 100).
+        ga_tol : float, optional
+            GA convergence tolerance (default: 1e-10).
+        lm_method : str, optional
+            Stage-2 least-squares method: ``"trf"`` (bounded, default)
+            or ``"lm"`` (Levenberg-Marquardt, as in the article).
+        lm_max_nfev : int, optional
+            Maximum function evaluations of one stage-2 run
+            (default: 2000).
+        eps_threshold : float, optional
+            Threshold on per-sphere relative uncertainty used by the
+            validation criteria (default: 0.05).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional keys
+            ``model_params`` (fitted Fission-model parameters including
+            ``weight_fractions``) and ``validation`` (article's
+            validation criteria).
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_fission_ga_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            initial_params=initial_params,
+            fit_scale=fit_scale,
+            ga_popsize=ga_popsize,
+            ga_maxiter=ga_maxiter,
+            ga_tol=ga_tol,
+            lm_method=lm_method,
+            lm_max_nfev=lm_max_nfev,
+            eps_threshold=eps_threshold,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
     def unfold_hybrid_parametric(
         self,
         readings: dict[str, float],
@@ -7146,27 +7322,17 @@ class Detector:
                         )
                 if i < 2:
                     if readings1 is None and "readings" in s and i == 0:
-                        extra_readings[0] = np.asarray(
-                            s["readings"], dtype=float
-                        )
+                        extra_readings[0] = np.asarray(s["readings"], dtype=float)
                     if readings2 is None and "readings" in s and i == 1:
-                        extra_readings[1] = np.asarray(
-                            s["readings"], dtype=float
-                        )
+                        extra_readings[1] = np.asarray(s["readings"], dtype=float)
                     if response_matrix is None and "response_matrix" in s:
-                        extra_rm[i] = np.asarray(
-                            s["response_matrix"], dtype=float
-                        )
+                        extra_rm[i] = np.asarray(s["response_matrix"], dtype=float)
             elif isinstance(s, np.ndarray):
                 if s.ndim != 1:
-                    raise ValueError(
-                        f"Spectrum {i} must be 1-D, got shape {s.shape}"
-                    )
+                    raise ValueError(f"Spectrum {i} must be 1-D, got shape {s.shape}")
                 parsed.append(s)
             else:
-                raise TypeError(
-                    f"Spectrum {i} must be ndarray or dict, got {type(s)}"
-                )
+                raise TypeError(f"Spectrum {i} must be ndarray or dict, got {type(s)}")
 
         if len(parsed) < 2:
             raise ValueError("At least two spectra required for comparison")
@@ -7186,9 +7352,7 @@ class Detector:
             else:
                 labels = [f"Spectrum {i}" for i in range(len(parsed))]
         if len(labels) != len(parsed):
-            raise ValueError(
-                f"Expected {len(parsed)} labels, got {len(labels)}"
-            )
+            raise ValueError(f"Expected {len(parsed)} labels, got {len(labels)}")
 
         # Resolve readings / response_matrix for EURADOS metrics
         r1 = readings1 if readings1 is not None else extra_readings[0]
@@ -7269,9 +7433,7 @@ class Detector:
                 values = list(plot_data.values())
                 colors_bars = sns.color_palette("viridis", n_colors=len(names))
                 bars = ax_right.barh(names, values, color=colors_bars)
-                ax_right.axvline(
-                    x=0, color="gray", linestyle="--", linewidth=0.5
-                )
+                ax_right.axvline(x=0, color="gray", linestyle="--", linewidth=0.5)
                 ax_right.set_xlabel("Metric value")
                 ax_right.set_title(title)
                 ax_right.grid(True, axis="x", alpha=0.3)

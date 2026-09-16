@@ -7,6 +7,56 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.26.0] - 2026-09-17
+
+### Added
+- **Fission-model GA+LM unfolding** (`unfold_fission_ga` /
+  `solve_fission_ga`, port of the multisphere algorithm of
+  Ogorodnikov 2024, sections 4-5, `BonnerFinder()`): parameterized
+  model curves in the FRUIT paradigm — the spectrum is a
+  superposition of thermal Maxwellian, epithermal tail with cutoff
+  and Watt-type fast fission fractions (article eq. 4.29) with the
+  seven free parameters `a1, a2, a3, b, beta, alpha, TF` and the
+  article's bounds.  Stage 1 performs a stochastic global search of
+  the parameter hypercube with a differential-evolution (genetic)
+  algorithm minimizing the L1 discrepancy of the folded readings
+  (article eq. 4.32); stage 2 refines the best point with a bounded
+  nonlinear least-squares routine (SciLab `leastsq` analogue; `trf`
+  default, `lm` available).  An optional free overall scale factor
+  `phi_scale` (log10-parameterized, `fit_scale=True`) matches
+  absolutely calibrated readings; `fit_scale=False` reproduces the
+  exact 7-parameter normalized formulation.  The article's
+  validation criteria (per-sphere relative uncertainties with sign
+  alternation, FOM, model-spectrum norm in [0.6, 1.2] for normalized
+  problems) are reported in the `validation` result entry, the fitted
+  parameters (with normalized `weight_fractions`) in `model_params`.
+  Pure NumPy + SciPy (`scipy.optimize.differential_evolution` /
+  `least_squares`); deterministic under `random_state`.
+- **Tikhonov + generalized discrepancy unfolding** (`unfold_tikhonov_sobolev_dp` /
+  `solve_tikhonov_sobolev_dp`, port of Ogorodnikov 2024, sections 3
+  and 5, `alfaFinder()`): Tikhonov regularization with the discrete
+  Sobolev `W_2^1` penalty (first-difference operator — the discrete
+  analogue of the Euler equation `A*A z + alpha (z - z'') = A* u`,
+  article eq. 3.10; `curvature` and `identity` penalties selectable),
+  with the regularization parameter `alpha*` selected by the
+  generalized discrepancy principle `||A z - b||^2 = delta^2`
+  (article eq. 3.8).  The root of the monotone discrepancy `rho(alpha)`
+  is bracketed on a log10 grid and refined with Brent's method (the
+  robust counterpart of the Newton/chord root finding used in the
+  article); diagnostic status codes mirror the article's `FFinder`
+  `IERR` conventions (0 = root found, 1 = delta too small for the
+  data, 2 = delta larger than any achievable misfit).  The standalone
+  selection routine `alpha_finder_generalized_discrepancy` (with the
+  `generalized_discrepancy` function) is exported for use with other
+  solvers.  Pure NumPy + SciPy.
+- **Tests** (`tests/test_ogorodnikov2024.py`, 36 tests): quasi-real
+  experiment fixtures built from the packaged GSF response functions
+  (Fission-model truth + uniform noise, article eqs. 4.21-4.22),
+  discrepancy-principle property checks on synthetic linear systems,
+  well-posed recovery checks, Detector-workflow tests and IAEA
+  Compendium package-data cases (Cf-252 via the Fission model, AmBe
+  via Tikhonov-DP).
+
 ## [0.25.0] - 2026-09-16
 
 ### Added
