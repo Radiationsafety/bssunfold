@@ -122,3 +122,81 @@ Notes
   parsimony criterion.
 * Pure NumPy — no additional dependencies.  The R package sisireg is
   GPL (>= 2), compatible with the GPL-3 license of bssunfold.
+
+Spatial regression: ``ssr3d``
+-----------------------------
+
+The 1-D solvers generalise to scattered data :math:`z(x, y)` on the
+plane (R ``ssr3d``, ``R/ssr3d.R`` + ``src/ssr3d.c``).  The regression
+surface is the most parsimonious *minimal surface* that is
+statistically adequate with respect to the residual signs in the
+k-quadrant-neighbourhood of every observation: the ``k`` nearest
+observations in each of the four quadrants north-east, north-west,
+south-west and south-east of a reference point.  Adequacy is tested
+over the ``4k + 1`` nearest-neighbourhoods (the partial sum criterion
+with threshold ``fn``); the Gauss-Seidel iteration replaces every
+point by the exponential-distance-weighted mean of its quadrant
+neighbours and *reverts* the update to the observation whenever the
+new value violates the criterion.
+
+.. code-block:: python
+
+   from bssunfold.core import ssr3d, ssr3d_predict, ps_statistic_3d
+
+   model = ssr3d(coords, dat)          # coords (n, 2), dat (n,)
+   z = ssr3d_predict(model, queries)   # exponential weights
+   z_ms = ssr3d_predict(model, queries, ms=True)  # 4-point minimal surface
+
+   # partial sums vs. 95% quantiles (computation behind R psplot3d)
+   ps, fn = ps_statistic_3d(coords, dat, model.mu)
+
+Neighbourhood construction (``near_neighbors_quadrant``,
+``near_neighbors``), the partial sum statistic (``ps_max_3d``,
+``ps_statistic_3d``), the weighted means (``wmean``, ``wmean_exp``,
+``wmean_ms``) and the model dataclass ``SSR3DModel`` are exported as
+well.  The default ``k = max_run_quantile(n) / 2`` reproduces the R
+true division including its truncating conversions.  The port was
+verified to reproduce the original R output to machine precision
+(same values of ``mu`` for scattered and jittered-grid data); on
+exactly regular grids, distance ties make the neighbourhood
+composition depend on the last bits of the floating-point distances,
+so tiny deviations of the *tie handling* are possible there — as
+between any two R builds.
+
+Neural regression: ``ssrMLP``
+-----------------------------
+
+``ssrMLP`` (R ``ssrMLP.R``) is a two-hidden-layer perceptron with
+sigmoid activations and linear output whose SGD training criterion is
+not the least squares residual but Metzner's partial sum criterion:
+the sum of the positive parts of the absolute input-neighbourhood
+residual sign sums above the threshold, optionally combined with
+squared residuals (``opt='ps_lse'``), with a curvature penalty of the
+learned function over the input neighbourhoods (``opt='ps_l1'``), with
+plain least squares (``opt='lse'``) or with user-supplied error and
+factor functions (``opt='ext'``).  The port reproduces the R
+semantics exactly, including two quirks of the original: the hidden
+layer receives the *transposed* weight update (``t(t(temp) %*% O1)``),
+which confines the configuration to square hidden layers
+``hl[0] == hl[1]``, and the ``fn`` / ``alpha`` arguments of
+``ssrmlp_train`` are accepted but never forwarded, so the criterion
+defaults ``fn = 4`` / ``alpha = 1e-4`` apply (custom values are
+possible through ``opt='ext'``).
+
+.. code-block:: python
+
+   from bssunfold.core import ssrmlp_train, ssrmlp_predict, fii_model
+
+   model = ssrmlp_train(X, Y, opt="ps", max_iter=1000, rng=0)
+   yp = ssrmlp_predict(X, model)
+   importance = fii_model(model)   # per-input (bias included), sums to 1
+
+The criterion building blocks (``check_ps``, ``err_ps``/``fac_ps``,
+``err_lse``/``fac_lse``, ``err_ps_lse``/``fac_ps_lse``,
+``err_ps_l1``/``fac_ps_l1``), the forward pass ``calc_out`` and the
+per-sample factor importance ``fii_prediction`` are exported as well.
+Two training epochs reproduce the original R result bit-exactly
+(fixture-tested); longer runs can diverge in the last bits because
+the sign criterion is discontinuous — a residual within BLAS noise of
+zero can flip its sign — which is inherent to any cross-platform
+reimplementation of the R algorithm.

@@ -69,6 +69,30 @@ and this project adheres to [Semantic Versioning].
   trail.  Pure NumPy (no new dependencies); non-negativity preserved
   by construction; sisireg's GPL (>= 2) is compatible with the
   GPL-3 license of bssunfold.
+- **Spatial SSR regression (`ssr3d`) and SSR-MLP (`ssrMLP`)** (Python
+  ports of the remaining solver parts of the R package `sisireg`
+  1.2.1, files `R/ssr3d.R` + `src/ssr3d.c` and `R/ssrMLP.R`): the
+  spatial module regresses scattered planar data with the minimal
+  surface that is statistically adequate in the residual signs of the
+  k-quadrant-neighbourhoods (`ssr3d`, `ssr3d_predict` with exponential
+  and 4-point minimal-surface prediction modes, `ssr3d` Gauss-Seidel
+  solver with the C `chi` adequacy reverts, neighbourhood builders
+  `near_neighbors_quadrant`/`near_neighbors` with the R value-matching
+  tie semantics, `ps_max_3d`/`ps_statistic_3d` partial sum statistics,
+  weighted means `wmean`/`wmean_exp`/`wmean_ms`, model dataclass
+  `SSR3DModel`); the MLP module trains a two-hidden-layer perceptron
+  with Metzner's partial sum criterion instead of least squares
+  (`ssrmlp_train` with `opt='ps'/'ps_lse'/'ps_l1'/'lse'/'ext'`,
+  `ssrmlp_predict`, criterion building blocks
+  `check_ps`/`err_ps`/`fac_ps`/`err_ps_lse`/`fac_ps_lse`/`err_ps_l1`/`fac_ps_l1`,
+  `calc_out`, factor importance `fii_model`/`fii_prediction`, model
+  dataclass `SSRMLPModel`).  Both ports reproduce the R semantics
+  exactly — including the fractional `k = maxRunR(n)/2` truncations,
+  the distance-tie neighbourhood inflation, the transposed hidden
+  layer update of `ssrMLP` (square hidden layers only, as in R) and
+  its not-forwarded `fn`/`alpha` arguments — and were verified
+  against the original R output to machine precision (recorded as
+  fixture tests).  Pure NumPy, no new dependencies.
 
 ### Fixed
 - `solve_tsvd` ignored the explicit `k` and `threshold` parameters:

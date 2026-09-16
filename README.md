@@ -46,7 +46,7 @@
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
     IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
-  - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst), SSR (Sign-Simplicity-Regression, sisireg port - MLEM data step + sign-adequacy QSOR parsimony sweep with minimum-statistic threshold selection)
+  - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst), SSR (Sign-Simplicity-Regression, sisireg port - MLEM data step + sign-adequacy QSOR parsimony sweep with minimum-statistic threshold selection), plus the spatial (`ssr3d` minimal-surface regression for scattered planar data) and neural (`ssrMLP` two-layer perceptron trained with the partial sum criterion) extensions of the same package as standalone regression building blocks
    - **Dictionary / Sparse**: NN-KSVD (non-negative K-SVD with NNLS-TopK/OMP/NN-OMP sparse coders, Xu et al. NIMA 2026), CS (compressive sensing with K-SVD + SL0)
    - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired annealing)
   - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
