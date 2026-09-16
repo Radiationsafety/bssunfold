@@ -36,7 +36,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (75+ methods):
+- **Multiple Unfolding Algorithms** (76+ methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD, selectable LAPACK/ARPACK/PROPACK backends), EPIC (Equal Posterior Information Condition), P-spline REML (mixed-model smoothing with automatic REML smoothing selection)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES, AMG-Krylov (AMG / Jacobi / Gauss-Seidel / SOR / SSOR preconditioning)
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
@@ -46,7 +46,7 @@
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
     IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
-  - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst)
+  - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst), SSR (Sign-Simplicity-Regression, sisireg port - MLEM data step + sign-adequacy QSOR parsimony sweep with minimum-statistic threshold selection)
    - **Dictionary / Sparse**: NN-KSVD (non-negative K-SVD with NNLS-TopK/OMP/NN-OMP sparse coders, Xu et al. NIMA 2026), CS (compressive sensing with K-SVD + SL0)
    - **Optimization-based**: lmfit (L1/L2/Elastic Net), Scipy direct solvers (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES via MEALPY), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired annealing)
   - **Evolutionary**: MAEO (Multi-Algorithm Evolutionary Optimization with NSGA-III, C-TAEA, AGE-MOEA-II, SPEA2)
@@ -438,6 +438,7 @@ graph TD
 | 72 | `unfold_mlem_bs` | Iterative / Spline | `n_basis`, `spline_order`, `beta`, `beta_relative`, `knot_spacing` (auto/uniform/log), `auto_params`, `bootstrap_ci`, `n_bootstrap`, `ci_alpha`, `max_iterations`, `tolerance` | — | B-spline MLEM (MLEM-BS, Mazankova et al., CNDGS'2026, https://doi.org/10.47459/cndcgs.2026.61): spectrum represented in a B-spline basis (effective matrix RB = R·B) with the regularized MLEM iteration (Eq. 4) and second-derivative penalty ‖D⁽²⁾b‖² (Eq. 5); sieve restriction to non-negative coefficients (Szkutnik 2005); iterations, N_s and beta selected by minimizing the K_S statistic (Eq. 6) via `auto_params=True`; optional Poisson-bootstrap confidence intervals (Eqs. 7-9) |
 | 73 | `unfold_amg` | Krylov / preconditioned | `method` (cg/bicgstab/gmres), `preconditioner` (amg/jacobi/gs/sor/ssor/none), `omega`, `max_iterations`, `tolerance`, `outer_iterations`, `nonnegativity`, `regularization` | pyamg (optional) | AMG/stationary-preconditioned Krylov unfolding (Rlinsolve/pyamg analogue): damped normal equations solved with cg/bicgstab/gmres accelerated by algebraic multigrid (smoothed aggregation) or one sweep of a classical stationary iteration (Jacobi/GS/SOR/SSOR); projected outer restarts enforce non-negativity; auto Tikhonov damping stabilises rank-deficient systems |
 | 74 | `unfold_pspline_reml` | Tikhonov / mixed-model | `n_basis`, `spline_order`, `diff_order`, `knot_spacing` (auto/uniform/log), `weights` (uniform/poisson/array), `lam_relative` | — | P-spline mixed-model unfolding with REML smoothing selection (LMMsolver analogue): spectrum represented as a P-spline, coefficients split into fixed (polynomial trend, null space of the difference penalty) and random (wiggly) parts; smoothing parameter = variance ratio estimated by maximising the REML profile likelihood (scale-free bounds); Henderson mixed-model equations solved for the final spectrum; reports lambda, effective dimension (ed) and REML diagnostics |
+| 75 | `unfold_ssr` | Robust / sign-based | `fn` (`"auto"`/int), `max_iterations`, `tolerance`, `smooth_every`, `inner_sweeps`, `fn_ladder_cap` | — | SSR Sign-Simplicity-Regression unfolding (Python port of the R package `sisireg` 1.2.1, Metzner 2020/2021): alternates MLEM data-fidelity updates with non-equidistant SSR QSOR sweeps of the spectrum over the energy grid; each sweep replaces interior bins by the simplicitic neighbour interpolation and reverts updates violating the partial sum criterion (`fn`), suppressing sign-inadequate wiggles; `fn="auto"` runs Metzner's minimum-statistic ladder on the data-space sign adequacy (partial sum / maximum run tests of the folded residuals) and parsimony (extrema); reports `fn`, `fn_start`, `k_run`, `n_extrema`, `ps_valid_data`, `run_valid_data`; pure NumPy, non-negativity preserved by construction |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 

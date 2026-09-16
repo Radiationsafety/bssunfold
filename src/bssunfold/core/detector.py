@@ -128,6 +128,7 @@ from .unfold_scipy_direct_method import (
     unfold_scipy_direct_method as unfold_scipy_direct_impl,
 )
 from .unfold_smt import unfold_smt as unfold_smt_impl
+from .unfold_ssr import unfold_ssr as unfold_ssr_impl
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_staysl import unfold_staysl as unfold_staysl_impl
 from .unfold_tikhonov_legendre import (
@@ -4639,6 +4640,103 @@ class Detector:
             max_iterations=max_iterations,
             tolerance=tolerance,
             weights=weights,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_ssr(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        fn: str | int = "auto",
+        max_iterations: int = 500,
+        tolerance: float = 1e-6,
+        smooth_every: int = 1,
+        inner_sweeps: int = 1,
+        fn_ladder_cap: int = 8,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using SSR Sign-Simplicity-Regression (sisireg port).
+
+        Python port of the R package ``sisireg`` 1.2.1 (Metzner): MLEM
+        data-fidelity steps alternate with non-equidistant SSR QSOR
+        sweeps of the spectrum over the energy grid.  Each sweep
+        replaces interior bins by the simplicitic neighbour
+        interpolation and reverts updates that would violate the
+        partial sum criterion (threshold ``fn``), which suppresses
+        sign-inadequate wiggles.  With ``fn="auto"`` the threshold is
+        selected by the minimum statistic ladder: it starts at
+        ``int(0.66 * partial_sum_quantile(n, k_run))`` and decreases
+        while the folded residuals stay sign-adequate (partial sum /
+        maximum run test in the data space) and the spectrum does not
+        gain extrema.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (flat start when missing).
+        fn : str or int, optional
+            ``"auto"`` (default, minimum statistic ladder) or a fixed
+            partial sum threshold.
+        max_iterations : int, optional
+            Maximum number of outer MLEM + sweep iterations
+            (default: 500).
+        tolerance : float, optional
+            Relative L2 stopping tolerance (default: 1e-6).
+        smooth_every : int, optional
+            Apply the SSR sweep every ``smooth_every``-th iteration
+            (default: 1).
+        inner_sweeps : int, optional
+            Number of QSOR passes per SSR step (default: 1).
+        fn_ladder_cap : int, optional
+            Maximum number of ladder candidates for ``fn="auto"``
+            (default: 8).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Relative noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional keys ``fn``,
+            ``fn_start``, ``k_run``, ``n_extrema``, ``ps_valid_data``,
+            ``run_valid_data`` and ``ssr_converged``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_ssr_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            fn=fn,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            smooth_every=smooth_every,
+            inner_sweeps=inner_sweeps,
+            fn_ladder_cap=fn_ladder_cap,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

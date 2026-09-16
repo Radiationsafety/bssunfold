@@ -44,6 +44,31 @@ and this project adheres to [Semantic Versioning].
   leading `k` triplets when a fixed truncation `k` is given and
   degrade gracefully to the dense solver (with a warning) on failure;
   automatic k-selection keeps using the dense decomposition.
+- **SSR Sign-Simplicity-Regression unfolding** (`unfold_ssr` /
+  `solve_ssr` / `solve_ssr_full`, Python port of the R package
+  `sisireg` 1.2.1, Metzner 2020/2021, GPL>=2): MLEM data-fidelity
+  updates alternate with non-equidistant SSR QSOR sweeps of the
+  spectrum over the energy grid; each sweep replaces interior bins by
+  the simplicitic neighbour interpolation and reverts updates that
+  would violate the partial sum criterion (threshold `fn`),
+  suppressing sign-inadequate wiggles while bounding the deviation
+  from the data-fit in every window.  `fn="auto"` runs Metzner's
+  minimum-statistic ladder: the threshold starts at
+  `int(0.66 * partial_sum_quantile(n, k_run))` and descends while the
+  folded residuals stay sign-adequate (data-space partial sum /
+  maximum run tests) and the spectrum does not gain extrema; the last
+  adequate candidate is returned.  The pure regression building
+  blocks are exported as well (`ssr`, `ssr_ne`, `ssr_min_statistic`,
+  `ssr_min_statistic_ne`, `ssr_predict`, `max_run_quantile`,
+  `partial_sum_quantile`, `partial_sum_max`, `partial_sum_valid`,
+  `run_valid`, `rolling_median`, `number_of_extrema`) and reproduce
+  the R/C semantics exactly (rolling-median start values, truncating
+  integer conversions, L1 and standardised-L2 equidistant solvers).
+  Reports `fn`, `fn_start`, `k_run`, `n_extrema`, `ps_valid_data`,
+  `run_valid_data`, `max_run_data`, `ssr_sweeps` and the `fn_ladder`
+  trail.  Pure NumPy (no new dependencies); non-negativity preserved
+  by construction; sisireg's GPL (>= 2) is compatible with the
+  GPL-3 license of bssunfold.
 
 ### Fixed
 - `solve_tsvd` ignored the explicit `k` and `threshold` parameters:

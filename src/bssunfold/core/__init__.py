@@ -152,6 +152,23 @@ from .unfold_smt import (
     solve_smt,
     unfold_smt,
 )
+from .unfold_ssr import (
+    max_run_quantile,
+    number_of_extrema,
+    partial_sum_max,
+    partial_sum_quantile,
+    partial_sum_valid,
+    rolling_median,
+    run_valid,
+    solve_ssr,
+    solve_ssr_full,
+    ssr,
+    ssr_min_statistic,
+    ssr_min_statistic_ne,
+    ssr_ne,
+    ssr_predict,
+    unfold_ssr,
+)
 from .unfold_statreg import solve_statreg, unfold_statreg
 from .unfold_staysl import solve_staysl, unfold_staysl
 from .unfold_tikhonov_legendre import solve_tikhonov_legendre, unfold_tikhonov_legendre
@@ -192,6 +209,21 @@ __all__ = [
     "solve_gks",
     "solve_tikhonov_tv",
     "solve_sandii",
+    "solve_ssr",
+    "solve_ssr_full",
+    # Sign-Simplicity-Regression building blocks (R sisireg 1.2.1 port)
+    "ssr",
+    "ssr_ne",
+    "ssr_min_statistic",
+    "ssr_min_statistic_ne",
+    "ssr_predict",
+    "max_run_quantile",
+    "partial_sum_quantile",
+    "partial_sum_max",
+    "partial_sum_valid",
+    "run_valid",
+    "rolling_median",
+    "number_of_extrema",
     "solve_bunki",
     "solve_bunkiut",
     "solve_ferdor",
@@ -278,6 +310,7 @@ __all__ = [
     "unfold_gks",
     "unfold_tikhonov_tv",
     "unfold_sandii",
+    "unfold_ssr",
     "unfold_express",
     "unfold_bunki",
     "unfold_bunkiut",
