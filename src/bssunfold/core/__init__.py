@@ -89,6 +89,14 @@ from .unfold_epic import solve_epic, unfold_epic
 from .unfold_express import solve_express, unfold_express
 from .unfold_ferdor import solve_ferdor, unfold_ferdor
 from .unfold_fruit_like import solve_fruit_like
+from .unfold_gee import (
+    estimate_alpha,
+    gee_fit,
+    solve_gee,
+    solve_gee_full,
+    unfold_gee,
+    working_correlation,
+)
 from .unfold_genetic import solve_genetic, unfold_genetic
 from .unfold_gks import solve_gks, unfold_gks
 from .unfold_gravel import solve_gravel, unfold_gravel
@@ -208,6 +216,7 @@ from .unfold_staysl import solve_staysl, unfold_staysl
 from .unfold_tikhonov_legendre import solve_tikhonov_legendre, unfold_tikhonov_legendre
 from .unfold_tikhonov_tv import solve_tikhonov_tv, unfold_tikhonov_tv
 from .unfold_tsvd import solve_tsvd, unfold_tsvd
+from .unfold_uno import solve_uno, solve_uno_full, unfold_uno, uno_filter
 from .unfold_zfit import solve_zfit_unfold, unfold_zfit
 
 __all__ = [
@@ -245,6 +254,14 @@ __all__ = [
     "solve_sandii",
     "solve_ssr",
     "solve_ssr_full",
+    "solve_gee",
+    "solve_gee_full",
+    "gee_fit",
+    "estimate_alpha",
+    "working_correlation",
+    "solve_uno",
+    "solve_uno_full",
+    "uno_filter",
     # Sign-Simplicity-Regression building blocks (R sisireg 1.2.1 port)
     "ssr",
     "ssr_ne",
@@ -371,6 +388,8 @@ __all__ = [
     "unfold_tsvd",
     "unfold_amg",
     "unfold_pspline_reml",
+    "unfold_gee",
+    "unfold_uno",
     "unfold_lanczos",
     "unfold_cgls",
     "unfold_gks",
