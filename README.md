@@ -795,7 +795,7 @@ bssunfold/
 │   ├── examples.rst
 │   ├── conf.py
 │   └── requirements.txt
-├── examples/                    # Jupyter notebooks (50 notebooks)
+├── examples/                    # Jupyter notebooks (51 notebooks)
 ├── scripts/                     # Standalone analysis / benchmark scripts
 │   ├── rank_methods.py
 │   ├── optimize_defaults_and_new_methods.py

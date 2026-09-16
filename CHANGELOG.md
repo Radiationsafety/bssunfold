@@ -56,6 +56,13 @@ and this project adheres to [Semantic Versioning].
   well-posed recovery checks, Detector-workflow tests and IAEA
   Compendium package-data cases (Cf-252 via the Fission model, AmBe
   via Tikhonov-DP).
+- **Worked example** (`examples/51-ogorodnikov2024.ipynb`): the
+  quasi-real experiment (shape recovery to pearson 0.9999 and dose
+  rates within ~1 % via the Fission-model GA, with the validation
+  report), the generalized-discrepancy alpha selection with the
+  monotone `rho(alpha)` curve and the penalty-family comparison
+  (including the null-space fluence/dose drift discussion), and the
+  IAEA Compendium package-data cases.
 
 ## [0.25.0] - 2026-09-16
 
