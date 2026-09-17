@@ -20,7 +20,6 @@ from bssunfold.core import solve_gnowee, unfold_gnowee
 from bssunfold.core._gnowee import (
     GnoweeHeuristics,
     GnoweeSettings,
-    Parent,
     levy,
     rejection_bounds,
     run_gnowee,

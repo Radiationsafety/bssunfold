@@ -2546,7 +2546,8 @@ class TestMaxNeutronEnergy:
 
     @pytest.mark.parametrize(
         "method",
-        ["cvxpy", "qpsolvers", "mlem", "landweber", "genetic", "gnowee", "nnqp", "qpmad"],
+        ["cvxpy", "qpsolvers", "mlem", "landweber", "genetic",
+         "gnowee", "nnqp", "qpmad"],
     )
     def test_spectrum_zero_above_emax(self, method):
         det = self._make_detector()

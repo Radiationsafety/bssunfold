@@ -102,6 +102,7 @@ from .unfold_mlem_stop import unfold_mlem_stop as unfold_mlem_stop_impl
 from .unfold_mystic import unfold_mystic as unfold_mystic_impl
 from .unfold_mystic import unfold_mystic_hybrid as unfold_mystic_hybrid_impl
 from .unfold_nnksvd import unfold_nnksvd as unfold_nnksvd_impl
+from .unfold_nnqp import unfold_nnqp as unfold_nnqp_impl
 from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
 from .unfold_nspline import unfold_nspline as unfold_nspline_impl
 from .unfold_odl_advanced import (
@@ -116,7 +117,6 @@ from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_pspline_reml import (
     unfold_pspline_reml as unfold_pspline_reml_impl,
 )
-from .unfold_nnqp import unfold_nnqp as unfold_nnqp_impl
 from .unfold_qpmad import unfold_qpmad as unfold_qpmad_impl
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
 from .unfold_qubo import unfold_qubo as unfold_qubo_impl
