@@ -2546,7 +2546,7 @@ class TestMaxNeutronEnergy:
 
     @pytest.mark.parametrize(
         "method",
-        ["cvxpy", "qpsolvers", "mlem", "landweber", "genetic", "gnowee"],
+        ["cvxpy", "qpsolvers", "mlem", "landweber", "genetic", "gnowee", "nnqp", "qpmad"],
     )
     def test_spectrum_zero_above_emax(self, method):
         det = self._make_detector()
@@ -2563,6 +2563,10 @@ class TestMaxNeutronEnergy:
         if method == "gnowee":
             kw = dict(population=15, max_gens=20, max_fevals=300,
                       stall_limit=60, random_state=0, n_montecarlo=0)
+        if method == "nnqp":
+            kw = dict(max_iterations=500, random_state=0, n_montecarlo=0)
+        if method == "qpmad":
+            kw = dict(max_iterations=1000, n_montecarlo=0)
         result = fn(readings, max_neutron_energy=Emax, **kw)
 
         assert len(result["spectrum"]) == n

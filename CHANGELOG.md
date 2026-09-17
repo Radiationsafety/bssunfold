@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning].
 ## [0.25.0] - 2026-09-17
 
 ### Added
+- **NNQP unfolding** (`unfold_nnqp` / `solve_nnqp`, Giovannucci & Pehlevan,
+  https://github.com/simonsfoundation/NNQP). Solves the regularised
+  non-negative least-squares problem
+  ``min 0.5 ||A x - b||^2 + α/2 ||L x||^2 + α0/2 ||x||^2  s.t.  x >= 0``
+  by recasting it as the NNQP ``min 0.5 x^T Q x + f^T x s.t. x >= 0``
+  with ``Q = A^T A + α L^T L + α0 I`` and ``f = -A^T b``, then applying
+  the coordinate-descent NNQP solver. Pure-NumPy port of the original
+  `nnqp.py` (which used ``numba``); drops the ``numba`` hard-dependency
+  in favour of a vectorised inner loop.  No external dependency required.
+  - New file: `core/unfold_nnqp.py` (`solve_nnqp` + `unfold_nnqp`)
+  - New `Detector.unfold_nnqp()` method
+  - Registered in `core/__init__.py`, exposed in `docs/detector.rst`
+    and `docs/overview.rst` (method #76)
+- **qpmad unfolding** (`unfold_qpmad` / `solve_qpmad`, Sherikov,
+  https://github.com/asherikov/qpmad). Solves the strictly-convex QP
+  ``min 0.5 ||A x - b||^2 + α/2 ||L x||^2 + α0/2 ||x||^2  s.t.
+  lb <= x <= ub`` (default: ``x >= 0``) by recasting it as
+  ``min 0.5 x^T H x + g^T x`` with ``H = A^T A + α L^T L + α0 I``
+  (symmetric PD). The default ``backend='python'`` uses a self-contained
+  NumPy port of an active-set QP solver (Nocedal & Wright, *Numerical
+  Optimization*, ch. 16.4). When the upstream qpmad C++ library with
+  Python bindings is installed, ``backend='qpmad'`` calls it directly
+  and otherwise gracefully falls back to the python backend.
+  - New file: `core/unfold_qpmad.py` (`solve_qpmad` + `unfold_qpmad`)
+  - New `Detector.unfold_qpmad()` method
+  - Registered in `core/__init__.py`, exposed in `docs/detector.rst`
+    and `docs/overview.rst` (method #77)
+  - Added `nnqp` and `qpmad` to the
+    `TestMaxNeutronEnergy::test_spectrum_zero_above_emax` parametrization
+    in `tests/test_coverage.py`.
+  - New tests in `tests/test_nnqp_qpmad.py` (32 tests covering the inner
+    NNQP and active-set QP solvers, the BSS-unfolding solvers, and the
+    `Detector.unfold_nnqp` / `Detector.unfold_qpmad` methods).
 - **Gnowee unfolding** (`unfold_gnowee` / `solve_gnowee`, plus the
   `bssunfold.core._gnowee` pure-Python 3 port of the Gnowee hybrid
   metaheuristic, Bevins & Parsons, UC Berkeley / Slaybaugh Lab,

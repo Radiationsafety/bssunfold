@@ -28,6 +28,10 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_gnowee.unfold_gnowee
 
+.. autofunction:: bssunfold.core.unfold_nnqp.unfold_nnqp
+
+.. autofunction:: bssunfold.core.unfold_qpmad.unfold_qpmad
+
 .. autofunction:: bssunfold.core.unfold_smt.unfold_smt
 
 .. autofunction:: bssunfold.core.unfold_scip.unfold_scip

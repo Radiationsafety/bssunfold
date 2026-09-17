@@ -131,6 +131,7 @@ from .unfold_mapem import solve_mapem, unfold_mapem
 from .unfold_maxed import solve_maxed, unfold_maxed
 from .unfold_mcmc import solve_bayesian_mcmc, unfold_mcmc
 from .unfold_mlem import solve_mlem, unfold_mlem
+from .unfold_nnqp import solve_nnqp, unfold_nnqp
 from .unfold_mlem_bs import (
     AUTO_BETA_RELATIVE_GRID,
     build_bspline_basis,
@@ -187,6 +188,7 @@ from .unfold_pspline_reml import (
     solve_pspline_reml_full,
     unfold_pspline_reml,
 )
+from .unfold_qpmad import solve_qpmad, unfold_qpmad
 from .unfold_qpsolvers import solve_qpsolvers, unfold_qpsolvers
 from .unfold_qubo import solve_qubo_unfold, unfold_qubo
 from .unfold_rebunki import solve_rebunki, unfold_rebunki
@@ -242,6 +244,8 @@ __all__ = [
     "solve_cvxpy",
     "solve_landweber",
     "solve_mlem",
+    "solve_nnqp",
+    "solve_qpmad",
     "solve_qpsolvers",
     "solve_mystic",
     "solve_mystic_hybrid",
@@ -392,6 +396,8 @@ __all__ = [
     "unfold_cvxpy",
     "unfold_landweber",
     "unfold_mlem",
+    "unfold_nnqp",
+    "unfold_qpmad",
     "unfold_qpsolvers",
     "unfold_mystic",
     "unfold_mystic_hybrid",

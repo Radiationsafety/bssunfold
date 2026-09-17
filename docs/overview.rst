@@ -609,6 +609,18 @@ Method Reference
      - `population`, `max_gens`, `max_fevals`, `stall_limit`, `conv_tol`, `opt_conv_tol`, `frac_elite`, `frac_levy`, `frac_mutation`, `alpha_levy`, `gamma_levy`, `n_levy`, `scaling_factor`, `init_sampling` (lhc/random), `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `half_range`
      - —
      - Gnowee hybrid metaheuristic optimizer (Bevins & Parsons, UC Berkeley / Slaybaugh Lab, https://github.com/SlaybaughLab/Gnowee). Combines Lévy flights (Cuckoo Search via the Mantegna algorithm), golden-ratio crossover (Modified Cuckoo Search / Differential Evolution), scatter search (Egea 2009) and DE-style mutation in an elitist population with Metropolis-Hastings acceptance and stall-driven restarts. Searches in log space, seeded with a Landweber warm-start solution, with a scale-consistent objective combining the relative L2 residual, Tikhonov regularisation, second-difference smoothness and (optionally) negative Shannon entropy. Pure-Python 3 port (no external optimisation library required).
+   * - 76
+     - ``unfold_nnqp``
+     - Optimization / QP
+     - `regularization`, `smoothness_order` (0/1/2), `smoothness_weight`, `tol`, `max_iterations`, `floor`
+     - —
+     - Non-Negative Quadratic Programming solver (Giovannucci & Pehlevan, https://github.com/simonsfoundation/NNQP). Coordinate-descent algorithm for ``min 0.5 x^T Q x + f^T x  s.t.  x >= 0``, applied to the regularised BSS least-squares problem ``Q = A^T A + α L^T L + α0 I, f = -A^T b``. Pure-NumPy port of the original `nnqp.py` (which used ``numba``); drops the ``numba`` hard-dependency in favour of a vectorised inner loop. See :ref:`math-tikhonov`.
+   * - 77
+     - ``unfold_qpmad``
+     - Optimization / QP
+     - `regularization`, `smoothness_order` (0/1/2), `smoothness_weight`, `floor`, `lb`, `ub`, `backend` (python/qpmad), `tol`, `max_iterations`
+     - qpmad (optional, for the C++ backend)
+     - qpmad-style strictly-convex QP solver (Sherikov, https://github.com/asherikov/qpmad). Solves ``min 0.5 ||A x - b||^2 + α/2 ||L x||^2 + α0/2 ||x||^2  s.t.  lb <= x <= ub`` (default: ``x >= 0``) by recasting it as ``min 0.5 x^T H x + g^T x`` with ``H = A^T A + α L^T L + α0 I`` (symmetric PD). The default ``backend='python'`` uses a self-contained NumPy port of an active-set QP solver (Nocedal & Wright, Numerical Optimization ch. 16.4). When the upstream qpmad C++ library with Python bindings is installed, ``backend='qpmad'`` calls it directly. See :ref:`math-tikhonov`.
 
 
 

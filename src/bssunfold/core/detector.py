@@ -116,6 +116,8 @@ from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_pspline_reml import (
     unfold_pspline_reml as unfold_pspline_reml_impl,
 )
+from .unfold_nnqp import unfold_nnqp as unfold_nnqp_impl
+from .unfold_qpmad import unfold_qpmad as unfold_qpmad_impl
 from .unfold_qpsolvers import unfold_qpsolvers as unfold_qpsolvers_impl
 from .unfold_qubo import unfold_qubo as unfold_qubo_impl
 from .unfold_randomized_kaczmarz import (
@@ -1313,6 +1315,189 @@ class Detector:
             noise_var=noise_var,
             smoothness_order=smoothness_order,
             smoothness_weight=smoothness_weight,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_nnqp(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        regularization: float = 1e-4,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        tol: float = 1e-6,
+        max_iterations: int = 10_000,
+        floor: float = 1e-6,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using NNQP (non-negative QP by coordinate descent).
+
+        Solves ``min 0.5 ||A x - b||^2 + alpha/2 ||L x||^2 + alpha0/2 ||x||^2``
+        subject to ``x >= 0`` using the NNQP coordinate-descent solver of
+        Giovannucci & Pehlevan
+        (https://github.com/simonsfoundation/NNQP).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Warm-start spectrum. If None, the NNQP solver uses a uniform
+            random initial guess.
+        regularization : float, optional
+            Tikhonov / smoothness regularization weight, default 1e-4.
+        smoothness_order : int, optional
+            Smoothness penalty order (0, 1 or 2), default 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default 1.0.
+        tol : float, optional
+            Convergence tolerance, default 1e-6.
+        max_iterations : int, optional
+            Iteration cap, default 10 000.
+        floor : float, optional
+            Diagonal regularization floor added to Q to guarantee strict
+            positive-definiteness, default 1e-6.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default 100.
+        save_result : bool, optional
+            Save result to history, default False.
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_nnqp_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            tol=tol,
+            max_iterations=max_iterations,
+            floor=floor,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_qpmad(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        regularization: float = 1e-4,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        floor: float = 1e-6,
+        lb: np.ndarray | None = None,
+        ub: np.ndarray | None = None,
+        backend: str = "python",
+        tol: float = 1e-9,
+        max_iterations: int = 10_000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using qpmad (Goldfarb-Idnani dual active-set QP).
+
+        Solves ``min 0.5 ||A x - b||^2 + alpha/2 ||L x||^2 + alpha0/2 ||x||^2``
+        subject to ``lb <= x <= ub`` (default: ``x >= 0``) using the qpmad
+        algorithm of Sherikov (https://github.com/asherikov/qpmad).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Accepted for API compatibility (Goldfarb-Idnani starts from
+            the unconstrained minimum, not from ``x0``).
+        regularization : float, optional
+            Tikhonov / smoothness regularization weight, default 1e-4.
+        smoothness_order : int, optional
+            Smoothness penalty order (0, 1 or 2), default 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default 1.0.
+        floor : float, optional
+            Diagonal regularization floor added to H to guarantee strict
+            positive-definiteness, default 1e-6.
+        lb, ub : np.ndarray, optional
+            Simple bounds on the spectrum. If both are None (default) the
+            method enforces ``x >= 0``.
+        backend : str, optional
+            'python' (default) uses a pure-NumPy port of Goldfarb-Idnani;
+            'qpmad' calls the upstream C++ library if available.
+        tol : float, optional
+            Numerical tolerance, default 1e-9.
+        max_iterations : int, optional
+            Iteration cap for the Python backend, default 10 000.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default 100.
+        save_result : bool, optional
+            Save result to history, default False.
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_qpmad_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            floor=floor,
+            lb=lb,
+            ub=ub,
+            backend=backend,
+            tol=tol,
+            max_iterations=max_iterations,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
             random_state=random_state,
         )
         return self._expand_result(result, mask, readings)
