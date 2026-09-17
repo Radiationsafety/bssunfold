@@ -71,6 +71,7 @@ from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_gee import unfold_gee as unfold_gee_impl
 from .unfold_genetic import unfold_genetic as unfold_genetic_impl
 from .unfold_gks import unfold_gks as unfold_gks_impl
+from .unfold_gnowee import unfold_gnowee as unfold_gnowee_impl
 from .unfold_gravel import unfold_gravel as unfold_gravel_impl
 from .unfold_hybrid_gmres import unfold_hybrid_gmres as unfold_hybrid_gmres_impl
 from .unfold_hybrid_parametric import (
@@ -1667,6 +1668,163 @@ class Detector:
             crossover=crossover,
             mutation=mutation,
             pareto_select=pareto_select,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            verbose=verbose,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_gnowee(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        population: int = 25,
+        max_gens: int = 200,
+        max_fevals: int = 5_000,
+        stall_limit: int = 200,
+        conv_tol: float = 1e-6,
+        opt_conv_tol: float = 1e-2,
+        frac_elite: float = 0.2,
+        frac_levy: float = 1.0,
+        frac_mutation: float = 0.2,
+        alpha_levy: float = 1.5,
+        gamma_levy: float = 1.0,
+        n_levy: int = 1,
+        scaling_factor: float = 10.0,
+        init_sampling: str = "lhc",
+        regularization: float = 1e-2,
+        norm: int = 2,
+        smoothness_order: int = 2,
+        smoothness_weight: float = 1.0,
+        entropy_weight: float = 0.0,
+        half_range: float = 2.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        verbose: bool = False,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using the Gnowee hybrid metaheuristic optimizer.
+
+        Gnowee (Bevins & Parsons, https://github.com/SlaybaughLab/Gnowee)
+        combines Lévy flights (Cuckoo Search), golden-ratio crossover
+        (Modified Cuckoo Search), scatter search (Egea 2009) and
+        differential-evolution mutation in an elitist population with
+        Metropolis-Hastings acceptance and stall-driven restarts.
+
+        The optimizer searches in log space seeded with a Landweber
+        warm-start solution (or the provided ``initial_spectrum``),
+        bounded to ``log(seed) ± half_range`` decades, with a
+        scale-consistent objective combining the relative L2 residual,
+        Tikhonov regularisation, second-difference smoothness and
+        (optionally) negative Shannon entropy.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess. If None, a Landweber warm-start solution
+            is used to seed the population.
+        population : int, optional
+            Population size, default 25 (Gnowee's recommended value).
+        max_gens : int, optional
+            Maximum number of generations, default 200.
+        max_fevals : int, optional
+            Maximum fitness evaluations, default 5_000.
+        stall_limit : int, optional
+            Stall-based termination threshold (evaluations), default 200.
+        conv_tol : float, optional
+            Relative improvement tolerance for timeline extension,
+            default 1e-6.
+        opt_conv_tol : float, optional
+            Tolerance on the optimum value for fitness convergence,
+            default 1e-2.
+        frac_elite : float, optional
+            Elite fraction (crossover / scatter search), default 0.2.
+        frac_levy : float, optional
+            Lévy flight fraction, default 1.0.
+        frac_mutation : float, optional
+            Mutation discovery probability, default 0.2.
+        alpha_levy : float, optional
+            Lévy exponent, default 1.5.
+        gamma_levy : float, optional
+            Lévy scale, default 1.0.
+        n_levy : int, optional
+            Number of independent Lévy samples, default 1.
+        scaling_factor : float, optional
+            Lévy step length scale, default 10.0.
+        init_sampling : str, optional
+            Initial sampler: ``'lhc'`` or ``'random'``, default ``'lhc'``.
+        regularization : float, optional
+            Tikhonov regularisation weight, default 1e-2.
+        norm : int, optional
+            Norm for the regularisation term (1 or 2), default 2.
+        smoothness_order : int, optional
+            Smoothness penalty order (0, 1 or 2), default 2.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default 1.0.
+        entropy_weight : float, optional
+            Weight of the negative Shannon-entropy objective (0 disables it).
+        half_range : float, optional
+            Half-width of the log-space search bounds in decades around the
+            seed, default 2.0.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default 100.
+        save_result : bool, optional
+            Save result to history, default False.
+        random_state : int, optional
+            Random seed for reproducibility.
+        verbose : bool, optional
+            Print Gnowee progress every 10 generations.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_gnowee_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            population=population,
+            max_gens=max_gens,
+            max_fevals=max_fevals,
+            stall_limit=stall_limit,
+            conv_tol=conv_tol,
+            opt_conv_tol=opt_conv_tol,
+            frac_elite=frac_elite,
+            frac_levy=frac_levy,
+            frac_mutation=frac_mutation,
+            alpha_levy=alpha_levy,
+            gamma_levy=gamma_levy,
+            n_levy=n_levy,
+            scaling_factor=scaling_factor,
+            init_sampling=init_sampling,
+            regularization=regularization,
+            norm=norm,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            entropy_weight=entropy_weight,
+            half_range=half_range,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

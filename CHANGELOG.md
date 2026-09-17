@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning].
 ## [0.25.0] - 2026-09-17
 
 ### Added
+- **Gnowee unfolding** (`unfold_gnowee` / `solve_gnowee`, plus the
+  `bssunfold.core._gnowee` pure-Python 3 port of the Gnowee hybrid
+  metaheuristic, Bevins & Parsons, UC Berkeley / Slaybaugh Lab,
+  https://github.com/SlaybaughLab/Gnowee). Gnowee combines Lévy flights
+  (Cuckoo Search via the Mantegna algorithm), golden-ratio crossover
+  (Modified Cuckoo Search / Differential Evolution), scatter search
+  (Egea 2009) and DE-style mutation in an elitist population with
+  Metropolis-Hastings acceptance and stall-driven restarts. Searches in
+  log space, seeded with a Landweber warm-start solution (or the
+  user-provided `initial_spectrum`), bounded to
+  `log(seed) ± half_range` decades, with a scale-consistent objective
+  combining the relative L2 residual, Tikhonov regularisation,
+  second-difference smoothness and (optionally) negative Shannon
+  entropy. No external optimisation library required.
+  - New file: `core/_gnowee.py` (Lévy / TLF / `GnoweeHeuristics` /
+    `run_gnowee`)
+  - New file: `core/unfold_gnowee.py` (`solve_gnowee` + `unfold_gnowee`)
+  - New `Detector.unfold_gnowee()` method
+  - Registered in `core/__init__.py`, exposed in `docs/detector.rst`
+    and `docs/overview.rst` (method #75)
+  - New tests in `tests/test_gnowee.py` (28 tests; covers the samplers,
+    the `run_gnowee` optimizer on the 5-D sphere benchmark,
+    `solve_gnowee` truth-recovery on a synthetic under-determined BSS
+    problem, and `Detector.unfold_gnowee` end-to-end including
+    reproducibility, `initial_spectrum` injection, `max_neutron_energy`
+    truncation and diagnostics).
+  - Added `gnowee` to the `TestMaxNeutronEnergy::test_spectrum_zero_above_emax`
+    parametrization in `tests/test_coverage.py`.
 - **GEE unfolding** (`unfold_gee` / `solve_gee` / `solve_gee_full` /
   `gee_fit`, Python analogue of the R package `gee` 4.13-30, Liang &
   Zeger 1986): the detector spheres are treated as a correlated

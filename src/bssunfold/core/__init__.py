@@ -108,6 +108,7 @@ from .unfold_gee import (
 )
 from .unfold_genetic import solve_genetic, unfold_genetic
 from .unfold_gks import solve_gks, unfold_gks
+from .unfold_gnowee import solve_gnowee, unfold_gnowee
 from .unfold_gravel import solve_gravel, unfold_gravel
 from .unfold_hybrid_parametric import solve_hybrid_parametric
 from .unfold_imaxed import solve_imaxed, unfold_imaxed
@@ -245,6 +246,7 @@ __all__ = [
     "solve_mystic",
     "solve_mystic_hybrid",
     "solve_genetic",
+    "solve_gnowee",
     "solve_doroshenko",
     "solve_directed_divergence",
     "solve_kaczmarz",
@@ -394,6 +396,7 @@ __all__ = [
     "unfold_mystic",
     "unfold_mystic_hybrid",
     "unfold_genetic",
+    "unfold_gnowee",
     "unfold_doroshenko",
     "unfold_directed_divergence",
     "unfold_kaczmarz",

@@ -603,6 +603,12 @@ Method Reference
      - `n_basis`, `spline_order`, `beta`, `beta_relative`, `knot_spacing` (auto/uniform/log), `auto_params`, `bootstrap_ci`, `n_bootstrap`, `ci_alpha`, `max_iterations`, `tolerance`
      - —
      - B-spline MLEM (MLEM-BS, Mazankova et al., CNDGS'2026, https://doi.org/10.47459/cndcgs.2026.61): the spectrum is represented in a B-spline basis (effective matrix RB = R B) and the coefficients are found with the regularized MLEM iteration (Eq. 4) with the second-derivative penalty ``P(b) = ||D^(2) b||^2`` (Eq. 5) and the Szkutnik (2005) sieve restriction to non-negative coefficients; iterations, N_s and beta are selected by minimizing the K_S statistic (Eq. 6) with ``auto_params=True``; optional Poisson-bootstrap confidence intervals (Eqs. 7-9). See :doc:`mlem_bs`.
+   * - 75
+     - ``unfold_gnowee``
+     - Optimization
+     - `population`, `max_gens`, `max_fevals`, `stall_limit`, `conv_tol`, `opt_conv_tol`, `frac_elite`, `frac_levy`, `frac_mutation`, `alpha_levy`, `gamma_levy`, `n_levy`, `scaling_factor`, `init_sampling` (lhc/random), `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `half_range`
+     - —
+     - Gnowee hybrid metaheuristic optimizer (Bevins & Parsons, UC Berkeley / Slaybaugh Lab, https://github.com/SlaybaughLab/Gnowee). Combines Lévy flights (Cuckoo Search via the Mantegna algorithm), golden-ratio crossover (Modified Cuckoo Search / Differential Evolution), scatter search (Egea 2009) and DE-style mutation in an elitist population with Metropolis-Hastings acceptance and stall-driven restarts. Searches in log space, seeded with a Landweber warm-start solution, with a scale-consistent objective combining the relative L2 residual, Tikhonov regularisation, second-difference smoothness and (optionally) negative Shannon entropy. Pure-Python 3 port (no external optimisation library required).
 
 
 
