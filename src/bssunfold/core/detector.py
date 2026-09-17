@@ -54,8 +54,8 @@ from .unfold_combined import unfold_combined as unfold_combined_impl
 from .unfold_composite import unfold_composite as unfold_composite_impl
 from .unfold_crystal_ball import unfold_crystal_ball as unfold_crystal_ball_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
-from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_cuqi import unfold_cuqi as unfold_cuqi_impl
+from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_directed_divergence import (
     unfold_directed_divergence as unfold_directed_divergence_impl,
 )

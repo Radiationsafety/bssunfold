@@ -61,7 +61,7 @@ from typing import Any
 import numpy as np
 
 from ._base_unfolder import run_unfolding
-from .unfold_mcmc import _hpd_interval, _prior_center
+from .unfold_mcmc import _hpd_interval
 
 __all__ = ["solve_cuqi_bayesian", "unfold_cuqi", "check_cuqi_available"]
 
@@ -228,7 +228,9 @@ def _gmrf_precision(n_bins: int, order: int) -> np.ndarray:
     return precision + 1e-9 * np.eye(n_bins)
 
 
-def _build_forward_model(A_matrix: np.ndarray, cuqi_mod: Any, center: np.ndarray | None = None) -> Any:
+def _build_forward_model(
+    A_matrix: np.ndarray, cuqi_mod: Any, center: np.ndarray | None = None,
+) -> Any:
     """Build the CUQIpy forward model ``A @ exp(theta)``.
 
     When ``center`` is given, the model becomes ``A @ exp(center + theta)``
@@ -314,7 +316,8 @@ def _gauss_newton_map(
         for _ in range(25):
             candidate = theta + alpha * step
             candidate_logp = _logp(candidate)
-            if np.isfinite(candidate_logp) and candidate_logp >= current_logp - 1e-4 * alpha * (grad @ step):
+            if (np.isfinite(candidate_logp)
+                    and candidate_logp >= current_logp - 1e-4 * alpha * (grad @ step)):
                 improved = True
                 break
             alpha *= 0.5
@@ -441,8 +444,8 @@ def _run_gibbs_chain(
     if seed is not None:
         np.random.seed(seed)
 
-    from cuqi.distribution import Gamma, Gaussian, GMRF, JointDistribution
-    from cuqi.sampler import Conjugate, HybridGibbs, NUTS, PCN
+    from cuqi.distribution import GMRF, Gamma, Gaussian, JointDistribution
+    from cuqi.sampler import NUTS, PCN, Conjugate, HybridGibbs
 
     # PCN proposals contract towards the prior mean, so the 'gibbs' spectral
     # block runs on the *centered* log-spectrum t = theta - mu (statistically
@@ -454,7 +457,8 @@ def _run_gibbs_chain(
     # NOTE: variable names (delta/theta/y) define the CUQIpy parameter names
     # used by JointDistribution and the sampling-strategy dict — keep them.
     delta = Gamma(delta_alpha, delta_beta)
-    theta = GMRF(mean=prior_mean, prec=lambda delta: delta, bc_type="zero", order=gmrf_order)
+    theta = GMRF(mean=prior_mean, prec=lambda delta: delta,
+                 bc_type="zero", order=gmrf_order)
     y = Gaussian(mean=forward(theta), cov=sigma2)
     joint = JointDistribution(delta, theta, y)
     conditioned = joint(y=b_readings)
@@ -767,7 +771,8 @@ def solve_cuqi_bayesian(
             t = center_theta + whitening @ z
             resid = b_readings - A_matrix @ np.exp(t)
             prior_dev = t - mu
-            return -0.5 * np.sum(resid**2 / sigma2_vec) - 0.5 * prior_dev @ prior_precision @ prior_dev
+            return (-0.5 * np.sum(resid**2 / sigma2_vec)
+                    - 0.5 * prior_dev @ prior_precision @ prior_dev)
 
         def _grad(z):
             t = center_theta + whitening @ z
@@ -807,7 +812,7 @@ def solve_cuqi_bayesian(
         # *centered* log-spectrum t = theta - mu: the pCN proposal contracts
         # towards the prior mean, so centering is essential for the correct
         # proposal scaling.  NUTS samples theta directly.
-        from cuqi.distribution import Gaussian, GMRF, Posterior
+        from cuqi.distribution import GMRF, Gaussian, Posterior
 
         centered = sampler_l in ("pcn", "cwmh")
         prior_mean = np.zeros(n_energy) if centered else mu
@@ -881,7 +886,8 @@ def solve_cuqi_bayesian(
     rhat = None
     if chains > 1 and n_samples_i > 1:
         try:
-            rhat = _gelman_rubin(np.stack(theta_per_chain(theta_all, chains, n_samples_i)))
+            rhat = _gelman_rubin(
+                np.stack(theta_per_chain(theta_all, chains, n_samples_i)))
         except Exception:
             rhat = None
 

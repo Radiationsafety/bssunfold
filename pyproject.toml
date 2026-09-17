@@ -406,6 +406,14 @@ ignore = [
 # fallback path raises at all; the specific type is checked elsewhere.
 "tests/*" = ["B017"]
 
+[tool.uv.sources]
+# NumPy-2.4-compatible cuqipy fork: upstream 1.5.1 caps numpy<=2.2.0, which
+# conflicts with the project's numpy>=2.4.1 floor (and with odl's numpy>=2.3
+# in the aggregated 'all' extra).  The fork relaxes the cap to numpy<2.5 and
+# fixes NUTS for numpy>=2.4 (int() on 1-element arrays).  Public repository,
+# used by uv for the lockfile/CI; published pip metadata keeps cuqipy>=1.5.0.
+cuqipy = { git = "https://github.com/Radiationsafety/CUQIpy", branch = "numpy2-support" }
+
 [[tool.uv.index]]
 name = "testpypi"
 url = "https://test.pypi.org/simple/"

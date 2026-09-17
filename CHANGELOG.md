@@ -96,6 +96,18 @@ and this project adheres to [Semantic Versioning].
   `delta_samples`).  Lazy cuqi import: the package imports normally
   without cuqipy (`CUQI_AVAILABLE` flag / `check_cuqi_availability()`)
   and `unfold_cuqi` raises an informative `ImportError` otherwise.
+  NumPy 2.4 compatibility: upstream `cuqipy` 1.5.1 caps `numpy<=2.2.0`,
+  which conflicts with this package's `numpy>=2.4.1` floor (and with
+  `odl`'s `numpy>=2.3` in the aggregated `all` extra).  A maintained fork
+  (https://github.com/Radiationsafety/CUQIpy, branch `numpy2-support`,
+  dist version 1.5.2) relaxes the cap to `numpy<2.5` and fixes NUTS for
+  `numpy>=2.4` (`int()` conversion of 1-element arrays in the slice and
+  U-turn checks of `cuqi/sampler/_hmc.py`).  The uv lockfile/CI resolves
+  `cuqipy` from the fork through `[tool.uv.sources]`; pip installs of the
+  `cuqi` extra on NumPy 2.4 should pre-install the fork with
+  `pip install "cuqipy @ git+https://github.com/Radiationsafety/CUQIpy@numpy2-support"`
+  (pip then accepts it as satisfying `cuqipy>=1.5.0`); on NumPy <= 2.2 the
+  plain PyPI `cuqipy` works unchanged.
   Documentation: `docs/cuqi_bayes.rst`.
 - **GEE unfolding** (`unfold_gee` / `solve_gee` / `solve_gee_full` /
   `gee_fit`, Python analogue of the R package `gee` 4.13-30, Liang &

@@ -1008,7 +1008,7 @@ bssunfold/
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
 - `odl` — Operator Discretization Library (unfold_mlem_odl)
 - `pymc` + `arviz` — Bayesian MCMC/NUTS sampling (unfold_mcmc)
-- `cuqipy` — Bayesian uncertainty quantification: pCN/CWMH/ULA/MALA/NUTS/hierarchical Gibbs samplers with ESS/R-hat/HPD diagnostics (unfold_cuqi)
+- `cuqipy` — Bayesian uncertainty quantification: pCN/CWMH/ULA/MALA/NUTS/hierarchical Gibbs samplers with ESS/R-hat/HPD diagnostics (unfold_cuqi); on NumPy >= 2.4 install the maintained fork `pip install "cuqipy @ git+https://github.com/Radiationsafety/CUQIpy@numpy2-support"` (upstream caps `numpy<=2.2.0`; the fork relaxes it to `numpy<2.5` and fixes NUTS under NumPy 2.4, dist version 1.5.2)
 
 All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre, NSpline) have **no extra dependencies** beyond NumPy/SciPy.
 

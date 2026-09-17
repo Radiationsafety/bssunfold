@@ -17,6 +17,23 @@ cuqipy is missing, the package still imports normally (the flag
 ``bssunfold.CUQI_AVAILABLE`` is ``False``) and ``unfold_cuqi`` raises
 an informative ``ImportError``.
 
+**NumPy 2.4 note.**  Upstream ``cuqipy`` 1.5.1 declares
+``numpy<=2.2.0``, which conflicts with this package's ``numpy>=2.4.1``
+floor.  A maintained fork with the cap relaxed to ``numpy<2.5`` and the
+NUTS ``int()``-on-1-element-array issue fixed is available at
+https://github.com/Radiationsafety/CUQIpy (branch ``numpy2-support``,
+dist version 1.5.2); it is validated to reproduce upstream results
+bit-for-bit on identical seeded chains.  On NumPy >= 2.4 pre-install it
+with::
+
+   pip install "cuqipy @ git+https://github.com/Radiationsafety/CUQIpy@numpy2-support"
+
+before ``pip install bssunfold[cuqi]`` (pip accepts the fork as
+satisfying ``cuqipy>=1.5.0``).  The uv-managed environment (lockfile and
+CI) resolves ``cuqipy`` from the fork automatically via
+``[tool.uv.sources]``.  On NumPy <= 2.2 the plain PyPI ``cuqipy`` works
+unchanged.
+
 Bayesian model
 --------------
 
