@@ -48,7 +48,7 @@ import warnings
 from typing import Any
 
 import numpy as np
-from scipy.linalg import cho_factor, cho_solve, solve_triangular
+from scipy.linalg import solve_triangular
 
 from ..logging_config import get_logger
 from ._base_unfolder import make_solve_wrapper, run_unfolding
@@ -154,11 +154,15 @@ def _solve_qp_goldfarb_idnani(
         ub_arr = np.asarray(ub, dtype=float)
         for i in range(n):
             if np.isfinite(lb_arr[i]):
-                r = np.zeros(n); r[i] = 1.0
-                rows_C.append(r); vals_d.append(float(lb_arr[i]))
+                r = np.zeros(n)
+                r[i] = 1.0
+                rows_C.append(r)
+                vals_d.append(float(lb_arr[i]))
             if np.isfinite(ub_arr[i]):
-                r = np.zeros(n); r[i] = -1.0
-                rows_C.append(r); vals_d.append(-float(ub_arr[i]))
+                r = np.zeros(n)
+                r[i] = -1.0
+                rows_C.append(r)
+                vals_d.append(-float(ub_arr[i]))
 
     if A is not None and lb_A is not None and ub_A is not None:
         A_arr = np.asarray(A, dtype=float)
@@ -396,7 +400,8 @@ def _solve_qp_qpmad_cpp(
             )
             return np.asarray(x, dtype=float), "OK" if status == 0 else "INFEASIBLE"
         except Exception as e:
-            logger.warning(f"qpmad.solve call failed: {e}; falling back to python backend")
+            logger.warning(
+                f"qpmad.solve call failed: {e}; falling back to python backend")
 
     if hasattr(qpmad_module, "Solver"):
         # OOP form: solver = qpmad.Solver(); solver.solve(...)
@@ -416,7 +421,9 @@ def _solve_qp_qpmad_cpp(
                 return np.zeros(n), "INFEASIBLE"
             return np.asarray(x, dtype=float), "OK" if status == 0 else "INFEASIBLE"
         except Exception as e:
-            logger.warning(f"qpmad.Solver.solve call failed: {e}; falling back to python backend")
+            logger.warning(
+                f"qpmad.Solver.solve call failed: {e};"
+                " falling back to python backend")
 
     raise ImportError(
         "qpmad Python bindings found but no compatible solve API. "

@@ -69,7 +69,8 @@ def _build_seed(A: np.ndarray, b: np.ndarray, x0: np.ndarray | None) -> np.ndarr
     return seed
 
 
-def _build_log_bounds(seed: np.ndarray, half_range: float) -> tuple[np.ndarray, np.ndarray]:
+def _build_log_bounds(seed: np.ndarray, half_range: float,
+                      ) -> tuple[np.ndarray, np.ndarray]:
     """Return ``(lb, ub)`` in log space centred on the seed."""
     y0 = np.log(np.maximum(np.asarray(seed, dtype=float), 1e-300))
     span = half_range * np.log(10.0)

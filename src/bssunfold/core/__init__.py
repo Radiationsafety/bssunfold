@@ -131,7 +131,6 @@ from .unfold_mapem import solve_mapem, unfold_mapem
 from .unfold_maxed import solve_maxed, unfold_maxed
 from .unfold_mcmc import solve_bayesian_mcmc, unfold_mcmc
 from .unfold_mlem import solve_mlem, unfold_mlem
-from .unfold_nnqp import solve_nnqp, unfold_nnqp
 from .unfold_mlem_bs import (
     AUTO_BETA_RELATIVE_GRID,
     build_bspline_basis,
@@ -157,6 +156,7 @@ from .unfold_nnksvd import (
     solve_tikhonov_nnls,
     unfold_nnksvd,
 )
+from .unfold_nnqp import solve_nnqp, unfold_nnqp
 from .unfold_nsduaz import (
     builtin_catalogue,
     select_catalogue_initial,

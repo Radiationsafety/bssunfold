@@ -36,9 +36,8 @@ and uses NumPy's ``default_rng`` for reproducibility.
 
 from __future__ import annotations
 
-import copy as cp
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import gamma, sqrt
 
 import numpy as np
@@ -316,7 +315,8 @@ class GnoweeHeuristics:
         elif method in ("lhc", "lhs"):
             try:
                 from scipy.stats.qmc import LatinHypercube
-                sampler = LatinHypercube(d=n_dim, seed=int(self.rng.integers(0, 2**31 - 1)))
+                seed_int = int(self.rng.integers(0, 2**31 - 1))
+                sampler = LatinHypercube(d=n_dim, seed=seed_int)
                 unit = sampler.random(n=num_samples)
             except Exception:
                 # Fallback: crude Latin-hypercube via permutation per dimension
@@ -442,7 +442,8 @@ class GnoweeHeuristics:
         perm1 = self.rng.permutation(n)
         perm2 = self.rng.permutation(n)
         r = float(self.rng.random())
-        k = self.rng.random((n, dim)) > (self.s.frac_mutation * float(self.rng.random()))
+        k = self.rng.random((n, dim)) > (
+            self.s.frac_mutation * float(self.rng.random()))
         diff = pop_arr[perm1] - pop_arr[perm2]
         step = r * diff
         children = pop_arr + step * k
@@ -456,7 +457,8 @@ class GnoweeHeuristics:
                           timeline: list[Event] | None = None,
                           adopted_parents: list[int] | None = None,
                           mh_frac: float = 0.0,
-                          random_parents: bool = False) -> tuple[list[Parent], int, list[Event] | None]:
+                          random_parents: bool = False,
+                          ) -> tuple[list[Parent], int, list[Event] | None]:
         """Evaluate children and replace worse parents (port of ``population_update``).
 
         Keeps the parents sorted ascending by fitness.  Implements:
@@ -474,7 +476,6 @@ class GnoweeHeuristics:
 
         replace = 0
         feval = 0
-        worst = max((p.fitness for p in parents), default=self.s.penalty)
         for i, child_vars in enumerate(children):
             fnew = float(self.objective(np.asarray(child_vars, dtype=float)))
             if fnew > self.s.penalty:
@@ -551,7 +552,8 @@ def run_gnowee(lb: np.ndarray, ub: np.ndarray,
                settings: GnoweeSettings | None = None,
                rng: np.random.Generator | None = None,
                seed_solution: np.ndarray | None = None,
-               extra_starting: np.ndarray | None = None) -> tuple[np.ndarray, float, list[Event]]:
+               extra_starting: np.ndarray | None = None,
+               ) -> tuple[np.ndarray, float, list[Event]]:
     """Run the Gnowee optimizer on a continuous problem.
 
     Parameters
@@ -606,8 +608,6 @@ def run_gnowee(lb: np.ndarray, ub: np.ndarray,
     timeline.append(Event(0, len(pop), pop[0].fitness,
                           np.array(pop[0].variables, dtype=float)))
 
-    fe = gh.s.frac_elite
-    fl = gh.s.frac_levy
     converge = False
     while not converge:
         # Gnowee re-samples the elite/levy fractions each generation for MI
@@ -669,7 +669,8 @@ def run_gnowee(lb: np.ndarray, ub: np.ndarray,
                 converge = True
                 if settings.verbose:
                     print("Gnowee: fitness convergence (absolute).")
-        elif abs((pop[0].fitness - settings.optimum) / settings.optimum) <= settings.opt_conv_tol:
+        elif (abs((pop[0].fitness - settings.optimum) / settings.optimum)
+              <= settings.opt_conv_tol):
             converge = True
             if settings.verbose:
                 print("Gnowee: fitness convergence (relative).")
