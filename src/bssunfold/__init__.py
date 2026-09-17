@@ -37,9 +37,11 @@ from .core.dose_calculation import (
 )
 from .logging_config import get_logger, setup_logging
 from .platform_check import (
+    CUQI_AVAILABLE,
     JAX_AVAILABLE,
     PROXSUITE_AVAILABLE,
     QPSOLVERS_EXTRA_AVAILABLE,
+    check_cuqi_availability,
     get_available_solvers,
     get_recommended_solver,
     is_unix,
@@ -72,7 +74,9 @@ __all__ = [
     "JAX_AVAILABLE",
     "PROXSUITE_AVAILABLE",
     "QPSOLVERS_EXTRA_AVAILABLE",
+    "CUQI_AVAILABLE",
     "get_available_solvers",
+    "check_cuqi_availability",
     "get_recommended_solver",
     # Logging
     "setup_logging",

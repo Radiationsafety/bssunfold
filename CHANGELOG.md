@@ -70,6 +70,33 @@ and this project adheres to [Semantic Versioning].
     truncation and diagnostics).
   - Added `gnowee` to the `TestMaxNeutronEnergy::test_spectrum_zero_above_emax`
     parametrization in `tests/test_coverage.py`.
+- **CUQIpy Bayesian uncertainty-quantified unfolding** (`unfold_cuqi` /
+  `solve_cuqi_bayesian`, integration of the DTU package
+  [CUQIpy](https://github.com/CUQI-DTU/CUQIpy) — *Computational
+  Uncertainty Quantification for Inverse Problems*; optional dependency,
+  new extra `bssunfold[cuqi]`, `cuqipy>=1.5.0`): the spectrum is modelled
+  on the log scale `f = exp(theta)` with a smoothness prior anchored on
+  a data-driven NNLS center — `prior="gmrf"` (CUQIpy GMRF with a
+  first/second-order difference precision operator, `gmrf_order` 1/2) or
+  `prior="ou"` (dense Ornstein-Uhlenbeck correlation Gaussian,
+  `lengthscale`) — and the posterior is explored with the CUQIpy
+  samplers `sampler=` `pcn` (preconditioned Crank-Nicolson, centred
+  parameterisation), `cwmh` (component-wise Metropolis-Hastings),
+  `mala` / `ula` ((M)ALA on a MAP-whitened parameterisation with the
+  analytic gradient; ula experimental), `nuts` (native No-U-Turn
+  Sampler) and the hierarchical `gibbs` / `gibbs_nuts` (CUQIpy
+  `HybridGibbs`: the GMRF smoothness precision `delta` is inferred from
+  the data through a conjugate `Gamma(alpha, beta)` hyperprior with an
+  exact conjugate update, the spectral block updated by pCN or NUTS).
+  The result carries the posterior mean spectrum, per-bin posterior
+  std, configurable HPD credible intervals (`credible_level`) and
+  convergence diagnostics under `cuqi_stats` (effective sample size,
+  Gelman-Rubin R-hat for multi-chain runs, acceptance rates, raw
+  posterior draws and the hyperparameter draws
+  `delta_samples`).  Lazy cuqi import: the package imports normally
+  without cuqipy (`CUQI_AVAILABLE` flag / `check_cuqi_availability()`)
+  and `unfold_cuqi` raises an informative `ImportError` otherwise.
+  Documentation: `docs/cuqi_bayes.rst`.
 - **GEE unfolding** (`unfold_gee` / `solve_gee` / `solve_gee_full` /
   `gee_fit`, Python analogue of the R package `gee` 4.13-30, Liang &
   Zeger 1986): the detector spheres are treated as a correlated
