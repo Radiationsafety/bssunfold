@@ -33,7 +33,7 @@ license ="GPL-3.0-only"
 license-files = ["LICENSE"]
 
 dependencies = [
-    "cvxpy[ecos]>=1.7.5",
+    "cvxpy>=1.7.5",
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
     "pandas>=2.2.3",
@@ -45,6 +45,10 @@ dependencies = [
 # Optional algorithmic backends (imported lazily inside function bodies with try/except)
 cuqi = [
     "cuqipy>=1.5.0",
+]
+ecos = [
+    # Prefer pre-built wheels; falls back to source build if no wheel available
+    "ecos>=2.0.14",
 ]
 lmfit = [
     "lmfit>=1.3.4",
@@ -104,6 +108,7 @@ interpret = [
  ]
 # All optional backends
 all = [
+    "bssunfold[ecos]",
     "bssunfold[lmfit]",
     "bssunfold[mlem]",
     "bssunfold[tikhonov]",
@@ -123,7 +128,8 @@ all = [
  ]
 # Base set of QP solvers available on all platforms (including Windows)
 solvers-core = [
-    "qpsolvers[osqp,piqp,qpalm,ecos,scs,clarabel]>=4.10.0",
+    "qpsolvers[osqp,piqp,qpalm,scs,clarabel]>=4.10.0",
+    "bssunfold[ecos]",
 ]
 # ProxQP solver via proxsuite — NOT available on Windows
 solvers-proxqp = [

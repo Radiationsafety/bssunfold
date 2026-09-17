@@ -82,12 +82,18 @@
 ### Using uv (recommended)
 ```bash
 uv add bssunfold
+
+# With ECOS solver (recommended for CVXPY-based methods)
+uv add "bssunfold[ecos]"
 ```
 
 
 ### Using pip
 ```bash
 pip install bssunfold
+
+# With ECOS solver (recommended for CVXPY-based methods, uses pre-built wheels)
+pip install "bssunfold[ecos]"
 ```
 
 ### Using conda
@@ -105,34 +111,37 @@ pip install -e .
 ### Optional dependencies
 
 ```bash
-# Basic installation (without additional solvers)
-uv add bssunfold
+# Basic installation (without optional solvers that require compilation)
+pip install bssunfold
+
+# With ECOS solver (recommended for CVXPY-based methods, uses pre-built wheels)
+pip install "bssunfold[ecos]"
 
 # all methods
-uv add bssunfold[all]
+pip install "bssunfold[all]"
 
 # With numba JIT acceleration (recommended for iterative solvers)
-uv add "bssunfold[numba]"
+pip install "bssunfold[numba]"
 
 # With additional cross-platform solvers (recommended)
-uv add "bssunfold[solvers-core]"
+pip install "bssunfold[solvers-core]"
 
 # All solvers (Unix/Linux/macOS)
-uv add "bssunfold[all-solvers]"
+pip install "bssunfold[all-solvers]"
 
 # Windows (all except proxsuite)
-uv add "bssunfold[windows]"
+pip install "bssunfold[windows]"
 
 # With QP interpretation via pyoptexplain
-uv add "bssunfold[interpret]"
+pip install "bssunfold[interpret]"
 
 # With Bayesian MCMC unfolding (PyMC + ArviZ)
-uv add "bssunfold[mcmc]"
+pip install "bssunfold[mcmc]"
 ```
 
 Install with all solvers (Unix/Linux/Mac):
 ```bash
-uv add bssunfold[all-solvers]
+pip install "bssunfold[all-solvers]"
 ```
 
 For Windows is recommended to use the following command because of the problem with proxsuite:
@@ -994,9 +1003,10 @@ bssunfold/
 ### Core Requirements
 - Python 3.11+
 - NumPy, SciPy, Pandas, Matplotlib
-- cvxpy[ecos] — convex optimisation framework (CVXPY-based methods)
+- cvxpy — convex optimisation framework (CVXPY-based methods)
 
 ### Optional Backends
+- `bssunfold[ecos]` — ECOS conic solver for CVXPY (default solver backend)
 - `numba` — JIT compilation for iterative solvers (3–50x speedup)
 - `pytikhonov` — L-curve / GCV / DP regularisation (Tikhonov-type methods)
 - `qpsolvers[solvers-core]` — QP solvers (unfold_qpsolvers)

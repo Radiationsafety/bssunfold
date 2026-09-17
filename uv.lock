@@ -521,7 +521,7 @@ name = "bssunfold"
 version = "0.25.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cvxpy", extra = ["ecos"] },
+    { name = "cvxpy" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
@@ -535,6 +535,7 @@ all = [
     { name = "cplex" },
     { name = "docplex" },
     { name = "dwave-neal" },
+    { name = "ecos" },
     { name = "lmfit" },
     { name = "mealpy" },
     { name = "mystic" },
@@ -553,11 +554,12 @@ all = [
     { name = "zfit" },
 ]
 all-solvers = [
+    { name = "ecos" },
     { name = "jax" },
     { name = "jaxlib" },
     { name = "jaxopt" },
     { name = "proxsuite" },
-    { name = "qpsolvers", extra = ["clarabel", "ecos", "osqp", "piqp", "qpalm", "scs"] },
+    { name = "qpsolvers", extra = ["clarabel", "osqp", "piqp", "qpalm", "scs"] },
 ]
 amg = [
     { name = "pyamg" },
@@ -568,6 +570,9 @@ cuqi = [
 docplex = [
     { name = "cplex" },
     { name = "docplex" },
+]
+ecos = [
+    { name = "ecos" },
 ]
 interpret = [
     { name = "pyoptexplain" },
@@ -608,7 +613,8 @@ smt = [
     { name = "z3-solver" },
 ]
 solvers-core = [
-    { name = "qpsolvers", extra = ["clarabel", "ecos", "osqp", "piqp", "qpalm", "scs"] },
+    { name = "ecos" },
+    { name = "qpsolvers", extra = ["clarabel", "osqp", "piqp", "qpalm", "scs"] },
 ]
 solvers-jax = [
     { name = "jax" },
@@ -625,10 +631,11 @@ tikhonov = [
     { name = "pytikhonov" },
 ]
 windows = [
+    { name = "ecos" },
     { name = "jax" },
     { name = "jaxlib" },
     { name = "jaxopt" },
-    { name = "qpsolvers", extra = ["clarabel", "ecos", "osqp", "piqp", "qpalm", "scs"] },
+    { name = "qpsolvers", extra = ["clarabel", "osqp", "piqp", "qpalm", "scs"] },
 ]
 zfit = [
     { name = "tensorflow" },
@@ -692,6 +699,8 @@ dev = [
 requires-dist = [
     { name = "arviz", marker = "extra == 'mcmc'", specifier = ">=0.17.0" },
     { name = "bssunfold", extras = ["docplex"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["ecos"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["ecos"], marker = "extra == 'solvers-core'" },
     { name = "bssunfold", extras = ["interpret"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["maeo"], marker = "extra == 'all'" },
@@ -714,9 +723,10 @@ requires-dist = [
     { name = "bssunfold", extras = ["zfit"], marker = "extra == 'all'" },
     { name = "cplex", marker = "extra == 'docplex'", specifier = ">=22.1.0" },
     { name = "cuqipy", marker = "extra == 'cuqi'", git = "https://github.com/Radiationsafety/CUQIpy?branch=numpy2-support" },
-    { name = "cvxpy", extras = ["ecos"], specifier = ">=1.7.5" },
+    { name = "cvxpy", specifier = ">=1.7.5" },
     { name = "docplex", marker = "extra == 'docplex'", specifier = ">=2.28.0" },
     { name = "dwave-neal", marker = "extra == 'qubo'", specifier = ">=0.6.0" },
+    { name = "ecos", marker = "extra == 'ecos'", specifier = ">=2.0.14" },
     { name = "jax", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxlib", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxopt", marker = "extra == 'solvers-jax'", specifier = ">=0.8.0" },
@@ -739,13 +749,13 @@ requires-dist = [
     { name = "pytikhonov", marker = "extra == 'tikhonov'", specifier = ">=0.0.1" },
     { name = "pyzmq", specifier = ">=27.1.0" },
     { name = "qpsolvers", marker = "extra == 'qpsolvers'", specifier = ">=4.10.0" },
-    { name = "qpsolvers", extras = ["osqp", "piqp", "qpalm", "ecos", "scs", "clarabel"], marker = "extra == 'solvers-core'", specifier = ">=4.10.0" },
+    { name = "qpsolvers", extras = ["osqp", "piqp", "qpalm", "scs", "clarabel"], marker = "extra == 'solvers-core'", specifier = ">=4.10.0" },
     { name = "scipy", specifier = ">=1.16.3" },
     { name = "tensorflow", marker = "extra == 'zfit'", specifier = ">=2.15.0" },
     { name = "z3-solver", marker = "extra == 'smt'", specifier = ">=4.13.0" },
     { name = "zfit", marker = "extra == 'zfit'", specifier = ">=0.10.0" },
 ]
-provides-extras = ["cuqi", "lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "amg", "mystic", "mealpy", "smt", "scip", "docplex", "interpret", "mcmc", "maeo", "qubo", "zfit", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["cuqi", "ecos", "lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "amg", "mystic", "mealpy", "smt", "scip", "docplex", "interpret", "mcmc", "maeo", "qubo", "zfit", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1583,11 +1593,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/4e/f5/e7b3bb8958d7e1f554493d8fcd5cee58ca01244c695c891c2e6b85b56c0f/cvxpy-1.9.1-cp314-cp314t-macosx_10_15_x86_64.whl", hash = "sha256:f0adc20ec54b6d7bcb26aeb82e4ef408cf62506420213177f05f3e1a4694bc07", size = 1400901, upload-time = "2026-05-26T22:05:10.175Z" },
     { url = "https://files.pythonhosted.org/packages/db/67/183bafeebdf150baabf223c45779fa6002b9fb53e67ce604ced297a08b5b/cvxpy-1.9.1-cp314-cp314t-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ee9969fbba34749d026983b14b8882ae023619b5d95c5bdc3bc5fa3dca47a738", size = 4332292, upload-time = "2026-05-26T22:14:12.999Z" },
     { url = "https://files.pythonhosted.org/packages/68/3c/659638af87e56f5d7fd1b65b9e9976379e8d410c93338bf134e19334e927/cvxpy-1.9.1-cp314-cp314t-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:ca433d097adae8b2c6d017c9d9ca95eac7fe41f59accd8cb07800e10b9543255", size = 4384057, upload-time = "2026-05-26T22:14:14.672Z" },
-]
-
-[package.optional-dependencies]
-ecos = [
-    { name = "ecos" },
 ]
 
 [[package]]
@@ -5747,9 +5752,6 @@ wheels = [
 [package.optional-dependencies]
 clarabel = [
     { name = "clarabel" },
-]
-ecos = [
-    { name = "ecos" },
 ]
 osqp = [
     { name = "osqp" },
