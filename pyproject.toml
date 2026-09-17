@@ -43,6 +43,9 @@ dependencies = [
 
 [project.optional-dependencies]
 # Optional algorithmic backends (imported lazily inside function bodies with try/except)
+cuqi = [
+    "cuqipy>=1.5.0",
+]
 lmfit = [
     "lmfit>=1.3.4",
 ]

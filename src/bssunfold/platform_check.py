@@ -15,6 +15,7 @@ __all__ = [
     "check_qpsolvers_extra_availability",
     "check_scip_availability",
     "check_docplex_availability",
+    "check_cuqi_availability",
     "get_available_solvers",
     "get_recommended_solver",
     "JAX_AVAILABLE",
@@ -34,6 +35,7 @@ PROXSUITE_AVAILABLE: bool = False
 QPSOLVERS_EXTRA_AVAILABLE: bool = False
 SCIP_AVAILABLE: bool = False
 DOCPLEX_AVAILABLE: bool = False
+CUQI_AVAILABLE: bool = False
 
 
 def check_jax_availability() -> bool:
@@ -195,9 +197,32 @@ def get_recommended_solver() -> str:
     return "osqp"
 
 
+
+def check_cuqi_availability() -> bool:
+    """Check if CUQIpy (DTU uncertainty quantification library) is available.
+
+    CUQIpy powers the Bayesian MCMC unfolding methods in
+    :mod:`bssunfold.core.unfold_cuqi` (PCN, CWMH, ULA, MALA, NUTS and
+    hierarchical Gibbs samplers).
+
+    Returns
+    -------
+    bool
+        True if cuqi can be imported, False otherwise.
+    """
+    global CUQI_AVAILABLE
+    try:
+        import cuqi  # noqa: F401  # pylint: disable=unused-import
+
+        CUQI_AVAILABLE = True
+        return True
+    except ImportError:
+        CUQI_AVAILABLE = False
+        return False
 # Initialize on module load
 check_jax_availability()
 check_proxsuite_availability()
 check_qpsolvers_extra_availability()
 check_scip_availability()
 check_docplex_availability()
+check_cuqi_availability()
