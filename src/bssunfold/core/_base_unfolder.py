@@ -73,6 +73,7 @@ def run_unfolding(
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
+    variance_reduction: str = "none",
     random_state: int | None = None,
     # Result saving
     save_result: bool = False,
@@ -114,6 +115,9 @@ def run_unfolding(
         Relative noise level for Monte-Carlo.
     n_montecarlo : int, optional
         Number of Monte-Carlo samples.
+    variance_reduction : str, optional
+        Monte-Carlo variance reduction technique: ``'none'`` (default),
+        ``'antithetic'``, ``'control'`` or ``'both'``.
     random_state : int, optional
         Random seed for reproducibility.
     save_result : bool, optional
@@ -213,6 +217,8 @@ def run_unfolding(
             detector_names=detector_names,
             sensitivities=sensitivities,
             x0=x0,
+            variance_reduction=variance_reduction,
+            response_matrix=A,
         )
 
     # 6. Save result
@@ -310,6 +316,8 @@ def _add_montecarlo_uncertainty(
     detector_names: list[str],
     sensitivities: dict[str, np.ndarray],
     x0: np.ndarray,
+    variance_reduction: str = "none",
+    response_matrix: np.ndarray | None = None,
 ) -> None:
     """Run Monte-Carlo uncertainty and update output dict in-place."""
     logger.info(f"Calculating uncertainty with {n_montecarlo} Monte-Carlo samples...")
@@ -347,6 +355,8 @@ def _add_montecarlo_uncertainty(
         n_samples=n_montecarlo,
         n_energy_bins=n_energy_bins,
         random_state=random_state,
+        variance_reduction=variance_reduction,
+        response_matrix=response_matrix,
         **mc_kwargs,
     )
 

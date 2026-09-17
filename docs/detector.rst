@@ -32,6 +32,22 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_qpmad.unfold_qpmad
 
+.. autofunction:: bssunfold.core.unfold_pgd.unfold_pgd
+
+.. autofunction:: bssunfold.core.unfold_frank_wolfe.unfold_frank_wolfe
+
+.. autofunction:: bssunfold.core.unfold_mirror_descent.unfold_mirror_descent
+
+.. autofunction:: bssunfold.core.unfold_admm.unfold_admm
+
+.. autofunction:: bssunfold.core.unfold_lbfgsb.unfold_lbfgsb
+
+.. autofunction:: bssunfold.core.unfold_coordinate_descent.unfold_coordinate_descent
+
+.. autofunction:: bssunfold.core.unfold_subgradient.unfold_subgradient
+
+.. autofunction:: bssunfold.core.unfold_extragradient.unfold_extragradient
+
 .. autofunction:: bssunfold.core.unfold_smt.unfold_smt
 
 .. autofunction:: bssunfold.core.unfold_scip.unfold_scip
