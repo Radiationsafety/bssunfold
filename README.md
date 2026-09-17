@@ -286,6 +286,7 @@ graph TD
     B --> B2[unfold_qpsolvers]
     B --> B3[unfold_tsvd]
     B --> B4[unfold_tikhonov_legendre]
+    B --> B5[unfold_tikhonov_sobolev_dp]
 
     J --> J1[unfold_lanczos]
     J --> J2[unfold_gks]
@@ -341,6 +342,7 @@ graph TD
     I --> I7[unfold_hybrid_parametric]
     I --> I8[unfold_bayesian_parametric]
     I --> I9[unfold_nspline]
+    I --> I10[unfold_fission_ga]
 
     K --> K1[unfold_crystal_ball]
     K --> K2[unfold_rfsp_jul]
@@ -441,6 +443,8 @@ graph TD
 | 75 | `unfold_ssr` | Robust / sign-based | `fn` (`"auto"`/int), `max_iterations`, `tolerance`, `smooth_every`, `inner_sweeps`, `fn_ladder_cap` | — | SSR Sign-Simplicity-Regression unfolding (Python port of the R package `sisireg` 1.2.1, Metzner 2020/2021): alternates MLEM data-fidelity updates with non-equidistant SSR QSOR sweeps of the spectrum over the energy grid; each sweep replaces interior bins by the simplicitic neighbour interpolation and reverts updates violating the partial sum criterion (`fn`), suppressing sign-inadequate wiggles; `fn="auto"` runs Metzner's minimum-statistic ladder on the data-space sign adequacy (partial sum / maximum run tests of the folded residuals) and parsimony (extrema); reports `fn`, `fn_start`, `k_run`, `n_extrema`, `ps_valid_data`, `run_valid_data`; pure NumPy, non-negativity preserved by construction |
 | 76 | `unfold_gee` | Statistical reg. / robust inference | `family` (gaussian/poisson/gamma), `corstr` (independence/exchangeable/ar1), `regularization`, `max_iterations`, `tolerance` | — | Generalized Estimating Equations unfolding (R `gee`-analogue, Liang & Zeger 1986): the spheres form a correlated cluster with a working correlation matrix `R(alpha)` (moment-estimated from the Pearson residuals); penalised GLS score `A^T R^-1 (b-Ax) - lam G x = 0` solved by the IRLS loop; robust Liang-Zeger sandwich uncertainties for the spectrum (`robust_se`, `spectrum_uncert_robust`, full `cov_robust`/`cov_naive` in the `_full` diag) plus `alpha`, `phi`, `pearson_chi2`, `gee_converged` |
 | 77 | `unfold_uno` | Optimization / NLP | `preset` (filter_sqp/ipopt_like), `weights` (uniform/poisson/array), `regularization`, `hessian` (exact/bfgs), `max_iterations`, `tolerance` | — | Uno-style Lagrange-Newton constrained unfolding (R `Uno` analogue, Vanaret & Leyffer 2024): solves `min 1/2||W(Ax-b)||^2 + lam/2||D2 x||^2 s.t. x >= 0` either by the `filterSQP` preset (exact Hessian, Fletcher-Leyffer filter; the convex QP is solved exactly in one Lawson-Hanson active-set sub-step) or the IPOPT-like primal-dual interior-point method (exact or BFGS Hessian, fraction-to-the-boundary rule); reports SolveStatistics-style quality (`objective`, `constraint_violation`, `dual_infeasibility`, `n_iterations`, `uno_converged`) |
+| 78 | `unfold_fission_ga` | Parametric / stochastic | `initial_params`, `fit_scale`, `ga_popsize`, `ga_maxiter`, `ga_tol`, `lm_method` (trf/lm), `lm_max_nfev`, `eps_threshold` | — | Fission-model GA+LM unfolding (port of Ogorodnikov 2024 sections 4-5, `BonnerFinder()`): three-fraction model (thermal Maxwellian + epithermal tail + Watt-type fast peak, article eq. 4.29) with 7 free parameters; stage 1 — differential-evolution global search minimizing the L1 discrepancy of the folded readings (article eq. 4.32), stage 2 — bounded nonlinear least-squares refinement (SciLab `leastsq` analogue); optional free scale `phi_scale` for absolute readings; reports the article's validation criteria (`validation`: per-sphere uncertainties, sign alternation, FOM, spectrum norm) and fitted `model_params` with `weight_fractions`; deterministic under `random_state` |
+| 79 | `unfold_tikhonov_sobolev_dp` | Regularization | `noise_level`, `delta`, `penalty` (sobolev/curvature/identity), `alpha_range`, `max_iter` | — | Tikhonov + generalized discrepancy principle (port of Ogorodnikov 2024 sections 3/5, `alfaFinder()`): discrete Sobolev `W_2^1` penalty (first-difference operator, discrete analogue of the Euler equation `A*A z + alpha (z - z'') = A* u`) with `alpha*` selected as the root of `rho(alpha) = ||Az-b||^2 - delta^2` (article eq. 3.8); the monotone discrepancy is bracketed on a log10 grid and refined by Brent's method (robust counterpart of the article's Newton/chord iterations); status codes mirror `FFinder` IERR (0/1/2); reports `alpha`, `discrepancy_status`, `dp_converged`; standalone `alpha_finder_generalized_discrepancy` exported for reuse |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -791,7 +795,7 @@ bssunfold/
 │   ├── examples.rst
 │   ├── conf.py
 │   └── requirements.txt
-├── examples/                    # Jupyter notebooks (50 notebooks)
+├── examples/                    # Jupyter notebooks (51 notebooks)
 ├── scripts/                     # Standalone analysis / benchmark scripts
 │   ├── rank_methods.py
 │   ├── optimize_defaults_and_new_methods.py
@@ -899,6 +903,7 @@ bssunfold/
             ├── unfold_ensemble.py
             ├── unfold_epic.py
             ├── unfold_ferdor.py
+            ├── unfold_fission_ga.py
             ├── unfold_fista.py
             ├── unfold_fruit_like.py
             ├── unfold_genetic.py
@@ -944,6 +949,7 @@ bssunfold/
             ├── unfold_staysl.py
             ├── unfold_tikhonov_legendre.py
             ├── unfold_tikhonov_tv.py
+            ├── unfold_tikhonov_sobolev_dp.py
             ├── unfold_tsvd.py
             ├── unfold_gee.py
             ├── unfold_uno.py

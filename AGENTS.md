@@ -31,6 +31,8 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/unfold_cascade.py`, `core/unfold_composite.py` — multi-method pipeline: sequential coarse-to-fine cascade (with optional `multi_resolution` coarse pre-solve) and adaptive ensemble (stacked generalization). Both wired as `Detector.unfold_cascade` / `Detector.unfold_composite`.
 - `core/_multires.py` — shared coarse-to-fine helpers (`build_coarse_detector`, `prolongate_spectrum`, `_coarsen_columns`, `_split_coarse`), extracted from `unfold_genetic.py`.
 - `core/unfold_parametric.py` — FRUIT solver backends (`solve_parametric_cvxpy`/`qpsolvers`/`combined`) + public `unfold_parametric`; model/fit lives in `core/_fruit.py`
+- `core/unfold_fission_ga.py` — Fission-model GA+LM unfolding (`unfold_fission_ga`/`solve_fission_ga`, port of Ogorodnikov 2024 sections 4-5, `BonnerFinder()`): three-fraction Fission model (article eq. 4.29) + differential-evolution global search + bounded nonlinear least-squares refinement, with the article's validation criteria (`validation`) and fitted `model_params` (incl. `weight_fractions`); optional free scale `phi_scale` (`fit_scale=True`)
+- `core/unfold_tikhonov_sobolev_dp.py` — Tikhonov with the generalized discrepancy principle (`unfold_tikhonov_sobolev_dp`/`solve_tikhonov_sobolev_dp`, port of Ogorodnikov 2024 sections 3/5, `alfaFinder()`): discrete Sobolev `W_2^1` penalty + `alpha*` from `rho(alpha) = ||Az-b||^2 - delta^2 = 0` (bracketing + Brent, article's Newton/chord analogue); standalone `alpha_finder_generalized_discrepancy` / `generalized_discrepancy` exported for reuse
 - `core/unfold_parametric2.py` — public BON95 `solve_parametric2`/`unfold_parametric2`; family logic lives in `core/_bon95.py`
 - `core/_matrix_utils.py` — SVD, derivative matrix, tikhonov system building
 - `core/_base_unfolder.py`, `core/_montecarlo.py` — internal base class and Monte Carlo uncertainty
@@ -49,7 +51,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 
 ## Testing
 
-### Test files (43 files, ~1686 tests)
+### Test files (44 files, ~1722 tests)
 
 | File | Focus |
 |------|-------|
@@ -69,6 +71,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 | `tests/test_rebunki.py` | ReBUNKI/SPUNIT (`unfold_rebunki`/`solve_rebunki`): wrapper + core solver, positivity/validation |
 | `tests/test_nsduaz.py` | NSDUAZ (`unfold_nsduaz`/`solve_nsduaz`): wrapper + core solver, catalogue selection, validation |
 | `tests/test_genetic_improvements.py` | Genetic extensions: two-step coarse-to-fine, NSGA-II/Pareto selection, smoothers, TGASU crossover/mutation, `extra_starting` injection, `_coarsen_columns`/`_split_coarse` helpers |
+| `tests/test_ogorodnikov2024.py` | Ogorodnikov (2024) ports: Fission-model GA+LM (`unfold_fission_ga`) and Tikhonov + generalized discrepancy (`unfold_tikhonov_sobolev_dp`, `alpha_finder_generalized_discrepancy`) — quasi-real GSF experiments, DP property checks, IAEA Compendium data cases |
 
 ### Analysis tools
 

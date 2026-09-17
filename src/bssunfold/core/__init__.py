@@ -88,6 +88,15 @@ from .unfold_ensemble import solve_ensemble, unfold_ensemble
 from .unfold_epic import solve_epic, unfold_epic
 from .unfold_express import solve_express, unfold_express
 from .unfold_ferdor import solve_ferdor, unfold_ferdor
+from .unfold_fission_ga import (
+    ED_EPITHERMAL,
+    FISSION_PARAM_BOUNDS,
+    FISSION_PARAM_NAMES,
+    T0_THERMAL,
+    fission_model,
+    solve_fission_ga,
+    unfold_fission_ga,
+)
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_gee import (
     estimate_alpha,
@@ -214,6 +223,12 @@ from .unfold_ssr import (
 from .unfold_statreg import solve_statreg, unfold_statreg
 from .unfold_staysl import solve_staysl, unfold_staysl
 from .unfold_tikhonov_legendre import solve_tikhonov_legendre, unfold_tikhonov_legendre
+from .unfold_tikhonov_sobolev_dp import (
+    alpha_finder_generalized_discrepancy,
+    generalized_discrepancy,
+    solve_tikhonov_sobolev_dp,
+    unfold_tikhonov_sobolev_dp,
+)
 from .unfold_tikhonov_tv import solve_tikhonov_tv, unfold_tikhonov_tv
 from .unfold_tsvd import solve_tsvd, unfold_tsvd
 from .unfold_uno import solve_uno, solve_uno_full, unfold_uno, uno_filter
@@ -251,6 +266,16 @@ __all__ = [
     "solve_cgls",
     "solve_gks",
     "solve_tikhonov_tv",
+    "solve_tikhonov_sobolev_dp",
+    "alpha_finder_generalized_discrepancy",
+    "generalized_discrepancy",
+    "solve_fission_ga",
+    "unfold_fission_ga",
+    "fission_model",
+    "FISSION_PARAM_NAMES",
+    "FISSION_PARAM_BOUNDS",
+    "T0_THERMAL",
+    "ED_EPITHERMAL",
     "solve_sandii",
     "solve_ssr",
     "solve_ssr_full",
@@ -394,6 +419,7 @@ __all__ = [
     "unfold_cgls",
     "unfold_gks",
     "unfold_tikhonov_tv",
+    "unfold_tikhonov_sobolev_dp",
     "unfold_sandii",
     "unfold_ssr",
     "unfold_express",
@@ -410,6 +436,7 @@ __all__ = [
     "unfold_mcmc",
     "unfold_parametric2",
     "unfold_fruit_like",
+    "unfold_fission_ga",
     "unfold_hybrid_parametric",
     "unfold_bayesian_parametric",
     "unfold_smt",
