@@ -36,14 +36,14 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (76+ methods):
+- **Multiple Unfolding Algorithms** (80+ methods):
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD, selectable LAPACK/ARPACK/PROPACK backends), EPIC (Equal Posterior Information Condition), P-spline REML (mixed-model smoothing with automatic REML smoothing selection)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES, AMG-Krylov (AMG / Jacobi / Gauss-Seidel / SOR / SSOR preconditioning)
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
   - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
    - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
    - **Classic codes (independent reimplementations)**: CRYSTAL BALL (direct delta-operator), RFSP-JUL (damped least squares), STAY'SL (single-step Bayesian least squares) — reimplemented from their published algorithmic descriptions; the original codes are proprietary
-  - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference
+  - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference, full Bayesian MCMC (NUTS via pymc), CUQIpy uncertainty-quantified MCMC (pCN, CWMH, ULA, MALA, NUTS, hierarchical Gibbs with Gamma hyperprior — posterior mean, HPD credible intervals, ESS/R-hat diagnostics)
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
     IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
   - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst), SSR (Sign-Simplicity-Regression, sisireg port - MLEM data step + sign-adequacy QSOR parsimony sweep with minimum-statistic threshold selection), plus the spatial (`ssr3d` minimal-surface regression for scattered planar data) and neural (`ssrMLP` two-layer perceptron trained with the partial sum criterion) extensions of the same package as standalone regression building blocks
@@ -305,6 +305,7 @@ graph TD
 
     D --> D1[unfold_bayes]
     D --> D2[unfold_bayes_spline_regularization]
+    D --> D3[unfold_cuqi]
 
     E --> E1[unfold_maxed]
     E --> E2[unfold_imaxed]
@@ -445,6 +446,7 @@ graph TD
 | 77 | `unfold_uno` | Optimization / NLP | `preset` (filter_sqp/ipopt_like), `weights` (uniform/poisson/array), `regularization`, `hessian` (exact/bfgs), `max_iterations`, `tolerance` | — | Uno-style Lagrange-Newton constrained unfolding (R `Uno` analogue, Vanaret & Leyffer 2024): solves `min 1/2||W(Ax-b)||^2 + lam/2||D2 x||^2 s.t. x >= 0` either by the `filterSQP` preset (exact Hessian, Fletcher-Leyffer filter; the convex QP is solved exactly in one Lawson-Hanson active-set sub-step) or the IPOPT-like primal-dual interior-point method (exact or BFGS Hessian, fraction-to-the-boundary rule); reports SolveStatistics-style quality (`objective`, `constraint_violation`, `dual_infeasibility`, `n_iterations`, `uno_converged`) |
 | 78 | `unfold_fission_ga` | Parametric / stochastic | `initial_params`, `fit_scale`, `ga_popsize`, `ga_maxiter`, `ga_tol`, `lm_method` (trf/lm), `lm_max_nfev`, `eps_threshold` | — | Fission-model GA+LM unfolding (port of Ogorodnikov 2024 sections 4-5, `BonnerFinder()`): three-fraction model (thermal Maxwellian + epithermal tail + Watt-type fast peak, article eq. 4.29) with 7 free parameters; stage 1 — differential-evolution global search minimizing the L1 discrepancy of the folded readings (article eq. 4.32), stage 2 — bounded nonlinear least-squares refinement (SciLab `leastsq` analogue); optional free scale `phi_scale` for absolute readings; reports the article's validation criteria (`validation`: per-sphere uncertainties, sign alternation, FOM, spectrum norm) and fitted `model_params` with `weight_fractions`; deterministic under `random_state` |
 | 79 | `unfold_tikhonov_sobolev_dp` | Regularization | `noise_level`, `delta`, `penalty` (sobolev/curvature/identity), `alpha_range`, `max_iter` | — | Tikhonov + generalized discrepancy principle (port of Ogorodnikov 2024 sections 3/5, `alfaFinder()`): discrete Sobolev `W_2^1` penalty (first-difference operator, discrete analogue of the Euler equation `A*A z + alpha (z - z'') = A* u`) with `alpha*` selected as the root of `rho(alpha) = ||Az-b||^2 - delta^2` (article eq. 3.8); the monotone discrepancy is bracketed on a log10 grid and refined by Brent's method (robust counterpart of the article's Newton/chord iterations); status codes mirror `FFinder` IERR (0/1/2); reports `alpha`, `discrepancy_status`, `dp_converged`; standalone `alpha_finder_generalized_discrepancy` exported for reuse |
+| 80 | `unfold_cuqi` | Bayesian / MCMC | `sampler` (pcn/cwmh/ula/mala/nuts/gibbs/gibbs_nuts), `prior` (gmrf/ou), `gmrf_order`, `lengthscale`, `noise_level`, `hierarchical`, `delta_alpha`, `delta_beta`, `n_samples`, `n_burnin`, `thin`, `chains`, `scale`, `max_depth`, `step_size`, `credible_level` | cuqipy (optional) | Full Bayesian unfolding with CUQIpy (DTU, uncertainty quantification for inverse problems): log-spectrum model `f = exp(theta)` with GMRF (order 1/2) or Ornstein-Uhlenbeck Gaussian prior anchored on an NNLS data-driven center; posterior explored by pCN, component-wise MH, (M)ALA, NUTS or hierarchical HybridGibbs where the GMRF smoothness precision is inferred through a conjugate Gamma hyperprior; returns posterior mean spectrum, per-bin std, configurable HPD credible intervals and ESS / Gelman-Rubin R-hat / acceptance-rate diagnostics under `cuqi_stats` |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `save_result`, `random_state`.
 
@@ -514,6 +516,36 @@ result = detector.unfold_mlem_bs(
 print(result["ks_final"], result["ks_history"])
 auto = detector.unfold_mlem_bs(readings, auto_params=True)
 print(auto["auto_selection"]["chosen"])
+```
+
+### CUQIpy Bayesian Example
+
+```python
+# Full Bayesian unfolding with CUQIpy (pip install bssunfold[cuqi])
+# log-spectrum GMRF prior + posterior MCMC sampling with UQ diagnostics
+result = detector.unfold_cuqi(
+    readings=readings,
+    sampler="gibbs_nuts",   # pcn / cwmh / ula / mala / nuts / gibbs / gibbs_nuts
+    prior="gmrf",           # GMRF (order 1/2) or OU log-spectrum prior
+    gmrf_order=1,
+    hierarchical=True,      # Gamma hyperprior on the smoothness precision
+    n_samples=2000,
+    n_burnin=1000,
+    chains=2,               # multi-chain R-hat requires >= 2 chains
+    credible_level=95.0,
+    random_state=42,
+)
+
+# posterior summary + credible intervals
+print(result["spectrum"])              # posterior mean
+print(result["spectrum_uncertainty"])  # per-bin posterior std
+print(result["spectrum_lower"])        # 95% HPD lower bound
+print(result["spectrum_upper"])        # 95% HPD upper bound
+
+# convergence diagnostics: ESS, Gelman-Rubin R-hat, acceptance rate
+stats = result["cuqi_stats"]
+print(stats["ess"], stats["rhat"], stats["acc_rate"])
+print(stats["delta_samples"])          # posterior of the smoothness hyperparameter
 ```
 
 ## 📊 5-Detector Comparison
@@ -896,6 +928,7 @@ bssunfold/
             ├── unfold_composite.py
             ├── unfold_crystal_ball.py
             ├── unfold_cs.py
+            ├── unfold_cuqi.py
             ├── unfold_cvxpy.py
             ├── unfold_docplex.py
             ├── unfold_doroshenko.py
@@ -975,6 +1008,7 @@ bssunfold/
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
 - `odl` — Operator Discretization Library (unfold_mlem_odl)
 - `pymc` + `arviz` — Bayesian MCMC/NUTS sampling (unfold_mcmc)
+- `cuqipy` — Bayesian uncertainty quantification: pCN/CWMH/ULA/MALA/NUTS/hierarchical Gibbs samplers with ESS/R-hat/HPD diagnostics (unfold_cuqi)
 
 All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre, NSpline) have **no extra dependencies** beyond NumPy/SciPy.
 

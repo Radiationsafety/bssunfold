@@ -148,6 +148,10 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_mcmc.unfold_mcmc
 
+.. autofunction:: bssunfold.core.unfold_cuqi.unfold_cuqi
+
+.. autofunction:: bssunfold.core.unfold_cuqi.solve_cuqi_bayesian
+
 .. autofunction:: bssunfold.core.unfold_zfit.unfold_zfit
 
 .. autofunction:: bssunfold.core.unfold_qubo.unfold_qubo
