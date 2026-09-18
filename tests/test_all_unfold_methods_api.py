@@ -41,14 +41,14 @@ from __future__ import annotations
 import importlib
 import inspect
 import math
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from bssunfold import Detector, RF_GSF
-
+from bssunfold import RF_GSF, Detector
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -103,13 +103,14 @@ def detector() -> Detector:
 @pytest.fixture(scope="module")
 def iaea_csv() -> pd.DataFrame:
     """IAEA Compendium Monte-Carlo spectra (61 rows × 21 columns)."""
-    csv_path = pytest.DOC_ROOT / "tests" / "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv" \
-        if hasattr(pytest, "DOC_ROOT") else None
-    if csv_path is None:
-        # Fallback: relative path from repo root (matches the notebooks).
-        from pathlib import Path
-        repo_root = Path(__file__).resolve().parent.parent
-        csv_path = repo_root / "tests" / "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
+    # Resolve the CSV shipped with the repo (matches the path used by the
+    # example notebooks: ../tests/MonteCarlo_…_comparison.csv).
+    repo_root = Path(__file__).resolve().parent.parent
+    csv_path = (
+        repo_root
+        / "tests"
+        / "MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv"
+    )
     return pd.read_csv(csv_path)
 
 
@@ -211,8 +212,10 @@ class TestMethodSignatureContract:
         params = list(sig.parameters.values())
         # Skip 'self'.
         assert params[0].name == "self"
-        assert params[1].name == "readings", \
-            f"{method_name}: second parameter should be 'readings', got '{params[1].name}'"
+        assert params[1].name == "readings", (
+            f"{method_name}: second parameter should be 'readings', "
+            f"got '{params[1].name}'"
+        )
 
     @pytest.mark.parametrize("method_name", [
         "unfold_gnowee", "unfold_nnqp", "unfold_qpmad", "unfold_zfit",
