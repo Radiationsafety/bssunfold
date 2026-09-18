@@ -344,3 +344,63 @@ Two internal strategies are used depending on the solver:
    # Verify zero fluence above cutoff
    above = result['spectrum'][det.E_MeV > 10.0]
    print(f"Max fluence above 10 MeV: {above.max():.2e}")  # 0.00e+00
+
+IAEA Compendium Benchmark Notebooks
+------------------------------------
+
+Every public ``unfold_*`` method has a dedicated example notebook that
+exercises it on the
+`IAEA Compendium of Monte-Carlo calculated neutron spectra
+<https://www-nds.iaea.org/benchmarks/>`_. The benchmark CSV ships with
+the repository at ``tests/MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv``
+and contains 20 reference spectra (ISO reference fields, BNCT-like
+BSA spectra, accelerator-based neutron sources, etc.).
+
+Each notebook follows the same template:
+
+1. Build a :class:`~bssunfold.Detector` from the built-in ``RF_GSF``
+   response functions.
+2. Fold a chosen reference spectrum into detector readings via
+   :meth:`~bssunfold.Detector.get_effective_readings_for_spectra`.
+3. Run the unfolder with method-specific kwargs.
+4. Compute spectral-distance metrics with
+   :func:`~bssunfold.utils.comparison.compare_spectra`.
+5. Plot the unfolded spectrum against the ground truth and the
+   per-sphere residuals.
+6. Sweep across several IAEA spectra and report the
+   ``comprehensive_score`` for each.
+
+Notebooks for the 23 methods that previously lacked a dedicated
+example (files ``56-…`` through ``78-…`` in ``examples/``):
+
+==============================================================  ============================
+Notebook                                                         Method
+==============================================================  ============================
+``56-gnowee-iaea.ipynb``                                        :meth:`~bssunfold.Detector.unfold_gnowee`
+``57-maeo-iaea.ipynb``                                          :meth:`~bssunfold.Detector.unfold_maeo`
+``58-nnqp-iaea.ipynb``                                          :meth:`~bssunfold.Detector.unfold_nnqp`
+``59-qpmad-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_qpmad`
+``60-zfit-iaea.ipynb``                                          :meth:`~bssunfold.Detector.unfold_zfit`
+``61-iterative-refinement-iaea.ipynb``                          :meth:`~bssunfold.Detector.unfold_iterative_refinement`
+``62-odl-pdhg-iaea.ipynb``                                      :meth:`~bssunfold.Detector.unfold_odl_pdhg`
+``63-amaxed-regularization-iaea.ipynb``                         :meth:`~bssunfold.Detector.unfold_amaxed_regularization`
+``64-crystal-ball-iaea.ipynb``                                  :meth:`~bssunfold.Detector.unfold_crystal_ball`
+``65-directed-divergence-iaea.ipynb``                           :meth:`~bssunfold.Detector.unfold_directed_divergence`
+``66-express-iaea.ipynb``                                       :meth:`~bssunfold.Detector.unfold_express`
+``67-ferdor-iaea.ipynb``                                        :meth:`~bssunfold.Detector.unfold_ferdor`
+``68-imaxed-iaea.ipynb``                                        :meth:`~bssunfold.Detector.unfold_imaxed`
+``69-mystic-hybrid-iaea.ipynb``                                 :meth:`~bssunfold.Detector.unfold_mystic_hybrid`
+``70-nsduaz-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_nsduaz`
+``71-odl-douglas-rachford-iaea.ipynb``                           :meth:`~bssunfold.Detector.unfold_odl_douglas_rachford`
+``72-qubo-iaea.ipynb``                                          :meth:`~bssunfold.Detector.unfold_qubo`
+``73-rebunki-iaea.ipynb``                                       :meth:`~bssunfold.Detector.unfold_rebunki`
+``74-rfsp-jul-iaea.ipynb``                                      :meth:`~bssunfold.Detector.unfold_rfsp_jul`
+``75-scipy-direct-iaea.ipynb``                                  :meth:`~bssunfold.Detector.unfold_scipy_direct_method`
+``76-staysl-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_staysl`
+``77-tikhonov-legendre-iaea.ipynb``                              :meth:`~bssunfold.Detector.unfold_tikhonov_legendre`
+``78-ensemble-iaea.ipynb``                                      :meth:`~bssunfold.Detector.unfold_ensemble`
+==============================================================  ============================
+
+The full API surface (imports, signatures, parameter assignment and
+end-to-end execution) is covered by the test module
+``tests/test_all_unfold_methods_api.py``.
