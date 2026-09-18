@@ -98,11 +98,10 @@ from .unfold_directed_divergence import (
 )
 from .unfold_docplex import solve_docplex, unfold_docplex
 from .unfold_doroshenko import solve_doroshenko, unfold_doroshenko
+from .unfold_eki import unfold_eki
 from .unfold_ensemble import solve_ensemble, unfold_ensemble
 from .unfold_epic import solve_epic, unfold_epic
 from .unfold_express import solve_express, unfold_express
-from .unfold_extragradient import solve_extragradient, unfold_extragradient
-from .unfold_ferdor import solve_ferdor, unfold_ferdor
 from .unfold_fission_ga import (
     ED_EPITHERMAL,
     FISSION_PARAM_BOUNDS,
@@ -112,6 +111,7 @@ from .unfold_fission_ga import (
     solve_fission_ga,
     unfold_fission_ga,
 )
+from .unfold_fista import unfold_fista
 from .unfold_frank_wolfe import solve_frank_wolfe, unfold_frank_wolfe
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_gee import (
@@ -126,6 +126,7 @@ from .unfold_genetic import solve_genetic, unfold_genetic
 from .unfold_gks import solve_gks, unfold_gks
 from .unfold_gnowee import solve_gnowee, unfold_gnowee
 from .unfold_gravel import solve_gravel, unfold_gravel
+from .unfold_hybrid_gmres import unfold_hybrid_gmres
 from .unfold_hybrid_parametric import solve_hybrid_parametric
 from .unfold_imaxed import solve_imaxed, unfold_imaxed
 from .unfold_interpret import (
@@ -144,6 +145,7 @@ from .unfold_lanczos import solve_lanczos, unfold_lanczos
 from .unfold_landweber import solve_landweber, unfold_landweber
 from .unfold_lbfgsb import solve_lbfgsb, unfold_lbfgsb
 from .unfold_lmfit import solve_lmfit, unfold_lmfit
+from .unfold_maeo import unfold_maeo
 from .unfold_mapem import solve_mapem, unfold_mapem
 from .unfold_maxed import solve_maxed, unfold_maxed
 from .unfold_mcmc import solve_bayesian_mcmc, unfold_mcmc
@@ -199,6 +201,7 @@ from .unfold_odl_advanced import (
     unfold_odl_pdhg,
 )
 from .unfold_osem import solve_osem, unfold_osem
+from .unfold_parametric import unfold_parametric
 from .unfold_parametric2 import solve_parametric2, unfold_parametric2
 from .unfold_pgd import project_onto_set, solve_pgd, unfold_pgd
 from .unfold_pspline_reml import (
@@ -210,6 +213,10 @@ from .unfold_pspline_reml import (
 from .unfold_qpmad import solve_qpmad, unfold_qpmad
 from .unfold_qpsolvers import solve_qpsolvers, unfold_qpsolvers
 from .unfold_qubo import solve_qubo_unfold, unfold_qubo
+from .unfold_randomized_kaczmarz import (
+    solve_randomized_kaczmarz,
+    unfold_randomized_kaczmarz,
+)
 from .unfold_rebunki import solve_rebunki, unfold_rebunki
 from .unfold_reconst import solve_reconst, unfold_reconst
 from .unfold_rfsp_jul import solve_rfsp_jul, unfold_rfsp_jul
@@ -454,6 +461,12 @@ __all__ = [
     "unfold_tikhonov_sobolev_dp",
     "unfold_sandii",
     "unfold_ssr",
+    "unfold_parametric",
+    "unfold_hybrid_gmres",
+    "unfold_fista",
+    "unfold_maeo",
+    "unfold_randomized_kaczmarz",
+    "unfold_eki",
     "unfold_express",
     "unfold_bunki",
     "unfold_bunkiut",
@@ -469,7 +482,8 @@ __all__ = [
     "unfold_parametric2",
     "unfold_fruit_like",
     "unfold_fission_ga",
-    "unfold_hybrid_parametric",
+    "solve_randomized_kaczmarz",
+    "unfold_randomized_kaczmarz",
     "unfold_bayesian_parametric",
     "unfold_smt",
     "unfold_scip",

@@ -281,17 +281,17 @@ cc_interp = interpolate_coefficients(cc, detector.E_MeV)
 ```mermaid
 graph TD
     A[Unfolding Methods] --> B[Tikhonov-type]
-    A --> J[Krylov/hybrid]
-    A --> C[Iterative]
-    A --> D[Bayesian]
-    A --> E[Maximum Entropy]
-    A --> F[Statistical Regularization]
-    A --> G[Optimization-based]
-    A --> M[Optimization course]
-    A --> L[Dictionary / Sparse]
-    A --> H[Pipeline]
-    A --> I[Parametric]
-    A --> K[Classic codes]
+     A --> J[Krylov/hybrid]
+     A --> C[Iterative]
+     A --> D[Bayesian]
+     A --> E[Maximum Entropy]
+     A --> F[Statistical Regularization]
+     A --> G[Optimization-based]
+     A --> M[Optimization course]
+     A --> L[Dictionary / Sparse]
+     A --> H[Pipeline]
+     A --> I[Parametric]
+     A --> K[Classic codes]
 
     B --> B1[unfold_cvxpy]
     B --> B2[unfold_qpsolvers]
@@ -940,7 +940,7 @@ bssunfold/
             ├── _numba_jit.py        # Numba JIT inner loops
             ├── _parametric_shared.py # Shared parametric constants
             ├── _solver_backends.py  # Shared solver-backend resolution
-            ├── detector.py          # Main Detector class (72 unfold_* methods)
+            ├── detector.py          # Main Detector class (88 unfold_* methods)
             ├── dose_calculation.py
             ├── regularization.py    # L-curve, GCV, DP, cosine, NCP, etc.
             ├── unfold_amaxed.py

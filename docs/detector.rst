@@ -124,8 +124,6 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_ferdor.unfold_ferdor
 
-.. autofunction:: bssunfold.core.unfold_express.unfold_express
-
 .. autofunction:: bssunfold.core.unfold_rebunki.unfold_rebunki
 
 .. autofunction:: bssunfold.core.unfold_nsduaz.unfold_nsduaz
