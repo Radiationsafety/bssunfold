@@ -102,6 +102,7 @@ from .unfold_eki import unfold_eki
 from .unfold_ensemble import solve_ensemble, unfold_ensemble
 from .unfold_epic import solve_epic, unfold_epic
 from .unfold_express import solve_express, unfold_express
+from .unfold_extragradient import solve_extragradient, unfold_extragradient
 from .unfold_fission_ga import (
     ED_EPITHERMAL,
     FISSION_PARAM_BOUNDS,
