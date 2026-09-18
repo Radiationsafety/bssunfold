@@ -1148,10 +1148,10 @@ class Detector:
         import warnings
         
         warnings.warn(
-            "unfold_gee is EXPERIMENTAL and statistically inappropriate for \"
-            \"single-cluster BSS measurements. The Liang-Zeger sandwich estimator \"
-            \"requires many independent clusters. Use Tier 1 methods (cvxpy, \"
-            \"qpsolvers, maxed, bayes) for radiation protection applications.",
+            "unfold_gee is EXPERIMENTAL and statistically inappropriate for "
+            "single-cluster BSS measurements. The Liang-Zeger sandwich estimator "
+            "requires many independent clusters. Use Tier 1 methods (cvxpy, "
+            "qpsolvers, maxed, bayes) for radiation protection applications.",
             UserWarning,
             stacklevel=2
         )
@@ -1867,10 +1867,10 @@ class Detector:
         import warnings
         
         warnings.warn(
-            "unfold_genetic is EXPERIMENTAL: meta-heuristic algorithms are \"
-            \"non-deterministic, slow, and lack natural uncertainty quantification. \"
-            \"Not recommended for radiation protection reports. Use Tier 1 methods \"
-            \"(cvxpy, qpsolvers, maxed, bayes) instead.",
+            "unfold_genetic is EXPERIMENTAL: meta-heuristic algorithms are "
+            "non-deterministic, slow, and lack natural uncertainty quantification. "
+            "Not recommended for radiation protection reports. Use Tier 1 methods "
+            "(cvxpy, qpsolvers, maxed, bayes) instead.",
             UserWarning,
             stacklevel=2
         )

@@ -560,8 +560,8 @@ def anderson_darling(p: np.ndarray, q: np.ndarray) -> float:
     import warnings
     
     warnings.warn(
-        "anderson_darling is experimental and statistically inappropriate \"
-        \"for deterministic spectral vectors. Use physics-based metrics instead.",
+        "anderson_darling is experimental and statistically inappropriate "
+        "for deterministic spectral vectors. Use physics-based metrics instead.",
         UserWarning,
         stacklevel=2
     )
@@ -590,8 +590,8 @@ def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
     import warnings
     
     warnings.warn(
-        "wilcoxon_test is experimental and statistically inappropriate \"
-        \"for deterministic spectral vectors. Use physics-based metrics instead.",
+        "wilcoxon_test is experimental and statistically inappropriate "
+        "for deterministic spectral vectors. Use physics-based metrics instead.",
         UserWarning,
         stacklevel=2
     )
@@ -614,8 +614,8 @@ def mannwhitneyu_test(p: np.ndarray, q: np.ndarray) -> float:
     import warnings
     
     warnings.warn(
-        "mannwhitneyu_test is experimental and statistically inappropriate \"
-        \"for deterministic spectral vectors. Use physics-based metrics instead.",
+        "mannwhitneyu_test is experimental and statistically inappropriate "
+        "for deterministic spectral vectors. Use physics-based metrics instead.",
         UserWarning,
         stacklevel=2
     )

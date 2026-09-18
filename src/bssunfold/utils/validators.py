@@ -23,21 +23,26 @@ def validate_readings(
     detector_names: list[str],
     allow_zero: bool = True,
 ) -> dict[str, float]:
-    """Validate detector readings.
+    """Validate detector readings with support for alias mapping.
+    
+    Supports both short names ("0in", "2in") and full names ("sphere_0in", "sphere_2in").
+    Aliases are automatically mapped to the detector's canonical names.
 
     Parameters
     ----------
     readings : Dict[str, float]
-        Dictionary of detector readings.
+        Dictionary of detector readings. Supports both formats:
+        - Short: {"0in": 100.5, "2in": 85.3}
+        - Full: {"sphere_0in": 100.5, "sphere_2in": 85.3}
     detector_names : List[str]
-        List of valid detector names.
+        List of valid detector names (canonical format).
     allow_zero : bool, optional
         If True, zero readings are allowed (default: True).
 
     Returns
     -------
     Dict[str, float]
-        Validated readings dictionary.
+        Validated readings dictionary with canonical detector names.
 
     Raises
     ------
@@ -49,24 +54,38 @@ def validate_readings(
     if not isinstance(readings, dict):
         raise TypeError(f"readings must be a dict, got {type(readings)}")
 
+    # Build alias mapping: strip "sphere_" prefix if present
+    alias_map = {}
+    for name in detector_names:
+        alias_map[name] = name  # canonical name maps to itself
+        if name.startswith("sphere_"):
+            short_name = name[7:]  # remove "sphere_" prefix
+            alias_map[short_name] = name
+    
     valid = {}
-    for det in detector_names:
-        if det in readings:
-            val = float(readings[det])
-            if np.isnan(val):
-                raise ValueError(f"Reading '{det}' is NaN")
-            if np.isinf(val):
-                raise ValueError(f"Reading '{det}' is infinite")
-            if val < 0:
-                raise ValueError(f"Reading '{det}' is negative: {val}")
-            if val == 0 and not allow_zero:
-                raise ValueError(f"Reading '{det}' is zero, which is not allowed")
-            valid[det] = val
+    for input_name, value in readings.items():
+        # Resolve alias to canonical name
+        canonical_name = alias_map.get(input_name, input_name)
+        
+        if canonical_name not in detector_names:
+            continue  # Skip unknown detectors, will be caught later
+        
+        val = float(value)
+        if np.isnan(val):
+            raise ValueError(f"Reading '{input_name}' is NaN")
+        if np.isinf(val):
+            raise ValueError(f"Reading '{input_name}' is infinite")
+        if val < 0:
+            raise ValueError(f"Reading '{input_name}' is negative: {val}")
+        if val == 0 and not allow_zero:
+            raise ValueError(f"Reading '{input_name}' is zero, which is not allowed")
+        valid[canonical_name] = val
 
     if not valid:
         raise ValueError(
             f"No valid detector readings provided. "
-            f"Available detectors: {detector_names}"
+            f"Available detectors: {detector_names}\n"
+            f"Supported formats: '0in' or 'sphere_0in'"
         )
 
     return valid
