@@ -278,25 +278,63 @@ def _standardize_output(
     method: str,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Create standardized output dictionary."""
-    from .dose_calculation import calculate_dose_rates
+    """Create standardized output dictionary.
+    
+    The returned spectrum is the neutron fluence rate per unit lethargy bin,
+    with units of neutrons cm^{-2} s^{-1}. This represents the integral flux
+    over each energy bin on a logarithmic scale.
+    
+    For dose calculations, the spectrum should be multiplied by appropriate
+    fluence-to-dose conversion coefficients and integrated over lethargy.
+    """
+    from .dose_calculation import calculate_dose_rates_with_validation
 
     spectrum_nonneg = np.maximum(spectrum, 0)
     computed_readings = A @ spectrum_nonneg
     residual = b - computed_readings
 
+    # Calculate dose rates with energy range validation
+    dose_result = calculate_dose_rates_with_validation(
+        spectrum_nonneg, E_MeV, cc_icrp116
+    )
+    
     output = {
         "energy": E_MeV.copy(),
         "spectrum": spectrum_nonneg.copy(),
         "spectrum_absolute": spectrum_nonneg.copy(),
+        # Explicit metadata about spectrum interpretation (AUDIT FIX #1)
+        "spectrum_type": "fluence_rate_per_lethargy_bin",
+        "spectrum_units": "neutrons cm^{-2} s^{-1}",
+        "spectrum_definition": (
+            "Integral neutron flux over each logarithmic energy bin. "
+            "To obtain differential flux dphi/dE, divide by bin width Delta E_i. "
+            "To obtain flux per unit lethargy dphi/d(ln E), multiply by E_i."
+        ),
         "effective_readings": {
             name: float(val) for name, val in zip(selected, computed_readings)
         },
         "residual": residual.copy(),
         "residual_norm": float(np.linalg.norm(residual)),
         "method": method,
-        "doserates": calculate_dose_rates(spectrum_nonneg, cc_icrp116),
     }
+    
+    # Add dose rates with clear separation (AUDIT FIX #2)
+    if isinstance(dose_result, dict) and "dose_rates" in dose_result:
+        output["effective_dose_Sv_s"] = dose_result.get("effective_dose_rates", {})
+        output["operational_dose_Sv_s"] = dose_result.get("operational_dose_rates", {})
+        # Legacy key for backward compatibility (deprecated)
+        output["doserates"] = {
+            **dose_result.get("effective_dose_rates", {}),
+            **dose_result.get("operational_dose_rates", {}),
+        }
+        # Add warning flags if truncation occurred
+        if dose_result.get("truncation_warning"):
+            output["dose_truncation_warning"] = dose_result["truncation_warning"]
+        if dose_result.get("extrapolation_warning"):
+            output["dose_extrapolation_warning"] = dose_result["extrapolation_warning"]
+    else:
+        # Fallback for backward compatibility
+        output["doserates"] = dose_result if isinstance(dose_result, dict) else {}
 
     if extra:
         output.update(extra)

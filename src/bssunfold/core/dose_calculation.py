@@ -11,6 +11,7 @@ import numpy as np
 
 __all__ = [
     "calculate_dose_rates",
+    "calculate_dose_rates_with_validation",
     "get_icrp116_coefficients",
     "get_coefficients",
     "interpolate_coefficients",
@@ -162,12 +163,206 @@ def interpolate_coefficients(
     return result
 
 
+def calculate_dose_rates_with_validation(
+    spectrum: np.ndarray,
+    E_MeV: np.ndarray,
+    cc_icrp116: dict[str, np.ndarray] | None = None,
+    dlnE: float = 0.2,
+    truncation_threshold: float = 0.01,
+) -> dict:
+    """Calculate dose rates with energy range validation and warning system.
+    
+    This function implements AUDIT FIX #3: it checks if the spectrum extends
+    beyond the range of dose conversion coefficients and raises warnings or
+    errors accordingly. It also separates effective dose (ICRP-116 geometries)
+    from operational dose (H*(10) quantities).
+    
+    Parameters
+    ----------
+    spectrum : np.ndarray
+        Unfolded neutron spectrum (fluence rate per lethargy bin).
+    E_MeV : np.ndarray
+        Energy grid in MeV corresponding to the spectrum.
+    cc_icrp116 : Dict[str, np.ndarray], optional
+        Conversion coefficients dictionary. If None, uses ICRP-116 defaults.
+    dlnE : float, optional
+        Logarithmic energy step for integration (default: 0.2).
+    truncation_threshold : float, optional
+        Fraction of total fluence above max coefficient energy that triggers
+        a warning (default: 0.01 = 1%).
+    
+    Returns
+    -------
+    Dict
+        Dictionary containing:
+        - 'dose_rates': combined legacy dict (deprecated)
+        - 'effective_dose_rates': ICRP-116 effective dose (AP, PA, ISO, etc.)
+        - 'operational_dose_rates': ICRP-74 operational quantities (H*(10))
+        - 'truncation_warning': str or None, warning if spectrum exceeds CC range
+        - 'extrapolation_warning': str or None, warning about extrapolation
+        - 'valid': bool, False if dose calculation is invalid due to truncation
+    
+    Raises
+    ------
+    ValueError
+        If more than 50% of fluence lies outside coefficient range.
+    """
+    if cc_icrp116 is None:
+        cc_icrp116 = get_icrp116_coefficients()
+
+    if not cc_icrp116:
+        return {
+            "dose_rates": {},
+            "effective_dose_rates": {},
+            "operational_dose_rates": {},
+            "truncation_warning": None,
+            "extrapolation_warning": None,
+            "valid": True,
+        }
+
+    spec = np.asarray(spectrum, dtype=float)
+    E_spec = np.asarray(E_MeV, dtype=float)
+    n_spec = len(spec)
+    
+    # Calculate total fluence for truncation check
+    total_fluence = np.sum(spec)
+    
+    # Separate effective and operational coefficients
+    effective_geoms = []
+    operational_geoms = []
+    
+    for key in cc_icrp116:
+        if key == "E_MeV":
+            continue
+        # Operational quantities typically include H*(10), ADE, PDE*, etc.
+        if key in ["ADE", "PDE0", "PDE45", "PDE60", "PDE75", "H_star_10", "H*(10)"]:
+            operational_geoms.append(key)
+        else:
+            effective_geoms.append(key)
+    
+    # Check for energy range mismatch (AUDIT FIX #3)
+    truncation_warning = None
+    extrapolation_warning = None
+    valid = True
+    
+    for geom_list, dose_type in [
+        (effective_geoms, "effective"),
+        (operational_geoms, "operational")
+    ]:
+        if not geom_list:
+            continue
+            
+        # Get energy range from first geometry (all should have same range)
+        sample_key = geom_list[0]
+        E_cc = np.asarray(cc_icrp116[sample_key], dtype=float)
+        # Coefficients may be stored as values; need to get E_MeV from cc dict
+        if "E_MeV" in cc_icrp116:
+            E_cc_source = np.asarray(cc_icrp116["E_MeV"], dtype=float)
+        else:
+            # Fallback: assume same length as coefficient array
+            E_cc_source = np.arange(len(E_cc))
+        
+        E_min_cc = E_cc_source[0]
+        E_max_cc = E_cc_source[-1]
+        
+        # Check spectrum range vs coefficient range
+        E_min_spec = E_spec[0]
+        E_max_spec = E_spec[-1]
+        
+        # Calculate fluence fraction outside coefficient range
+        fluence_below = 0.0
+        fluence_above = 0.0
+        
+        if E_min_spec < E_min_cc:
+            mask_below = E_spec < E_min_cc
+            fluence_below = np.sum(spec[mask_below]) / max(total_fluence, 1e-30)
+        
+        if E_max_spec > E_max_cc:
+            mask_above = E_spec > E_max_cc
+            fluence_above = np.sum(spec[mask_above]) / max(total_fluence, 1e-30)
+        
+        # Generate warnings
+        if fluence_above > truncation_threshold:
+            pct = fluence_above * 100
+            truncation_warning = (
+                f"{dose_type.title()} dose calculation: {pct:.1f}% of fluence lies "
+                f"above {E_max_cc:.1f} MeV. Coefficient dataset truncated at {E_max_cc:.1f} MeV. "
+                f"Dose calculation may be significantly underestimated."
+            )
+            if fluence_above > 0.5:
+                valid = False
+                raise ValueError(
+                    f"Critical: {pct:.1f}% of fluence above coefficient maximum "
+                    f"({E_max_cc:.1f} MeV). Dose calculation invalid. "
+                    f"Use a coefficient dataset with extended energy range."
+                )
+        
+        if E_max_spec > E_max_cc * 1.01 and fluence_above <= truncation_threshold:
+            extrapolation_warning = (
+                f"Spectrum extends to {E_max_spec:.1f} MeV, but {dose_type} coefficients "
+                f"only go to {E_max_cc:.1f} MeV. High-energy tail zeroed in dose calculation."
+            )
+    
+    # Pre-compute constant factor for lethargy integration
+    ln10 = np.log(10.0) * dlnE
+    
+    # Calculate effective dose rates
+    effective_doses = {}
+    if effective_geoms:
+        cc_matrix = np.empty((len(effective_geoms), n_spec))
+        for idx, geom in enumerate(effective_geoms):
+            k_arr = np.asarray(cc_icrp116[geom], dtype=float)
+            min_len = min(len(k_arr), n_spec)
+            cc_matrix[idx, :min_len] = k_arr[:min_len]
+            if min_len < n_spec:
+                cc_matrix[idx, min_len:] = 0.0  # Silent truncation with warning above
+        
+        doses = cc_matrix @ spec
+        doses *= ln10
+        effective_doses = {
+            geom: float(doses[idx]) for idx, geom in enumerate(effective_geoms)
+        }
+    
+    # Calculate operational dose rates
+    operational_doses = {}
+    if operational_geoms:
+        cc_matrix = np.empty((len(operational_geoms), n_spec))
+        for idx, geom in enumerate(operational_geoms):
+            k_arr = np.asarray(cc_icrp116[geom], dtype=float)
+            min_len = min(len(k_arr), n_spec)
+            cc_matrix[idx, :min_len] = k_arr[:min_len]
+            if min_len < n_spec:
+                cc_matrix[idx, min_len:] = 0.0
+        
+        doses = cc_matrix @ spec
+        doses *= ln10
+        operational_doses = {
+            geom: float(doses[idx]) for idx, geom in enumerate(operational_geoms)
+        }
+    
+    # Legacy combined dict (deprecated but kept for backward compatibility)
+    combined_doses = {**effective_doses, **operational_doses}
+    
+    return {
+        "dose_rates": combined_doses,
+        "effective_dose_rates": effective_doses,
+        "operational_dose_rates": operational_doses,
+        "truncation_warning": truncation_warning,
+        "extrapolation_warning": extrapolation_warning,
+        "valid": valid,
+    }
+
+
 def calculate_dose_rates(
     spectrum: np.ndarray,
     cc_icrp116: dict[str, np.ndarray] | None = None,
     dlnE: float = 0.2,
 ) -> dict[str, float]:
     """Calculate dose rates using conversion coefficients.
+    
+    .. deprecated:: 
+        Use :func:`calculate_dose_rates_with_validation` instead for proper
+        energy range checking and separation of effective/operational doses.
 
     Uses uniform logarithmic step for integration.
 
@@ -189,32 +384,10 @@ def calculate_dose_rates(
         conversion coefficients. Values are in pico-Sievert per second
         (pSv/s).
     """
-    if cc_icrp116 is None:
-        cc_icrp116 = get_icrp116_coefficients()
-
-    if not cc_icrp116:
-        return {}
-
-    # Pre-compute constant factor
-    ln10 = np.log(10.0) * dlnE
-    spec = np.asarray(spectrum, dtype=float)
-    n_spec = len(spec)
-
-    # Batch: stack all CC arrays into a matrix and do a single matmul
-    geoms = [g for g in cc_icrp116 if g != "E_MeV"]
-    if not geoms:
-        return {}
-
-    cc_matrix = np.empty((len(geoms), n_spec))
-    for idx, geom in enumerate(geoms):
-        k_arr = np.asarray(cc_icrp116[geom], dtype=float)
-        min_len = min(len(k_arr), n_spec)
-        cc_matrix[idx, :min_len] = k_arr[:min_len]
-        if min_len < n_spec:
-            cc_matrix[idx, min_len:] = 0.0
-
-    # Single matrix-vector multiply: (n_geoms x n_spec) @ (n_spec,) -> (n_geoms,)
-    doses = cc_matrix @ spec
-    doses *= ln10
-
-    return {geom: float(doses[idx]) for idx, geom in enumerate(geoms)}
+    result = calculate_dose_rates_with_validation(
+        spectrum=spectrum,
+        E_MeV=np.logspace(-9, 3, len(spectrum)),  # Default assumption
+        cc_icrp116=cc_icrp116,
+        dlnE=dlnE,
+    )
+    return result["dose_rates"]
