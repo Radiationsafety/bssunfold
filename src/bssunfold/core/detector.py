@@ -1093,14 +1093,14 @@ class Detector:
         max_neutron_energy: float | None = None,
     ) -> dict[str, Any]:
         """Unfold by generalized estimating equations (R ``gee`` port).
-
-        The detector spheres are treated as a correlated cluster of
-        observations of the measurement vector ``b = A x``; the GEE
-        score equations ``A^T R(alpha)^{-1} (b - A x) - lam G x = 0``
-        are solved by iterated reweighted least squares with an
-        exchangeable / AR-1 working correlation, and robust
-        Liang-Zeger sandwich uncertainties are reported for the
-        spectrum.
+        
+        WARNING: EXPERIMENTAL METHOD - NOT RECOMMENDED FOR SINGLE MEASUREMENTS
+        
+        The GEE approach is statistically inappropriate for BSS with a single
+        cluster of observations (one set of sphere readings). The robust
+        sandwich estimator requires many independent clusters to be valid.
+        For radiation protection applications, use Tier 1 methods instead:
+        unfold_cvxpy, unfold_qpsolvers, unfold_maxed, or unfold_bayes.
 
         Parameters
         ----------
@@ -1139,7 +1139,22 @@ class Detector:
             ``alpha``, ``phi``, ``family``, ``corstr``, ``robust_se``,
             ``naive_se``, ``spectrum_uncert_robust``,
             ``pearson_chi2`` and ``gee_converged``.
+            
+        Raises
+        ------
+        UserWarning
+            This method is experimental and not recommended for production use.
         """
+        import warnings
+        
+        warnings.warn(
+            "unfold_gee is EXPERIMENTAL and statistically inappropriate for \"
+            \"single-cluster BSS measurements. The Liang-Zeger sandwich estimator \"
+            \"requires many independent clusters. Use Tier 1 methods (cvxpy, \"
+            \"qpsolvers, maxed, bayes) for radiation protection applications.",
+            UserWarning,
+            stacklevel=2
+        )
 
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_gee_impl(
@@ -1840,7 +1855,25 @@ class Detector:
         -------
         Dict[str, Any]
             Unfolding results including spectrum, residuals, and metadata.
+            
+        Notes
+        -----
+        EXPERIMENTAL METHOD: Meta-heuristic algorithms are non-deterministic,
+        computationally expensive, and do not provide natural uncertainty measures.
+        They are not recommended for radiation protection applications where
+        reproducibility and rigorous uncertainty quantification are required.
+        Use Tier 1 methods (cvxpy, qpsolvers, maxed, bayes) instead.
         """
+        import warnings
+        
+        warnings.warn(
+            "unfold_genetic is EXPERIMENTAL: meta-heuristic algorithms are \"
+            \"non-deterministic, slow, and lack natural uncertainty quantification. \"
+            \"Not recommended for radiation protection reports. Use Tier 1 methods \"
+            \"(cvxpy, qpsolvers, maxed, bayes) instead.",
+            UserWarning,
+            stacklevel=2
+        )
 
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_genetic_impl(

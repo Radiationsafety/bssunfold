@@ -543,13 +543,29 @@ def cressie_read(p: np.ndarray, q: np.ndarray) -> float:
 
 
 # ─── Statistical tests ────────────────────────────────────────────
+#
+# WARNING: These statistical hypothesis tests are marked as EXPERIMENTAL.
+# They are designed for comparing independent random samples, not deterministic
+# spectral vectors. Using them for BSS spectrum comparison may yield misleading
+# p-values and test statistics. Prefer physics-based metrics (KL divergence,
+# Wasserstein distance with normalization, flux-weighted energy differences).
 
 
 def anderson_darling(p: np.ndarray, q: np.ndarray) -> float:
     """Anderson-Darling test statistic for k-samples.
-
+    
+    EXPERIMENTAL: Not recommended for deterministic spectrum comparison.
     Returns 0.0 if either input is constant (all identical values).
     """
+    import warnings
+    
+    warnings.warn(
+        "anderson_darling is experimental and statistically inappropriate \"
+        \"for deterministic spectral vectors. Use physics-based metrics instead.",
+        UserWarning,
+        stacklevel=2
+    )
+    
     from scipy.stats import PermutationMethod, anderson_ksamp
 
     p_arr = np.asarray(p, dtype=float)
@@ -567,9 +583,19 @@ def anderson_darling(p: np.ndarray, q: np.ndarray) -> float:
 
 def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
     """Wilcoxon signed-rank test statistic.
-
+    
+    EXPERIMENTAL: Not recommended for deterministic spectrum comparison.
     Returns 0.0 if both inputs are identical (all differences zero).
     """
+    import warnings
+    
+    warnings.warn(
+        "wilcoxon_test is experimental and statistically inappropriate \"
+        \"for deterministic spectral vectors. Use physics-based metrics instead.",
+        UserWarning,
+        stacklevel=2
+    )
+    
     from scipy.stats import wilcoxon
 
     _check_same_length(p, q)
@@ -581,7 +607,19 @@ def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
 
 
 def mannwhitneyu_test(p: np.ndarray, q: np.ndarray) -> float:
-    """Mann-Whitney U test statistic."""
+    """Mann-Whitney U test statistic.
+    
+    EXPERIMENTAL: Not recommended for deterministic spectrum comparison.
+    """
+    import warnings
+    
+    warnings.warn(
+        "mannwhitneyu_test is experimental and statistically inappropriate \"
+        \"for deterministic spectral vectors. Use physics-based metrics instead.",
+        UserWarning,
+        stacklevel=2
+    )
+    
     from scipy.stats import mannwhitneyu
 
     return float(mannwhitneyu(p, q, alternative="two-sided")[0])
