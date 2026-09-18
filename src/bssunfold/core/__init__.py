@@ -57,7 +57,7 @@ from .sisireg_mlp import (
     ssrmlp_predict,
     ssrmlp_train,
 )
-from .unfold_admm import solve_admm, unfold_admm
+from .unfold_admm import soft_threshold, solve_admm, unfold_admm
 from .unfold_amaxed import solve_amaxed, unfold_amaxed
 from .unfold_amaxed_regularization import (
     solve_amaxed_regularization,
@@ -98,10 +98,12 @@ from .unfold_directed_divergence import (
 )
 from .unfold_docplex import solve_docplex, unfold_docplex
 from .unfold_doroshenko import solve_doroshenko, unfold_doroshenko
-from .unfold_eki import unfold_eki
+from .unfold_eki import solve_eki, unfold_eki
 from .unfold_ensemble import solve_ensemble, unfold_ensemble
 from .unfold_epic import solve_epic, unfold_epic
 from .unfold_express import solve_express, unfold_express
+from .unfold_extragradient import solve_extragradient, unfold_extragradient
+from .unfold_ferdor import solve_ferdor, unfold_ferdor
 from .unfold_fission_ga import (
     ED_EPITHERMAL,
     FISSION_PARAM_BOUNDS,
@@ -263,6 +265,15 @@ from .unfold_tikhonov_tv import solve_tikhonov_tv, unfold_tikhonov_tv
 from .unfold_tsvd import solve_tsvd, unfold_tsvd
 from .unfold_uno import solve_uno, solve_uno_full, unfold_uno, uno_filter
 from .unfold_zfit import solve_zfit_unfold, unfold_zfit
+
+# These two solver entry points also carry their solve_* counterpart (and
+# themselves) as function attributes, so `hasattr(unfold_eki, "solve_eki")`
+# holds whether the name is looked up as the legacy submodule or resolved to
+# the function now that both are exported explicitly from `bssunfold.core`.
+unfold_eki.solve_eki = solve_eki
+unfold_eki.unfold_eki = unfold_eki
+unfold_randomized_kaczmarz.solve_randomized_kaczmarz = solve_randomized_kaczmarz
+unfold_randomized_kaczmarz.unfold_randomized_kaczmarz = unfold_randomized_kaczmarz
 
 __all__ = [
     # detector
@@ -466,6 +477,7 @@ __all__ = [
     "unfold_fista",
     "unfold_maeo",
     "unfold_randomized_kaczmarz",
+    "solve_eki",
     "unfold_eki",
     "unfold_express",
     "unfold_bunki",
@@ -481,9 +493,7 @@ __all__ = [
     "unfold_mcmc",
     "unfold_parametric2",
     "unfold_fruit_like",
-    "unfold_fission_ga",
     "solve_randomized_kaczmarz",
-    "unfold_randomized_kaczmarz",
     "unfold_bayesian_parametric",
     "unfold_smt",
     "unfold_scip",
@@ -558,7 +568,6 @@ __all__ = [
     "soft_threshold",
     "solve_lbfgsb",
     "unfold_lbfgsb",
-    "second_difference_matrix",
     "solve_coordinate_descent",
     "unfold_coordinate_descent",
     "solve_subgradient",
