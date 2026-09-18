@@ -90,7 +90,7 @@ and this project adheres to [Semantic Versioning].
   1D minimizers, all eight solvers, projections, the regularization search,
   the duality diagnostics, the variance-reduced Monte-Carlo and the
   Detector integration).
-- New example notebooks: `examples/52-optimization-course-methods.ipynb`
+- New example notebooks: `examples/55-optimization-course-methods.ipynb`
   (solver comparison, duality certificates, 1-D regularization selection),
   `examples/53-montecarlo-20-spectra.ipynb` (20 Monte-Carlo spectra per
   solver, variance reduction) and `examples/54-noise-robustness.ipynb`
@@ -171,6 +171,45 @@ and this project adheres to [Semantic Versioning].
     truncation and diagnostics).
   - Added `gnowee` to the `TestMaxNeutronEnergy::test_spectrum_zero_above_emax`
     parametrization in `tests/test_coverage.py`.
+- **CUQIpy Bayesian uncertainty-quantified unfolding** (`unfold_cuqi` /
+  `solve_cuqi_bayesian`, integration of the DTU package
+  [CUQIpy](https://github.com/CUQI-DTU/CUQIpy) — *Computational
+  Uncertainty Quantification for Inverse Problems*; optional dependency,
+  new extra `bssunfold[cuqi]`, `cuqipy>=1.5.0`): the spectrum is modelled
+  on the log scale `f = exp(theta)` with a smoothness prior anchored on
+  a data-driven NNLS center — `prior="gmrf"` (CUQIpy GMRF with a
+  first/second-order difference precision operator, `gmrf_order` 1/2) or
+  `prior="ou"` (dense Ornstein-Uhlenbeck correlation Gaussian,
+  `lengthscale`) — and the posterior is explored with the CUQIpy
+  samplers `sampler=` `pcn` (preconditioned Crank-Nicolson, centred
+  parameterisation), `cwmh` (component-wise Metropolis-Hastings),
+  `mala` / `ula` ((M)ALA on a MAP-whitened parameterisation with the
+  analytic gradient; ula experimental), `nuts` (native No-U-Turn
+  Sampler) and the hierarchical `gibbs` / `gibbs_nuts` (CUQIpy
+  `HybridGibbs`: the GMRF smoothness precision `delta` is inferred from
+  the data through a conjugate `Gamma(alpha, beta)` hyperprior with an
+  exact conjugate update, the spectral block updated by pCN or NUTS).
+  The result carries the posterior mean spectrum, per-bin posterior
+  std, configurable HPD credible intervals (`credible_level`) and
+  convergence diagnostics under `cuqi_stats` (effective sample size,
+  Gelman-Rubin R-hat for multi-chain runs, acceptance rates, raw
+  posterior draws and the hyperparameter draws
+  `delta_samples`).  Lazy cuqi import: the package imports normally
+  without cuqipy (`CUQI_AVAILABLE` flag / `check_cuqi_availability()`)
+  and `unfold_cuqi` raises an informative `ImportError` otherwise.
+  NumPy 2.4 compatibility: upstream `cuqipy` 1.5.1 caps `numpy<=2.2.0`,
+  which conflicts with this package's `numpy>=2.4.1` floor (and with
+  `odl`'s `numpy>=2.3` in the aggregated `all` extra).  A maintained fork
+  (https://github.com/Radiationsafety/CUQIpy, branch `numpy2-support`,
+  dist version 1.5.2) relaxes the cap to `numpy<2.5` and fixes NUTS for
+  `numpy>=2.4` (`int()` conversion of 1-element arrays in the slice and
+  U-turn checks of `cuqi/sampler/_hmc.py`).  The uv lockfile/CI resolves
+  `cuqipy` from the fork through `[tool.uv.sources]`; pip installs of the
+  `cuqi` extra on NumPy 2.4 should pre-install the fork with
+  `pip install "cuqipy @ git+https://github.com/Radiationsafety/CUQIpy@numpy2-support"`
+  (pip then accepts it as satisfying `cuqipy>=1.5.0`); on NumPy <= 2.2 the
+  plain PyPI `cuqipy` works unchanged.
+  Documentation: `docs/cuqi_bayes.rst`.
 - **GEE unfolding** (`unfold_gee` / `solve_gee` / `solve_gee_full` /
   `gee_fit`, Python analogue of the R package `gee` 4.13-30, Liang &
   Zeger 1986): the detector spheres are treated as a correlated

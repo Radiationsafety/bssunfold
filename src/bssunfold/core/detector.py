@@ -58,6 +58,7 @@ from .unfold_coordinate_descent import (
 )
 from .unfold_crystal_ball import unfold_crystal_ball as unfold_crystal_ball_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
+from .unfold_cuqi import unfold_cuqi as unfold_cuqi_impl
 from .unfold_cvxpy import unfold_cvxpy as unfold_cvxpy_impl
 from .unfold_directed_divergence import (
     unfold_directed_divergence as unfold_directed_divergence_impl,
@@ -8531,5 +8532,188 @@ class Detector:
             variance_reduction=variance_reduction,
             random_state=random_state,
             save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+    def unfold_cuqi(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        sampler: str = "pcn",
+        noise_level: float = 0.05,
+        prior: str = "gmrf",
+        gmrf_order: int = 1,
+        lengthscale: float = 3.0,
+        prec: float = 1.0,
+        hierarchical: bool | None = None,
+        delta_alpha: float = 1.0,
+        delta_beta: float = 1e-4,
+        n_samples: int = 2000,
+        n_burnin: int = 1000,
+        thin: int = 1,
+        chains: int = 2,
+        scale: float = 0.05,
+        max_depth: int = 8,
+        step_size: float | None = None,
+        credible_level: float = 95.0,
+        calculate_errors: bool = False,
+        mc_noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        progressbar: bool = False,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum with CUQIpy Bayesian samplers.
+
+        Full Bayesian unfolding powered by `CUQIpy
+        <https://github.com/CUQI-DTU/CUQIpy>`_ (Computational Uncertainty
+        Quantification for Inverse Problems, DTU).  The spectrum is modelled
+        on the log scale with a smoothness prior (GMRF or Ornstein-Uhlenbeck
+        Gaussian) anchored on a data-driven center, and the posterior is
+        explored with one of the CUQIpy samplers:
+
+        - ``'pcn'``   : Preconditioned Crank-Nicolson
+        - ``'cwmh'``  : Component-wise Metropolis-Hastings
+        - ``'ula'``   : Unadjusted Langevin algorithm
+        - ``'mala'``  : Metropolis-adjusted Langevin algorithm
+        - ``'nuts'``  : No-U-Turn Sampler
+        - ``'gibbs'`` / ``'gibbs_nuts'`` : hierarchical Gibbs sampling where
+          the GMRF smoothness precision is inferred from the data through a
+          conjugate Gamma hyperprior (CUQIpy ``HybridGibbs``)
+
+        The result contains the mean posterior spectrum, per-bin posterior
+        standard deviations, 95% (configurable) HPD credible intervals and
+        convergence diagnostics (ESS, R-hat, acceptance rate) under
+        ``result['cuqi_stats']``.
+
+        Requires the optional ``cuqipy`` package (``pip install bssunfold[cuqi]``
+        or ``pip install cuqipy``).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Prior center guess for the spectrum. When None, the non-negative
+            least-squares solution of ``A @ x = b`` is used as the prior center.
+        sampler : str, optional
+            CUQIpy sampler (default: ``'pcn'``).
+        noise_level : float, optional
+            Relative likelihood noise scale (default: 0.05).
+        prior : str, optional
+            Log-spectrum prior: ``'gmrf'`` (default) or ``'ou'``.
+        gmrf_order : int, optional
+            GMRF operator order, 1 or 2 (default: 1); higher is smoother.
+        lengthscale : float, optional
+            OU correlation length in energy bins (default: 3.0).
+        prec : float, optional
+            Fixed prior precision scale (default: 1.0); inferred from the
+            data by the hierarchical Gibbs samplers.
+        hierarchical : bool, optional
+            Force the hierarchical Gibbs scheme (default: derived from
+            ``sampler``).
+        delta_alpha : float, optional
+            Gamma hyperprior shape for the GMRF precision (default: 1.0).
+        delta_beta : float, optional
+            Gamma hyperprior rate for the GMRF precision (default: 1e-4).
+        n_samples : int, optional
+            Posterior samples per chain (default: 2000).
+        n_burnin : int, optional
+            Warmup iterations per chain (default: 1000).
+        thin : int, optional
+            Thinning interval (default: 1).
+        chains : int, optional
+            Number of independent chains (default: 2).
+        scale : float, optional
+            Proposal step size (default: 0.05).
+        max_depth : int, optional
+            NUTS maximum tree depth (default: 8).
+        step_size : float, optional
+            NUTS leapfrog step size (default: None, tuned by CUQIpy).
+        credible_level : float, optional
+            Credible mass (%) of the HPD interval (default: 95).
+        calculate_errors : bool, optional
+            Calculate additional Monte-Carlo errors (default: False).
+        mc_noise_level : float, optional
+            Noise level for the additional Monte-Carlo loop (default: 0.01).
+        n_montecarlo : int, optional
+            Number of additional Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        progressbar : bool, optional
+            Present for API consistency (default: False).
+        max_neutron_energy : Optional[float], optional
+            Truncate the response matrices above this energy (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary. Includes the standard keys
+            (``energy``, ``spectrum``, ``effective_readings``, ``residual``,
+            ``residual_norm``, ``method``, ``doserates``) plus CUQI-specific
+            keys ``spectrum_uncertainty``, ``spectrum_lower``,
+            ``spectrum_upper`` and ``cuqi_stats``.
+
+        Raises
+        ------
+        ImportError
+            If CUQIpy is not installed.
+        RuntimeError
+            If MCMC sampling fails.
+
+        Examples
+        --------
+        >>> from bssunfold import Detector
+        >>> detector = Detector()
+        >>> result = detector.unfold_cuqi(
+        ...     readings,
+        ...     sampler='gibbs_nuts',
+        ...     n_samples=1000,
+        ...     chains=2,
+        ... )
+        >>> spectrum = result['spectrum']
+        >>> acc = result['cuqi_stats']['acc_rate']
+
+        See Also
+        --------
+        unfold_mcmc : PyMC/NUTS Bayesian unfolding
+        unfold_bayes : Bayesian iterative unfolding (D'Agostini)
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_cuqi_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            sampler=sampler,
+            noise_level=noise_level,
+            prior=prior,
+            gmrf_order=gmrf_order,
+            lengthscale=lengthscale,
+            prec=prec,
+            hierarchical=hierarchical,
+            delta_alpha=delta_alpha,
+            delta_beta=delta_beta,
+            n_samples=n_samples,
+            n_burnin=n_burnin,
+            thin=thin,
+            chains=chains,
+            scale=scale,
+            max_depth=max_depth,
+            step_size=step_size,
+            credible_level=credible_level,
+            calculate_errors=calculate_errors,
+            mc_noise_level=mc_noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+            progressbar=progressbar,
         )
         return self._expand_result(result, mask, readings)

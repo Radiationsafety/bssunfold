@@ -90,6 +90,7 @@ from .unfold_coordinate_descent import (
 )
 from .unfold_crystal_ball import solve_crystal_ball, unfold_crystal_ball
 from .unfold_cs import solve_cs, solve_ksvd, solve_omp, solve_sl0, unfold_cs
+from .unfold_cuqi import check_cuqi_available, solve_cuqi_bayesian, unfold_cuqi
 from .unfold_cvxpy import solve_cvxpy, unfold_cvxpy
 from .unfold_directed_divergence import (
     solve_directed_divergence,
@@ -261,6 +262,8 @@ __all__ = [
     "Detector",
     # unfolding methods
     "solve_cvxpy",
+    "solve_cuqi_bayesian",
+    "check_cuqi_available",
     "solve_landweber",
     "solve_mlem",
     "solve_nnqp",
@@ -413,6 +416,7 @@ __all__ = [
     "solve_tikhonov_nnls",
     # unfold modules
     "unfold_cvxpy",
+    "unfold_cuqi",
     "unfold_landweber",
     "unfold_mlem",
     "unfold_nnqp",

@@ -36,7 +36,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (76+ methods):
+- **Multiple Unfolding Algorithms** (88 methods):
   - **Optimization-course methods** (MIPT OPTIMIZATION-METHODS-COURSE port): Projected Gradient Descent (orthant/box/simplex + duality-gap certificate), Frank-Wolfe conditional gradient (away steps, exact fluence preservation), Mirror Descent (entropy/log/l2/pnorm Bregman geometries generalizing MLEM/GRAVEL), consensus ADMM (exact NNLS x-update with L1/TV penalties), L-BFGS-B quasi-Newton (box bounds + curvature smoothing), Coordinate Descent (NNLS with L1/L2, cyclic/random), Subgradient methods (Polyak/diminishing steps), Extragradient (Korpelevich saddle formulation for robust unfolding), golden-section/dichotomy/Brent 1D search (`select_regularization_1d`), antithetic/control-variate Monte-Carlo variance reduction, and NNLS duality-gap/KKT diagnostics
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD, selectable LAPACK/ARPACK/PROPACK backends), EPIC (Equal Posterior Information Condition), P-spline REML (mixed-model smoothing with automatic REML smoothing selection)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES, AMG-Krylov (AMG / Jacobi / Gauss-Seidel / SOR / SSOR preconditioning)
@@ -44,7 +44,7 @@
   - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
    - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
    - **Classic codes (independent reimplementations)**: CRYSTAL BALL (direct delta-operator), RFSP-JUL (damped least squares), STAY'SL (single-step Bayesian least squares) — reimplemented from their published algorithmic descriptions; the original codes are proprietary
-  - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference
+  - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference, full Bayesian MCMC (NUTS via pymc), CUQIpy uncertainty-quantified MCMC (pCN, CWMH, ULA, MALA, NUTS, hierarchical Gibbs with Gamma hyperprior — posterior mean, HPD credible intervals, ESS/R-hat diagnostics)
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation),
     IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis methods)
   - **Statistical Regularization**: Turchin's method (StatReg, reimplementation of Reconst), SSR (Sign-Simplicity-Regression, sisireg port - MLEM data step + sign-adequacy QSOR parsimony sweep with minimum-statistic threshold selection), plus the spatial (`ssr3d` minimal-surface regression for scattered planar data) and neural (`ssrMLP` two-layer perceptron trained with the partial sum criterion) extensions of the same package as standalone regression building blocks
@@ -316,6 +316,7 @@ graph TD
 
     D --> D1[unfold_bayes]
     D --> D2[unfold_bayes_spline_regularization]
+    D --> D3[unfold_cuqi]
 
     E --> E1[unfold_maxed]
     E --> E2[unfold_imaxed]
@@ -466,14 +467,15 @@ graph TD
 | 77 | `unfold_uno` | Optimization / NLP | `preset` (filter_sqp/ipopt_like), `weights` (uniform/poisson/array), `regularization`, `hessian` (exact/bfgs), `max_iterations`, `tolerance` | — | Uno-style Lagrange-Newton constrained unfolding (R `Uno` analogue, Vanaret & Leyffer 2024): solves `min 1/2||W(Ax-b)||^2 + lam/2||D2 x||^2 s.t. x >= 0` either by the `filterSQP` preset (exact Hessian, Fletcher-Leyffer filter; the convex QP is solved exactly in one Lawson-Hanson active-set sub-step) or the IPOPT-like primal-dual interior-point method (exact or BFGS Hessian, fraction-to-the-boundary rule); reports SolveStatistics-style quality (`objective`, `constraint_violation`, `dual_infeasibility`, `n_iterations`, `uno_converged`) |
 | 78 | `unfold_fission_ga` | Parametric / stochastic | `initial_params`, `fit_scale`, `ga_popsize`, `ga_maxiter`, `ga_tol`, `lm_method` (trf/lm), `lm_max_nfev`, `eps_threshold` | — | Fission-model GA+LM unfolding (port of Ogorodnikov 2024 sections 4-5, `BonnerFinder()`): three-fraction model (thermal Maxwellian + epithermal tail + Watt-type fast peak, article eq. 4.29) with 7 free parameters; stage 1 — differential-evolution global search minimizing the L1 discrepancy of the folded readings (article eq. 4.32), stage 2 — bounded nonlinear least-squares refinement (SciLab `leastsq` analogue); optional free scale `phi_scale` for absolute readings; reports the article's validation criteria (`validation`: per-sphere uncertainties, sign alternation, FOM, spectrum norm) and fitted `model_params` with `weight_fractions`; deterministic under `random_state` |
 | 79 | `unfold_tikhonov_sobolev_dp` | Regularization | `noise_level`, `delta`, `penalty` (sobolev/curvature/identity), `alpha_range`, `max_iter` | — | Tikhonov + generalized discrepancy principle (port of Ogorodnikov 2024 sections 3/5, `alfaFinder()`): discrete Sobolev `W_2^1` penalty (first-difference operator, discrete analogue of the Euler equation `A*A z + alpha (z - z'') = A* u`) with `alpha*` selected as the root of `rho(alpha) = ||Az-b||^2 - delta^2` (article eq. 3.8); the monotone discrepancy is bracketed on a log10 grid and refined by Brent's method (robust counterpart of the article's Newton/chord iterations); status codes mirror `FFinder` IERR (0/1/2); reports `alpha`, `discrepancy_status`, `dp_converged`; standalone `alpha_finder_generalized_discrepancy` exported for reuse |
-| 80 | `unfold_pgd` | Optimization course | `max_iterations`, `tolerance`, `regularization`, `constraint` (nonnegative/box/simplex), `total_fluence`, `x_max`, `backtracking`, `variance_reduction` | — | Projected gradient descent (course lecture 9 / homework 14): gradient step followed by the Euclidean projection onto the nonnegative orthant, a box, or the fluence simplex `{x >= 0, sum x = F}` (exact total-fluence preservation); Armijo backtracking option; result carries a Lagrange-duality-gap optimality certificate (`duality_gap`) |
-| 81 | `unfold_frank_wolfe` | Optimization course | `total_fluence`, `max_iterations`, `tolerance`, `away_steps`, `line_search` (exact/backtracking), `variance_reduction` | — | Frank-Wolfe conditional gradient (Levitin-Polyak; course lecture 9): linear minimization oracle over the fluence simplex picks the most-descent vertex each iteration; Wolfe away-steps reduce zig-zagging; the Frank-Wolfe (duality) gap is the natural stopping certificate; total fluence preserved exactly at every iterate |
-| 82 | `unfold_mirror_descent` | Optimization course | `mirror_map` (entropy/log/l2/pnorm), `step_size`, `total_fluence`, `regularization`, `p`, `max_iterations`, `tolerance`, `variance_reduction` | — | Mirror descent in Bregman geometries (Nemirovski-Yudin; Beck-Teboulle; course lecture 10 / homework 16): the entropy map yields multiplicative updates generalizing MLEM/GRAVEL/SAND-II while exactly preserving total fluence; log-barrier, L2 and p-norm maps give other physically meaningful non-negative geometries; per-iteration golden-section line search along the mirror trajectory |
-| 83 | `unfold_admm` | Optimization course | `l1_penalty`, `tv_penalty`, `rho`, `adaptive_rho`, `max_iterations`, `tolerance`, `variance_reduction` | — | Consensus ADMM (Gabay-Mercier; Boyd et al. 2011; course lecture 11 / homework 18): splits the L1/TV-regularized problem `min 1/2||Ax-b||^2 + l1||x||_1 + tv||Dx||_1 s.t. x >= 0` into an exact NNLS x-update (non-negativity enforced at every iteration), soft-thresholding z-updates and scaled dual ascent; Boyd primal/dual-residual stopping; adaptive rho (sec. 3.4.1) makes it robust to the count-data scale |
-| 84 | `unfold_lbfgsb` | Optimization course | `regularization`, `smoothness`, `x_min`, `x_max`, `lbfgs_history`, `max_iterations`, `tolerance`, `variance_reduction` | — | L-BFGS-B quasi-Newton with box bounds (Byrd-Lu-Nocedal-Zhu; course lecture 7 / homework 10): minimizes the smooth Tikhonov objective `1/2||Ax-b||^2 + reg/2||x||^2 + smooth/2||D2 x||^2` with analytic gradients and O(n·history) memory; the second-difference term penalizes oscillations while keeping smoothness for quasi-Newton superlinearity |
-| 85 | `unfold_coordinate_descent` | Optimization course | `l1_penalty`, `l2_penalty`, `selection` (cyclic/random), `max_iterations`, `tolerance`, `variance_reduction` | — | Coordinate descent for NNLS with L1/L2 penalties (course lecture 15): exact closed-form coordinate minimization `x_j <- max(0, (a_j^T r + ||a_j||^2 x_j - l1)/(||a_j||^2 + l2))` with O(m) per-coordinate residual update; cyclic (Gauss-Seidel-type) or seeded random coordinate order |
-| 86 | `unfold_subgradient` | Optimization course | `l1_penalty`, `tv_penalty`, `step_policy` (polyak/diminishing/fixed), `step_size`, `decay`, `polyak_margin`, `max_iterations`, `tolerance`, `variance_reduction` | — | Projected subgradient descent for nonsmooth L1/TV objectives (course lecture 8 / homework 12): Polyak step with running optimal-value estimate, square-summable diminishing steps or fixed steps; the best iterate by objective value is returned as standard for subgradient schemes |
-| 87 | `unfold_extragradient` | Optimization course | `noise_level`, `step_size`, `max_iterations`, `tolerance`, `variance_reduction` | — | Korpelevich extragradient for the robust saddle formulation `min_{x>=0} max_{||y||<=1} 1/2||Ax-b||^2 + delta y^T(Ax-b)` (course lecture 13 / homework 20) — equivalent to least squares made robust against measurement noise of L2 norm up to `delta = noise_level||b||`; the two-step (prediction-correction) scheme restores convergence where plain gradient steps oscillate |
+| 80 | `unfold_cuqi` | Bayesian / MCMC | `sampler` (pcn/cwmh/ula/mala/nuts/gibbs/gibbs_nuts), `prior` (gmrf/ou), `gmrf_order`, `lengthscale`, `noise_level`, `hierarchical`, `delta_alpha`, `delta_beta`, `n_samples`, `n_burnin`, `thin`, `chains`, `scale`, `max_depth`, `step_size`, `credible_level` | cuqipy (optional) | Full Bayesian unfolding with CUQIpy (DTU, uncertainty quantification for inverse problems): log-spectrum model `f = exp(theta)` with GMRF (order 1/2) or Ornstein-Uhlenbeck Gaussian prior anchored on an NNLS data-driven center; posterior explored by pCN, component-wise MH, (M)ALA, NUTS or hierarchical HybridGibbs where the GMRF smoothness precision is inferred through a conjugate Gamma hyperprior; returns posterior mean spectrum, per-bin std, configurable HPD credible intervals and ESS / Gelman-Rubin R-hat / acceptance-rate diagnostics under `cuqi_stats` |
+| 81 | `unfold_pgd` | Optimization course | `max_iterations`, `tolerance`, `regularization`, `constraint` (nonnegative/box/simplex), `total_fluence`, `x_max`, `backtracking`, `variance_reduction` | — | Projected gradient descent (course lecture 9 / homework 14): gradient step followed by the Euclidean projection onto the nonnegative orthant, a box, or the fluence simplex `{x >= 0, sum x = F}` (exact total-fluence preservation); Armijo backtracking option; result carries a Lagrange-duality-gap optimality certificate (`duality_gap`) |
+| 82 | `unfold_frank_wolfe` | Optimization course | `total_fluence`, `max_iterations`, `tolerance`, `away_steps`, `line_search` (exact/backtracking), `variance_reduction` | — | Frank-Wolfe conditional gradient (Levitin-Polyak; course lecture 9): linear minimization oracle over the fluence simplex picks the most-descent vertex each iteration; Wolfe away-steps reduce zig-zagging; the Frank-Wolfe (duality) gap is the natural stopping certificate; total fluence preserved exactly at every iterate |
+| 83 | `unfold_mirror_descent` | Optimization course | `mirror_map` (entropy/log/l2/pnorm), `step_size`, `total_fluence`, `regularization`, `p`, `max_iterations`, `tolerance`, `variance_reduction` | — | Mirror descent in Bregman geometries (Nemirovski-Yudin; Beck-Teboulle; course lecture 10 / homework 16): the entropy map yields multiplicative updates generalizing MLEM/GRAVEL/SAND-II while exactly preserving total fluence; log-barrier, L2 and p-norm maps give other physically meaningful non-negative geometries; per-iteration golden-section line search along the mirror trajectory |
+| 84 | `unfold_admm` | Optimization course | `l1_penalty`, `tv_penalty`, `rho`, `adaptive_rho`, `max_iterations`, `tolerance`, `variance_reduction` | — | Consensus ADMM (Gabay-Mercier; Boyd et al. 2011; course lecture 11 / homework 18): splits the L1/TV-regularized problem `min 1/2||Ax-b||^2 + l1||x||_1 + tv||Dx||_1 s.t. x >= 0` into an exact NNLS x-update (non-negativity enforced at every iteration), soft-thresholding z-updates and scaled dual ascent; Boyd primal/dual-residual stopping; adaptive rho (sec. 3.4.1) makes it robust to the count-data scale |
+| 85 | `unfold_lbfgsb` | Optimization course | `regularization`, `smoothness`, `x_min`, `x_max`, `lbfgs_history`, `max_iterations`, `tolerance`, `variance_reduction` | — | L-BFGS-B quasi-Newton with box bounds (Byrd-Lu-Nocedal-Zhu; course lecture 7 / homework 10): minimizes the smooth Tikhonov objective `1/2||Ax-b||^2 + reg/2||x||^2 + smooth/2||D2 x||^2` with analytic gradients and O(n·history) memory; the second-difference term penalizes oscillations while keeping smoothness for quasi-Newton superlinearity |
+| 86 | `unfold_coordinate_descent` | Optimization course | `l1_penalty`, `l2_penalty`, `selection` (cyclic/random), `max_iterations`, `tolerance`, `variance_reduction` | — | Coordinate descent for NNLS with L1/L2 penalties (course lecture 15): exact closed-form coordinate minimization `x_j <- max(0, (a_j^T r + ||a_j||^2 x_j - l1)/(||a_j||^2 + l2))` with O(m) per-coordinate residual update; cyclic (Gauss-Seidel-type) or seeded random coordinate order |
+| 87 | `unfold_subgradient` | Optimization course | `l1_penalty`, `tv_penalty`, `step_policy` (polyak/diminishing/fixed), `step_size`, `decay`, `polyak_margin`, `max_iterations`, `tolerance`, `variance_reduction` | — | Projected subgradient descent for nonsmooth L1/TV objectives (course lecture 8 / homework 12): Polyak step with running optimal-value estimate, square-summable diminishing steps or fixed steps; the best iterate by objective value is returned as standard for subgradient schemes |
+| 88 | `unfold_extragradient` | Optimization course | `noise_level`, `step_size`, `max_iterations`, `tolerance`, `variance_reduction` | — | Korpelevich extragradient for the robust saddle formulation `min_{x>=0} max_{||y||<=1} 1/2||Ax-b||^2 + delta y^T(Ax-b)` (course lecture 13 / homework 20) — equivalent to least squares made robust against measurement noise of L2 norm up to `delta = noise_level||b||`; the two-step (prediction-correction) scheme restores convergence where plain gradient steps oscillate |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `variance_reduction` (`none`/`antithetic`/`control`/`both` — lecture-14 variance-reduced Monte-Carlo uncertainty), `save_result`, `random_state`.
 
@@ -543,6 +545,36 @@ result = detector.unfold_mlem_bs(
 print(result["ks_final"], result["ks_history"])
 auto = detector.unfold_mlem_bs(readings, auto_params=True)
 print(auto["auto_selection"]["chosen"])
+```
+
+### CUQIpy Bayesian Example
+
+```python
+# Full Bayesian unfolding with CUQIpy (pip install bssunfold[cuqi])
+# log-spectrum GMRF prior + posterior MCMC sampling with UQ diagnostics
+result = detector.unfold_cuqi(
+    readings=readings,
+    sampler="gibbs_nuts",   # pcn / cwmh / ula / mala / nuts / gibbs / gibbs_nuts
+    prior="gmrf",           # GMRF (order 1/2) or OU log-spectrum prior
+    gmrf_order=1,
+    hierarchical=True,      # Gamma hyperprior on the smoothness precision
+    n_samples=2000,
+    n_burnin=1000,
+    chains=2,               # multi-chain R-hat requires >= 2 chains
+    credible_level=95.0,
+    random_state=42,
+)
+
+# posterior summary + credible intervals
+print(result["spectrum"])              # posterior mean
+print(result["spectrum_uncertainty"])  # per-bin posterior std
+print(result["spectrum_lower"])        # 95% HPD lower bound
+print(result["spectrum_upper"])        # 95% HPD upper bound
+
+# convergence diagnostics: ESS, Gelman-Rubin R-hat, acceptance rate
+stats = result["cuqi_stats"]
+print(stats["ess"], stats["rhat"], stats["acc_rate"])
+print(stats["delta_samples"])          # posterior of the smoothness hyperparameter
 ```
 
 ## 📊 5-Detector Comparison
@@ -824,7 +856,7 @@ bssunfold/
 │   ├── examples.rst
 │   ├── conf.py
 │   └── requirements.txt
-├── examples/                    # Jupyter notebooks (51 notebooks)
+├── examples/                    # Jupyter notebooks (52 notebooks)
 ├── scripts/                     # Standalone analysis / benchmark scripts
 │   ├── rank_methods.py
 │   ├── optimize_defaults_and_new_methods.py
@@ -927,6 +959,7 @@ bssunfold/
             ├── unfold_coordinate_descent.py
             ├── unfold_crystal_ball.py
             ├── unfold_cs.py
+            ├── unfold_cuqi.py
             ├── unfold_cvxpy.py
             ├── unfold_docplex.py
             ├── unfold_doroshenko.py
@@ -1013,6 +1046,7 @@ bssunfold/
 - `lmfit` — L1/L2/Elastic Net regularisation (unfold_lmfit)
 - `odl` — Operator Discretization Library (unfold_mlem_odl)
 - `pymc` + `arviz` — Bayesian MCMC/NUTS sampling (unfold_mcmc)
+- `cuqipy` — Bayesian uncertainty quantification: pCN/CWMH/ULA/MALA/NUTS/hierarchical Gibbs samplers with ESS/R-hat/HPD diagnostics (unfold_cuqi); on NumPy >= 2.4 install the maintained fork `pip install "cuqipy @ git+https://github.com/Radiationsafety/CUQIpy@numpy2-support"` (upstream caps `numpy<=2.2.0`; the fork relaxes it to `numpy<2.5` and fixes NUTS under NumPy 2.4, dist version 1.5.2)
 
 All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre, NSpline) have **no extra dependencies** beyond NumPy/SciPy.
 
