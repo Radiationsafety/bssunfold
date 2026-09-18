@@ -26,6 +26,7 @@ from numpy.typing import NDArray
 from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
 from ._line_search import golden_section_minimize
+from ._matrix_utils import estimate_total_fluence
 
 __all__ = ["solve_mirror_descent", "unfold_mirror_descent"]
 
@@ -284,8 +285,8 @@ def unfold_mirror_descent(
 
     if mirror_map == "entropy":
         if total_fluence is None:
-            mean_response = max(float(np.mean(A_est)), 1e-30)
-            total_fluence = float(np.mean(b_est) / mean_response * n_energy_bins)
+            # data-driven estimate: NNLS fit total (see estimate_total_fluence)
+            total_fluence = estimate_total_fluence(A_est, b_est)
         x0_default = np.full(n_energy_bins, total_fluence / n_energy_bins)
     else:
         # small positive start so that log/entropy-type maps are well defined

@@ -23,6 +23,7 @@ from numpy.typing import NDArray
 
 from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from ._matrix_utils import estimate_total_fluence
 
 __all__ = ["solve_frank_wolfe", "unfold_frank_wolfe"]
 
@@ -228,9 +229,8 @@ def unfold_frank_wolfe(
         selected = [name for name in detector_names if name in readings]
         A_est = np.array([sensitivities[name] for name in selected], dtype=float)
         b_est = np.array([readings[name] for name in selected], dtype=float)
-        # uniform-spectrum estimate of the total fluence
-        mean_response = max(float(np.mean(A_est)), 1e-30)
-        total_fluence = float(np.mean(b_est) / mean_response * n_energy_bins)
+        # data-driven estimate: NNLS fit total (see estimate_total_fluence)
+        total_fluence = estimate_total_fluence(A_est, b_est)
 
     x0_default = np.full(n_energy_bins, total_fluence / n_energy_bins)
 

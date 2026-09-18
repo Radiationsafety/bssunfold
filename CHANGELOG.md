@@ -90,6 +90,22 @@ and this project adheres to [Semantic Versioning].
   1D minimizers, all eight solvers, projections, the regularization search,
   the duality diagnostics, the variance-reduced Monte-Carlo and the
   Detector integration).
+- New example notebooks: `examples/52-optimization-course-methods.ipynb`
+  (solver comparison, duality certificates, 1-D regularization selection),
+  `examples/53-montecarlo-20-spectra.ipynb` (20 Monte-Carlo spectra per
+  solver, variance reduction) and `examples/54-noise-robustness.ipynb`
+  (noise-robustness study with a bias-variance decomposition, 11 solvers).
+
+### Fixed
+- **Default total-fluence estimate in Frank-Wolfe and entropy mirror
+  descent.** The previous fallback
+  `mean(b) / mean(A) * n_bins` over-estimated the simplex level by orders
+  of magnitude on typical log-spaced GSF grids (215 vs the correct 2.25
+  for the ISO Cf-252 example), pinning both solvers to a wrong scale with
+  a large residual and strongly biased dose rates. The default is now a
+  data-driven NNLS estimate `estimate_total_fluence(A, b)` (new helper in
+  `_matrix_utils`), with the old heuristic kept only as a fallback when
+  the NNLS solve fails.
 
 ## [0.25.0] - 2026-09-17
 

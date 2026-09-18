@@ -202,3 +202,42 @@ def compute_log_steps(E_MeV: np.ndarray, n_energy_bins: int) -> np.ndarray:
         log_steps[1:-1] = (log_e[2:] - log_e[:-2]) / 2.0
 
     return log_steps
+
+
+def estimate_total_fluence(
+    A: np.ndarray,
+    b: np.ndarray,
+) -> float:
+    """Estimate the total fluence ``sum(x)`` of the unfolded spectrum.
+
+    The estimate is obtained from an unconstrained non-negative least-squares
+    fit ``min ||A x - b||^2, x >= 0`` and taking ``sum(x_nnls)``.  This is
+    data-driven and consistent with the units of the response matrix, unlike
+    the crude uniform-response heuristic ``mean(b) / mean(A) * n`` which can
+    be orders of magnitude off for log-spaced energy grids.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+
+    Returns
+    -------
+    float
+        Positive estimate of ``sum(x)`` for the unfolded spectrum.
+    """
+    from scipy.optimize import nnls
+
+    m, n = A.shape
+    try:
+        x_nnls, _ = nnls(A, b, maxiter=10 * n)
+        total = float(x_nnls.sum())
+        if np.isfinite(total) and total > 0.0:
+            return total
+    except Exception:
+        pass
+    # fallback: uniform-response heuristic
+    mean_response = max(float(np.mean(A)), 1e-30)
+    return float(np.mean(b) / mean_response * n)
