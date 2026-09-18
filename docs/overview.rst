@@ -621,6 +621,54 @@ Method Reference
      - `regularization`, `smoothness_order` (0/1/2), `smoothness_weight`, `floor`, `lb`, `ub`, `backend` (python/qpmad), `tol`, `max_iterations`
      - qpmad (optional, for the C++ backend)
      - qpmad-style strictly-convex QP solver (Sherikov, https://github.com/asherikov/qpmad). Solves ``min 0.5 ||A x - b||^2 + α/2 ||L x||^2 + α0/2 ||x||^2  s.t.  lb <= x <= ub`` (default: ``x >= 0``) by recasting it as ``min 0.5 x^T H x + g^T x`` with ``H = A^T A + α L^T L + α0 I`` (symmetric PD). The default ``backend='python'`` uses a self-contained NumPy port of an active-set QP solver (Nocedal & Wright, Numerical Optimization ch. 16.4). When the upstream qpmad C++ library with Python bindings is installed, ``backend='qpmad'`` calls it directly. See :ref:`math-tikhonov`.
+   * - 78
+     - ``unfold_pgd``
+     - Optimization course
+     - `max_iterations`, `tolerance`, `regularization`, `constraint` (nonnegative/box/simplex), `total_fluence`, `x_max`, `backtracking`, `variance_reduction`
+     - —
+     - Projected gradient descent (MIPT optimization course, lecture 9 / homework 14): gradient step followed by the Euclidean projection onto the nonnegative orthant, a box or the fluence simplex; optional Armijo backtracking; reports a Lagrange-duality-gap optimality certificate (``duality_gap``).
+   * - 79
+     - ``unfold_frank_wolfe``
+     - Optimization course
+     - `total_fluence`, `max_iterations`, `tolerance`, `away_steps`, `line_search` (exact/backtracking), `variance_reduction`
+     - —
+     - Frank-Wolfe conditional gradient (lecture 9): linear minimization oracle over the fluence simplex with Wolfe away-steps and Frank-Wolfe-gap stopping; total fluence preserved exactly at every iterate.
+   * - 80
+     - ``unfold_mirror_descent``
+     - Optimization course
+     - `mirror_map` (entropy/log/l2/pnorm), `step_size`, `total_fluence`, `regularization`, `p`, `max_iterations`, `tolerance`, `variance_reduction`
+     - —
+     - Mirror descent in Bregman geometries (lecture 10 / homework 16): the entropy map yields multiplicative updates generalizing MLEM/GRAVEL/SAND-II while preserving total fluence; log-barrier, L2 and p-norm maps; per-iteration golden-section line search.
+   * - 81
+     - ``unfold_admm``
+     - Optimization course
+     - `l1_penalty`, `tv_penalty`, `rho`, `adaptive_rho`, `max_iterations`, `tolerance`, `variance_reduction`
+     - —
+     - Consensus ADMM (lecture 11 / homework 18; Boyd et al. 2011): exact NNLS x-update on the augmented system enforces non-negativity at every iteration; soft-thresholding z-updates handle L1/TV penalties; Boyd primal/dual-residual stopping with adaptive rho.
+   * - 82
+     - ``unfold_lbfgsb``
+     - Optimization course
+     - `regularization`, `smoothness`, `x_min`, `x_max`, `lbfgs_history`, `max_iterations`, `tolerance`, `variance_reduction`
+     - —
+     - L-BFGS-B quasi-Newton with box bounds (lecture 7 / homework 10): smooth Tikhonov objective with analytic gradients and a second-difference curvature penalty; O(n·history) memory.
+   * - 83
+     - ``unfold_coordinate_descent``
+     - Optimization course
+     - `l1_penalty`, `l2_penalty`, `selection` (cyclic/random), `max_iterations`, `tolerance`, `variance_reduction`
+     - —
+     - Coordinate descent for NNLS with L1/L2 penalties (lecture 15): exact closed-form coordinate minimization with O(m) per-coordinate residual updates; cyclic or seeded random order.
+   * - 84
+     - ``unfold_subgradient``
+     - Optimization course
+     - `l1_penalty`, `tv_penalty`, `step_policy` (polyak/diminishing/fixed), `step_size`, `decay`, `polyak_margin`, `max_iterations`, `tolerance`, `variance_reduction`
+     - —
+     - Projected subgradient descent for nonsmooth L1/TV objectives (lecture 8 / homework 12): Polyak, diminishing or fixed steps; best iterate by objective value is returned.
+   * - 85
+     - ``unfold_extragradient``
+     - Optimization course
+     - `noise_level`, `step_size`, `max_iterations`, `tolerance`, `variance_reduction`
+     - —
+     - Korpelevich extragradient (lecture 13 / homework 20) on the robust saddle formulation ``min_{x>=0} max_{||y||<=1} 1/2||Ax-b||^2 + delta y^T(Ax-b)`` — least squares made robust against measurement noise of L2 norm up to ``delta``.
 
 
 
@@ -628,7 +676,9 @@ Method Reference
 
    **Common parameters** shared by most methods:
    ``readings``, ``initial_spectrum``, ``calculate_errors``, ``noise_level``,
-   ``n_montecarlo``, ``save_result``, ``random_state``.
+   ``n_montecarlo``, ``variance_reduction`` (``none``/``antithetic``/``control``/``both``
+   — variance-reduced Monte-Carlo uncertainty), ``save_result``,
+   ``random_state``.
 
    See the :ref:`genindex` or :doc:`detector` for complete API signatures.
 

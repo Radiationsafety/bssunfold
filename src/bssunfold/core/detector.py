@@ -28,6 +28,7 @@ from .regularization import (
 from .regularization import (
     randomization_experiment as rand_exp_util,
 )
+from .unfold_admm import unfold_admm as unfold_admm_impl
 from .unfold_amaxed import unfold_amaxed as unfold_amaxed_impl
 from .unfold_amaxed_regularization import (
     unfold_amaxed_regularization as unfold_amaxed_regularization_impl,
@@ -52,6 +53,9 @@ from .unfold_cascade import (
 from .unfold_cgls import unfold_cgls as unfold_cgls_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
 from .unfold_composite import unfold_composite as unfold_composite_impl
+from .unfold_coordinate_descent import (
+    unfold_coordinate_descent as unfold_coordinate_descent_impl,
+)
 from .unfold_crystal_ball import unfold_crystal_ball as unfold_crystal_ball_impl
 from .unfold_cs import unfold_cs as unfold_cs_impl
 from .unfold_cuqi import unfold_cuqi as unfold_cuqi_impl
@@ -65,9 +69,13 @@ from .unfold_eki import unfold_eki as unfold_eki_impl
 from .unfold_ensemble import unfold_ensemble as unfold_ensemble_impl
 from .unfold_epic import unfold_epic as unfold_epic_impl
 from .unfold_express import unfold_express as unfold_express_impl
+from .unfold_extragradient import (
+    unfold_extragradient as unfold_extragradient_impl,
+)
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
 from .unfold_fission_ga import unfold_fission_ga as unfold_fission_ga_impl
 from .unfold_fista import unfold_fista as unfold_fista_impl
+from .unfold_frank_wolfe import unfold_frank_wolfe as unfold_frank_wolfe_impl
 from .unfold_fruit_like import unfold_fruit_like as unfold_fruit_like_impl
 from .unfold_gee import unfold_gee as unfold_gee_impl
 from .unfold_genetic import unfold_genetic as unfold_genetic_impl
@@ -91,11 +99,15 @@ from .unfold_iterative_refinement import (
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
 from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
 from .unfold_landweber import unfold_landweber as unfold_landweber_impl
+from .unfold_lbfgsb import unfold_lbfgsb as unfold_lbfgsb_impl
 from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
 from .unfold_maeo import unfold_maeo as unfold_maeo_impl
 from .unfold_mapem import unfold_mapem as unfold_mapem_impl
 from .unfold_maxed import unfold_maxed as unfold_maxed_impl
 from .unfold_mcmc import unfold_mcmc as unfold_mcmc_impl
+from .unfold_mirror_descent import (
+    unfold_mirror_descent as unfold_mirror_descent_impl,
+)
 from .unfold_mlem import unfold_mlem as unfold_mlem_impl
 from .unfold_mlem_bs import unfold_mlem_bs as unfold_mlem_bs_impl
 from .unfold_mlem_odl import unfold_mlem_odl as unfold_mlem_odl_impl
@@ -115,6 +127,7 @@ from .unfold_odl_advanced import (
 from .unfold_osem import unfold_osem as unfold_osem_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
+from .unfold_pgd import unfold_pgd as unfold_pgd_impl
 from .unfold_pspline_reml import (
     unfold_pspline_reml as unfold_pspline_reml_impl,
 )
@@ -137,6 +150,9 @@ from .unfold_smt import unfold_smt as unfold_smt_impl
 from .unfold_ssr import unfold_ssr as unfold_ssr_impl
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_staysl import unfold_staysl as unfold_staysl_impl
+from .unfold_subgradient import (
+    unfold_subgradient as unfold_subgradient_impl,
+)
 from .unfold_tikhonov_legendre import (
     unfold_tikhonov_legendre as unfold_tikhonov_legendre_impl,
 )
@@ -7805,6 +7821,719 @@ class Detector:
             return result, fig, ax_left, ax_right
         return result
 
+    # ==================================================================
+    # Optimization-course methods (MIPT OPTIMIZATION-METHODS-COURSE)
+    # ==================================================================
+
+    def unfold_pgd(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        regularization: float = 0.0,
+        constraint: str = "nonnegative",
+        total_fluence: float | None = None,
+        x_max: float = np.inf,
+        backtracking: bool = False,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using projected gradient descent.
+
+        Solves ``min 1/2||Ax-b||^2 + reg/2||x||^2`` with the iterates
+        projected onto the constraint set at every step ('nonnegative',
+        'box' or 'simplex'); the simplex option keeps the total fluence
+        exactly fixed.  A duality-gap certificate (Lagrange duality /
+        KKT diagnostics) is appended to the result as ``duality_gap``.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations (default: 1000).
+        tolerance : float, optional
+            Relative change tolerance (default: 1e-6).
+        regularization : float, optional
+            Tikhonov regularization strength (default: 0.0).
+        constraint : str, optional
+            ``'nonnegative'``, ``'box'`` or ``'simplex'`` (default:
+            'nonnegative').
+        total_fluence : Optional[float], optional
+            Total fluence for the simplex constraint.
+        x_max : float, optional
+            Upper bound for the box constraint (default: inf).
+        backtracking : bool, optional
+            Use Armijo backtracking (default: False).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_pgd_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            regularization=regularization,
+            constraint=constraint,
+            total_fluence=total_fluence,
+            x_max=x_max,
+            backtracking=backtracking,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_mirror_descent(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 2000,
+        tolerance: float = 1e-8,
+        mirror_map: str = "entropy",
+        step_size: float | None = None,
+        total_fluence: float | None = None,
+        regularization: float = 0.0,
+        p: float = 3.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using mirror descent.
+
+        Bregman-geometry descent: the 'entropy' mirror map yields
+        multiplicative updates generalizing MLEM/GRAVEL/SAND-II and keeps
+        the total fluence constant; 'log', 'l2' and 'pnorm' maps give other
+        non-negative geometries.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (strictly positive for 'entropy'/'log').
+        max_iterations : int, optional
+            Maximum iterations (default: 2000).
+        tolerance : float, optional
+            Relative change tolerance (default: 1e-8).
+        mirror_map : str, optional
+            ``'entropy'``, ``'log'``, ``'l2'`` or ``'pnorm'``
+            (default: 'entropy').
+        step_size : Optional[float], optional
+            Mirror step; golden-section line search when None.
+        total_fluence : Optional[float], optional
+            Simplex level for the entropy map.
+        regularization : float, optional
+            Tikhonov regularization strength (default: 0.0).
+        p : float, optional
+            Order of the p-norm mirror map (default: 3.0).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mirror_descent_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            mirror_map=mirror_map,
+            step_size=step_size,
+            total_fluence=total_fluence,
+            regularization=regularization,
+            p=p,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            random_state=random_state,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_frank_wolfe(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        total_fluence: float | None = None,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-8,
+        away_steps: bool = True,
+        line_search: str = "exact",
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using the Frank-Wolfe algorithm.
+
+        Conditional-gradient method on the fluence simplex: each iteration
+        solves a linear minimization oracle (single active bin) and moves a
+        fraction towards it; the total fluence is preserved exactly.
+        Optional Wolfe away-steps reduce zig-zagging near the optimum.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (projected onto the simplex).
+        total_fluence : Optional[float], optional
+            Simplex level F; estimated from a uniform fit when None.
+        max_iterations : int, optional
+            Maximum iterations (default: 1000).
+        tolerance : float, optional
+            Frank-Wolfe gap tolerance (default: 1e-8).
+        away_steps : bool, optional
+            Use Wolfe away-steps (default: True).
+        line_search : str, optional
+            ``'exact'`` or ``'backtracking'`` (default: 'exact').
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_frank_wolfe_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            total_fluence=total_fluence,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            away_steps=away_steps,
+            line_search=line_search,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            random_state=random_state,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_admm(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 500,
+        tolerance: float = 1e-6,
+        l1_penalty: float = 0.0,
+        tv_penalty: float = 0.0,
+        rho: float | None = None,
+        adaptive_rho: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using consensus ADMM.
+
+        Splits the L1/TV-regularized NNLS problem into an exact NNLS
+        x-update (non-negativity enforced at every iteration), soft-
+        thresholding z-updates and dual ascent; ``rho`` is adapted
+        automatically (Boyd et al., sec. 3.4.1).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum outer iterations (default: 500).
+        tolerance : float, optional
+            Relative change tolerance (default: 1e-6).
+        l1_penalty : float, optional
+            L1 (sparsity) penalty weight (default: 0.0).
+        tv_penalty : float, optional
+            Total-variation penalty weight (default: 0.0).
+        rho : Optional[float], optional
+            ADMM penalty parameter (auto when None).
+        adaptive_rho : bool, optional
+            Adapt rho every 10 iterations (default: True).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_admm_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            l1_penalty=l1_penalty,
+            tv_penalty=tv_penalty,
+            rho=rho,
+            adaptive_rho=adaptive_rho,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            random_state=random_state,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_lbfgsb(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 500,
+        tolerance: float = 1e-8,
+        regularization: float = 0.0,
+        smoothness: float = 0.0,
+        x_min: float = 0.0,
+        x_max: float = np.inf,
+        lbfgs_history: int = 10,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using the L-BFGS-B quasi-Newton method.
+
+        Limited-memory BFGS with box bounds minimizes the smooth Tikhonov
+        objective with analytic gradients; ``smoothness`` adds a
+        second-difference (curvature) penalty against oscillations.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations (default: 500).
+        tolerance : float, optional
+            Gradient-norm stopping tolerance (default: 1e-8).
+        regularization : float, optional
+            Tikhonov (L2) regularization strength (default: 0.0).
+        smoothness : float, optional
+            Second-difference penalty weight (default: 0.0).
+        x_min : float, optional
+            Lower bound (default: 0.0).
+        x_max : float, optional
+            Upper bound (default: inf).
+        lbfgs_history : int, optional
+            L-BFGS memory (default: 10).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_lbfgsb_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            regularization=regularization,
+            smoothness=smoothness,
+            x_min=x_min,
+            x_max=x_max,
+            lbfgs_history=lbfgs_history,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            random_state=random_state,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_coordinate_descent(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 2000,
+        tolerance: float = 1e-8,
+        l1_penalty: float = 0.0,
+        l2_penalty: float = 0.0,
+        selection: str = "cyclic",
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using coordinate descent.
+
+        Exact closed-form coordinate minimization of the NNLS objective
+        with optional L1/L2 penalties; O(m) per coordinate via a running
+        residual, cyclic or random coordinate order.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum sweeps (default: 2000).
+        tolerance : float, optional
+            Relative change tolerance (default: 1e-8).
+        l1_penalty : float, optional
+            L1 penalty weight (default: 0.0).
+        l2_penalty : float, optional
+            Ridge penalty weight (default: 0.0).
+        selection : str, optional
+            ``'cyclic'`` or ``'random'`` (default: 'cyclic').
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed (also used by 'random' selection).
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_coordinate_descent_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            l1_penalty=l1_penalty,
+            l2_penalty=l2_penalty,
+            selection=selection,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            random_state=random_state,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_subgradient(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 3000,
+        tolerance: float = 1e-8,
+        l1_penalty: float = 0.0,
+        tv_penalty: float = 0.0,
+        step_policy: str = "diminishing",
+        step_size: float = 1.0,
+        decay: float = 1.0,
+        polyak_margin: float = 0.05,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using projected subgradient descent.
+
+        Nonsmooth L1/TV penalties handled natively via subgradients with
+        Polyak / diminishing / fixed step-size policies; the best iterate
+        by objective value is returned.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations (default: 3000).
+        tolerance : float, optional
+            Relative change tolerance (default: 1e-8).
+        l1_penalty : float, optional
+            L1 penalty weight (default: 0.0).
+        tv_penalty : float, optional
+            TV penalty weight (default: 0.0).
+        step_policy : str, optional
+            ``'polyak'``, ``'diminishing'`` or ``'fixed'``
+            (default: 'diminishing').
+        step_size : float, optional
+            Base step size (default: 1.0).
+        decay : float, optional
+            Diminishing-step decay rate (default: 1.0).
+        polyak_margin : float, optional
+            Relative margin for the Polyak optimal-value estimate
+            (default: 0.05).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_subgradient_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            l1_penalty=l1_penalty,
+            tv_penalty=tv_penalty,
+            step_policy=step_policy,
+            step_size=step_size,
+            decay=decay,
+            polyak_margin=polyak_margin,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            random_state=random_state,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_extragradient(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 2000,
+        tolerance: float = 1e-8,
+        noise_level: float = 0.02,
+        step_size: float | None = None,
+        calculate_errors: bool = False,
+        mc_noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using Korpelevich's extragradient.
+
+        Solves the robust saddle formulation ``min_{x>=0} 1/2||Ax-b||^2 +
+        delta*||Ax-b||_2`` (guarding against measurement noise of L2 norm
+        up to ``delta = noise_level * ||b||_2``) via its bilinear saddle
+        form with the two-step extragradient scheme.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum iterations (default: 2000).
+        tolerance : float, optional
+            Relative change tolerance (default: 1e-8).
+        noise_level : float, optional
+            Relative noise-ball radius (default: 0.02).
+        step_size : Optional[float], optional
+            Extragradient step; auto from the Lipschitz bound when None.
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        mc_noise_level : float, optional
+            Noise level for Monte-Carlo uncertainty (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_extragradient_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            noise_level=noise_level,
+            step_size=step_size,
+            calculate_errors=calculate_errors,
+            mc_noise_level=mc_noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            random_state=random_state,
+            save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
     def unfold_cuqi(
         self,
         readings: dict[str, float],

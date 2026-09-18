@@ -6,6 +6,107 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
+## [0.26.0] - 2026-09-18
+
+### Added
+
+- **Optimization-course method suite** — a family of eight new unfolding
+  methods ported from the MIPT "Optimization Methods in Machine Learning"
+  course curriculum (lectures 1-15, homeworks 1/7/8/9/10/11/12/13/14/15/16/18/20),
+  filling the main algorithmic gaps of the package:
+  - **Projected gradient descent** (`unfold_pgd` / `solve_pgd`, lecture 9 /
+    homework 14): gradient step + Euclidean projection onto the nonnegative
+    orthant, box or fluence simplex (exact total-fluence preservation),
+    optional Armijo backtracking, `project_onto_set` exported; the result
+    carries an NNLS Lagrange-duality-gap optimality certificate
+    (`duality_gap` key). New file `core/unfold_pgd.py`.
+  - **Frank-Wolfe conditional gradient** (`unfold_frank_wolfe` /
+    `solve_frank_wolfe`, lecture 9): linear minimization oracle over the
+    fluence simplex, Wolfe away-steps, exact quadratic line search or
+    Armijo backtracking, Frank-Wolfe (duality) gap stopping. New file
+    `core/unfold_frank_wolfe.py`.
+  - **Mirror descent** (`unfold_mirror_descent` / `solve_mirror_descent`,
+    lecture 10 / homework 16): Bregman-geometry descent with entropy
+    (multiplicative updates generalizing MLEM/GRAVEL/SAND-II, fluence
+    preserved), log-barrier, L2 and p-norm mirror maps; per-iteration
+    golden-section line search along the mirror trajectory with
+    orthant-interior step guards. New file `core/unfold_mirror_descent.py`.
+  - **Consensus ADMM** (`unfold_admm` / `solve_admm`, lecture 11 /
+    homework 18): `min 1/2||Ax-b||^2 + l1||x||_1 + tv||Dx||_1 s.t. x >= 0`
+    via an exact NNLS x-update on the augmented system, soft-thresholding
+    z-updates and scaled dual ascent; Boyd primal/dual-residual stopping;
+    adaptive `rho` (Boyd sec. 3.4.1). New file `core/unfold_admm.py`
+    (`soft_threshold` exported).
+  - **L-BFGS-B quasi-Newton** (`unfold_lbfgsb` / `solve_lbfgsb`, lecture 7 /
+    homework 10): scipy L-BFGS-B with analytic gradients, box bounds,
+    Tikhonov L2 plus a second-difference (curvature) smoothing term
+    (`second_difference_matrix` exported). New file `core/unfold_lbfgsb.py`.
+  - **Coordinate descent** (`unfold_coordinate_descent` /
+    `solve_coordinate_descent`, lecture 15): exact closed-form coordinate
+    minimization of the NNLS + L1/L2 objective with O(m) per-coordinate
+    residual updates, cyclic or seeded random order. New file
+    `core/unfold_coordinate_descent.py`.
+  - **Subgradient methods** (`unfold_subgradient` / `solve_subgradient`,
+    lecture 8 / homework 12): projected subgradient descent for nonsmooth
+    L1/TV objectives with Polyak, diminishing (square-summable) and fixed
+    step-size policies; best-iterate return. New file
+    `core/unfold_subgradient.py`.
+  - **Extragradient** (`unfold_extragradient` / `solve_extragradient`,
+    lecture 13 / homework 20): Korpelevich's two-step method on the robust
+    saddle formulation `min_{x>=0} max_{||y||<=1} 1/2||Ax-b||^2 +
+    delta y^T(Ax-b)` with `delta = noise_level||b||_2` (least squares made
+    robust against bounded measurement noise). New file
+    `core/unfold_extragradient.py`.
+  - New `Detector.unfold_pgd()`, `unfold_mirror_descent()`,
+    `unfold_frank_wolfe()`, `unfold_admm()`, `unfold_lbfgsb()`,
+    `unfold_coordinate_descent()`, `unfold_subgradient()` and
+    `unfold_extragradient()` methods; all registered in `core/__init__.py`.
+- **1D optimization building blocks** (lecture 1 / homework 1): new file
+  `core/_line_search.py` with `golden_section_minimize`,
+  `dichotomy_minimize`, `brent_minimize` (Netlib-fmin-style Brent with
+  inverse-quadratic interpolation and golden-section fallback) and
+  `backtracking_line_search` (Armijo), all exported from `core`.
+- **1D regularization-parameter search** (`select_regularization_1d`):
+  new file `core/regularization_1d.py` — minimizes GCV (with Hutchinson
+  randomized effective-DOF estimation), Morozov discrepancy or predictive
+  risk over `log10(lambda)` using golden-section / dichotomy / Brent
+  searches; works with the built-in Tikhonov-NNLS family or any
+  user-supplied solver.
+- **Monte-Carlo variance reduction** (lecture 14): `monte_carlo_uncertainty`
+  now supports `variance_reduction` = `'antithetic'` (paired ±noise draws,
+  halving solver calls and cancelling the odd response part), `'control'`
+  (delta-method linearized response `pinv(A) db` as control variate with
+  known mean and per-bin regression coefficients; reports
+  `variance_reduction_factor`) and `'both'`; threaded through
+  `run_unfolding` and available on all new Detector methods via the new
+  `variance_reduction` parameter.
+- **Duality / KKT diagnostics** (seminars 9-10): new file
+  `core/_dual_diagnostics.py` with `nnls_duality_gap` (dual-feasible
+  multiplier reconstruction, pseudo-inverse dual objective, absolute and
+  relative gap certificates) and `nnls_kkt_residuals` (stationarity,
+  complementarity, feasibility and active-set mask); exported from `core`
+  and attached to PGD results.
+- New tests in `tests/test_optimization_methods.py` (75 tests covering the
+  1D minimizers, all eight solvers, projections, the regularization search,
+  the duality diagnostics, the variance-reduced Monte-Carlo and the
+  Detector integration).
+- New example notebooks: `examples/55-optimization-course-methods.ipynb`
+  (solver comparison, duality certificates, 1-D regularization selection),
+  `examples/53-montecarlo-20-spectra.ipynb` (20 Monte-Carlo spectra per
+  solver, variance reduction) and `examples/54-noise-robustness.ipynb`
+  (noise-robustness study with a bias-variance decomposition, 11 solvers).
+
+### Fixed
+- **Default total-fluence estimate in Frank-Wolfe and entropy mirror
+  descent.** The previous fallback
+  `mean(b) / mean(A) * n_bins` over-estimated the simplex level by orders
+  of magnitude on typical log-spaced GSF grids (215 vs the correct 2.25
+  for the ISO Cf-252 example), pinning both solvers to a wrong scale with
+  a large residual and strongly biased dose rates. The default is now a
+  data-driven NNLS estimate `estimate_total_fluence(A, b)` (new helper in
+  `_matrix_utils`), with the old heuristic kept only as a fallback when
+  the NNLS solve fails.
+
 ## [0.25.0] - 2026-09-17
 
 ### Added

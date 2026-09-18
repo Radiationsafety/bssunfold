@@ -4,6 +4,13 @@ This subpackage contains the main functionality for neutron spectrum
 unfolding, including the Detector class and unfolding methods.
 """
 
+from ._dual_diagnostics import nnls_duality_gap, nnls_kkt_residuals
+from ._line_search import (
+    backtracking_line_search,
+    brent_minimize,
+    dichotomy_minimize,
+    golden_section_minimize,
+)
 from .detector import Detector
 from .dose_calculation import calculate_dose_rates
 from .regularization import (
@@ -15,6 +22,7 @@ from .regularization import (
     randomization_experiment,
     select_regularization_parameter,
 )
+from .regularization_1d import select_regularization_1d
 from .sisireg3d import (
     SSR3DModel,
     near_neighbors,
@@ -49,6 +57,7 @@ from .sisireg_mlp import (
     ssrmlp_predict,
     ssrmlp_train,
 )
+from .unfold_admm import solve_admm, unfold_admm
 from .unfold_amaxed import solve_amaxed, unfold_amaxed
 from .unfold_amaxed_regularization import (
     solve_amaxed_regularization,
@@ -75,6 +84,10 @@ from .unfold_cascade import unfold_cascade
 from .unfold_cgls import solve_cgls, unfold_cgls
 from .unfold_combined import unfold_combined
 from .unfold_composite import unfold_composite
+from .unfold_coordinate_descent import (
+    solve_coordinate_descent,
+    unfold_coordinate_descent,
+)
 from .unfold_crystal_ball import solve_crystal_ball, unfold_crystal_ball
 from .unfold_cs import solve_cs, solve_ksvd, solve_omp, solve_sl0, unfold_cs
 from .unfold_cuqi import check_cuqi_available, solve_cuqi_bayesian, unfold_cuqi
@@ -88,6 +101,7 @@ from .unfold_doroshenko import solve_doroshenko, unfold_doroshenko
 from .unfold_ensemble import solve_ensemble, unfold_ensemble
 from .unfold_epic import solve_epic, unfold_epic
 from .unfold_express import solve_express, unfold_express
+from .unfold_extragradient import solve_extragradient, unfold_extragradient
 from .unfold_ferdor import solve_ferdor, unfold_ferdor
 from .unfold_fission_ga import (
     ED_EPITHERMAL,
@@ -98,6 +112,7 @@ from .unfold_fission_ga import (
     solve_fission_ga,
     unfold_fission_ga,
 )
+from .unfold_frank_wolfe import solve_frank_wolfe, unfold_frank_wolfe
 from .unfold_fruit_like import solve_fruit_like
 from .unfold_gee import (
     estimate_alpha,
@@ -127,10 +142,12 @@ from .unfold_iterative_refinement import (
 from .unfold_kaczmarz import solve_kaczmarz, unfold_kaczmarz
 from .unfold_lanczos import solve_lanczos, unfold_lanczos
 from .unfold_landweber import solve_landweber, unfold_landweber
+from .unfold_lbfgsb import solve_lbfgsb, unfold_lbfgsb
 from .unfold_lmfit import solve_lmfit, unfold_lmfit
 from .unfold_mapem import solve_mapem, unfold_mapem
 from .unfold_maxed import solve_maxed, unfold_maxed
 from .unfold_mcmc import solve_bayesian_mcmc, unfold_mcmc
+from .unfold_mirror_descent import solve_mirror_descent, unfold_mirror_descent
 from .unfold_mlem import solve_mlem, unfold_mlem
 from .unfold_mlem_bs import (
     AUTO_BETA_RELATIVE_GRID,
@@ -183,6 +200,7 @@ from .unfold_odl_advanced import (
 )
 from .unfold_osem import solve_osem, unfold_osem
 from .unfold_parametric2 import solve_parametric2, unfold_parametric2
+from .unfold_pgd import project_onto_set, solve_pgd, unfold_pgd
 from .unfold_pspline_reml import (
     select_lambda_reml,
     solve_pspline_reml,
@@ -226,6 +244,7 @@ from .unfold_ssr import (
 )
 from .unfold_statreg import solve_statreg, unfold_statreg
 from .unfold_staysl import solve_staysl, unfold_staysl
+from .unfold_subgradient import solve_subgradient, unfold_subgradient
 from .unfold_tikhonov_legendre import solve_tikhonov_legendre, unfold_tikhonov_legendre
 from .unfold_tikhonov_sobolev_dp import (
     alpha_finder_generalized_discrepancy,
@@ -512,4 +531,33 @@ __all__ = [
     "randomization_experiment",
     # dose calculation
     "calculate_dose_rates",
+    # Optimization-course methods (MIPT OPTIMIZATION-METHODS-COURSE)
+    "solve_pgd",
+    "unfold_pgd",
+    "project_onto_set",
+    "solve_frank_wolfe",
+    "unfold_frank_wolfe",
+    "solve_mirror_descent",
+    "unfold_mirror_descent",
+    "solve_admm",
+    "unfold_admm",
+    "soft_threshold",
+    "solve_lbfgsb",
+    "unfold_lbfgsb",
+    "second_difference_matrix",
+    "solve_coordinate_descent",
+    "unfold_coordinate_descent",
+    "solve_subgradient",
+    "unfold_subgradient",
+    "solve_extragradient",
+    "unfold_extragradient",
+    # 1D optimization building blocks (golden section / dichotomy / Brent)
+    "golden_section_minimize",
+    "dichotomy_minimize",
+    "brent_minimize",
+    "backtracking_line_search",
+    "select_regularization_1d",
+    # Duality / KKT diagnostics
+    "nnls_duality_gap",
+    "nnls_kkt_residuals",
 ]
