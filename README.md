@@ -36,12 +36,12 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (88 methods):
+- **Multiple Unfolding Algorithms** (89 methods):
   - **Optimization-course methods** (MIPT OPTIMIZATION-METHODS-COURSE port): Projected Gradient Descent (orthant/box/simplex + duality-gap certificate), Frank-Wolfe conditional gradient (away steps, exact fluence preservation), Mirror Descent (entropy/log/l2/pnorm Bregman geometries generalizing MLEM/GRAVEL), consensus ADMM (exact NNLS x-update with L1/TV penalties), L-BFGS-B quasi-Newton (box bounds + curvature smoothing), Coordinate Descent (NNLS with L1/L2, cyclic/random), Subgradient methods (Polyak/diminishing steps), Extragradient (Korpelevich saddle formulation for robust unfolding), golden-section/dichotomy/Brent 1D search (`select_regularization_1d`), antithetic/control-variate Monte-Carlo variance reduction, and NNLS duality-gap/KKT diagnostics
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD, selectable LAPACK/ARPACK/PROPACK backends), EPIC (Equal Posterior Information Condition), P-spline REML (mixed-model smoothing with automatic REML smoothing selection)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES, AMG-Krylov (AMG / Jacobi / Gauss-Seidel / SOR / SSOR preconditioning)
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz, SART
-  - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM)
+  - **EM family**: OSEM (ordered subsets), MAP-EM (penalised one-step-late EM), BSREM (block-sequential regularised EM), OSEM-ANLM (ordered subsets + two-stage asymptotic non-local means regularization, Jamaati et al. 2026)
    - **Multi-sphere ratio methods**: SAND-II (geometric-mean ratios), BUNKI / BUNKI-UT (SPUNIT and BON31G)
    - **Classic codes (independent reimplementations)**: CRYSTAL BALL (direct delta-operator), RFSP-JUL (damped least squares), STAY'SL (single-step Bayesian least squares) — reimplemented from their published algorithmic descriptions; the original codes are proprietary
   - **Bayesian**: D'Agostini iterative (Bayes), Bayes with spline regularization, zfit likelihood-based inference, full Bayesian MCMC (NUTS via pymc), CUQIpy uncertainty-quantified MCMC (pCN, CWMH, ULA, MALA, NUTS, hierarchical Gibbs with Gamma hyperprior — posterior mean, HPD credible intervals, ESS/R-hat diagnostics)
@@ -476,6 +476,7 @@ graph TD
 | 86 | `unfold_coordinate_descent` | Optimization course | `l1_penalty`, `l2_penalty`, `selection` (cyclic/random), `max_iterations`, `tolerance`, `variance_reduction` | — | Coordinate descent for NNLS with L1/L2 penalties (course lecture 15): exact closed-form coordinate minimization `x_j <- max(0, (a_j^T r + ||a_j||^2 x_j - l1)/(||a_j||^2 + l2))` with O(m) per-coordinate residual update; cyclic (Gauss-Seidel-type) or seeded random coordinate order |
 | 87 | `unfold_subgradient` | Optimization course | `l1_penalty`, `tv_penalty`, `step_policy` (polyak/diminishing/fixed), `step_size`, `decay`, `polyak_margin`, `max_iterations`, `tolerance`, `variance_reduction` | — | Projected subgradient descent for nonsmooth L1/TV objectives (course lecture 8 / homework 12): Polyak step with running optimal-value estimate, square-summable diminishing steps or fixed steps; the best iterate by objective value is returned as standard for subgradient schemes |
 | 88 | `unfold_extragradient` | Optimization course | `noise_level`, `step_size`, `max_iterations`, `tolerance`, `variance_reduction` | — | Korpelevich extragradient for the robust saddle formulation `min_{x>=0} max_{||y||<=1} 1/2||Ax-b||^2 + delta y^T(Ax-b)` (course lecture 13 / homework 20) — equivalent to least squares made robust against measurement noise of L2 norm up to `delta = noise_level||b||`; the two-step (prediction-correction) scheme restores convergence where plain gradient steps oscillate |
+| 89 | `unfold_osem_anlm` | EM family | `max_iterations`, `n_subsets`, `tolerance`, `h` (noise level; `None` = automatic MAD estimate), `search_window` (N), `similarity_window` (nu), `alpha` (Gaussian kernel spread), `anlm_mode` (subset/post), `log_space`, `noise_level` | — | OSEM-ANLM (Jamaati et al. 2026, Sci. Rep. https://doi.org/10.1038/s41598-026-70607-1): ordered-subset EM interleaved with the two-stage asymptotic non-local means filter — stage 1 with `h1 = 0.5*sigma`, stage 2 with the point-wise parameter `h2(i) = sqrt(sum_j w(i,j)^2 * sigma^2)` (article eq. 6); 1D adaptation of the sparse-view CT algorithm, applied after every subset update (`anlm_mode='subset'`, article pseudo-code) or once to the OSEM result (`anlm_mode='post'`); log-space filtering by default makes the automatic noise estimate scale-free |
 
 > **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `variance_reduction` (`none`/`antithetic`/`control`/`both` — lecture-14 variance-reduced Monte-Carlo uncertainty), `save_result`, `random_state`.
 
@@ -940,7 +941,7 @@ bssunfold/
             ├── _numba_jit.py        # Numba JIT inner loops
             ├── _parametric_shared.py # Shared parametric constants
             ├── _solver_backends.py  # Shared solver-backend resolution
-            ├── detector.py          # Main Detector class (88 unfold_* methods)
+            ├── detector.py          # Main Detector class (89 unfold_* methods)
             ├── dose_calculation.py
             ├── regularization.py    # L-curve, GCV, DP, cosine, NCP, etc.
             ├── unfold_amaxed.py
@@ -1000,6 +1001,7 @@ bssunfold/
             ├── unfold_nspline.py
             ├── unfold_odl_advanced.py
             ├── unfold_osem.py
+            ├── unfold_osem_anlm.py
             ├── unfold_parametric.py
             ├── unfold_parametric2.py
             ├── unfold_pgd.py

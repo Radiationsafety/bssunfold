@@ -125,6 +125,7 @@ from .unfold_odl_advanced import (
     unfold_odl_pdhg as unfold_odl_pdhg_impl,
 )
 from .unfold_osem import unfold_osem as unfold_osem_impl
+from .unfold_osem_anlm import unfold_osem_anlm as unfold_osem_anlm_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_pgd import unfold_pgd as unfold_pgd_impl
@@ -6238,6 +6239,112 @@ class Detector:
             max_iterations=max_iterations,
             n_subsets=n_subsets,
             tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_osem_anlm(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 50,
+        n_subsets: int = 1,
+        tolerance: float = 1e-6,
+        h: float | None = None,
+        search_window: int = 11,
+        similarity_window: int = 3,
+        alpha: float = 1.0,
+        anlm_mode: str = "subset",
+        log_space: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using the OSEM-ANLM algorithm.
+
+        Ordered-subset expectation maximisation with asymptotic non-local
+        means regularization (Jamaati et al. 2026,
+        https://doi.org/10.1038/s41598-026-70607-1): the two-stage ANLM
+        filter is applied to the intermediate spectrum after every OSEM
+        subset update (``anlm_mode='subset'``) or once to the OSEM result
+        (``anlm_mode='post'``).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess. If None, a flat spectrum is used.
+        max_iterations : int, optional
+            Maximum number of iterations (default: 50).
+        n_subsets : int, optional
+            Number of ordered subsets over the detector readings
+            (default: 1, i.e. standard MLEM with per-iteration ANLM).
+        tolerance : float, optional
+            Relative change tolerance for early stopping (default: 1e-6).
+        h : float, optional
+            Noise level for the ANLM filter (in log units when
+            ``log_space=True``). If None (default), it is estimated
+            automatically from the intermediate spectra.
+        search_window : int, optional
+            ANLM search window ``N`` (default: 11, article optimum).
+        similarity_window : int, optional
+            ANLM similarity (patch) window ``nu`` (default: 3, article
+            optimum).
+        alpha : float, optional
+            Spread of the Gaussian kernel over the similarity window
+            (default: 1.0).
+        anlm_mode : str, optional
+            ``'subset'`` — ANLM after every subset update (default,
+            article pseudo-code); ``'post'`` — single ANLM application to
+            the OSEM result.
+        log_space : bool, optional
+            Apply the ANLM filter to the logarithm of the spectrum
+            (default: True, scale-free for spectra spanning orders of
+            magnitude).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_osem_anlm_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            n_subsets=n_subsets,
+            tolerance=tolerance,
+            h=h,
+            search_window=search_window,
+            similarity_window=similarity_window,
+            alpha=alpha,
+            anlm_mode=anlm_mode,
+            log_space=log_space,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

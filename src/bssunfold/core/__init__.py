@@ -203,6 +203,12 @@ from .unfold_odl_advanced import (
     unfold_odl_pdhg,
 )
 from .unfold_osem import solve_osem, unfold_osem
+from .unfold_osem_anlm import (
+    anlm_filter_1d,
+    estimate_noise_1d,
+    solve_osem_anlm,
+    unfold_osem_anlm,
+)
 from .unfold_parametric import unfold_parametric
 from .unfold_parametric2 import solve_parametric2, unfold_parametric2
 from .unfold_pgd import project_onto_set, solve_pgd, unfold_pgd
@@ -395,6 +401,9 @@ __all__ = [
     "nspline_eval",
     "directed_divergence",
     "solve_osem",
+    "solve_osem_anlm",
+    "anlm_filter_1d",
+    "estimate_noise_1d",
     "solve_mapem",
     "solve_bsrem",
     "solve_sart",
@@ -487,6 +496,7 @@ __all__ = [
     "unfold_nsduaz",
     "unfold_nspline",
     "unfold_osem",
+    "unfold_osem_anlm",
     "unfold_mapem",
     "unfold_bsrem",
     "unfold_sart",

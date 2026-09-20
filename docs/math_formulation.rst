@@ -461,8 +461,8 @@ Poisson-Likelihood (EM) Family
 ------------------------------
 
 Methods: ``unfold_mlem``, ``unfold_mlem_stop``, ``unfold_mlem_odl``,
-``unfold_odl_advanced``, ``unfold_osem``, ``unfold_mapem``,
-``unfold_bsrem``.
+``unfold_odl_advanced``, ``unfold_osem``, ``unfold_osem_anlm``,
+``unfold_mapem``, ``unfold_bsrem``.
 
 The Poisson log-likelihood maximisation problem is
 
@@ -495,6 +495,26 @@ De Pierro, 1995) whose step sizes satisfy the stochastic-approximation
 conditions :math:`\sum_k \alpha_k = \infty` and
 :math:`\sum_k \alpha_k^2 < \infty` (Robbins and Monro, 1951), and the
 proximal ODL variants (``unfold_mlem_odl``, ``unfold_odl_advanced``).
+
+**OSEM with asymptotic non-local means.**  ``unfold_osem_anlm``
+(Jamaati et al. 2026) interleaves the ordered-subset update with the
+two-stage asymptotic non-local means (ANLM) filter applied to the
+intermediate spectrum after every subset update (optionally only once
+after the last update, ``anlm_mode='post'``).  Stage 1 applies NLM with
+the uniform parameter :math:`h_1 = 0.5\,\sigma`; stage 2 applies the
+point-wise parameter of the article's eq. 6,
+
+.. math::
+
+   h_2(i) = \sigma_2(i) = \Big(\sum_{j\in N_i} w(i,j)^2\,\sigma^2\Big)^{1/2},
+
+i.e. the noise standard deviation smoothed by the initial NLM weights
+:math:`w(i,j)`.  For one-dimensional spectra the 2D windows become index
+windows on the energy grid (search window :math:`N`, Gaussian-weighted
+similarity window :math:`\nu`), and the filter by default operates in
+log space, where the relative EM noise is approximately additive and a
+single noise-level estimate matches every bin; the automatic estimate
+uses the MAD of the second differences.
 
 **MLEM with J-factor stopping.**  ``unfold_mlem_stop`` implements the
 early-stopping criterion of Montgomery et al. (2020): at iteration

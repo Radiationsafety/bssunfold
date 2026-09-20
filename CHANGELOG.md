@@ -6,6 +6,40 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
+## [0.27.0] - 2026-09-20
+
+### Added
+
+- **OSEM-ANLM unfolding method** (`unfold_osem_anlm` / `solve_osem_anlm`):
+  port of the OSEM-ANLM algorithm of Jamaati et al. (2026), "Enhanced
+  sparse view CT reconstruction using ordered subset expectation
+  maximization and asymptotic non-local means algorithms", Scientific
+  Reports (https://doi.org/10.1038/s41598-026-70607-1), adapted to neutron
+  spectrum unfolding. Ordered-subset EM updates interleaved with the
+  two-stage asymptotic non-local means (ANLM) filter applied after every
+  subset update (article pseudo-code steps 4-5), or once to the OSEM
+  result (`anlm_mode='post'`). The ANLM filter implements the article's
+  two-stage scheme: stage 1 with the uniform parameter
+  `h1 = 0.5 * sigma`, stage 2 with the point-wise parameter
+  `h2(i) = sqrt(sum_j w(i,j)^2 * sigma^2)` (article eq. 6); the NLM
+  weights use the Gaussian-weighted patch distances over the search
+  window `N` (default 11) and similarity window `nu` (default 3, article
+  optima). The noise level `sigma` is either user-supplied (`h`) or
+  estimated automatically with a robust MAD estimator on second
+  differences (`estimate_noise_1d`); by default the filter operates in
+  log space (`log_space=True`), making it scale-free for spectra spanning
+  orders of magnitude (`log_space=False` reproduces the raw-unit CT
+  formulation). New file `core/unfold_osem_anlm.py` with the standalone
+  1D filter `anlm_filter_1d`.
+- New `Detector.unfold_osem_anlm()` method; `solve_osem_anlm`,
+  `unfold_osem_anlm`, `anlm_filter_1d` and `estimate_noise_1d` registered
+  in `core/__init__.py`.
+- New test file `tests/test_osem_anlm.py` (38 tests): filter identity and
+  smoothing properties, noise estimator, solver equivalence with plain
+  OSEM for the identity filter, `post`-mode composition
+  `solve_osem_anlm(post) == anlm_filter_1d(solve_osem(...))`, subset
+  variants, validation errors and `Detector` wrapper coverage.
+
 ## [0.26.0] - 2026-09-18
 
 ### Added
