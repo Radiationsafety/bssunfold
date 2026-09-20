@@ -147,6 +147,12 @@ from .unfold_lanczos import solve_lanczos, unfold_lanczos
 from .unfold_landweber import solve_landweber, unfold_landweber
 from .unfold_lbfgsb import solve_lbfgsb, unfold_lbfgsb
 from .unfold_lmfit import solve_lmfit, unfold_lmfit
+from .unfold_louhi import (
+    louhi_covariance,
+    louhi_smoothing_matrix,
+    solve_louhi,
+    unfold_louhi,
+)
 from .unfold_maeo import unfold_maeo
 from .unfold_mapem import solve_mapem, unfold_mapem
 from .unfold_maxed import solve_maxed, unfold_maxed
@@ -301,6 +307,7 @@ __all__ = [
     "solve_directed_divergence",
     "solve_kaczmarz",
     "solve_lmfit",
+    "solve_louhi",
     "solve_gravel",
     "solve_maxed",
     "solve_tikhonov_legendre",
@@ -457,6 +464,7 @@ __all__ = [
     "unfold_directed_divergence",
     "unfold_kaczmarz",
     "unfold_lmfit",
+    "unfold_louhi",
     "unfold_mlem_odl",
     "unfold_mlem_stop",
     "unfold_mlem_bs",
@@ -593,4 +601,7 @@ __all__ = [
     # Duality / KKT diagnostics
     "nnls_duality_gap",
     "nnls_kkt_residuals",
+    # LOUHI78 helpers (Routti & Sandberg 1980)
+    "louhi_covariance",
+    "louhi_smoothing_matrix",
 ]

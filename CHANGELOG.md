@@ -39,6 +39,38 @@ and this project adheres to [Semantic Versioning].
   OSEM for the identity filter, `post`-mode composition
   `solve_osem_anlm(post) == anlm_filter_1d(solve_osem(...))`, subset
   variants, validation errors and `Detector` wrapper coverage.
+- **LOUHI78 unfolding** (`unfold_louhi` / `solve_louhi`, Routti & Sandberg
+  1980, Computer Physics Communications 21,
+  doi:10.1016/0010-4655(80)90021-4): constrained weighted least squares
+  with generalized smoothing — the classic Bonner-sphere unfolding
+  program, ported as
+  `min ||(b - A phi)/sigma||^2 + lambda^2 ||L (phi - phi0)||^2` s.t.
+  `phi >= 0`:
+  - The quadratic program is solved by Hildreth's iterative coordinate
+    algorithm (the LSI step of LOUHI78) with a relative-objective-change
+    stopping rule; the default spectrum `phi0` anchors both the
+    smoothing term and the starting point.
+  - Generalized smoothing operators (new file `core/unfold_louhi.py`,
+    helper `louhi_smoothing_matrix`): order 0 shrinks the solution
+    toward the a-priori spectrum, orders 1/2 penalize first/second
+    differences of the deviation from the a-priori.
+  - Nonlinear regression mode (`auto_smooth=True`): the smoothing weight
+    is adjusted automatically by a golden-section search on
+    `log10(lambda)` (reusing the `core/_line_search.py` building blocks)
+    until the data chi-square reaches `chi2_target` (default: the number
+    of detectors, i.e. the expected chi-square value).
+  - Statistical error propagation (`louhi_covariance`): inverse Hessian
+    on the free (strictly positive) bins of the active set, as in the
+    LOUHI78 error report.
+  - New `Detector.unfold_louhi()` method; registered in
+    `core/__init__.py`.
+- New tests in `tests/test_louhi.py` (42 tests covering the smoothing
+  operators, the Hildreth QP core (interior-point equivalence and
+  projection behavior), the automatic smoothing regression, the error
+  propagation, parameter validation and the Detector integration).
+- New example notebook `examples/79-louhi-iaea.ipynb` (LOUHI unfolding of
+  an IAEA Compendium benchmark spectrum with the linear and nonlinear
+  smoothing modes).
 
 ## [0.26.0] - 2026-09-18
 

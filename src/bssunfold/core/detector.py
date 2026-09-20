@@ -101,6 +101,7 @@ from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
 from .unfold_landweber import unfold_landweber as unfold_landweber_impl
 from .unfold_lbfgsb import unfold_lbfgsb as unfold_lbfgsb_impl
 from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
+from .unfold_louhi import unfold_louhi as unfold_louhi_impl
 from .unfold_maeo import unfold_maeo as unfold_maeo_impl
 from .unfold_mapem import unfold_mapem as unfold_mapem_impl
 from .unfold_maxed import unfold_maxed as unfold_maxed_impl
@@ -5109,6 +5110,110 @@ class Detector:
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_louhi(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        smoothness: float = 1.0,
+        smooth_order: int = 1,
+        auto_smooth: bool = False,
+        chi2_target: float | None = None,
+        max_iterations: int = 500,
+        tolerance: float = 1e-6,
+        relative_uncertainty: float = 0.1,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using the LOUHI78 algorithm.
+
+        Constrained weighted least squares with generalized smoothing
+        (Routti & Sandberg 1980): the quadratic program
+
+            min chi2(phi) = ||(b - A phi) / sigma||^2
+                            + smoothness^2 * ||L (phi - phi0)||^2
+
+        is solved under non-negativity constraints by Hildreth's
+        iterative quadratic programming (the LSI step of LOUHI78).
+        With ``auto_smooth=True`` the smoothing weight is adjusted by a
+        nonlinear regression so that the data chi-square reaches its
+        expected value (LOUHI's nonlinear mode).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Default (a-priori) spectrum. If None, a flat spectrum is
+            used.
+        smoothness : float, optional
+            Smoothing weight ``lambda`` (default: 1.0).
+        smooth_order : int, optional
+            Smoothing operator order: 0 (identity), 1 (first
+            differences) or 2 (second differences); default 1.
+        auto_smooth : bool, optional
+            Adjust the smoothing weight automatically (default: False).
+        chi2_target : Optional[float], optional
+            Target data chi-square for ``auto_smooth`` (default: number
+            of detectors).
+        max_iterations : int, optional
+            Maximum number of Hildreth sweeps (default: 500).
+        tolerance : float, optional
+            Relative objective change per sweep for convergence
+            (default: 1e-6).
+        relative_uncertainty : float, optional
+            Relative measurement uncertainty (default: 0.1).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control',
+            'both' (default: 'none').
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_louhi_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            readings=readings,
+            initial_spectrum=initial_spectrum,
+            smoothness=smoothness,
+            smooth_order=smooth_order,
+            auto_smooth=auto_smooth,
+            chi2_target=chi2_target,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            relative_uncertainty=relative_uncertainty,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
             save_result=save_result,
             random_state=random_state,
         )
