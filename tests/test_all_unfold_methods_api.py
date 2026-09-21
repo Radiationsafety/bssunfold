@@ -71,6 +71,23 @@ OPTIONAL_BACKENDS: dict[str, list[str]] = {
     "cuqi": ["unfold_cuqi"],
     "lmfit": ["unfold_lmfit"],
     "numba": ["unfold_genetic", "unfold_fission_ga"],
+    # Commercial engines — license required; skipped unless the engine
+    # package is importable AND cvxpy reports the solver as installed.
+    "gurobipy": ["unfold_gurobi"],
+    "mosek": ["unfold_mosek"],
+    "cplex": ["unfold_cplex"],
+    "coptpy": ["unfold_copt"],
+    "xpress": ["unfold_xpress"],
+}
+
+#: Commercial backends additionally need the cvxpy interface to report the
+#: solver as installed (engine importable is not enough).
+COMMERCIAL_METHODS: dict[str, str] = {
+    "unfold_gurobi": "GUROBI",
+    "unfold_mosek": "MOSEK",
+    "unfold_cplex": "CPLEX",
+    "unfold_copt": "COPT",
+    "unfold_xpress": "XPRESS",
 }
 
 
@@ -88,6 +105,12 @@ def _skip_if_backend_missing(method_name: str) -> None:
         if method_name in methods and _backend_missing(backend):
             pytest.skip(f"optional backend '{backend}' not installed; "
                         f"required for {method_name}")
+    if method_name in COMMERCIAL_METHODS:
+        import cvxpy as cp
+        if COMMERCIAL_METHODS[method_name] not in cp.installed_solvers():
+            pytest.skip(f"commercial solver "
+                        f"'{COMMERCIAL_METHODS[method_name]}' (license "
+                        f"required) not installed; required for {method_name}")
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +175,7 @@ class TestAllUnfoldMethodsImported:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_method_is_detector_attribute(self, method_name: str) -> None:
         assert hasattr(Detector, method_name), \
@@ -171,6 +195,8 @@ class TestAllUnfoldMethodsImported:
             "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
             "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
             "unfold_tikhonov_legendre", "unfold_ensemble",
+            "unfold_gurobi", "unfold_mosek", "unfold_cplex",
+            "unfold_copt", "unfold_xpress",
         }
         missing = names - set(core.__all__)
         assert not missing, f"missing from core.__all__: {sorted(missing)}"
@@ -206,6 +232,7 @@ class TestMethodSignatureContract:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_signature_starts_with_readings(self, method_name: str) -> None:
         sig = inspect.signature(getattr(Detector, method_name))
@@ -226,6 +253,7 @@ class TestMethodSignatureContract:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_signature_has_common_kwargs(self, method_name: str) -> None:
         sig = inspect.signature(getattr(Detector, method_name))
@@ -272,6 +300,12 @@ SMOKE_KWARGS: dict[str, dict[str, Any]] = {
     "unfold_staysl": dict(),
     "unfold_tikhonov_legendre": dict(),
     "unfold_ensemble": dict(),
+    # commercial engines (license required); short timeouts keep CI fast
+    "unfold_gurobi": dict(timeout=5.0),
+    "unfold_mosek": dict(timeout=5.0),
+    "unfold_cplex": dict(timeout=5.0),
+    "unfold_copt": dict(timeout=5.0),
+    "unfold_xpress": dict(timeout=5.0),
 }
 
 #: Required output keys per ``_standardize_output`` in _base_unfolder.py.
@@ -452,6 +486,33 @@ class TestParameterAssignment:
             methods=None, weights=None, combination="weighted_average",
             trim_fraction=0.1,
         ),
+        "unfold_gurobi": dict(
+            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            smoothness_weight=0.5, nonneg=False,
+            regularization_method="manual", noise_var=0.01,
+        ),
+        "unfold_mosek": dict(
+            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            smoothness_weight=0.5, nonneg=False,
+            regularization_method="manual", noise_var=0.01,
+        ),
+        # norm=1 requires nonneg=True (library guard), so exercise the
+        # non-default combo norm=2 + nonneg=False here.
+        "unfold_cplex": dict(
+            regularization=1e-3, norm=2, timeout=5.0, smoothness_order=1,
+            smoothness_weight=0.5, nonneg=False,
+            regularization_method="manual", noise_var=0.01,
+        ),
+        "unfold_copt": dict(
+            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            smoothness_weight=0.5, nonneg=False,
+            regularization_method="manual", noise_var=0.01,
+        ),
+        "unfold_xpress": dict(
+            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            smoothness_weight=0.5, nonneg=False,
+            regularization_method="manual", noise_var=0.01,
+        ),
     }
 
     @pytest.mark.parametrize("method_name", list(PARAM_OVERRIDES.keys()))
@@ -483,6 +544,7 @@ class TestParameterAssignment:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_unexpected_kwarg_raises(
         self, detector: Detector, simple_readings: dict[str, float],
@@ -506,6 +568,7 @@ class TestParameterAssignment:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_initial_spectrum_kwarg(
         self, detector: Detector, simple_readings: dict[str, float],

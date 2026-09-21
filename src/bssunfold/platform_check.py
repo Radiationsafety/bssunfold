@@ -15,6 +15,7 @@ __all__ = [
     "check_qpsolvers_extra_availability",
     "check_scip_availability",
     "check_docplex_availability",
+    "check_commercial_solvers_availability",
     "check_cuqi_availability",
     "get_available_solvers",
     "get_recommended_solver",
@@ -145,6 +146,42 @@ def check_docplex_availability() -> bool:
         return False
 
 
+# Commercial engines (Gurobi/MOSEK/CPLEX/COPT/XPRESS), alias -> availability.
+# All of them are **license required**: the engines are proprietary and are
+# never distributed or licensed by bssunfold.  Populated by
+# check_commercial_solvers_availability().
+COMMERCIAL_SOLVERS_AVAILABLE: dict[str, bool] = {}
+
+
+def check_commercial_solvers_availability() -> dict[str, bool]:
+    """Check which license-required commercial solvers are usable.
+
+    Uses the lazy cvxpy availability probe from
+    :mod:`bssunfold.core._commercial_qp`; no import of this package's core
+    modules happens unless cvxpy itself is installed.
+
+    Returns
+    -------
+    Dict[str, bool]
+        Mapping of solver alias ('gurobi', 'mosek', 'cplex', 'copt',
+        'xpress') to availability.  Cached in COMMERCIAL_SOLVERS_AVAILABLE.
+    """
+    global COMMERCIAL_SOLVERS_AVAILABLE
+    try:
+        from bssunfold.core._commercial_qp import (
+            COMMERCIAL_SOLVER_ALIASES,
+            is_commercial_solver_available,
+        )
+    except ImportError:
+        COMMERCIAL_SOLVERS_AVAILABLE = {}
+        return COMMERCIAL_SOLVERS_AVAILABLE
+    COMMERCIAL_SOLVERS_AVAILABLE = {
+        alias: is_commercial_solver_available(alias)
+        for alias in COMMERCIAL_SOLVER_ALIASES
+    }
+    return COMMERCIAL_SOLVERS_AVAILABLE
+
+
 def get_available_solvers() -> dict[str, Any]:
     """Get dictionary of available solvers with their status.
 
@@ -169,6 +206,9 @@ def get_available_solvers() -> dict[str, Any]:
     # Algebraic modeling / optimization backends
     solvers["scip"] = SCIP_AVAILABLE
     solvers["docplex"] = DOCPLEX_AVAILABLE
+    # Commercial engines (license required): probed lazily here.
+    for alias, available in check_commercial_solvers_availability().items():
+        solvers[alias] = available
 
     # Extra qpsolvers (may require solvers-core optional dependency)
     solvers["osqp"] = QPSOLVERS_EXTRA_AVAILABLE

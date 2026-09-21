@@ -318,7 +318,8 @@ energy region.
 Two internal strategies are used depending on the solver:
 
 - **UB array** (QP solvers — ``cvxpy``, ``qpsolvers``, ``docplex``, ``scip``,
-  ``mystic``): the full response matrix is passed to the solver; a per-bin
+  ``mystic``, and the commercial engines ``gurobi``, ``mosek``, ``cplex``,
+  ``copt``, ``xpress``): the full response matrix is passed to the solver; a per-bin
   upper bound vector is set to 0 for bins above the cutoff.
 - **Trimming** (iterative / matrix solvers): the response matrix is sliced to
   active energy bins, the reduced system is solved, and the result is expanded
