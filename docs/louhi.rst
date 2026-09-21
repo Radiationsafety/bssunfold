@@ -97,10 +97,16 @@ Usage
 API reference
 -------------
 
+See also :doc:`detector` for the full ``Detector`` API reference.
+
 .. autofunction:: bssunfold.core.unfold_louhi.unfold_louhi
+   :no-index:
 
 .. autofunction:: bssunfold.core.unfold_louhi.solve_louhi
+   :no-index:
 
 .. autofunction:: bssunfold.core.unfold_louhi.louhi_smoothing_matrix
+   :no-index:
 
 .. autofunction:: bssunfold.core.unfold_louhi.louhi_covariance
+   :no-index:

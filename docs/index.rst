@@ -38,7 +38,7 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (90 methods):
+- **Multiple Unfolding Algorithms** (94 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD, EPIC (Equal Posterior Information Condition)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz

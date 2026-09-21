@@ -676,6 +676,12 @@ Method Reference
      - `max_iterations`, `n_subsets`, `tolerance`, `h` (noise level; `None` = automatic MAD estimate), `search_window` (N), `similarity_window` (nu), `alpha`, `anlm_mode` (subset/post), `log_space`, `noise_level`
      - —
      - OSEM-ANLM (Jamaati et al. 2026, Sci. Rep.): ordered-subset EM with the two-stage asymptotic non-local means filter (stage 1 ``h1 = 0.5 sigma``; stage 2 point-wise ``h2(i) = sqrt(sum_j w(i,j)^2 sigma^2)``, article eq. 6) applied after every subset update or once post-reconstruction; log-space filtering by default.
+   * - 87
+     - ``unfold_louhi``
+     - Quadratic programming
+     - `smoothness`, `smooth_order` (0/1/2), `auto_smooth`, `chi2_target`, `max_iterations`, `tolerance`, `relative_uncertainty`, `variance_reduction`
+     - —
+     - LOUHI78 (Routti & Sandberg 1980, Comput. Phys. Commun. 21): constrained weighted least squares ``min ||(b-Aphi)/sigma||^2 + lambda^2 ||L(phi-phi0)||^2`` s.t. ``phi >= 0`` via Hildreth's iterative coordinate QP; identity/first/second-difference smoothing operators anchored to the a-priori spectrum; ``auto_smooth=True`` adjusts lambda by golden-section regression so the data chi-square reaches its expected value; ``louhi_covariance`` propagates uncertainties on the active set.
 
 
 

@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
-## [0.27.0] - 2026-09-20
+## [0.28.0] - 2026-09-21
 
 ### Added
 
@@ -71,6 +71,32 @@ and this project adheres to [Semantic Versioning].
 - New example notebook `examples/79-louhi-iaea.ipynb` (LOUHI unfolding of
   an IAEA Compendium benchmark spectrum with the linear and nonlinear
   smoothing modes).
+- **IAEA-Compendium benchmark notebook suite** — 23 new example
+  notebooks (`examples/56-gnowee-iaea.ipynb` through
+  `examples/78-ensemble-iaea.ipynb`) for every public `unfold_*` method
+  that previously lacked a dedicated example (gnowee, maeo, nnqp, qpmad,
+  zfit, iterative_refinement, odl_pdhg, amaxed_regularization,
+  crystal_ball, directed_divergence, express, ferdor, imaxed,
+  mystic_hybrid, nsduaz, odl_douglas_rachford, qubo, rebunki, rfsp_jul,
+  scipy_direct_method, staysl, tikhonov_legendre, ensemble). Each
+  notebook follows the same template: build a `Detector` from the
+  built-in `RF_GSF` response functions, fold an IAEA Compendium
+  reference spectrum into readings, unfold, compute spectral-distance
+  metrics (`utils.comparison.compare_spectra`), plot and sweep across
+  several IAEA spectra. Documented in `docs/examples.rst`.
+- New API test module `tests/test_all_unfold_methods_api.py`
+  (~250 tests): every public `unfold_*` must be importable from
+  `bssunfold.core`, accept the canonical
+  `(readings, initial_spectrum, ...)` signature plus the common
+  Monte-Carlo/housekeeping kwargs, return the standardized result keys
+  on a smoke reading set, accept every documented kwarg non-default and
+  reject unknown kwargs, run end-to-end on the IAEA benchmark, plus
+  headless nbconvert execution of the new notebooks (auto-skipped when
+  an optional backend or `jupyter nbconvert` is unavailable).
+- Test-infrastructure fixes: `tests/test_smt.py` defers `import z3`
+  behind `pytest.importorskip("z3")` (collection no longer breaks when
+  the optional `z3-solver` package is not installed) and the `qubo` /
+  `zfit` pytest markers are registered in `pyproject.toml`.
 
 ## [0.26.0] - 2026-09-18
 
