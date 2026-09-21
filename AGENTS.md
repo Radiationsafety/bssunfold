@@ -4,7 +4,7 @@
 
 ```bash
 uv sync --group dev          # install all deps including dev
-uv run pytest tests/         # run all 1828 tests (1827 pass, 1 skipped)
+uv run pytest tests/         # run all ~3160 tests (0 failures as of 0.28.0)
 uv run pytest -v --tb=short  # verbose, short traceback
 uv run pytest tests/test_coverage.py  # primary coverage test file
 uv run pytest --cov=src/bssunfold --cov-report=term-missing --cov-fail-under=95
@@ -33,6 +33,8 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/unfold_parametric.py` — FRUIT solver backends (`solve_parametric_cvxpy`/`qpsolvers`/`combined`) + public `unfold_parametric`; model/fit lives in `core/_fruit.py`
 - `core/unfold_fission_ga.py` — Fission-model GA+LM unfolding (`unfold_fission_ga`/`solve_fission_ga`, port of Ogorodnikov 2024 sections 4-5, `BonnerFinder()`): three-fraction Fission model (article eq. 4.29) + differential-evolution global search + bounded nonlinear least-squares refinement, with the article's validation criteria (`validation`) and fitted `model_params` (incl. `weight_fractions`); optional free scale `phi_scale` (`fit_scale=True`)
 - `core/unfold_tikhonov_sobolev_dp.py` — Tikhonov with the generalized discrepancy principle (`unfold_tikhonov_sobolev_dp`/`solve_tikhonov_sobolev_dp`, port of Ogorodnikov 2024 sections 3/5, `alfaFinder()`): discrete Sobolev `W_2^1` penalty + `alpha*` from `rho(alpha) = ||Az-b||^2 - delta^2 = 0` (bracketing + Brent, article's Newton/chord analogue); standalone `alpha_finder_generalized_discrepancy` / `generalized_discrepancy` exported for reuse
+- `core/unfold_osem_anlm.py` — OSEM-ANLM unfolding (`unfold_osem_anlm`/`solve_osem_anlm`, Jamaati et al. 2026, Sci. Rep.): ordered-subset EM interleaved with the two-stage asymptotic non-local means filter (`anlm_filter_1d` standalone 1D filter, `estimate_noise_1d` robust MAD noise estimate); `anlm_mode='subset'/'post'`, log-space filtering by default
+- `core/unfold_louhi.py` — LOUHI78 unfolding (`unfold_louhi`/`solve_louhi`, Routti & Sandberg 1980): constrained weighted least squares with generalized smoothing solved by Hildreth's iterative coordinate QP; `louhi_smoothing_matrix` / `louhi_covariance` helpers, `auto_smooth=True` golden-section regression of the smoothing weight
 - `core/unfold_parametric2.py` — public BON95 `solve_parametric2`/`unfold_parametric2`; family logic lives in `core/_bon95.py`
 - `core/_matrix_utils.py` — SVD, derivative matrix, tikhonov system building
 - `core/_base_unfolder.py`, `core/_montecarlo.py` — internal base class and Monte Carlo uncertainty
@@ -51,7 +53,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 
 ## Testing
 
-### Test files (44 files, ~1722 tests)
+### Test files (70 files, ~3160 tests)
 
 | File | Focus |
 |------|-------|
@@ -63,7 +65,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 | `tests/test_readings.py` | Readings/effective readings tests |
 | `tests/test_refactored_fixed.py` | Post-refactoring tests |
 | `tests/test_new_methods_fixed.py` | New unfold_* method tests |
-| `tests/test_smt.py` | SMT-based unfolding: exact solvers + solve_smt/unfold_smt (skipped if z3-solver not installed) |
+| `tests/test_smt.py` | SMT-based unfolding: exact solvers + solve_smt/unfold_smt (skipped if z3-solver not installed; `import z3` deferred behind `pytest.importorskip`) |
 | `tests/test_interpret.py` | pyoptexplain interpretation: build_interpretation_qp/solve_interpret/interpret_qp + Detector.unfold_interpret/interpret_result (skipped if pyoptexplain not installed) |
 | `tests/test_security.py` | bandit static security scan (no HIGH findings) |
 | `tests/test_krylov_tv.py` | CGLS (`unfold_cgls`), GKS (`unfold_gks`) and Tikhonov-TV (`unfold_tikhonov_tv`): solver edge cases + Detector wrappers + combined pipeline |
@@ -72,6 +74,9 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 | `tests/test_nsduaz.py` | NSDUAZ (`unfold_nsduaz`/`solve_nsduaz`): wrapper + core solver, catalogue selection, validation |
 | `tests/test_genetic_improvements.py` | Genetic extensions: two-step coarse-to-fine, NSGA-II/Pareto selection, smoothers, TGASU crossover/mutation, `extra_starting` injection, `_coarsen_columns`/`_split_coarse` helpers |
 | `tests/test_ogorodnikov2024.py` | Ogorodnikov (2024) ports: Fission-model GA+LM (`unfold_fission_ga`) and Tikhonov + generalized discrepancy (`unfold_tikhonov_sobolev_dp`, `alpha_finder_generalized_discrepancy`) — quasi-real GSF experiments, DP property checks, IAEA Compendium data cases |
+| `tests/test_osem_anlm.py` | OSEM-ANLM (`unfold_osem_anlm`/`solve_osem_anlm`, Jamaati et al. 2026): ANLM filter identity/smoothing properties, `estimate_noise_1d`, solver equivalence with plain OSEM for the identity filter, `post`-mode composition, subset variants, validation, Detector wrapper |
+| `tests/test_louhi.py` | LOUHI78 (`unfold_louhi`/`solve_louhi`, Routti & Sandberg 1980): smoothing operators, Hildreth QP core, `auto_smooth` golden-section regression, `louhi_covariance` error propagation, validation, Detector integration |
+| `tests/test_all_unfold_methods_api.py` | Single-gate API suite for every public `unfold_*`: import/`__all__` presence on Detector, canonical signature + common kwargs, smoke results (standardized keys, finiteness), non-default kwarg assignment, unexpected-kwarg TypeError, IAEA end-to-end subset, and nbconvert execution of the IAEA notebooks (`NOTEBOOKS` dict; skipped when an optional backend or nbconvert is missing) |
 
 ### Analysis tools
 

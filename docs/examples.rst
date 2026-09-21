@@ -348,8 +348,8 @@ Two internal strategies are used depending on the solver:
 IAEA Compendium Benchmark Notebooks
 ------------------------------------
 
-Every public ``unfold_*`` method but ``unfold_osem_anlm`` has a
-dedicated example notebook that exercises it on the
+Every public ``unfold_*`` method has a dedicated example notebook that
+exercises it on the
 `IAEA Compendium of Monte-Carlo calculated neutron spectra
 <https://www-nds.iaea.org/benchmarks/>`_. The benchmark CSV ships with
 the repository at ``tests/MonteCarlo_Calculated_spectra_from_IAEA_Comp_for_comparison.csv``
@@ -372,7 +372,7 @@ Each notebook follows the same template:
 
 Notebooks for the 23 methods that previously lacked a dedicated
 example (files ``56-…`` through ``78-…`` in ``examples/``), plus the
-LOUHI78 notebook (``79-…``):
+LOUHI78 (``79-…``) and OSEM-ANLM (``80-…``) notebooks:
 
 ==============================================================  ============================
 Notebook                                                         Method
@@ -401,6 +401,7 @@ Notebook                                                         Method
 ``77-tikhonov-legendre-iaea.ipynb``                              :meth:`~bssunfold.Detector.unfold_tikhonov_legendre`
 ``78-ensemble-iaea.ipynb``                                      :meth:`~bssunfold.Detector.unfold_ensemble`
 ``79-louhi-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_louhi`
+``80-osem-anlm-iaea.ipynb``                                     :meth:`~bssunfold.Detector.unfold_osem_anlm`
 ==============================================================  ============================
 
 The full API surface (imports, signatures, parameter assignment and

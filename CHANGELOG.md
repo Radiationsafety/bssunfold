@@ -70,7 +70,10 @@ and this project adheres to [Semantic Versioning].
   propagation, parameter validation and the Detector integration).
 - New example notebook `examples/79-louhi-iaea.ipynb` (LOUHI unfolding of
   an IAEA Compendium benchmark spectrum with the linear and nonlinear
-  smoothing modes).
+  smoothing modes) and `examples/80-osem-anlm-iaea.ipynb` (OSEM-ANLM in
+  the `subset`/`post` modes, the exact `post == OSEM + anlm_filter_1d`
+  composition property and the `h` smoothing-strength knob); every
+  public `unfold_*` method now has a dedicated IAEA benchmark notebook.
 - **IAEA-Compendium benchmark notebook suite** — 23 new example
   notebooks (`examples/56-gnowee-iaea.ipynb` through
   `examples/78-ensemble-iaea.ipynb`) for every public `unfold_*` method

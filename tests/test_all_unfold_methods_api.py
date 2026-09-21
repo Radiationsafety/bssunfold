@@ -632,6 +632,8 @@ class TestNotebooksExecute:
         "76-staysl-iaea.ipynb": "unfold_staysl",
         "77-tikhonov-legendre-iaea.ipynb": "unfold_tikhonov_legendre",
         "78-ensemble-iaea.ipynb": "unfold_ensemble",
+        "79-louhi-iaea.ipynb": "unfold_louhi",
+        "80-osem-anlm-iaea.ipynb": "unfold_osem_anlm",
     }
 
     @pytest.fixture(autouse=True)
