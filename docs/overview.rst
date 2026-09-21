@@ -58,6 +58,7 @@ categories:
         C --> C9["unfold_randomized_kaczmarz"]
 
        K --> K1["unfold_osem"]
+       K --> K4["unfold_osem_anlm"]
        K --> K2["unfold_mapem"]
        K --> K3["unfold_bsrem"]
 
@@ -669,6 +670,12 @@ Method Reference
      - `noise_level`, `step_size`, `max_iterations`, `tolerance`, `variance_reduction`
      - —
      - Korpelevich extragradient (lecture 13 / homework 20) on the robust saddle formulation ``min_{x>=0} max_{||y||<=1} 1/2||Ax-b||^2 + delta y^T(Ax-b)`` — least squares made robust against measurement noise of L2 norm up to ``delta``.
+   * - 86
+     - ``unfold_osem_anlm``
+     - EM family
+     - `max_iterations`, `n_subsets`, `tolerance`, `h` (noise level; `None` = automatic MAD estimate), `search_window` (N), `similarity_window` (nu), `alpha`, `anlm_mode` (subset/post), `log_space`, `noise_level`
+     - —
+     - OSEM-ANLM (Jamaati et al. 2026, Sci. Rep.): ordered-subset EM with the two-stage asymptotic non-local means filter (stage 1 ``h1 = 0.5 sigma``; stage 2 point-wise ``h2(i) = sqrt(sum_j w(i,j)^2 sigma^2)``, article eq. 6) applied after every subset update or once post-reconstruction; log-space filtering by default.
 
 
 

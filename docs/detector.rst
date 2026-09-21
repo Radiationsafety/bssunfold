@@ -116,6 +116,10 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_osem.unfold_osem
 
+.. autofunction:: bssunfold.core.unfold_osem_anlm.unfold_osem_anlm
+
+.. autofunction:: bssunfold.core.unfold_louhi.unfold_louhi
+
 .. autofunction:: bssunfold.core.unfold_mapem.unfold_mapem
 
 .. autofunction:: bssunfold.core.unfold_bsrem.unfold_bsrem
@@ -292,6 +296,16 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_bunkiut.solve_bunkiut
 
 .. autofunction:: bssunfold.core.unfold_osem.solve_osem
+
+.. autofunction:: bssunfold.core.unfold_osem_anlm.solve_osem_anlm
+
+.. autofunction:: bssunfold.core.unfold_osem_anlm.anlm_filter_1d
+
+.. autofunction:: bssunfold.core.unfold_louhi.solve_louhi
+
+.. autofunction:: bssunfold.core.unfold_louhi.louhi_smoothing_matrix
+
+.. autofunction:: bssunfold.core.unfold_louhi.louhi_covariance
 
 .. autofunction:: bssunfold.core.unfold_mapem.solve_mapem
 

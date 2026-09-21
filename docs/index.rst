@@ -17,6 +17,7 @@ bssunfold is a Python package for neutron spectrum unfolding using various algor
    ssr
    gee
    uno
+   louhi
    interpretation
    examples
    reconst_comparison
@@ -37,10 +38,11 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (88 methods):
+- **Multiple Unfolding Algorithms** (90 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD, EPIC (Equal Posterior Information Condition)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
+  - **Quadratic programming**: LOUHI78 (Routti & Sandberg 1980): constrained weighted least squares with generalized smoothing, Hildreth iterative QP and automatic smoothing-weight regression
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation, zfit (Poisson likelihood), full Bayesian MCMC (NUTS via pymc), CUQIpy uncertainty-quantified MCMC (pCN, CWMH, ULA, MALA, NUTS, hierarchical Gibbs with Gamma hyperprior — posterior HPD intervals, ESS/R-hat diagnostics)
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation), IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis)
   - **Statistical Regularisation**: Turchin's method (StatReg), Fortran STREG1 port (Reconst)
