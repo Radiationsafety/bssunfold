@@ -244,7 +244,11 @@ Changelog = "https://github.com/Radiationsafety/bssunfold/blob/main/CHANGELOG.md
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-p no:odl_plugins"
-markers = ["slow: marks tests as slow (deselect with '-k not slow')"]
+markers = [
+    "slow: marks tests as slow (deselect with '-k not slow')",
+    "qubo: marks tests that require the optional pyqubo / dwave-neal backends",
+    "zfit: marks tests that require the optional zfit / tensorflow backends",
+]
 
 [tool.coverage.run]
 source = ["src/bssunfold"]

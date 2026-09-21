@@ -11,9 +11,13 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-import z3
 
+# Skip the entire module when z3 (z3-solver) is not installed; the
+# ``import z3`` line below would otherwise raise ImportError at
+# collection time and break the whole test run.
 pytest.importorskip("z3")
+
+import z3  # noqa: E402
 
 from bssunfold import Detector  # noqa: E402
 from tests.conftest import block_import  # noqa: E402
