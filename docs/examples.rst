@@ -371,8 +371,9 @@ Each notebook follows the same template:
    ``comprehensive_score`` for each.
 
 Notebooks for the 23 methods that previously lacked a dedicated
-example (files ``56-…`` through ``78-…`` in ``examples/``), plus the
-LOUHI78 (``79-…``) and OSEM-ANLM (``80-…``) notebooks:
+example (files ``56-…`` through ``78-…`` in ``examples/``), the
+LOUHI78 (``79-…``) and OSEM-ANLM (``80-…``) benchmark notebooks, and
+the CUQIpy quality-analysis notebook (``81-…``):
 
 ==============================================================  ============================
 Notebook                                                         Method
@@ -402,7 +403,14 @@ Notebook                                                         Method
 ``78-ensemble-iaea.ipynb``                                      :meth:`~bssunfold.Detector.unfold_ensemble`
 ``79-louhi-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_louhi`
 ``80-osem-anlm-iaea.ipynb``                                     :meth:`~bssunfold.Detector.unfold_osem_anlm`
+``81-cuqi-quality-analysis-iaea.ipynb``                         :meth:`~bssunfold.Detector.unfold_cuqi`
 ==============================================================  ============================
+
+Notebook ``81`` additionally demonstrates the CUQIpy quality-analysis
+workflow: hierarchical Hybrid Gibbs sampling with Gamma hyperprior,
+ESS / Gelman-Rubin convergence diagnostics, 95% HPD credible intervals,
+residual analysis, EURADOS-style energy-group fluences and a comparison
+against CVXPY / MLEM / Landweber / GRAVEL baselines.
 
 The full API surface (imports, signatures, parameter assignment and
 end-to-end execution) is covered by the test module

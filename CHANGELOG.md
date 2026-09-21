@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning].
   the `subset`/`post` modes, the exact `post == OSEM + anlm_filter_1d`
   composition property and the `h` smoothing-strength knob); every
   public `unfold_*` method now has a dedicated IAEA benchmark notebook.
+- New example notebook `examples/81-cuqi-quality-analysis-iaea.ipynb`
+  (CUQIpy quality analysis, optional `bssunfold[cuqi]` backend):
+  hierarchical Hybrid Gibbs unfolding with a data-driven flat prior
+  center, ESS / Gelman-Rubin convergence diagnostics, 95% HPD credible
+  intervals and coverage, residual analysis, EURADOS-style energy-group
+  fluences and a comparison against CVXPY / MLEM / Landweber / GRAVEL.
 - **IAEA-Compendium benchmark notebook suite** — 23 new example
   notebooks (`examples/56-gnowee-iaea.ipynb` through
   `examples/78-ensemble-iaea.ipynb`) for every public `unfold_*` method

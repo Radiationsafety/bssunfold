@@ -634,6 +634,7 @@ class TestNotebooksExecute:
         "78-ensemble-iaea.ipynb": "unfold_ensemble",
         "79-louhi-iaea.ipynb": "unfold_louhi",
         "80-osem-anlm-iaea.ipynb": "unfold_osem_anlm",
+        "81-cuqi-quality-analysis-iaea.ipynb": "unfold_cuqi",
     }
 
     @pytest.fixture(autouse=True)

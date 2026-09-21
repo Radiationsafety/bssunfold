@@ -37,3 +37,8 @@ Thumbs.db
 *.tmp
 ```
 opencode.json
+graphify-out/
+examples/01_reference_data.png
+.gitignore
+examples/03_methods_comparison.png
+examples/cuqi_quality_analysis_results.csv
