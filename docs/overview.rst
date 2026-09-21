@@ -353,78 +353,108 @@ Method Reference
      - docplex, cplex
      - Tikhonov QP solved by IBM CPLEX via docplex.mp (CPLEX Community Edition)
    * - 35
+     - ``unfold_gurobi``
+     - Optimization
+     - `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method`
+     - gurobipy (**license required**)
+     - Tikhonov QP solved by Gurobi via its cvxpy interface; **license required**, no open-source fallback
+   * - 36
+     - ``unfold_mosek``
+     - Optimization
+     - `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method`
+     - mosek (**license required**)
+     - Tikhonov QP solved by MOSEK via its cvxpy interface; **license required**, no open-source fallback
+   * - 37
+     - ``unfold_cplex``
+     - Optimization
+     - `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method`
+     - cplex (**license required**)
+     - Tikhonov QP solved by IBM CPLEX via its cvxpy interface (docplex path: ``unfold_docplex``); **license required**, no open-source fallback
+   * - 38
+     - ``unfold_copt``
+     - Optimization
+     - `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method`
+     - coptpy (**license required**)
+     - Tikhonov QP solved by Cardinal Optimizer (COPT, package coptpy) via its cvxpy interface; **license required**, no open-source fallback
+   * - 39
+     - ``unfold_xpress``
+     - Optimization
+     - `regularization`, `norm` (1/2), `timeout`, `smoothness_order`, `smoothness_weight`, `nonneg`, `regularization_method`
+     - xpress (**license required**)
+     - Tikhonov QP solved by FICO Xpress via its cvxpy interface; **license required**, no open-source fallback
+   * - 40
      - ``unfold_epic``
      - Regularization
      - `target_sigmas`, `sigma_frac`, `regularization_order` (0/1/2), `non_neg`, `noise_var`, `homogeneous_step`, `regularize`, `beta_shift_k`, `beta_distance`, `EPIC_bool`, `V`, `LSQpar`
      - —
      - EPIC Tikhonov regularization (Ortega-Culaciati et al. 2021): prior variances chosen so a posteriori variances match target sigmas
-   * - 36
+   * - 41
      - ``unfold_interpret``
      - Interpretation
      - `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `enforce_norm`, `norm_value`, `regularization_method`, `interpret_options`
      - pyoptexplain (optional)
      - Unfolding QP solved via pyoptexplain plus an interpretation report (robustness, shadow prices, detector sensitivity, regularization sweep, scenarios). Also `Detector.interpret_result` for interpretation-only runs
-   * - 37
+   * - 42
      - ``unfold_cgls``
      - Krylov/iterative
      - `max_iterations`, `tolerance`, `regularization`, `smoothness_order`, `noise_level`
      - —
      - CGLS (conjugate gradient for least squares) with optional ``||L x||^2`` Tikhonov term and discrepancy-principle stopping; nonnegative spectrum via clamping. See :ref:`math-krylov`.
-   * - 38
+   * - 43
      - ``unfold_gks``
      - Krylov/hybrid
      - `regularization_method` (gcv/dp/lcurve/manual), `max_iterations`, `smoothness_order`, `regularization`, `noise_level`
      - —
      - Generalized Krylov Subspace (Golub-Kahan bidiagonalization + projected regularization selection); no a-priori spectrum required
-   * - 39
+   * - 44
      - ``unfold_tikhonov_tv``
      - Regularization
      - `epsilon`, `mu`, `max_iterations`, `type_` (TT/TV/T), `beta` (float or ``'adapt'``), `zthr`, `tolerance`, `noise_level`
      - —
      - Noise-constrained Tikhonov+TV via ADMM (Gazzola & Gholami); adaptive balancing of the TV and Tikhonov terms. See :ref:`math-tikhonov`.
-   * - 40
+   * - 45
      - ``unfold_sandii``
      - Multi-sphere ratio
      - `max_iterations`, `tolerance`, `chi_fac` (0/1), `relative_uncertainty`, `noise_level`
      - —
      - SAND-II geometric-mean ratio method (McElroy et al. 1967): chi-square or max-relative-deviation stopping
-   * - 41
+   * - 46
      - ``unfold_bunki``
      - Multi-sphere ratio
      - `smoothing`, `max_iterations`, `tolerance`, `noise_level`
      - —
      - BUNKI (SPUNIT) iterative unfolding with three-point smoothing (RSICC PSR-266)
-   * - 42
+   * - 47
      - ``unfold_bunkiut``
      - Multi-sphere ratio
      - `smoothing`, `max_iterations`, `tolerance`, `noise_level`
      - —
      - BUNKI-UT (BON31G) modernised unfolding (University of Texas)
-   * - 43
+   * - 48
      - ``unfold_osem``
      - EM family
      - `max_iterations`, `n_subsets`, `tolerance`, `noise_level`
      - —
      - Ordered-subset expectation maximisation (Hudson & Larkin 1994); ``n_subsets=1`` reduces to standard MLEM
-   * - 44
+   * - 49
      - ``unfold_mapem``
      - EM family
      - `prior` (none/quadratic/logcosh/relative_difference), `beta`, `prior_delta`, `gamma`, `max_iterations`, `tolerance`, `noise_level`
      - —
      - MAP-EM (OSMAPOSL one-step-late penalised EM) with nearest-neighbour priors over the energy axis
-   * - 45
+   * - 50
      - ``unfold_bsrem``
      - EM family
      - `prior` (none/quadratic/logcosh/relative_difference), `beta`, `prior_delta`, `gamma`, `max_iterations`, `n_subsets`, `tolerance`, `relaxation`, `addition_after_iteration`, `noise_level`
      - —
      - Block-sequential regularised EM with relaxation sequence and floor clamping (guaranteed convergence for non-convex priors)
-   * - 46
+   * - 51
      - ``unfold_sart``
      - Iterative
      - `max_iterations`, `tolerance`, `relaxation`, `noise_level`
      - —
      - Simultaneous algebraic reconstruction technique: relaxed, residual-normalised additive correction
-   * - 47
+   * - 52
      - ``unfold_ferdor``
      - Multi-sphere deconvolution
      - `max_iterations`, `tolerance`, `smoothing`, `chi_squared_target`, `relative_uncertainty`
@@ -436,13 +466,13 @@ Method Reference
      - `max_iterations`, `tol_chi2`, `tol_rel`, `smoothness_order`, `smoothness_weight`
      - —
      - Directed-divergence I-divergence unfolding on Bonner-sphere response matrices with optional smoothness regularisation
-   * - 48
+   * - 53
      - ``unfold_rebunki``
      - Multi-sphere ratio
      - `smoothing`, `max_iterations`, `tolerance`
      - —
      - ReBUNKI (SPUNIT) few-iteration spectral stripping with three-point smoothing and ~1% convergence tolerance
-   * - 49
+   * - 54
      - ``unfold_nsduaz``
      - Multi-sphere ratio
      - `initial_spectrum`, `catalogue`, `use_catalogue`, `reference_name`, `smoothing`, `max_iterations`, `tolerance`
@@ -454,229 +484,229 @@ Method Reference
      - `n_groups`, `interval_boundaries`, `max_iterations`, `tol_iteration`, `relative_uncertainty`
      - scipy
      - Piecewise-exponential Express fit adapted to Bonner-sphere response functions using direct least-squares on the measured readings
-   * - 50
+   * - 55
      - ``unfold_fista``
      - Krylov/hybrid
      - `max_iterations`, `tolerance`, `regularization`, `l1_penalty`, `tv_penalty`, `nonnegativity`, `x_min`, `x_max`, `noise_level`, `eta`
      - —
      - FISTA (Fast Iterative Shrinkage-Thresholding Algorithm): accelerated proximal gradient method for L1/L2/TV regularized problems with box constraints; O(1/k²) convergence. See :ref:`math-iterative`.
-   * - 51
+   * - 56
      - ``unfold_hybrid_gmres``
      - Krylov/hybrid
      - `max_iterations`, `regularization_method`, `regularization`, `noise_level`, `eta`, `reorthogonalization`
      - —
      - Hybrid GMRES: combines GMRES iteration with Tikhonov regularization on projected problem; automatic regularization selection via GCV/discrepancy principle
-   * - 52
+   * - 57
      - ``unfold_imaxed``
      - MaxEnt
      - `sigma_factor`, `max_iterations`, `tolerance`
      - —
      - Improved MAXED with gradient-based log-space optimization and cross-entropy regularization (Wong 2024)
-   * - 53
+   * - 58
      - ``unfold_amaxed``
      - MaxEnt
      - `sigma_factor`, `target_chi2`, `max_iterations`, `tolerance`
      - —
      - Alternative MAXED with reversed cross-entropy definition using Lagrangian multipliers (Wong 2024)
-   * - 54
+   * - 59
      - ``unfold_amaxed_regularization``
      - MaxEnt
      - `sigma_factor`, `tau`, `max_iterations`, `tolerance`
      - —
      - AMAXED with Tikhonov-style simultaneous minimization of chi-squared and cross-entropy (Wong 2024)
-   * - 55
+   * - 60
      - ``unfold_maeo``
      - Evolutionary
      - `n_cycles`, `n_gen_per_cycle`, `pop_size`, `algorithms` (nsga3/ctaea/agemoea2/spea2), `lambda_smooth`, `prior_spectrum`, `convergence_assist_ratio`
      - pymoo
      - MAEO multi-island ensemble of NSGA-III/C-TAEA/AGE-MOEA-II/SPEA2 with hypervolume-based migration, convergence-assist phase and knee-point selection from the combined Pareto front
-   * - 56
+   * - 61
      - ``unfold_mcmc``
      - Bayesian
      - `sigma_prior`, `lambda_prior`, `n_samples`, `tune`, `chains`, `target_accept`, `use_hierarchical`, `progressbar`
      - pymc, arviz
      - Full Bayesian unfolding with the NUTS (Hamiltonian Monte Carlo) sampler: mean posterior spectrum, 95% HPD credible intervals, per-bin posterior std and R-hat / ESS convergence diagnostics under `mcmc_stats`. See :ref:`math-bayesian`.
-   * - 57
+   * - 62
      - ``unfold_zfit``
      - Bayesian
      - `use_mcmc`, `n_samples`, `regularization`, `smoothness_weight`
      - zfit, tensorflow
      - Poisson-likelihood spectrum inference with smoothness/L2 priors via zfit (Minuit) and a SciPy fallback
-   * - 58
+   * - 63
      - ``unfold_qubo``
      - Optimization
      - `n_bits`, `max_value`, `regularization`, `annealing_time`, `num_reads`
      - pyqubo, dwave-neal
      - Quantum-inspired QUBO formulation: binary-encoded spectrum amplitudes minimized by classical simulated annealing
-   * - 59
+   * - 64
      - ``unfold_odl_pdhg``
      - Advanced proximal
      - `tau`, `sigma`, `use_tv`, `tv_weight`, `nonnegativity`, `tolerance`
      - —
      - Primal-Dual Hybrid Gradient (Chambolle-Pock) for L2+TV / L2+L2 problems; TV preserves sharp spectral features (pure-NumPy, ODL-independent)
-   * - 60
+   * - 65
      - ``unfold_odl_douglas_rachford``
      - Advanced proximal
      - `use_tv`, `tv_weight`, `nonnegativity`, `tolerance`
      - —
      - Douglas-Rachford splitting for composite objectives (data fidelity + TV/L2 + non-negativity indicator); pure-NumPy, ODL-independent
-   * - 61
+   * - 66
      - ``unfold_cascade``
      - Pipeline/Ensemble
      - `cascade_stages`, `multi_resolution`, `coarse_bins`
      - —
      - Sequential multi-method cascade; each stage may use the previous result as an initial guess/prior; with `multi_resolution=True` the first stage runs on a coarse energy grid and its prolongated solution seeds the fine-grid stages
-   * - 62
+   * - 67
      - ``unfold_composite``
      - Ensemble
      - `n_methods`, `timeout_per_method`, `method_names`, `ensemble_weights`, `spectrum`, `energy`
      - —
      - Adaptive ensemble (stacked generalization): classifies the spectrum by hardness, runs a pool of individual methods and combines their results with confidence-weighted averaging
-   * - 63
+   * - 68
      - ``unfold_crystal_ball``
      - Classic RSICC codes
      - `regularization`, `noise_level`
      - —
      - CRYSTAL BALL direct (non-iterative) method: approximates the spectrum as a linear combination of the detector response functions; independent reimplementation from the published delta-operator description (the original code is proprietary/RSICC)
-   * - 64
+   * - 69
      - ``unfold_rfsp_jul``
      - Classic RSICC codes
      - `max_iterations`, `tolerance`, `weights`, `noise_level`
      - —
      - RFSP-JUL iterative damped least squares: minimises a weighted residual functional with a Marquardt-style damping term tying each iterate to the previous one; independent reimplementation (original code proprietary/RSICC)
-   * - 65
+   * - 70
      - ``unfold_staysl``
      - Classic RSICC codes
      - `relative_uncertainty`, `prior_uncertainty`, `noise_level`
      - —
      - STAY'SL single-step linear Bayesian least-squares update refining a prior spectrum with full measurement/prior covariance information; independent reimplementation from the published mathematical formalism (original code proprietary/RSICC)
-   * - 66
+   * - 71
      - ``unfold_mystic_hybrid``
      - Optimization
      - `global_solver` (diffev2), `local_solver` (fmin_powell), `global_maxiter`, `global_maxfun`, `local_maxiter`, `local_maxfun`, `npop`, `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `regularization_method`
      - mystic
      - Two-stage hybrid solver: `diffev2` performs global exploration of the penalized least-squares objective, then `fmin_powell` refines the result for precise local convergence; registered in `unfold_combined` / `unfold_composite` pipelines as `'mystic_hybrid'`
-   * - 67
+   * - 72
      - ``unfold_ensemble``
      - Ensemble
      - `methods`, `weights`, `combination` (weighted_average/median/trimmed_mean/best_residual), `trim_fraction`
      - —
      - Robust ensemble combining several base solvers (default MLEM/Bayes/Landweber/CGLS/GRAVEL) via inverse-residual weighting or robust statistics to reduce method-specific bias
-   * - 68
+   * - 73
      - ``unfold_iterative_refinement``
      - Ensemble/Refinement
      - `first_pass_kwargs`, `second_pass_kwargs`, `alpha`, `max_alpha_search`
      - —
      - Two-pass refinement: an initial unfold is refined by a second pass with an automatically selected blending factor α between the two spectra
-   * - 69
+   * - 74
      - ``unfold_randomized_kaczmarz``
      - Iterative
      - `max_iterations`, `omega`, `tolerance`, `random_state`
      - —
      - Randomized Kaczmarz (Strohmer & Vershynin 2009): probabilistic row selection with probability ∝ ‖A_i‖², achieving faster convergence than the cyclic variant for ill-conditioned systems
-   * - 70
+   * - 75
      - ``unfold_eki``
      - Bayesian
      - `n_ensemble`, `n_iterations`, `regularization`, `inflation`, `noise_std`, `random_state`
      - —
      - Ensemble Kalman Inversion (Iglesias et al. 2013): Bayesian posterior approximation without MCMC by propagating an ensemble through the forward model and updating via the Kalman gain equation with regularized covariance. See :ref:`math-bayesian`.
-   * - 71
+   * - 76
      - ``unfold_binned``
      - Ensemble/Adaptive
      - `bin_lookup`, `lookup_path`, `timeout_per_method`
      - —
      - Bin-wise adaptive unfolding: for each energy bin, selects the best method from a pre-computed benchmark lookup (67 methods x 271 spectra) and assembles the final spectrum by direct bin-picking; the lookup ships as ``data/bin_lookup.json``
-   * - 72
+   * - 77
      - ``unfold_nnksvd``
      - Dictionary / Sparse
      - `n_atoms`, `sparsity`, `E_MeV`, `dictionary`, `training_signals`, `n_dictionary_iterations`, `lambda_tik`, `prior_wt`, `sparse_coder` (nnls_topk/omp/nn_omp), `tolerance`, `n_nnls_iter`
      - —
      - Non-negative K-SVD unfolding (Xu et al. NIMA 2026, https://doi.org/10.1016/j.nima.2026.172070): non-negative dictionary learning + Tikhonov-regularized NNLS via augmented form (Eq. 2.5/2.6) with three sparse coders — ``nnls_topk`` (proposed), ``omp``, ``nn_omp``; default training signals are log-spaced Gaussian bumps on the energy grid; training-sample prior via ``prior_wt``
-   * - 73
+   * - 78
      - ``unfold_nspline``
      - Maximum entropy / parametric
      - `knots` (preset name / explicit / None), `continuity` (C0C1/C0/none), `relative_uncertainty`, `max_iterations`, `tol`, `step_theta`, `smoothing`, `n_segments`
      - —
      - N-spline unfolding (Islamgulov & Lartsev, Atomic Energy 104(5), 2008): spectrum parameterised by exp(a + q lnE + rE) splines with C0/C1 knot continuity; directed-divergence (MIRD) minimisation loop with per-iteration N-spline smoothing; paper's stopping criteria and ``nev <= 1 + 2/sqrt(N)`` acceptability; BARS-5/IGRIK/YAGUAR knot presets from the paper. See :ref:`math-parametric`.
-   * - 74
+   * - 79
      - ``unfold_mlem_bs``
      - Iterative / Spline
      - `n_basis`, `spline_order`, `beta`, `beta_relative`, `knot_spacing` (auto/uniform/log), `auto_params`, `bootstrap_ci`, `n_bootstrap`, `ci_alpha`, `max_iterations`, `tolerance`
      - —
      - B-spline MLEM (MLEM-BS, Mazankova et al., CNDGS'2026, https://doi.org/10.47459/cndcgs.2026.61): the spectrum is represented in a B-spline basis (effective matrix RB = R B) and the coefficients are found with the regularized MLEM iteration (Eq. 4) with the second-derivative penalty ``P(b) = ||D^(2) b||^2`` (Eq. 5) and the Szkutnik (2005) sieve restriction to non-negative coefficients; iterations, N_s and beta are selected by minimizing the K_S statistic (Eq. 6) with ``auto_params=True``; optional Poisson-bootstrap confidence intervals (Eqs. 7-9). See :doc:`mlem_bs`.
-   * - 75
+   * - 80
      - ``unfold_gnowee``
      - Optimization
      - `population`, `max_gens`, `max_fevals`, `stall_limit`, `conv_tol`, `opt_conv_tol`, `frac_elite`, `frac_levy`, `frac_mutation`, `alpha_levy`, `gamma_levy`, `n_levy`, `scaling_factor`, `init_sampling` (lhc/random), `regularization`, `norm` (1/2), `smoothness_order`, `smoothness_weight`, `entropy_weight`, `half_range`
      - —
      - Gnowee hybrid metaheuristic optimizer (Bevins & Parsons, UC Berkeley / Slaybaugh Lab, https://github.com/SlaybaughLab/Gnowee). Combines Lévy flights (Cuckoo Search via the Mantegna algorithm), golden-ratio crossover (Modified Cuckoo Search / Differential Evolution), scatter search (Egea 2009) and DE-style mutation in an elitist population with Metropolis-Hastings acceptance and stall-driven restarts. Searches in log space, seeded with a Landweber warm-start solution, with a scale-consistent objective combining the relative L2 residual, Tikhonov regularisation, second-difference smoothness and (optionally) negative Shannon entropy. Pure-Python 3 port (no external optimisation library required).
-   * - 76
+   * - 81
      - ``unfold_nnqp``
      - Optimization / QP
      - `regularization`, `smoothness_order` (0/1/2), `smoothness_weight`, `tol`, `max_iterations`, `floor`
      - —
      - Non-Negative Quadratic Programming solver (Giovannucci & Pehlevan, https://github.com/simonsfoundation/NNQP). Coordinate-descent algorithm for ``min 0.5 x^T Q x + f^T x  s.t.  x >= 0``, applied to the regularised BSS least-squares problem ``Q = A^T A + α L^T L + α0 I, f = -A^T b``. Pure-NumPy port of the original `nnqp.py` (which used ``numba``); drops the ``numba`` hard-dependency in favour of a vectorised inner loop. See :ref:`math-tikhonov`.
-   * - 77
+   * - 82
      - ``unfold_qpmad``
      - Optimization / QP
      - `regularization`, `smoothness_order` (0/1/2), `smoothness_weight`, `floor`, `lb`, `ub`, `backend` (python/qpmad), `tol`, `max_iterations`
      - qpmad (optional, for the C++ backend)
      - qpmad-style strictly-convex QP solver (Sherikov, https://github.com/asherikov/qpmad). Solves ``min 0.5 ||A x - b||^2 + α/2 ||L x||^2 + α0/2 ||x||^2  s.t.  lb <= x <= ub`` (default: ``x >= 0``) by recasting it as ``min 0.5 x^T H x + g^T x`` with ``H = A^T A + α L^T L + α0 I`` (symmetric PD). The default ``backend='python'`` uses a self-contained NumPy port of an active-set QP solver (Nocedal & Wright, Numerical Optimization ch. 16.4). When the upstream qpmad C++ library with Python bindings is installed, ``backend='qpmad'`` calls it directly. See :ref:`math-tikhonov`.
-   * - 78
+   * - 83
      - ``unfold_pgd``
      - Optimization course
      - `max_iterations`, `tolerance`, `regularization`, `constraint` (nonnegative/box/simplex), `total_fluence`, `x_max`, `backtracking`, `variance_reduction`
      - —
      - Projected gradient descent (MIPT optimization course, lecture 9 / homework 14): gradient step followed by the Euclidean projection onto the nonnegative orthant, a box or the fluence simplex; optional Armijo backtracking; reports a Lagrange-duality-gap optimality certificate (``duality_gap``).
-   * - 79
+   * - 84
      - ``unfold_frank_wolfe``
      - Optimization course
      - `total_fluence`, `max_iterations`, `tolerance`, `away_steps`, `line_search` (exact/backtracking), `variance_reduction`
      - —
      - Frank-Wolfe conditional gradient (lecture 9): linear minimization oracle over the fluence simplex with Wolfe away-steps and Frank-Wolfe-gap stopping; total fluence preserved exactly at every iterate.
-   * - 80
+   * - 85
      - ``unfold_mirror_descent``
      - Optimization course
      - `mirror_map` (entropy/log/l2/pnorm), `step_size`, `total_fluence`, `regularization`, `p`, `max_iterations`, `tolerance`, `variance_reduction`
      - —
      - Mirror descent in Bregman geometries (lecture 10 / homework 16): the entropy map yields multiplicative updates generalizing MLEM/GRAVEL/SAND-II while preserving total fluence; log-barrier, L2 and p-norm maps; per-iteration golden-section line search.
-   * - 81
+   * - 86
      - ``unfold_admm``
      - Optimization course
      - `l1_penalty`, `tv_penalty`, `rho`, `adaptive_rho`, `max_iterations`, `tolerance`, `variance_reduction`
      - —
      - Consensus ADMM (lecture 11 / homework 18; Boyd et al. 2011): exact NNLS x-update on the augmented system enforces non-negativity at every iteration; soft-thresholding z-updates handle L1/TV penalties; Boyd primal/dual-residual stopping with adaptive rho.
-   * - 82
+   * - 87
      - ``unfold_lbfgsb``
      - Optimization course
      - `regularization`, `smoothness`, `x_min`, `x_max`, `lbfgs_history`, `max_iterations`, `tolerance`, `variance_reduction`
      - —
      - L-BFGS-B quasi-Newton with box bounds (lecture 7 / homework 10): smooth Tikhonov objective with analytic gradients and a second-difference curvature penalty; O(n·history) memory.
-   * - 83
+   * - 88
      - ``unfold_coordinate_descent``
      - Optimization course
      - `l1_penalty`, `l2_penalty`, `selection` (cyclic/random), `max_iterations`, `tolerance`, `variance_reduction`
      - —
      - Coordinate descent for NNLS with L1/L2 penalties (lecture 15): exact closed-form coordinate minimization with O(m) per-coordinate residual updates; cyclic or seeded random order.
-   * - 84
+   * - 89
      - ``unfold_subgradient``
      - Optimization course
      - `l1_penalty`, `tv_penalty`, `step_policy` (polyak/diminishing/fixed), `step_size`, `decay`, `polyak_margin`, `max_iterations`, `tolerance`, `variance_reduction`
      - —
      - Projected subgradient descent for nonsmooth L1/TV objectives (lecture 8 / homework 12): Polyak, diminishing or fixed steps; best iterate by objective value is returned.
-   * - 85
+   * - 90
      - ``unfold_extragradient``
      - Optimization course
      - `noise_level`, `step_size`, `max_iterations`, `tolerance`, `variance_reduction`
      - —
      - Korpelevich extragradient (lecture 13 / homework 20) on the robust saddle formulation ``min_{x>=0} max_{||y||<=1} 1/2||Ax-b||^2 + delta y^T(Ax-b)`` — least squares made robust against measurement noise of L2 norm up to ``delta``.
-   * - 86
+   * - 91
      - ``unfold_osem_anlm``
      - EM family
      - `max_iterations`, `n_subsets`, `tolerance`, `h` (noise level; `None` = automatic MAD estimate), `search_window` (N), `similarity_window` (nu), `alpha`, `anlm_mode` (subset/post), `log_space`, `noise_level`
      - —
      - OSEM-ANLM (Jamaati et al. 2026, Sci. Rep.): ordered-subset EM with the two-stage asymptotic non-local means filter (stage 1 ``h1 = 0.5 sigma``; stage 2 point-wise ``h2(i) = sqrt(sum_j w(i,j)^2 sigma^2)``, article eq. 6) applied after every subset update or once post-reconstruction; log-space filtering by default.
-   * - 87
+   * - 92
      - ``unfold_louhi``
      - Quadratic programming
      - `smoothness`, `smooth_order` (0/1/2), `auto_smooth`, `chi2_target`, `max_iterations`, `tolerance`, `relative_uncertainty`, `variance_reduction`

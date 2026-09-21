@@ -54,6 +54,18 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_docplex.unfold_docplex
 
+.. autofunction:: bssunfold.core.unfold_commercial.unfold_commercial
+
+.. autofunction:: bssunfold.core.unfold_commercial.unfold_gurobi
+
+.. autofunction:: bssunfold.core.unfold_commercial.unfold_mosek
+
+.. autofunction:: bssunfold.core.unfold_commercial.unfold_cplex
+
+.. autofunction:: bssunfold.core.unfold_commercial.unfold_copt
+
+.. autofunction:: bssunfold.core.unfold_commercial.unfold_xpress
+
 .. autofunction:: bssunfold.core.unfold_epic.unfold_epic
 
 .. autofunction:: bssunfold.core.unfold_cs.unfold_cs
@@ -228,6 +240,18 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_scip.solve_scip
 
 .. autofunction:: bssunfold.core.unfold_docplex.solve_docplex
+
+.. autofunction:: bssunfold.core.unfold_commercial.solve_commercial
+
+.. autofunction:: bssunfold.core.unfold_commercial.solve_gurobi
+
+.. autofunction:: bssunfold.core.unfold_commercial.solve_mosek
+
+.. autofunction:: bssunfold.core.unfold_commercial.solve_cplex
+
+.. autofunction:: bssunfold.core.unfold_commercial.solve_copt
+
+.. autofunction:: bssunfold.core.unfold_commercial.solve_xpress
 
 .. autofunction:: bssunfold.core.unfold_epic.solve_epic
 

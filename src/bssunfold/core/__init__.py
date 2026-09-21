@@ -83,6 +83,22 @@ from .unfold_bunkiut import solve_bunkiut, unfold_bunkiut
 from .unfold_cascade import unfold_cascade
 from .unfold_cgls import solve_cgls, unfold_cgls
 from .unfold_combined import unfold_combined
+from .unfold_commercial import (
+    commercial_solver_info,
+    is_commercial_solver_available,
+    solve_commercial,
+    solve_copt,
+    solve_cplex,
+    solve_gurobi,
+    solve_mosek,
+    solve_xpress,
+    unfold_commercial,
+    unfold_copt,
+    unfold_cplex,
+    unfold_gurobi,
+    unfold_mosek,
+    unfold_xpress,
+)
 from .unfold_composite import unfold_composite
 from .unfold_coordinate_descent import (
     solve_coordinate_descent,
@@ -434,6 +450,15 @@ __all__ = [
     "solve_smt",
     "solve_scip",
     "solve_docplex",
+    # license-required commercial QP backends (Gurobi/MOSEK/CPLEX/COPT/XPRESS)
+    "solve_commercial",
+    "solve_gurobi",
+    "solve_mosek",
+    "solve_cplex",
+    "solve_copt",
+    "solve_xpress",
+    "commercial_solver_info",
+    "is_commercial_solver_available",
     "solve_cs",
     "solve_omp",
     "solve_crystal_ball",
@@ -516,6 +541,12 @@ __all__ = [
     "unfold_smt",
     "unfold_scip",
     "unfold_docplex",
+    "unfold_commercial",
+    "unfold_gurobi",
+    "unfold_mosek",
+    "unfold_cplex",
+    "unfold_copt",
+    "unfold_xpress",
     "unfold_cs",
     "unfold_crystal_ball",
     "unfold_rfsp_jul",

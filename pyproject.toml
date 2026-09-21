@@ -84,6 +84,31 @@ docplex = [
     "docplex>=2.28.0",
     "cplex>=22.1.0",
 ]
+# Commercial QP engines (cvxpy ships the interfaces; the engine packages
+# below are proprietary and a license is required — none is distributed
+# with bssunfold).  Deliberately NOT part of the "all" extra.
+gurobi = [
+    "gurobipy>=11.0",
+]
+mosek = [
+    "mosek>=10.1",
+]
+cplex = [
+    "cplex>=22.1.0",
+]
+copt = [
+    "coptpy>=8.0",
+]
+xpress = [
+    "xpress>=9.5",
+]
+commercial = [
+    "bssunfold[gurobi]",
+    "bssunfold[mosek]",
+    "bssunfold[cplex]",
+    "bssunfold[copt]",
+    "bssunfold[xpress]",
+]
 interpret = [
     "pyoptexplain>=0.1.1",
 ]

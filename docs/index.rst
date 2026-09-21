@@ -46,7 +46,7 @@ Features
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation, zfit (Poisson likelihood), full Bayesian MCMC (NUTS via pymc), CUQIpy uncertainty-quantified MCMC (pCN, CWMH, ULA, MALA, NUTS, hierarchical Gibbs with Gamma hyperprior — posterior HPD intervals, ESS/R-hat diagnostics)
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation), IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis)
   - **Statistical Regularisation**: Turchin's method (StatReg), Fortran STREG1 port (Reconst)
-  - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact constraint solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES, NSGA-II via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex), QUBO (quantum-inspired simulated annealing)
+  - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact constraint solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES, NSGA-II via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex), commercial QP engines via cvxpy (Gurobi / MOSEK / CPLEX / COPT / XPRESS, **license required**), QUBO (quantum-inspired simulated annealing)
   - **Advanced proximal**: ODL-style Primal-Dual Hybrid Gradient (PDHG) and Douglas-Rachford splitting with TV (pure-NumPy)
   - **Evolutionary**: MAEO (multi-island NSGA-III / C-TAEA / AGE-MOEA-II / SPEA2 ensemble)
   - **Pipeline**: Combined (chaining), Cascade (sequential coarse-to-fine multi-resolution), Composite (adaptive ensemble / stacked generalization)

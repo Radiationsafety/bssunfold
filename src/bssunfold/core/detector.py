@@ -52,6 +52,21 @@ from .unfold_cascade import (
 )
 from .unfold_cgls import unfold_cgls as unfold_cgls_impl
 from .unfold_combined import unfold_combined as unfold_combined_impl
+from .unfold_commercial import (
+    unfold_copt as unfold_copt_impl,
+)
+from .unfold_commercial import (
+    unfold_cplex as unfold_cplex_impl,
+)
+from .unfold_commercial import (
+    unfold_gurobi as unfold_gurobi_impl,
+)
+from .unfold_commercial import (
+    unfold_mosek as unfold_mosek_impl,
+)
+from .unfold_commercial import (
+    unfold_xpress as unfold_xpress_impl,
+)
 from .unfold_composite import unfold_composite as unfold_composite_impl
 from .unfold_coordinate_descent import (
     unfold_coordinate_descent as unfold_coordinate_descent_impl,
@@ -2269,6 +2284,502 @@ class Detector:
 
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_docplex_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            max_neutron_energy=max_neutron_energy,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_gurobi(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold a neutron spectrum using Gurobi (**license required**).
+
+        Solves the Tikhonov-regularized least-squares QP
+        ``0.5 * ||A x - b||^2 + penalty(x)`` exclusively with the Gurobi
+        engine through its cvxpy interface.  Gurobi is proprietary
+        software: the ``gurobipy`` package with a valid license must be
+        installed (``pip install bssunfold[gurobi]``); none is shipped
+        with bssunfold.  If the engine or license is missing the method
+        warns and returns a zero spectrum (no open-source fallback).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (warm start when supported).
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Upper bound on neutron energy for the spectrum support.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata
+            (``license_required: True``).
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_gurobi_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            max_neutron_energy=max_neutron_energy,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_mosek(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold a neutron spectrum using MOSEK (**license required**).
+
+        Solves the Tikhonov-regularized least-squares QP
+        ``0.5 * ||A x - b||^2 + penalty(x)`` exclusively with the MOSEK
+        engine through its cvxpy interface.  MOSEK is proprietary
+        software: the ``mosek`` package with a valid license (free for
+        students and academics) must be installed
+        (``pip install bssunfold[mosek]``).  If the engine or license is
+        missing the method warns and returns a zero spectrum (no
+        open-source fallback).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (warm start when supported).
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Upper bound on neutron energy for the spectrum support.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata
+            (``license_required: True``).
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_mosek_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            max_neutron_energy=max_neutron_energy,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_cplex(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold a neutron spectrum using IBM ILOG CPLEX (**license required**).
+
+        Solves the Tikhonov-regularized least-squares QP
+        ``0.5 * ||A x - b||^2 + penalty(x)`` exclusively with the CPLEX
+        engine through its cvxpy interface (``pip install
+        bssunfold[cplex]``; IBM Academic Program or Community Edition
+        license required).  For the docplex modeling-layer path use
+        :meth:`unfold_docplex`, which is functionally equivalent.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (warm start when supported).
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Upper bound on neutron energy for the spectrum support.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata
+            (``license_required: True``).
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_cplex_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            max_neutron_energy=max_neutron_energy,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_copt(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold a neutron spectrum using COPT (**license required**).
+
+        Solves the Tikhonov-regularized least-squares QP
+        ``0.5 * ||A x - b||^2 + penalty(x)`` exclusively with the COPT
+        engine (Cardinal Optimizer) through its cvxpy interface.  COPT is
+        proprietary software: the ``coptpy`` package with a valid license
+        (free academic licenses available) must be installed
+        (``pip install bssunfold[copt]``).  If the engine or license is
+        missing the method warns and returns a zero spectrum (no
+        open-source fallback).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (warm start when supported).
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Upper bound on neutron energy for the spectrum support.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata
+            (``license_required: True``).
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_copt_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=self.n_energy_bins,
+            E_MeV=self.E_MeV,
+            sensitivities=self.sensitivities,
+            cc_icrp116=self._get_interpolated_cc(),
+            save_result_callback=self._save_result,
+            readings=readings,
+            max_neutron_energy=max_neutron_energy,
+            initial_spectrum=initial_spectrum,
+            regularization=regularization,
+            norm=norm,
+            timeout=timeout,
+            smoothness_order=smoothness_order,
+            smoothness_weight=smoothness_weight,
+            nonneg=nonneg,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            regularization_method=regularization_method,
+            noise_var=noise_var,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_xpress(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        regularization: float = 1e-4,
+        norm: int = 2,
+        timeout: float = 10.0,
+        smoothness_order: int = 0,
+        smoothness_weight: float = 1.0,
+        nonneg: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        regularization_method: str = "manual",
+        noise_var: float | None = None,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold a neutron spectrum using FICO Xpress (**license required**).
+
+        Solves the Tikhonov-regularized least-squares QP
+        ``0.5 * ||A x - b||^2 + penalty(x)`` exclusively with the Xpress
+        engine through its cvxpy interface.  Xpress is proprietary
+        software: the ``xpress`` package with a valid license (community
+        edition available) must be installed (``pip install
+        bssunfold[xpress]``).  If the engine or license is missing the
+        method warns and returns a zero spectrum (no open-source fallback).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : np.ndarray, optional
+            Initial spectrum guess (warm start when supported).
+        regularization : float, optional
+            Regularization parameter, default: 1e-4.
+        norm : int, optional
+            Norm type (1 for L1, 2 for L2), default: 2.
+        timeout : float, optional
+            Time limit in seconds, default: 10.0.
+        smoothness_order : int, optional
+            Smoothness constraint order (0, 1, or 2), default: 0.
+        smoothness_weight : float, optional
+            Weight for the smoothness term, default: 1.0.
+        nonneg : bool, optional
+            Constrain the spectrum to be non-negative, default: True.
+        calculate_errors : bool, optional
+            If True, calculate Monte-Carlo uncertainty, default: False.
+        noise_level : float, optional
+            Noise level for Monte-Carlo, default: 0.01.
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples, default: 100.
+        save_result : bool, optional
+            Save result to history, default: False.
+        regularization_method : str, optional
+            Method for selecting the regularization parameter
+            ('manual', 'cosine', 'lcurve', 'gcv', 'dp'), default: 'manual'.
+        noise_var : float, optional
+            Noise variance for discrepancy principle ('dp' method).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Upper bound on neutron energy for the spectrum support.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results including spectrum, residuals, and metadata
+            (``license_required: True``).
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_xpress_impl(
             detector_names=self.detector_names,
             n_energy_bins=self.n_energy_bins,
             E_MeV=self.E_MeV,
