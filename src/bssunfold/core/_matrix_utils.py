@@ -383,10 +383,10 @@ def estimate_total_fluence(
             total = float(np.sum(x_nnls * np.asarray(ln_steps, dtype=float)))
         else:
             total = float(x_nnls.sum())
-        if np.isfinite(total) and total > 0.0:
-            return total
-    except Exception:
-        pass
+    except Exception:  # nnls failure must not break fluence estimation
+        total = 0.0
+    if np.isfinite(total) and total > 0.0:
+        return total
     # fallback: uniform-response heuristic
     mean_response = max(float(np.mean(A)), 1e-30)
     return float(np.mean(b) / mean_response * n)

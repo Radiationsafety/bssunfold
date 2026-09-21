@@ -59,18 +59,19 @@ def _load_pymc() -> Any:
         The ``(pm, az)`` modules, or ``(None, None)`` when unavailable.
     """
     global _pm, _az, _pymc_checked
-    import sys as _sys
 
     if not _pymc_checked:
         # Preserve previous values so that blocked-import test fixtures
         # (which only reset ``_pm`` / ``_pymc_checked`` but not ``_az``)
         # don't silently lose the arviz reference.
         _prev_pm, _prev_az = _pm, _az
-        # When re-checking (e.g. after an external reset of _pymc_checked),
-        # purge any cached entries so that blocked-import test fixtures
-        # (which patch builtins.__import__) can actually intercept the import.
-        for _mod_name in ("pymc", "arviz"):
-            _sys.modules.pop(_mod_name, None)
+        # NOTE: do NOT purge ``sys.modules['pymc']`` here.  ``block_import``
+        # fixtures patch ``builtins.__import__``, which intercepts even
+        # cached modules; popping instead left pymc evicted while its
+        # submodules stayed cached, so a later re-import executed
+        # ``pymc/__init__`` against a half-warm cache and produced a
+        # cross-bound module state whose internal ``pm.NUTS`` lookups
+        # raised (observed on macOS with pymc >= 6).
         try:
             import arviz as _az_mod
             import pymc as _pm_mod
@@ -252,6 +253,13 @@ def _run_nuts_pymc(
     ``return_inferencedata`` argument was dropped once InferenceData became
     the only return type).  We first try the richest argument set and retry
     without the legacy keyword when the installed version rejects it.
+
+    As a second safety net, a failure inside PyMC's own NUTS resolution
+    (``AttributeError: module 'pymc' has no attribute 'NUTS'``, possible
+    when the top-level ``pymc`` module is in a partially initialized state)
+    is retried with an explicit step built from the always-complete
+    ``pymc.step_methods`` submodule, which also skips the internal
+    ``init_nuts`` lookup that failed.
     """
     pm, _ = _resolve_backends()
     kwargs = {
@@ -264,12 +272,24 @@ def _run_nuts_pymc(
         "return_inferencedata": True,
     }
     try:
+        try:
+            with model:
+                return pm.sample(**kwargs)
+        except TypeError:
+            kwargs.pop("return_inferencedata", None)
+            with model:
+                return pm.sample(**kwargs)
+    except AttributeError as exc:
+        if "NUTS" not in str(exc):
+            raise
+        step_methods = getattr(pm, "step_methods", None)
+        if step_methods is None or not hasattr(step_methods, "NUTS"):
+            import pymc.step_methods as step_methods  # noqa: F811
+
+        step = step_methods.NUTS(model=model, target_accept=target_accept)
+        retry_kwargs = {k: v for k, v in kwargs.items() if k != "target_accept"}
         with model:
-            return pm.sample(**kwargs)
-    except TypeError:
-        kwargs.pop("return_inferencedata", None)
-        with model:
-            return pm.sample(**kwargs)
+            return pm.sample(step=step, **retry_kwargs)
 
 
 def solve_bayesian_mcmc(

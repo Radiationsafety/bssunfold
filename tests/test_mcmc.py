@@ -7,6 +7,7 @@ the ImportError fallback in all environments.
 """
 
 import importlib
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ import numpy as np
 import pytest
 
 from bssunfold import Detector
+from tests.conftest import block_import
 
 MOD = importlib.import_module("bssunfold.core.unfold_mcmc")
 
@@ -71,6 +73,12 @@ class _FakeTrace:
         self.posterior = {"spectrum": SimpleNamespace(values=values)}
 
 
+class _FakeNUTS:
+    def __init__(self, *vars, model=None, **kwargs):
+        self.model = model
+        self.kwargs = kwargs
+
+
 class FakePM:
     """Drop-in replacement exposing the pm.* surface used by unfold_mcmc."""
 
@@ -82,17 +90,27 @@ class FakePM:
         lambda name, value, dims=None: _FakeRV(name, value=value, dims=dims)
     )
     math = _FakeMath()
+    step_methods = SimpleNamespace(NUTS=_FakeNUTS)
 
-    def __init__(self, values=None, fail_inferencedata=False, raise_on_sample=False):
+    def __init__(
+        self,
+        values=None,
+        fail_inferencedata=False,
+        raise_on_sample=False,
+        nuts_attribute_error=False,
+    ):
         self.values = values
         self.fail_inferencedata = fail_inferencedata
         self.raise_on_sample = raise_on_sample
+        self.nuts_attribute_error = nuts_attribute_error
         self.sample_calls = []
 
     def sample(self, **kwargs):
         self.sample_calls.append(dict(kwargs))
         if self.raise_on_sample:
             raise RuntimeError("sampler exploded")
+        if self.nuts_attribute_error and "step" not in kwargs:
+            raise AttributeError("module 'pymc' has no attribute 'NUTS'")
         if self.fail_inferencedata and "return_inferencedata" in kwargs:
             raise TypeError("unexpected keyword argument 'return_inferencedata'")
         assert kwargs["draws"] >= 1 and kwargs["tune"] >= 0
@@ -326,6 +344,92 @@ def test_solve_bayesian_mcmc_sampling_error(monkeypatch):
             tune=5,
             chains=1,
         )
+
+
+def test_run_nuts_pymc_falls_back_to_explicit_step(monkeypatch):
+    # Regression (macOS CI, pymc 6): the internal NUTS resolution can fail
+    # with "module 'pymc' has no attribute 'NUTS'" on a partially
+    # initialized top-level pymc module.  _run_nuts_pymc must retry with an
+    # explicit step built from pm.step_methods and target_accept baked in.
+    fake_pm = FakePM(
+        values=np.full((1, 10, 6), 0.5), nuts_attribute_error=True
+    )
+    _install_fakes(monkeypatch, fake_pm)
+    monkeypatch.setattr(MOD, "_pymc_checked", True)
+    model = _FakeModel()
+
+    trace = MOD._run_nuts_pymc(
+        model,
+        n_samples=10,
+        tune=5,
+        chains=1,
+        target_accept=0.9,
+        random_state=1,
+        progressbar=False,
+    )
+
+    assert isinstance(trace, _FakeTrace)
+    assert len(fake_pm.sample_calls) == 2
+    first, second = fake_pm.sample_calls
+    assert first["target_accept"] == 0.9
+    assert "step" not in first
+    assert "target_accept" not in second
+    step = second["step"]
+    assert isinstance(step, _FakeNUTS)
+    assert step.model is model
+    assert step.kwargs["target_accept"] == 0.9
+
+
+def test_run_nuts_pymc_reraises_unrelated_attribute_error(monkeypatch):
+    fake_pm = FakePM(values=np.full((1, 10, 6), 0.5))
+
+    def _boom(**kwargs):
+        raise AttributeError("model has no attribute 'logp'")
+
+    fake_pm.sample = _boom
+    _install_fakes(monkeypatch, fake_pm)
+    monkeypatch.setattr(MOD, "_pymc_checked", True)
+
+    with pytest.raises(AttributeError, match="logp"):
+        MOD._run_nuts_pymc(
+            _FakeModel(),
+            n_samples=10,
+            tune=5,
+            chains=1,
+            target_accept=0.9,
+            random_state=1,
+            progressbar=False,
+        )
+
+
+def test_load_pymc_blocked_import_keeps_sys_modules():
+    # Regression: _load_pymc used to purge sys.modules['pymc'/'arviz'] on
+    # every re-check.  When the re-import was blocked by a test fixture, the
+    # eviction survived for the whole pytest session: pymc submodules stayed
+    # cached while the top-level module was gone, and the next real
+    # re-import produced a cross-bound module state that broke pm.sample on
+    # macOS with pymc >= 6.  A failed load must leave sys.modules untouched.
+    if "pymc" not in sys.modules:
+        pytest.skip("pymc not installed")
+
+    saved_pm = MOD.__dict__.get("_pm")
+    saved_az = MOD.__dict__.get("_az")
+    saved_checked = MOD.__dict__.get("_pymc_checked")
+    original = sys.modules["pymc"]
+    original_az = sys.modules.get("arviz")
+    try:
+        MOD.__dict__["_pm"] = None
+        MOD.__dict__["_pymc_checked"] = False
+        with block_import("pymc"):
+            with block_import("arviz"):
+                assert MOD._check_pymc_available() is False
+        assert sys.modules.get("pymc") is original
+        if original_az is not None:
+            assert sys.modules.get("arviz") is original_az
+    finally:
+        MOD.__dict__["_pm"] = saved_pm
+        MOD.__dict__["_az"] = saved_az
+        MOD.__dict__["_pymc_checked"] = saved_checked
 
 
 # ---------------------------------------------------------------------------
