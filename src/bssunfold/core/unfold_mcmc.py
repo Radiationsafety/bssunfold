@@ -540,7 +540,7 @@ def unfold_mcmc(
     - Prior: f = exp(theta) with theta ~ MvNormal(mu_prior, s * C_ou),
       where mu_prior is the log of the data-driven prior center
       (non-negative least-squares solution or user ``initial_spectrum``),
-      C_ou is the OU correlation exp(-|i-j|/lengthscale), and
+      C_ou is the OU correlation ``exp(-|i-j|/lengthscale)``, and
       s ~ HalfNormal(lambda_prior).
     - Hyperpriors (optional): when ``use_hierarchical=True`` the relative
       likelihood noise is estimated as rel_noise ~ HalfNormal(sigma_prior).
@@ -600,6 +600,7 @@ def unfold_mcmc(
     -------
     Dict[str, Any]
         Unfolding results dictionary containing:
+
         - 'energy': Energy grid (MeV)
         - 'spectrum': Mean posterior spectrum
         - 'spectrum_absolute': Same as spectrum (for API consistency)

@@ -6086,6 +6086,7 @@ class Detector:
         -------
         dict
             Standardized result dictionary containing:
+
             - 'energy': Energy grid in MeV
             - 'spectrum': Unfolded spectrum (non-negative)
             - 'spectrum_absolute': Absolute flux values
@@ -6095,17 +6096,20 @@ class Detector:
             - 'method': 'MAEO'
             - 'doserates': Dose rates calculated from spectrum
             - 'maeo_info': Dictionary with MAEO-specific information:
+
                 - 'n_cycles': Number of cycles executed
                 - 'best_algorithm': Name of best-performing algorithm
                 - 'hypervolume_history': HV history for each island
                 - 'population_history': Population sizes per island per cycle
                 - 'algorithms_used': List of algorithms used
+
             - 'maeo_pareto_front': Final Pareto front objectives (if available)
             - 'maeo_objectives': Objectives for selected solution
 
         Notes
         -----
         The MAEO framework optimizes multiple objectives simultaneously:
+
         1. Minimize data fidelity error ||b - A*phi||^2 / ||b||^2
         2. Minimize spectrum roughness ||D2 * phi||^2 (second derivative)
         3. (Optional) Minimize deviation from prior spectrum
@@ -6114,6 +6118,7 @@ class Detector:
         knee-point detection method to balance accuracy and smoothness.
 
         The algorithm runs in two phases:
+
         1. Migration phase: All islands run in parallel, with individuals migrating
            toward better-performing islands based on hypervolume indicators.
         2. Convergence phase: Only the best-performing island continues, focusing

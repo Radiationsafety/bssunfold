@@ -226,8 +226,8 @@ def build_bin_lookup(
     Returns
     -------
     dict
-        ``{"bin_to_methods": {bin_idx: [(method_short, score), ...]},
-           "unique_methods": [...], "n_bins": n_bins}``
+        Dict with keys ``bin_to_methods`` (bin index -> list of
+        ``(method_short, score)`` pairs), ``unique_methods`` and ``n_bins``.
     """
     from pathlib import Path as _P
 

@@ -245,8 +245,6 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_directed_divergence.solve_directed_divergence
 
-.. autofunction:: bssunfold.core.unfold_directed_divergence.solve_directed_divergence
-
 .. autofunction:: bssunfold.core.unfold_kaczmarz.solve_kaczmarz
 
 .. autofunction:: bssunfold.core.unfold_lmfit.solve_lmfit
@@ -302,8 +300,6 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_sart.solve_sart
 
 .. autofunction:: bssunfold.core.unfold_ferdor.solve_ferdor
-
-.. autofunction:: bssunfold.core.unfold_express.solve_express
 
 .. autofunction:: bssunfold.core.unfold_rebunki.solve_rebunki
 

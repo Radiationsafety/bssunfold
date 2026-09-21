@@ -20,6 +20,21 @@ The interpretation solves the *same* unfolding QP used by
 but keeps the solver internals, dual variables and perturbation results, and
 turns them into a human-readable report plus quantitative metrics.
 
+**Terms.**  A *dual variable* (multiplier) :math:`\lambda_i` measures
+how much the optimal objective would improve per unit relaxation of
+constraint :math:`i`; for a minimisation problem with constraint
+:math:`x_i \ge 0` a positive dual means the data would benefit from
+:math:`x_i < 0`.  *Shadow price* is the practical name of such a dual
+in economics and optimisation (Boyd and Vandenberghe, 2004;
+`doi:10.1017/CBO9780511804441 <https://doi.org/10.1017/CBO9780511804441>`__).
+The *condition number* of the QP matrix, the *active set* (constraints
+holding with equality at the optimum) and the *regularisation sweep*
+are defined in :ref:`math-selection`.
+
+For the Bayesian counterpart of these diagnostics — global
+uncertainty per bin instead of local perturbations — see the
+CUQIpy interpretability section in :doc:`cuqi_bayes`.
+
 What the interpretation answers
 -------------------------------
 

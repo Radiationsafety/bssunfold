@@ -37,6 +37,18 @@ unchanged.
 Bayesian model
 --------------
 
+**Terms.**  *Posterior distribution*
+:math:`p(\boldsymbol{\theta} \mid b)` — the probability density of the
+model parameters (here the log-spectrum) after the measurements are
+taken; it combines the *likelihood* :math:`p(b \mid \theta)` with the
+*prior* :math:`p(\theta)` via Bayes' theorem.  *Credible interval* —
+an interval containing a stated fraction (e.g. 95 %) of the posterior
+mass; unlike a frequentist confidence interval it makes a direct
+probabilistic statement about the spectrum itself
+(Gelman et al., 2013).  *HPD (highest posterior density) interval* —
+the shortest credible interval at a given level; every point inside an
+HPD interval has higher posterior density than any point outside it.
+
 The unknown spectrum is modelled on the log scale,
 
 .. math::
@@ -115,6 +127,147 @@ plus a ``cuqi_stats`` sub-dictionary with the sampling diagnostics:
   (hierarchical samplers only);
 * ``prior_center`` — the NNLS-anchored prior center.
 
+Interpreting the posterior (CUQIpy interpretability)
+-----------------------------------------------------
+
+A point estimate from a classical solver answers *"what spectrum fits
+the data?"*; the CUQIpy posterior answers the interpretability
+questions a point estimate cannot:
+
+* *How uncertain is each energy bin?* — the per-bin posterior standard
+  deviation and the HPD interval width.  Bins whose HPD interval spans
+  decades are not resolved by the sphere set; narrow intervals flag
+  data-determined regions.  This is the Bayesian counterpart of the
+  local detector-sensitivity analysis of :doc:`interpretation`, but it
+  is *global*: it marginalises over all parameter directions at once
+  instead of perturbing one reading at a time (Tarantola, 2005).
+* *Are the reported uncertainties trustworthy?* — only if the MCMC
+  chains have converged and are long enough.  Check ``rhat`` and
+  ``ess`` (below) before quoting any credible interval.
+* *Which smoothness prior does the data support?* — with the
+  hierarchical samplers the posterior of the smoothness precision
+  ``delta_samples`` shows which smoothness levels the measurements
+  themselves favour, a data-driven regularisation choice rather than a
+  hand-tuned :math:`\alpha` (Gelman et al., 2013).
+* *Is the non-negativity constraint distorting the result?* — the
+  log-scale parameterisation :math:`f = \exp(\theta)` enforces
+  positivity exactly, so the posterior mass can never cross zero; a
+  posterior concentrated far from zero means the constraint is
+  inactive, while a posterior piling up at the lower edge flags the
+  same "artificial corner" that the shadow-price analysis of
+  :doc:`interpretation` detects for QP solvers.
+
+Diagnostics and how to read them
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* **Gelman-Rubin :math:`\hat R`** (``cuqi_stats["rhat"]``) compares the
+  between-chain variance :math:`B` with the within-chain variance
+  :math:`W` of :math:`m` chains of length :math:`n`:
+
+  .. math::
+
+     \hat V = \frac{n-1}{n}\,W + \frac{B}{n},
+     \qquad
+     \hat R = \sqrt{\hat V / W}.
+
+  :math:`\hat R \approx 1` means the chains agree — they sample the
+  same posterior.  :math:`\hat R > 1.1` is a hard warning: the credible
+  intervals are unreliable and the run needs more samples or a better
+  tuned sampler (Gelman and Rubin, 1992).  The rank-normalised
+  split-:math:`\hat R` computed by ArviZ, used here, is the modern
+  standard with the stricter practical threshold
+  :math:`\hat R < 1.01` (Vehtari et al., 2021).
+
+* **Effective sample size (ESS)** (``cuqi_stats["ess"]``) converts
+  :math:`N` correlated MCMC draws into the number of *independent*
+  draws that would carry the same information,
+  :math:`\mathrm{ESS} = N / (1 + 2\sum_t \rho_t)` with :math:`\rho_t`
+  the autocorrelation at lag :math:`t` (Vehtari et al., 2021).
+  An ESS below a few hundred means the reported posterior mean is
+  itself noisy — increase ``n_samples`` or ``thin``.  ESS also
+  quantifies *why* one sampler beats another: NUTS typically achieves
+  a much higher ESS per draw than random-walk pCN on the strongly
+  correlated unfolding posterior, at a higher cost per step
+  (Hoffman and Gelman, 2014).
+
+* **Acceptance rate** (``cuqi_stats["acc_rate"]``) — the fraction of
+  proposals accepted.  For random-walk samplers the optimal regime is
+  roughly 0.2-0.5 (Roberts et al., 1997); near 1 means tiny steps
+  (slow exploration, low ESS), near 0 means the chain is stuck.
+  NUTS adapts its step size to a target acceptance automatically
+  (Hoffman and Gelman, 2014).
+
+* **HPD width vs. bin energy** — plot
+  ``result["spectrum_upper"] - result["spectrum_lower"]`` on a log
+  scale: a narrow plateau means the spectrum shape is identified where
+  the sphere responses overlap; flaring wings mark the thermal and
+  high-energy edges where the Bonner sphere set loses resolution
+  (Thomas and Alevra, 2002).
+
+Relation to the pyoptexplain interpretation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:doc:`interpretation` (pyoptexplain) explains the *optimisation*
+problem — which constraints bind, what each detector is worth — by
+analysing the solved QP.  CUQIpy explains the *inference* problem —
+how much of the spectrum is actually determined by the data.  They are
+complementary views of the same underdetermined system:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Question
+     - pyoptexplain (:doc:`interpretation`)
+     - CUQIpy (``unfold_cuqi``)
+   * - Is the solution stable?
+     - ±1-5 % reading perturbation tests
+     - Posterior std / HPD width per bin
+   * - Which detectors matter?
+     - One-at-a-time detector importance
+     - Global marginalisation over all directions
+   * - Is :math:`x \ge 0` distorting?
+     - Shadow prices / non-negativity relaxation
+     - Posterior mass position near zero
+   * - Is the regularisation right?
+     - :math:`\alpha` sweep of point solutions
+     - Hierarchical posterior of the smoothness precision
+   * - Convergence certificate
+     - Solver status, KKT residuals
+     - :math:`\hat R < 1.01`, ESS, acceptance rate
+
+Example: quantify which bins are data-determined
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from bssunfold import Detector
+
+   det = Detector()
+   result = det.unfold_cuqi(
+       readings,
+       sampler="gibbs_nuts",
+       prior="gmrf",
+       hierarchical=True,
+       n_samples=2000,
+       n_burnin=1000,
+       chains=2,
+       credible_level=95.0,
+       random_state=42,
+   )
+   stats = result["cuqi_stats"]
+
+   # 1) Convergence gate: only trust intervals after this passes
+   assert stats["rhat"] < 1.01 and stats["ess"] > 200
+
+   # 2) Per-bin relative uncertainty = interpretability map
+   rel_unc = result["spectrum_uncertainty"] / result["spectrum"]
+   # bins with rel_unc << 1 are data-determined;
+   # bins with rel_unc ~ 1 are prior-dominated.
+
+   # 3) HPD width per bin (log-scale view)
+   hpd_width = result["spectrum_upper"] - result["spectrum_lower"]
+
 Example
 -------
 
@@ -151,7 +304,33 @@ References
 
 * CUQIpy: *CUQIpy — Computational Uncertainty Quantification for
   Inverse Problems*, DTU, https://github.com/CUQI-DTU/CUQIpy
+* Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A.,
+  Rubin, D. B. (2013). *Bayesian Data Analysis*, 3rd ed. CRC Press.
+  `doi:10.1201/b16018 <https://doi.org/10.1201/b16018>`__
+* Gelman, A. & Rubin, D. B. (1992). *Inference from iterative
+  simulation using multiple sequences*, Statistical Science 7(4),
+  457-472. `doi:10.1214/ss/1177011136
+  <https://doi.org/10.1214/ss/1177011136>`__
+* Hoffman, M. D., Gelman, A. (2014). The No-U-Turn sampler:
+  adaptively setting path lengths in Hamiltonian Monte Carlo.
+  *J. Machine Learning Research* **15**, 1593-1623.
 * Riis, N. A. B. et al. (2019). *pCN sampling for Bayesian inverse
   problems* (preconditioned Crank-Nicolson in CUQI/CUQIpy).
-* Gelman, A. & Rubin, D. B. (1992). *Inference from iterative
-  simulation using multiple sequences*, Statistical Science 7(4).
+* Roberts, G. O., Gelman, A., Gilks, W. R. (1997). Weak convergence
+  and optimal scaling of random walk Metropolis algorithms.
+  *Ann. Appl. Probab.* **7**, 110-120.
+  `doi:10.1214/aoap/1034625254
+  <https://doi.org/10.1214/aoap/1034625254>`__
+* Tarantola, A. (2005). *Inverse Problem Theory and Methods for Model
+  Parameter Estimation*. SIAM.
+  `doi:10.1137/1.9780898717791
+  <https://doi.org/10.1137/1.9780898717791>`__
+* Thomas, D. J., Alevra, A. V. (2002). Bonner sphere spectrometers — a
+  critical review. *Nucl. Instrum. Meth. A* **476**, 12-20.
+  `doi:10.1016/S0168-9002(01)01379-1
+  <https://doi.org/10.1016/S0168-9002(01)01379-1>`__
+* Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., Bürkner, P.-C.
+  (2021). Rank-normalization, folding, and localization: an improved
+  :math:`\hat R` for assessing convergence of MCMC. *Bayesian
+  Analysis* **16**, 667-718. `doi:10.1214/20-BA1221
+  <https://doi.org/10.1214/20-BA1221>`__

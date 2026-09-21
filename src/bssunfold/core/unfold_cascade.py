@@ -349,8 +349,8 @@ def unfold_cascade(
     dict
         Result dictionary with the final ``spectrum`` and metadata
         (``stages_run``, ``method_sequence``, ``convergence_history``,
-         ``quality_metrics``, ``intermediate_results``, ``status``,
-         ``message``).
+        ``quality_metrics``, ``intermediate_results``, ``status``,
+        ``message``).
     """
     if cascade_stages is None:
         cascade_stages = create_default_cascade("general")
