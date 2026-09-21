@@ -6,6 +6,66 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
+## [Unreleased]
+
+### Added
+
+- **License-required commercial QP solver methods** — five new unfolding
+  methods `unfold_gurobi`, `unfold_mosek`, `unfold_cplex`, `unfold_copt`
+  and `unfold_xpress` (plus `solve_gurobi`, `solve_mosek`, `solve_cplex`,
+  `solve_copt`, `solve_xpress`), driving the proprietary engines of
+  Gurobi, MOSEK, IBM CPLEX, Cardinal Optimizer (COPT) and FICO Xpress
+  through their cvxpy interfaces. Each method solves the same
+  Tikhonov-regularized non-negative least-squares QP as the open-source
+  path (`0.5*||A x - b||^2` plus an identity *or* derivative penalty,
+  L1/L2 norm options, Monte-Carlo uncertainty, `max_neutron_energy`
+  support). **License required**: bssunfold never ships or checks a
+  license; the engine package (`gurobipy`, `mosek`, `cplex`, `coptpy`,
+  `xpress`) must be installed and licensed on the machine. Unlike
+  `unfold_cvxpy` there is **no open-source fallback** — a missing engine
+  or license warns and yields a zero spectrum, so results always come
+  from the licensed engine that was requested.
+- New general entry points `solve_commercial` / `unfold_commercial`
+  taking a `solver=` alias, and metadata helpers
+  `commercial_solver_info` / `is_commercial_solver_available`; the five
+  public wrappers are pre-bound partials of these. New file
+  `core/unfold_commercial.py` with the shared QP backend
+  `core/_commercial_qp.py` (cvxpy `quad_form` build + solve, kwargs
+  retry, non-optimal/license-error handling).
+- New `Detector` methods `unfold_gurobi`, `unfold_mosek`,
+  `unfold_cplex`, `unfold_copt`, `unfold_xpress` (full canonical
+  signatures); all names registered in `core/__init__.py`.
+- New optional extras in `pyproject.toml`: `[gurobi]`, `[mosek]`,
+  `[cplex]`, `[copt]`, `[xpress]` and the aggregate `[commercial]` —
+  deliberately **not** included in `[all]` because they are
+  license-required proprietary packages (`pip install
+  "bssunfold[commercial]"` after obtaining licenses).
+- `platform_check`: new `check_commercial_solvers_availability()`
+  (probes cvxpy `installed_solvers()` for the five engines, cached in
+  `COMMERCIAL_SOLVERS_AVAILABLE`) and per-solver entries in
+  `get_available_solvers()`.
+- New test file `tests/test_commercial.py` (63 tests): solver metadata
+  and alias validation, graceful zero-spectrum + warning behaviour for
+  unavailable engines (each missing engine exercised via
+  `block_import`), ill-formed input and norm guards (`norm=1` requires
+  `nonneg`), end-to-end numerics with the licensed CPLEX engine where
+  installed (L2/L1/smoothness/`ub`/warm start, agreement with a
+  tight-tolerance qpsolvers reference, objective equality), solver
+  failure paths (mocked `Problem.solve` errors and non-optimal
+  status), Monte-Carlo/`save_result`/`regularization_method` integration
+  and `max_neutron_energy` masking. The commercial methods are wired
+  into `tests/test_all_unfold_methods_api.py` with auto-skip when the
+  engine package is not installed (CPLEX runs for real in the dev
+  environment).
+
+### Documentation
+
+- README, `docs/index.rst`, `docs/overview.rst`, `docs/examples.rst`,
+  `docs/math_formulation.rst` and `docs/detector.rst` updated with the
+  five license-required methods (method tables, mermaid family maps,
+  variational-formulation section, autodoc entries, installation extras
+  with explicit **license required** notes); method count 94 → 99.
+
 ## [0.28.0] - 2026-09-21
 
 ### Added

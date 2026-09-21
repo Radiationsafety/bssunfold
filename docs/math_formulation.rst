@@ -173,7 +173,9 @@ Methods: ``unfold_cvxpy``, ``unfold_qpsolvers``, ``unfold_tikhonov_tv``,
 ``unfold_tikhonov_legendre``, ``unfold_statreg``, ``unfold_reconst``,
 ``unfold_epic``, ``unfold_scipy_direct_method``, ``unfold_cs``,
 ``unfold_nnksvd``, ``unfold_docplex``, ``unfold_scip``, ``unfold_smt``,
-``unfold_qubo``, ``unfold_interpret``.
+``unfold_qubo``, ``unfold_interpret``, and the license-required commercial
+engines ``unfold_gurobi``, ``unfold_mosek``, ``unfold_cplex``,
+``unfold_copt``, ``unfold_xpress``.
 
 The generic penalised objective is
 
@@ -214,6 +216,20 @@ solutions may be non-unique along flat segments.  The statement
 "unique for :math:`\alpha > 0`" therefore applies only to the
 :math:`p = 2` (quadratic) case above.  ``unfold_tikhonov_tv`` uses the
 standard smoothed-TV approximation to retain differentiability.
+
+**Commercial engines (license required).**  ``unfold_gurobi``,
+``unfold_mosek``, ``unfold_cplex``, ``unfold_copt`` and
+``unfold_xpress`` solve exactly the quadratic problem above — the same
+``min 0.5 x'Px + q'x`` form as ``unfold_qpsolvers`` with
+:math:`\mathbf{P} = \mathbf{R}^T\mathbf{R} + \alpha\mathbf{I}` (identity
+**or** derivative penalty, never both) and :math:`\mathbf{q} =
+-\mathbf{R}^T\mathbf{N}` (plus :math:`\alpha\mathbf{1}` for :math:`p =
+1`) — routed through cvxpy to the proprietary QP engine.  There is no
+open-source fallback: if the engine package or its license is missing
+the solver warns and returns a zero spectrum, so results are only
+produced by the licensed engine itself.  The general theory (existence,
+uniqueness for :math:`p = 2`) applies unchanged; the engines differ only
+in numerics (interior point vs. simplex-based QP) and licence terms.
 
 **Closed-form statistical regularisation.**  ``unfold_statreg``
 (Turchin's method, cf. the RECONST algorithm ported by

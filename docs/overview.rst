@@ -91,6 +91,11 @@ categories:
         G --> G5["unfold_genetic"]
         G --> G7["unfold_scip"]
        G --> G8["unfold_docplex"]
+       G --> G11["unfold_gurobi (license)"]
+       G --> G12["unfold_mosek (license)"]
+       G --> G13["unfold_cplex (license)"]
+       G --> G14["unfold_copt (license)"]
+       G --> G15["unfold_xpress (license)"]
         G --> G9["unfold_epic"]
         G --> G10["unfold_qubo"]
 

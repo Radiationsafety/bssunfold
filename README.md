@@ -36,7 +36,7 @@
 
 ## 📦 Features
 
-- **Multiple Unfolding Algorithms** (94 methods):
+- **Multiple Unfolding Algorithms** (99 methods):
   - **Optimization-course methods** (MIPT OPTIMIZATION-METHODS-COURSE port): Projected Gradient Descent (orthant/box/simplex + duality-gap certificate), Frank-Wolfe conditional gradient (away steps, exact fluence preservation), Mirror Descent (entropy/log/l2/pnorm Bregman geometries generalizing MLEM/GRAVEL), consensus ADMM (exact NNLS x-update with L1/TV penalties), L-BFGS-B quasi-Newton (box bounds + curvature smoothing), Coordinate Descent (NNLS with L1/L2, cyclic/random), Subgradient methods (Polyak/diminishing steps), Extragradient (Korpelevich saddle formulation for robust unfolding), golden-section/dichotomy/Brent 1D search (`select_regularization_1d`), antithetic/control-variate Monte-Carlo variance reduction, and NNLS duality-gap/KKT diagnostics
   - **Tikhonov-type**: CVXPY, qpsolvers, Legendre basis, TSVD (truncated SVD, selectable LAPACK/ARPACK/PROPACK backends), EPIC (Equal Posterior Information Condition), P-spline REML (mixed-model smoothing with automatic REML smoothing selection)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES, AMG-Krylov (AMG / Jacobi / Gauss-Seidel / SOR / SSOR preconditioning)
@@ -344,6 +344,11 @@ graph TD
     G --> G5[unfold_genetic]
     G --> G6[unfold_scip]
     G --> G7[unfold_docplex]
+    G --> G71[unfold_gurobi (license)]
+    G --> G72[unfold_mosek (license)]
+    G --> G73[unfold_cplex (license)]
+    G --> G74[unfold_copt (license)]
+    G --> G75[unfold_xpress (license)]
     G --> G8[unfold_epic]
 
     M --> M1[unfold_pgd]
@@ -965,7 +970,7 @@ bssunfold/
             ├── _numba_jit.py        # Numba JIT inner loops
             ├── _parametric_shared.py # Shared parametric constants
             ├── _solver_backends.py  # Shared solver-backend resolution
-            ├── detector.py          # Main Detector class (94 unfold_* methods)
+            ├── detector.py          # Main Detector class (99 unfold_* methods)
             ├── dose_calculation.py
             ├── regularization.py    # L-curve, GCV, DP, cosine, NCP, etc.
             ├── unfold_amaxed.py
