@@ -130,7 +130,13 @@ class TestSolveCommercial:
     def test_missing_engine_returns_none_with_warning(self, alias):
         A = np.array([[1.0, 2.0], [3.0, 4.0]])
         b = np.array([5.0, 6.0])
-        with block_import(PIP_MODULES[alias]):
+        # Force the unavailable path explicitly: block_import alone is not
+        # enough when the engine package is present (a free size-limited
+        # MOSEK trial solves a 2x2 QP silently → DID NOT WARN on CI).
+        with block_import(PIP_MODULES[alias]), patch(
+            "bssunfold.core._commercial_qp.is_commercial_solver_available",
+            return_value=False,
+        ):
             with pytest.warns(UserWarning, match="license required"):
                 x = solve_commercial(A, b, solver=alias)
         assert x is None
@@ -218,7 +224,7 @@ class TestSolveWithCplex:
         # convention (P = A'A + penalty, q = -A'b); a tight-tolerance OSQP
         # reference on the same P/q must agree.
         _require_cplex()
-        from qpsolvers import solve_qp
+        from qpsolvers import available_solvers, solve_qp
         from scipy.sparse import csc_matrix
 
         from bssunfold.core._base_unfolder import _build_system
@@ -252,9 +258,26 @@ class TestSolveWithCplex:
             x_ref = solve_qp(
                 P=P, q=q, lb=np.zeros(n), solver="highs", verbose=False,
             )
+            if x_ref is None:
+                # HiGHS can fail on some platforms; fall back to a
+                # solvers-core backend for the reference solution.
+                for alt in ("osqp", "clarabel", "scs"):
+                    if alt in available_solvers:
+                        x_ref = solve_qp(
+                            P=P, q=q, lb=np.zeros(n), solver=alt,
+                            verbose=False,
+                        )
+                        if x_ref is not None:
+                            break
+            assert x_ref is not None, (
+                f"reference QP solver returned None (norm={norm}, sm={sm})"
+            )
             x_com = solve_cplex(
                 A, b, alpha=alpha, norm=norm, smoothness_order=sm,
                 timeout=30.0,
+            )
+            assert x_com is not None, (
+                f"solve_cplex returned None (norm={norm}, sm={sm})"
             )
             # objective agreement (exact; ill-conditioned QP solutions can
             # differ in null-space components while attaining the same min)
