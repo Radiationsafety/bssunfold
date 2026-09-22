@@ -2597,6 +2597,11 @@ class Detector:
         noise_var: float | None = None,
         random_state: int | None = None,
         max_neutron_energy: float | None = None,
+        ln_steps: np.ndarray | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
     ) -> dict[str, Any]:
         """Unfold a neutron spectrum using Gurobi (**license required**).
 
@@ -2659,6 +2664,11 @@ class Detector:
             sensitivities=self.sensitivities,
             cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
+            ln_steps=self.ln_steps,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
             readings=readings,
             max_neutron_energy=max_neutron_energy,
             initial_spectrum=initial_spectrum,
@@ -2696,6 +2706,11 @@ class Detector:
         noise_var: float | None = None,
         random_state: int | None = None,
         max_neutron_energy: float | None = None,
+        ln_steps: np.ndarray | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
     ) -> dict[str, Any]:
         """Unfold a neutron spectrum using MOSEK (**license required**).
 
@@ -2759,6 +2774,11 @@ class Detector:
             sensitivities=self.sensitivities,
             cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
+            ln_steps=self.ln_steps,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
             readings=readings,
             max_neutron_energy=max_neutron_energy,
             initial_spectrum=initial_spectrum,
@@ -2796,6 +2816,11 @@ class Detector:
         noise_var: float | None = None,
         random_state: int | None = None,
         max_neutron_energy: float | None = None,
+        ln_steps: np.ndarray | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
     ) -> dict[str, Any]:
         """Unfold a neutron spectrum using IBM ILOG CPLEX (**license required**).
 
@@ -2857,6 +2882,11 @@ class Detector:
             sensitivities=self.sensitivities,
             cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
+            ln_steps=self.ln_steps,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
             readings=readings,
             max_neutron_energy=max_neutron_energy,
             initial_spectrum=initial_spectrum,
@@ -2894,6 +2924,11 @@ class Detector:
         noise_var: float | None = None,
         random_state: int | None = None,
         max_neutron_energy: float | None = None,
+        ln_steps: np.ndarray | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
     ) -> dict[str, Any]:
         """Unfold a neutron spectrum using COPT (**license required**).
 
@@ -2957,6 +2992,11 @@ class Detector:
             sensitivities=self.sensitivities,
             cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
+            ln_steps=self.ln_steps,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
             readings=readings,
             max_neutron_energy=max_neutron_energy,
             initial_spectrum=initial_spectrum,
@@ -2994,6 +3034,11 @@ class Detector:
         noise_var: float | None = None,
         random_state: int | None = None,
         max_neutron_energy: float | None = None,
+        ln_steps: np.ndarray | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
     ) -> dict[str, Any]:
         """Unfold a neutron spectrum using FICO Xpress (**license required**).
 
@@ -3056,6 +3101,11 @@ class Detector:
             sensitivities=self.sensitivities,
             cc_icrp116=self._get_interpolated_cc(),
             save_result_callback=self._save_result,
+            ln_steps=self.ln_steps,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
             readings=readings,
             max_neutron_energy=max_neutron_energy,
             initial_spectrum=initial_spectrum,
