@@ -492,16 +492,31 @@ def unfold_binned(
     )
 
     # Build standardised output.
-    from .dose_calculation import calculate_dose_rates
+    from .dose_calculation import (
+        INTEGRATION_RULE,
+        SPECTRUM_DEFINITION,
+        SPECTRUM_UNITS,
+        calculate_dose_rates,
+        energy_bin_edges,
+    )
 
     spectrum_nonneg = np.maximum(assembled, 0)
     computed_readings = A @ spectrum_nonneg
     residual = b - computed_readings
 
+    cc = detector._get_interpolated_cc()
+    doserates = calculate_dose_rates(
+        spectrum_nonneg, cc, dlnE_array=detector.ln_steps
+    )
+
     result: dict[str, Any] = {
         "energy": energy.copy(),
         "spectrum": spectrum_nonneg,
         "spectrum_absolute": spectrum_nonneg.copy(),
+        "spectrum_definition": SPECTRUM_DEFINITION,
+        "spectrum_units": SPECTRUM_UNITS,
+        "energy_bin_edges_MeV": energy_bin_edges(energy),
+        "integration_rule": INTEGRATION_RULE,
         "effective_readings": {
             name: float(val)
             for name, val in zip(selected, computed_readings)
@@ -509,9 +524,7 @@ def unfold_binned(
         "residual": residual,
         "residual_norm": float(np.linalg.norm(residual)),
         "method": "binned",
-        "doserates": calculate_dose_rates(
-            spectrum_nonneg, detector.cc_icrp116
-        ),
+        "doserates": doserates,
         "method_map": meta["method_map"],
         "successful_methods": meta["successful_methods"],
         "individual_spectra": meta["individual_spectra"],

@@ -6,9 +6,9 @@ uncertainty quantification through profile likelihoods and MCMC sampling.
 
 The approach models the detector readings as Poisson-distributed counts:
 
-    n_i ~ Poisson(∑_j R_ij * φ_j + b_i)
+    n_i ~ Poisson(в€‘_j R_ij * П†_j + b_i)
 
-where φ_j is the neutron flux in energy bin j, R_ij is the response matrix,
+where П†_j is the neutron flux in energy bin j, R_ij is the response matrix,
 and b_i is background.
 
 Requires: zfit, tensorflow (or zfit without TF backend)
@@ -95,7 +95,7 @@ def solve_zfit_unfold(
             f'phi_{i}', init_val_scaled, lower=0, upper=1e6
         )
 
-    # Build expected counts model: μ = A @ φ
+    # Build expected counts model: Ој = A @ П†
     def expected_counts(param_values):
         phi = tf.stack([param_values[f'phi_{i}'] for i in range(n_bins)])
         mu = tf.matmul(A, tf.expand_dims(phi, 1))[:, 0]
@@ -104,7 +104,7 @@ def solve_zfit_unfold(
     # Negative log-likelihood (Poisson)
     def nll(param_values):
         mu = expected_counts(param_values)
-        # Poisson NLL: sum(μ - n*log(μ) + log(n!))
+        # Poisson NLL: sum(Ој - n*log(Ој) + log(n!))
         # We ignore constant term log(n!)
         nll_poisson = tf.reduce_sum(
             mu - b_scaled * tf.math.log(tf.clip_by_value(mu, 1e-10, 1e10))
@@ -206,6 +206,7 @@ def unfold_zfit(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
     use_mcmc: bool = False,
@@ -217,6 +218,10 @@ def unfold_zfit(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold using zfit Bayesian inference.
 
@@ -285,6 +290,7 @@ def unfold_zfit(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -302,6 +308,10 @@ def unfold_zfit(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )
 
 

@@ -200,6 +200,7 @@ def unfold_scip(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
@@ -215,6 +216,10 @@ def unfold_scip(
     noise_var: float | None = None,
     random_state: int | None = None,
     max_neutron_energy: float | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold a neutron spectrum using the SCIP optimizer.
 
@@ -311,6 +316,7 @@ def unfold_scip(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -332,4 +338,8 @@ def unfold_scip(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

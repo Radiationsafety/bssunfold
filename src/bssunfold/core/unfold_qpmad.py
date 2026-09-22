@@ -6,32 +6,32 @@ qpmad solver of Alexander Sherikov
 implementation of the Goldfarb-Idnani dual active-set algorithm for
 (strictly convex) quadratic programming:
 
-    minimize    1/2 · xᵀ H x + gᵀ x
-    subject to  lb ≤ x ≤ ub        (simple bounds)
-                lb_A ≤ A x ≤ ub_A  (general inequality constraints)
+    minimize    1/2 В· xбµЂ H x + gбµЂ x
+    subject to  lb в‰¤ x в‰¤ ub        (simple bounds)
+                lb_A в‰¤ A x в‰¤ ub_A  (general inequality constraints)
                 A_eq x = b_eq      (optional equality constraints)
 
 For BSS unfolding we solve the strictly convex regularised least-squares
 problem
 
-    minimize    1/2 · ||A x − b||² + α/2 · ||L x||² + α0/2 · ||x||²
-    subject to  x ≥ 0     (default)   or     lb ≤ x ≤ ub (if provided)
+    minimize    1/2 В· ||A x в€’ b||ВІ + О±/2 В· ||L x||ВІ + О±0/2 В· ||x||ВІ
+    subject to  x в‰Ґ 0     (default)   or     lb в‰¤ x в‰¤ ub (if provided)
 
-which has Hessian ``H = AᵀA + α · LᵀL + α0 · I`` (symmetric positive
-definite, as required by Goldfarb-Idnani) and linear term ``g = −Aᵀb``.
+which has Hessian ``H = AбµЂA + О± В· LбµЂL + О±0 В· I`` (symmetric positive
+definite, as required by Goldfarb-Idnani) and linear term ``g = в€’AбµЂb``.
 
 The original qpmad is a C++ library (built on Eigen).  This module provides
 two interchangeable backends:
 
-* ``backend='python'`` — a self-contained NumPy port of an **active-set**
+* ``backend='python'`` вЂ” a self-contained NumPy port of an **active-set**
   QP solver (Nocedal & Wright, *Numerical Optimization*, ch. 16.4).  The
   algorithmic spirit is the same as Goldfarb-Idnani (it solves the same
   strictly-convex QP with inequality constraints and returns the unique
   global optimum); the only difference from qpmad's C++ code is the search
   path through constraint activations / deactivations.  This is the default
   and has no external dependency beyond NumPy/SciPy.  It is fast enough
-  for BSS problems (n ≲ 1000 energy bins).
-* ``backend='qpmad'`` — calls the upstream qpmad C++ library through its
+  for BSS problems (n в‰І 1000 energy bins).
+* ``backend='qpmad'`` вЂ” calls the upstream qpmad C++ library through its
   Python bindings, if available (``pip install qpmad`` or build from
   source).  When the binding is not installed the method falls back to
   the Python backend with a warning.
@@ -78,8 +78,8 @@ def _solve_qp_goldfarb_idnani(
 ) -> tuple[np.ndarray, str]:
     """Solve a strictly convex QP with an active-set method.
 
-    Minimises ``0.5 xᵀ H x + gᵀ x`` subject to ``lb ≤ x ≤ ub`` and
-    ``lb_A ≤ A x ≤ ub_A``.  ``H`` must be symmetric positive-definite.
+    Minimises ``0.5 xбµЂ H x + gбµЂ x`` subject to ``lb в‰¤ x в‰¤ ub`` and
+    ``lb_A в‰¤ A x в‰¤ ub_A``.  ``H`` must be symmetric positive-definite.
 
     The implementation follows the **primal active-set** framework
     (Nocedal & Wright, Numerical Optimization, ch. 16.4) which is
@@ -141,7 +141,7 @@ def _solve_qp_goldfarb_idnani(
 
     # Helper: solve H x = -g (unconstrained minimum) using cached Cholesky.
     def solve_H(rhs: np.ndarray) -> np.ndarray:
-        # H = L L^T → solve L y = rhs, then L^T x = y
+        # H = L L^T в†’ solve L y = rhs, then L^T x = y
         y = solve_triangular(L_chol, rhs, lower=True, check_finite=False)
         return solve_triangular(L_chol.T, y, lower=False, check_finite=False)
 
@@ -177,7 +177,7 @@ def _solve_qp_goldfarb_idnani(
                 vals_d.append(-float(ubA_arr[i]))
 
     if not rows_C:
-        # No inequality constraints — return the unconstrained minimum.
+        # No inequality constraints вЂ” return the unconstrained minimum.
         x = solve_H(-g)
         return x, "OK"
 
@@ -193,7 +193,7 @@ def _solve_qp_goldfarb_idnani(
         x = np.clip(x, lb, ub)
     # If general constraints are present, make sure they're feasible too:
     # we may need a few projection iterations.  Use a simple alternating
-    # projection scheme — works for box + general constraints when the
+    # projection scheme вЂ” works for box + general constraints when the
     # feasible set is non-empty.
     for _proj in range(50):
         violations = C @ x - d
@@ -261,7 +261,7 @@ def _solve_qp_goldfarb_idnani(
         if np.linalg.norm(direction) <= tol:
             # KKT point on current working set.  Check multipliers.
             # Multipliers for the working-set constraints are computed from
-            #   H x + g = -sum_i mu_i C_i^T   →   C_W^T mu_W = -(H x + g)
+            #   H x + g = -sum_i mu_i C_i^T   в†’   C_W^T mu_W = -(H x + g)
             if working_set:
                 W_list = sorted(working_set)
                 Cw = C[W_list]
@@ -453,13 +453,13 @@ def solve_qpmad(
 
     Recasts the regularised non-negative least-squares problem
 
-        minimize    1/2 · ||A x − b||² + α/2 · ||L x||² + α0/2 · ||x||²
-        subject to  lb ≤ x ≤ ub     (default: x ≥ 0)
+        minimize    1/2 В· ||A x в€’ b||ВІ + О±/2 В· ||L x||ВІ + О±0/2 В· ||x||ВІ
+        subject to  lb в‰¤ x в‰¤ ub     (default: x в‰Ґ 0)
 
-    as the QP ``min 0.5 xᵀHx + gᵀx`` with
+    as the QP ``min 0.5 xбµЂHx + gбµЂx`` with
 
-        H = AᵀA + α · LᵀL + α0 · I    (symmetric positive-definite)
-        g = − Aᵀ b
+        H = AбµЂA + О± В· LбµЂL + О±0 В· I    (symmetric positive-definite)
+        g = в€’ AбµЂ b
 
     and solves it with the qpmad algorithm of Sherikov
     (https://github.com/asherikov/qpmad).
@@ -471,7 +471,7 @@ def solve_qpmad(
     b : np.ndarray
         Measurement vector ``(m,)``.
     x0 : np.ndarray, optional
-        Accepted for API compatibility — the Goldfarb-Idnani algorithm does
+        Accepted for API compatibility вЂ” the Goldfarb-Idnani algorithm does
         not use a warm start (the dual active-set method always starts from
         the unconstrained minimum).
     regularization : float, optional
@@ -485,7 +485,7 @@ def solve_qpmad(
         positive-definiteness (default 1e-6).
     lb, ub : np.ndarray, optional
         Simple bounds on the spectrum. If both are ``None`` (default) the
-        method enforces ``x ≥ 0``.
+        method enforces ``x в‰Ґ 0``.
     backend : str, optional
         ``'python'`` (default) uses a pure-NumPy port of Goldfarb-Idnani;
         ``'qpmad'`` calls the upstream C++ library through its Python
@@ -500,8 +500,8 @@ def solve_qpmad(
     -------
     tuple[np.ndarray, int, bool]
         ``(spectrum, status_code, converged)`` where ``status_code`` is
-        ``0`` (OK), ``1`` (infeasible — treated as not converged) or
-        ``2`` (max iterations hit — treated as not converged).
+        ``0`` (OK), ``1`` (infeasible вЂ” treated as not converged) or
+        ``2`` (max iterations hit вЂ” treated as not converged).
     """
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
@@ -576,6 +576,7 @@ def unfold_qpmad(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     smoothness_order: int = 0,
@@ -591,15 +592,19 @@ def unfold_qpmad(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold a neutron spectrum using qpmad (Goldfarb-Idnani dual active-set QP).
 
     Solves
 
-        minimize    1/2 · ||A x − b||² + α/2 · ||L x||² + α0/2 · ||x||²
-        subject to  lb ≤ x ≤ ub     (default: x ≥ 0)
+        minimize    1/2 В· ||A x в€’ b||ВІ + О±/2 В· ||L x||ВІ + О±0/2 В· ||x||ВІ
+        subject to  lb в‰¤ x в‰¤ ub     (default: x в‰Ґ 0)
 
-    by recasting it as the strictly-convex QP ``min 0.5 xᵀHx + gᵀx`` and
+    by recasting it as the strictly-convex QP ``min 0.5 xбµЂHx + gбµЂx`` and
     applying the qpmad algorithm of Sherikov
     (https://github.com/asherikov/qpmad).
 
@@ -632,7 +637,7 @@ def unfold_qpmad(
         Diagonal regularisation floor added to ``H`` (default 1e-6).
     lb, ub : np.ndarray, optional
         Simple bounds on the spectrum. If both are ``None`` (default) the
-        method enforces ``x ≥ 0``.
+        method enforces ``x в‰Ґ 0``.
     backend : str, optional
         ``'python'`` (default) uses a pure-NumPy port of Goldfarb-Idnani;
         ``'qpmad'`` calls the upstream C++ library if its Python bindings
@@ -665,6 +670,7 @@ def unfold_qpmad(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -696,4 +702,8 @@ def unfold_qpmad(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

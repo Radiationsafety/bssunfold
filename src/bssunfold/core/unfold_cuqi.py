@@ -156,7 +156,7 @@ _DEFAULT_SCALES = {
 def _ou_correlation(n_bins: int, lengthscale: float) -> np.ndarray:
     """Dense Ornstein-Uhlenbeck correlation matrix.
 
-    ``C[i, j] = exp(-|i - j| / lengthscale)`` — the same smoothness structure
+    ``C[i, j] = exp(-|i - j| / lengthscale)`` вЂ” the same smoothness structure
     used by the PyMC-based :func:`bssunfold.core.unfold_mcmc.solve_bayesian_mcmc`.
     """
     idx = np.arange(n_bins)
@@ -180,7 +180,7 @@ def _prior_center_nnls(
 
     Uses the user-supplied ``initial_spectrum`` when available.  Otherwise a
     true non-negative least-squares solution (``scipy.optimize.nnls``) is
-    computed — plain ``lstsq`` clipped at zero can return an almost-zero
+    computed вЂ” plain ``lstsq`` clipped at zero can return an almost-zero
     center for the severely underdetermined Bonner-sphere system, which
     would collapse the log-scale prior towards zero flux.
     """
@@ -455,7 +455,7 @@ def _run_gibbs_chain(
     prior_mean = np.zeros_like(mu) if centered else mu
 
     # NOTE: variable names (delta/theta/y) define the CUQIpy parameter names
-    # used by JointDistribution and the sampling-strategy dict — keep them.
+    # used by JointDistribution and the sampling-strategy dict вЂ” keep them.
     delta = Gamma(delta_alpha, delta_beta)
     theta = GMRF(mean=prior_mean, prec=lambda delta: delta,
                  bc_type="zero", order=gmrf_order)
@@ -572,9 +572,9 @@ def solve_cuqi_bayesian(
 
     Priors
     ------
-    - ``prior='gmrf'`` (default): ``theta ~ GMRF(mu, prec)`` — CUQIpy
+    - ``prior='gmrf'`` (default): ``theta ~ GMRF(mu, prec)`` вЂ” CUQIpy
       finite-difference precision operator, ``gmrf_order`` = 1 or 2.
-    - ``prior='ou'``: ``theta ~ Gaussian(mu, C_ou / prec)`` — dense
+    - ``prior='ou'``: ``theta ~ Gaussian(mu, C_ou / prec)`` вЂ” dense
       Ornstein-Uhlenbeck correlation with ``lengthscale`` bins.
 
     Samplers
@@ -934,6 +934,7 @@ def unfold_cuqi(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     sampler: str = "pcn",
     noise_level: float = 0.05,
@@ -958,6 +959,10 @@ def unfold_cuqi(
     save_result: bool = False,
     random_state: int | None = None,
     progressbar: bool = False,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using CUQIpy Bayesian samplers.
 
@@ -1128,6 +1133,7 @@ def unfold_cuqi(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=np.ones(n_energy_bins),
@@ -1145,6 +1151,10 @@ def unfold_cuqi(
         noise_level=mc_noise_level,
         n_montecarlo=n_montecarlo,
         random_state=random_state,
+        reading_uncertainties=reading_uncertainties,
+        reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
         save_result=False,
     )
 

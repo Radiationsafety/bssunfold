@@ -8,7 +8,7 @@ Solves the constrained least-squares unfolding problem
 by projected gradient descent: each step performs a gradient step followed by
 the Euclidean projection onto the constraint set C.  Supporting the simplex
 ``C = {x >= 0, sum x = F}`` makes it possible to keep the total fluence fixed
-at a physically meaningful value while unfolding — a constraint the plain
+at a physically meaningful value while unfolding вЂ” a constraint the plain
 Landweber iteration (which is PGD onto the orthant with a fixed step) cannot
 enforce.
 """
@@ -171,6 +171,7 @@ def unfold_pgd(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 1000,
     tolerance: float = 1e-6,
@@ -185,6 +186,10 @@ def unfold_pgd(
     variance_reduction: str = "none",
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using projected gradient descent.
 
@@ -251,6 +256,7 @@ def unfold_pgd(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -276,6 +282,10 @@ def unfold_pgd(
         variance_reduction=variance_reduction,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )
 
     # Duality-gap certificate (Lagrange duality / KKT diagnostics)

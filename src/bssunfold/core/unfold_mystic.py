@@ -204,6 +204,7 @@ def unfold_mystic(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
@@ -220,6 +221,10 @@ def unfold_mystic(
     smoothness_weight: float = 1.0,
     random_state: int | None = None,
     max_neutron_energy: float | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold using mystic with regularization selection.
 
@@ -334,6 +339,7 @@ def unfold_mystic(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -365,6 +371,10 @@ def unfold_mystic(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )
 
 
@@ -593,6 +603,7 @@ def unfold_mystic_hybrid(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     norm: int = 2,
@@ -613,6 +624,10 @@ def unfold_mystic_hybrid(
     smoothness_weight: float = 1.0,
     random_state: int | None = None,
     max_neutron_energy: float | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Two-stage hybrid unfolding: global search + local refinement.
 
@@ -747,6 +762,7 @@ def unfold_mystic_hybrid(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -788,4 +804,8 @@ def unfold_mystic_hybrid(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

@@ -8,7 +8,7 @@ that guards against measurement noise of bounded L2 norm:
     min_{x >= 0}  max_{||y||_2 <= 1}  1/2 ||A x - b||^2 + delta * y^T (A x - b)
 
 which is exactly  ``min_{x>=0} 1/2 ||A x - b||^2 + delta * ||A x - b||_2``
-— the least-squares functional made convex-robust against residual vectors
+вЂ” the least-squares functional made convex-robust against residual vectors
 with ``||delta_b||_2 <= delta`` (``delta = noise_level * ||b||_2``).  The
 bilinear saddle form is solved with the two-step extragradient scheme
 
@@ -70,7 +70,7 @@ def solve_extragradient(
         (default: 0.02).
     step_size : float, optional
         Extragradient step ``eta``.  If None (default), set to
-        ``0.9 / L`` with ``L = ||A||_2^2 + delta ||A||_2`` — an upper bound
+        ``0.9 / L`` with ``L = ||A||_2^2 + delta ||A||_2`` вЂ” an upper bound
         on the Lipschitz constant of the saddle operator.
 
     Returns
@@ -129,6 +129,7 @@ def unfold_extragradient(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 2000,
     tolerance: float = 1e-8,
@@ -140,6 +141,10 @@ def unfold_extragradient(
     variance_reduction: str = "none",
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using Korpelevich's extragradient method.
 
@@ -202,6 +207,7 @@ def unfold_extragradient(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -223,4 +229,8 @@ def unfold_extragradient(
         variance_reduction=variance_reduction,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

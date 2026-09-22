@@ -36,6 +36,8 @@ __all__ = [
     "total_flux_ratio",
     "mmd_rbf",
     "chi_squared",
+    "weighted_chi2",
+    "reduced_chi2",
     "g_test",
     "freeman_tukey",
     "cressie_read",
@@ -120,7 +122,7 @@ def _extract_cc_array(
         if preferred_geom in cc_icrp116:
             return np.asarray(cc_icrp116[preferred_geom], dtype=float)
         for key, val in cc_icrp116.items():
-            if key != "E_MeV":
+            if key != "E_MeV" and key != "_out_of_range_mask":
                 return np.asarray(val, dtype=float)
         return np.ones_like(energy)
     return np.asarray(cc_icrp116, dtype=float)
@@ -186,6 +188,13 @@ def total_flux(s: np.ndarray) -> float:
 
 
 # ─── Entropy-based ────────────────────────────────────────────────
+#
+# NOTE: KL divergence, cross-entropy, Wasserstein distance, etc. treat the
+# normalized spectra as *probability distributions over energy bins*. For
+# deterministic unfolded vectors they are descriptive dissimilarity
+# measures; their information-theoretic/probabilistic interpretation
+# (likelihoods, optimal-transport cost between random variables) applies
+# only when the inputs represent genuine distributions or samples.
 
 
 def kl_divergence(p: np.ndarray, q: np.ndarray) -> float:
@@ -542,11 +551,129 @@ def cressie_read(p: np.ndarray, q: np.ndarray) -> float:
     return float(power_divergence(pn, qn, lambda_="cressie-read")[0])
 
 
+# ─── Uncertainty-weighted metrics ─────────────────────────────────
+
+
+def _combined_sigma(
+    spectrum: np.ndarray, uncertainties
+) -> np.ndarray:
+    """Resolve per-bin 1-sigma uncertainties for one spectrum.
+
+    ``uncertainties`` may be an array of per-bin sigma values or a
+    2-tuple ``(sigma_spectrum, sigma_reference)`` of arrays, in which case
+    the independent contributions are combined in quadrature.
+    """
+    if isinstance(uncertainties, (tuple, list)) and len(uncertainties) == 2:
+        s1 = np.asarray(uncertainties[0], dtype=float)
+        s2 = np.asarray(uncertainties[1], dtype=float)
+        return np.sqrt(s1**2 + s2**2)
+    return np.asarray(uncertainties, dtype=float)
+
+
+def weighted_chi2(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    uncertainties,
+) -> float:
+    """Uncertainty-weighted chi-square between two spectra.
+
+    chi2_w = sum_i ((x1_i - x2_i) / sigma_i)^2
+
+    where ``sigma_i`` are the per-bin 1-sigma uncertainties. This is the
+    statistically meaningful goodness-of-fit measure when per-bin
+    uncertainties are available (e.g. from the Monte-Carlo propagation of
+    ``unfold_*`` results, ``spectrum_uncert_std``), unlike the plain
+    ``chi_squared`` statistic which implicitly assumes unit weights.
+
+    Parameters
+    ----------
+    spectrum1, spectrum2 : np.ndarray
+        1-D arrays of the same length.
+    uncertainties : np.ndarray or tuple of np.ndarray
+        Per-bin absolute 1-sigma uncertainties, or a 2-tuple
+        ``(sigma1, sigma2)`` of per-spectrum arrays combined in quadrature.
+
+    Returns
+    -------
+    float
+        Weighted chi-square value.
+    """
+    _check_same_length(spectrum1, spectrum2)
+    sigma = _combined_sigma(spectrum1, uncertainties)
+    if sigma.shape != (len(np.asarray(spectrum1)),):
+        raise ValueError(
+            f"uncertainties must match the spectrum length "
+            f"({len(np.asarray(spectrum1))}), got shape {sigma.shape}"
+        )
+    if np.any(sigma <= 0) or not np.all(np.isfinite(sigma)):
+        raise ValueError(
+            "uncertainties must be finite and strictly positive; "
+            "bins with zero uncertainty cannot be weighted"
+        )
+    diff = np.asarray(spectrum1, dtype=float) - np.asarray(spectrum2, dtype=float)
+    return float(np.sum((diff / sigma) ** 2))
+
+
+def reduced_chi2(
+    spectrum1: np.ndarray,
+    spectrum2: np.ndarray,
+    uncertainties,
+    ddof: int = 1,
+) -> float:
+    """Reduced uncertainty-weighted chi-square: ``weighted_chi2 / dof``.
+
+    With ``ddof=1`` (default) the degrees of freedom are
+    ``n_bins - 1``. A value near 1 indicates that the differences between
+    the spectra are consistent with the stated per-bin uncertainties;
+    values >> 1 indicate statistically significant disagreement.
+
+    Parameters
+    ----------
+    spectrum1, spectrum2 : np.ndarray
+        1-D arrays of the same length.
+    uncertainties : np.ndarray or tuple of np.ndarray
+        Per-bin absolute 1-sigma uncertainties (see :func:`weighted_chi2`).
+    ddof : int, optional
+        Degrees of freedom subtracted from the number of bins
+        (default: 1).
+
+    Returns
+    -------
+    float
+        Reduced weighted chi-square value.
+    """
+    chi2 = weighted_chi2(spectrum1, spectrum2, uncertainties)
+    n = len(np.asarray(spectrum1))
+    dof = n - int(ddof)
+    if dof <= 0:
+        raise ValueError(
+            f"degrees of freedom must be positive: n={n}, ddof={ddof}"
+        )
+    return chi2 / dof
+
+
 # ─── Statistical tests ────────────────────────────────────────────
+#
+# NOTE ON INTERPRETATION
+# ----------------------
+# The functions in this section return classical test statistics
+# (Anderson-Darling, Wilcoxon, Mann-Whitney U, ...). Their *p-value*
+# semantics (null distributions, significance) are derived under the
+# assumption that the inputs are independent random samples. Unfolded
+# spectra are deterministic vectors of correlated bin estimates, so the
+# statistics are useful here only as descriptive dissimilarity measures
+# between the bin-value distributions; the associated p-values must NOT
+# be interpreted as hypothesis tests unless the inputs are genuine
+# random samples (e.g. Monte-Carlo replicates of the unfolded spectrum).
 
 
 def anderson_darling(p: np.ndarray, q: np.ndarray) -> float:
     """Anderson-Darling test statistic for k-samples.
+
+    Returns the statistic only; no p-value is computed, because unfolded
+    spectra are deterministic vectors of correlated estimates and the
+    Anderson-Darling null distribution would not apply (see the
+    interpretation note above).
 
     Returns 0.0 if either input is constant (all identical values).
     """
@@ -568,6 +695,10 @@ def anderson_darling(p: np.ndarray, q: np.ndarray) -> float:
 def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
     """Wilcoxon signed-rank test statistic.
 
+    Returns the statistic only; no p-value is computed (deterministic
+    vectors of correlated estimates do not satisfy the test's
+    assumptions; see the interpretation note above).
+
     Returns 0.0 if both inputs are identical (all differences zero).
     """
     from scipy.stats import wilcoxon
@@ -581,7 +712,11 @@ def wilcoxon_test(p: np.ndarray, q: np.ndarray) -> float:
 
 
 def mannwhitneyu_test(p: np.ndarray, q: np.ndarray) -> float:
-    """Mann-Whitney U test statistic."""
+    """Mann-Whitney U test statistic.
+
+    Returns the statistic only; no p-value is computed (see the
+    interpretation note above).
+    """
     from scipy.stats import mannwhitneyu
 
     return float(mannwhitneyu(p, q, alternative="two-sided")[0])
@@ -1115,6 +1250,8 @@ _ALL_METRICS: dict[str, str] = {
     "peak_width_error": "Peak width error (%)",
     "dose_weighted_error": "Dose-weighted error",
     "response_matrix_consistency": "Response matrix consistency (χ²)",
+    "weighted_chi2": "Uncertainty-weighted chi-square",
+    "reduced_chi2": "Reduced uncertainty-weighted chi-square (chi2/dof)",
     "relative_flux_error": "Relative flux error (Xu 2026)",
     "comprehensive_score": "Comprehensive score (Xu 2026)",
 }
@@ -1166,6 +1303,14 @@ _METRIC_FUNCTIONS_WITH_PARAMS: dict[str, callable] = {
     "response_matrix_consistency": response_matrix_consistency,
 }
 
+# Uncertainty-weighted metrics: require the ``uncertainties`` argument of
+# compare_spectra (per-bin 1-sigma, e.g. ``spectrum_uncert_std`` from the
+# Monte-Carlo propagation).
+_UNCERTAINTY_METRICS: dict[str, callable] = {
+    "weighted_chi2": weighted_chi2,
+    "reduced_chi2": reduced_chi2,
+}
+
 # Single-spectrum integral quantities (EURADOS, Gomez-Ros et al. 2022).
 # Computed for each spectrum in a comparison and reported with _ref/_test
 # suffixes. These require the energy grid.
@@ -1187,6 +1332,7 @@ def compare_spectra(
     readings1: np.ndarray | None = None,
     readings2: np.ndarray | None = None,
     response_matrix: np.ndarray | None = None,
+    uncertainties: np.ndarray | tuple | None = None,
 ) -> dict[str, float]:
     """Compare two spectra using selected metrics.
 
@@ -1208,6 +1354,14 @@ def compare_spectra(
         Measured readings for response-matrix consistency check.
     response_matrix : np.ndarray, optional
         Response matrix for consistency check.
+    uncertainties : np.ndarray or tuple, optional
+        Per-bin absolute 1-sigma uncertainties of the compared spectra
+        (e.g. ``spectrum_uncert_std`` from the Monte-Carlo propagation),
+        or a 2-tuple ``(sigma1, sigma2)`` of per-spectrum arrays combined
+        in quadrature. When provided, the uncertainty-weighted metrics
+        ``weighted_chi2`` and ``reduced_chi2`` are computed automatically
+        (additive keys in the result). Requesting them without
+        ``uncertainties`` yields NaN and a warning.
 
     Returns
     -------
@@ -1219,26 +1373,36 @@ def compare_spectra(
     all_simple = list(_METRIC_FUNCTIONS.keys())
     all_eurados = list(_METRIC_FUNCTIONS_WITH_PARAMS.keys())
     all_single = list(_SINGLE_SPECTRUM_METRICS.keys())
+    all_unc = list(_UNCERTAINTY_METRICS.keys())
 
     if metrics is None:
         simple_keys = list(all_simple)
         eurados_keys = list(all_eurados) if energy is not None else []
         single_keys = list(all_single) if energy is not None else []
+        unc_keys = list(all_unc) if uncertainties is not None else []
     elif isinstance(metrics, str):
         if metrics in _METRIC_FUNCTIONS:
             simple_keys = [metrics]
             eurados_keys = []
             single_keys = []
+            unc_keys = []
         elif metrics in _METRIC_FUNCTIONS_WITH_PARAMS:
             simple_keys = []
             eurados_keys = [metrics]
             single_keys = []
+            unc_keys = []
         elif metrics in _SINGLE_SPECTRUM_METRICS:
             simple_keys = []
             eurados_keys = []
             single_keys = [metrics]
+            unc_keys = []
+        elif metrics in _UNCERTAINTY_METRICS:
+            simple_keys = []
+            eurados_keys = []
+            single_keys = []
+            unc_keys = [metrics]
         else:
-            avail = all_simple + all_eurados + all_single
+            avail = all_simple + all_eurados + all_single + all_unc
             raise ValueError(f"Unknown metric '{metrics}'. Available: {avail}")
     else:
         simple_keys = [k for k in metrics if k in _METRIC_FUNCTIONS]
@@ -1246,15 +1410,17 @@ def compare_spectra(
             k for k in metrics if k in _METRIC_FUNCTIONS_WITH_PARAMS
         ]
         single_keys = [k for k in metrics if k in _SINGLE_SPECTRUM_METRICS]
+        unc_keys = [k for k in metrics if k in _UNCERTAINTY_METRICS]
         unknown = [
             k
             for k in metrics
             if k not in _METRIC_FUNCTIONS
             and k not in _METRIC_FUNCTIONS_WITH_PARAMS
             and k not in _SINGLE_SPECTRUM_METRICS
+            and k not in _UNCERTAINTY_METRICS
         ]
         if unknown:
-            avail = all_simple + all_eurados + all_single
+            avail = all_simple + all_eurados + all_single + all_unc
             raise ValueError(f"Unknown metric(s) {unknown}. Available: {avail}")
 
     results: dict[str, float] = {}
@@ -1263,6 +1429,28 @@ def compare_spectra(
             results[key] = _METRIC_FUNCTIONS[key](spectrum1, spectrum2)
         except Exception as exc:
             logger.debug("Metric %s failed: %s", key, exc)
+            results[key] = float("nan")
+
+    for key in unc_keys:
+        if uncertainties is None:
+            logger.warning(
+                "Metric '%s' requires the `uncertainties` argument of "
+                "compare_spectra (per-bin 1-sigma); returning NaN.",
+                key,
+            )
+            results[key] = float("nan")
+            continue
+        try:
+            if key == "reduced_chi2":
+                results[key] = reduced_chi2(
+                    spectrum1, spectrum2, uncertainties
+                )
+            else:
+                results[key] = weighted_chi2(
+                    spectrum1, spectrum2, uncertainties
+                )
+        except Exception as exc:
+            logger.debug("Uncertainty-weighted metric %s failed: %s", key, exc)
             results[key] = float("nan")
 
     for key in eurados_keys:

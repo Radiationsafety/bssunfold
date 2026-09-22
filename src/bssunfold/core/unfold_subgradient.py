@@ -11,15 +11,15 @@ adaptive methods for nonsmooth optimization).  A subgradient of ``f`` is
 
     g = A^T (A x - b) + l1 * s(x) + tv * D^T sign(D x),
 
-with ``s(x)_j = sign(x_j)`` (taking 0 at zero coordinates — a valid
+with ``s(x)_j = sign(x_j)`` (taking 0 at zero coordinates вЂ” a valid
 subgradient choice).  Step-size policies:
 
-- ``'polyak'``     — Polyak step ``t_k = (f(x_k) - f*) / ||g_k||^2`` with
+- ``'polyak'``     вЂ” Polyak step ``t_k = (f(x_k) - f*) / ||g_k||^2`` with
   ``f*`` estimated by the best objective seen so far (scaled by a shrink
   factor); converges O(1/sqrt(k)) when ``f*`` is known or well estimated;
-- ``'diminishing'`` — square-summable-but-not-summable series
+- ``'diminishing'`` вЂ” square-summable-but-not-summable series
   ``t_k = t0 / (1 + decay * k)``;
-- ``'fixed'``      — constant step ``t0`` (converges to a neighborhood).
+- ``'fixed'``      вЂ” constant step ``t0`` (converges to a neighborhood).
 
 For nonsmooth problems the *best* iterate by objective value is returned
 (the iterate sequence itself does not need to converge), which is the
@@ -184,6 +184,7 @@ def unfold_subgradient(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 3000,
     tolerance: float = 1e-8,
@@ -199,6 +200,10 @@ def unfold_subgradient(
     variance_reduction: str = "none",
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using projected subgradient descent.
 
@@ -276,6 +281,7 @@ def unfold_subgradient(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -303,4 +309,8 @@ def unfold_subgradient(
         variance_reduction=variance_reduction,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

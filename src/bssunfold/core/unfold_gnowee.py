@@ -3,7 +3,7 @@
 This module provides a Bonner-sphere-spectrum unfolding method built on the
 Gnowee hybrid metaheuristic optimizer
 (https://github.com/SlaybaughLab/Gnowee, Bevins & Parsons, UC Berkeley /
-Slaybaugh Lab).  Gnowee combines Lévy flights (Cuckoo Search), golden-ratio
+Slaybaugh Lab).  Gnowee combines LГ©vy flights (Cuckoo Search), golden-ratio
 crossover (Modified Cuckoo Search / Differential Evolution), scatter search
 (Egea 2009) and DE-style mutation in an elitist population with
 Metropolis-Hastings acceptance and stall-driven restarts.
@@ -15,7 +15,7 @@ The numerical strategy mirrors the proven approach used by
   wide dynamic range of neutron spectra is handled naturally;
 * seed the population with a **Landweber warm-start solution** (or the
   user-provided ``initial_spectrum``);
-* bound the search to ``log(seed) ± half_range`` decades;
+* bound the search to ``log(seed) В± half_range`` decades;
 * minimise a **scale-consistent objective** in which the relative residual,
   Tikhonov regularisation and second-difference smoothness terms are all
   dimensionless and comparable (this prevents the optimizer from inflating
@@ -50,7 +50,7 @@ def _build_seed(A: np.ndarray, b: np.ndarray, x0: np.ndarray | None) -> np.ndarr
 
     If the user supplies a non-trivial ``initial_spectrum`` it is used
     directly; otherwise a short Landweber iteration produces a smooth,
-    physically-plausible starting point — important because the unfolding
+    physically-plausible starting point вЂ” important because the unfolding
     problem is severely under-determined (many more energy bins than
     detectors) and a purely random population converges to a noisy spectrum.
     """
@@ -164,7 +164,7 @@ def solve_gnowee(
 
     The optimizer searches in log space (``y`` with ``x = exp(y)``)
     seeded with a Landweber warm-start (or the provided ``initial_spectrum``),
-    bounded to ``log(seed) ± half_range`` decades, with a scale-consistent
+    bounded to ``log(seed) В± half_range`` decades, with a scale-consistent
     objective.
 
     Parameters
@@ -194,17 +194,17 @@ def solve_gnowee(
     frac_elite : float, optional
         Elite fraction (crossover / scatter search), default 0.2.
     frac_levy : float, optional
-        Lévy flight fraction, default 1.0.
+        LГ©vy flight fraction, default 1.0.
     frac_mutation : float, optional
         Mutation discovery probability, default 0.2.
     alpha_levy : float, optional
-        Lévy exponent, default 1.5.
+        LГ©vy exponent, default 1.5.
     gamma_levy : float, optional
-        Lévy scale, default 1.0.
+        LГ©vy scale, default 1.0.
     n_levy : int, optional
-        Number of independent Lévy samples, default 1.
+        Number of independent LГ©vy samples, default 1.
     scaling_factor : float, optional
-        Lévy step scale, default 10.0.
+        LГ©vy step scale, default 10.0.
     init_sampling : str, optional
         Initial population sampler: ``'lhc'`` or ``'random'``, default ``'lhc'``.
     regularization : float, optional
@@ -312,6 +312,7 @@ def unfold_gnowee(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     population: int = 25,
     max_gens: int = 200,
@@ -339,12 +340,16 @@ def unfold_gnowee(
     save_result: bool = False,
     random_state: int | None = None,
     verbose: bool = False,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold a neutron spectrum using the Gnowee metaheuristic optimizer.
 
     The optimizer searches in log space seeded with a Landweber warm-start
     solution (or the provided ``initial_spectrum``), bounded to
-    ``log(seed) ± half_range`` decades, with a scale-consistent objective
+    ``log(seed) В± half_range`` decades, with a scale-consistent objective
     combining the relative L2 residual, Tikhonov regularisation,
     second-difference smoothness and (optionally) negative Shannon entropy.
 
@@ -382,17 +387,17 @@ def unfold_gnowee(
     frac_elite : float, optional
         Elite fraction for crossover/scatter-search, default 0.2.
     frac_levy : float, optional
-        Lévy flight fraction, default 1.0.
+        LГ©vy flight fraction, default 1.0.
     frac_mutation : float, optional
         Mutation discovery probability, default 0.2.
     alpha_levy : float, optional
-        Lévy exponent, default 1.5.
+        LГ©vy exponent, default 1.5.
     gamma_levy : float, optional
-        Lévy scale, default 1.0.
+        LГ©vy scale, default 1.0.
     n_levy : int, optional
-        Independent Lévy samples, default 1.
+        Independent LГ©vy samples, default 1.
     scaling_factor : float, optional
-        Lévy step scale, default 10.0.
+        LГ©vy step scale, default 10.0.
     init_sampling : str, optional
         Initial sampler: ``'lhc'`` or ``'random'``, default ``'lhc'``.
     regularization : float, optional
@@ -458,7 +463,7 @@ def unfold_gnowee(
             verbose=verbose,
         )
         # Stash the diagnostics on the function so the wrapper below can
-        # retrieve them — solve_func is called once per Monte-Carlo sample
+        # retrieve them вЂ” solve_func is called once per Monte-Carlo sample
         # so we keep only the latest.
         _solve.last_diagnostics = diag
         return spectrum, n_evals, converged
@@ -472,6 +477,7 @@ def unfold_gnowee(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -506,4 +512,8 @@ def unfold_gnowee(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

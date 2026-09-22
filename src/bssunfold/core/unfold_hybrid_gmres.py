@@ -67,6 +67,7 @@ def unfold_hybrid_gmres(
     sensitivities: dict[str, np.ndarray],
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback: Callable | None = None,
+    ln_steps: np.ndarray | None = None,
     readings: dict[str, float] | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
@@ -159,9 +160,13 @@ def unfold_hybrid_gmres(
         logger.warning("Initial residual is nearly zero")
         spectrum = np.maximum(x0, 0)
         computed_readings = A @ spectrum
-        from .dose_calculation import calculate_dose_rates
+        from .dose_calculation import calculate_dose_rates, default_ln_steps
 
-        doserates = calculate_dose_rates(spectrum, cc_icrp116)
+        if ln_steps is None:
+            ln_steps = default_ln_steps(E_MeV)
+        doserates = calculate_dose_rates(
+            spectrum, cc_icrp116, dlnE_array=ln_steps
+        )
         return {
             "energy": E_MeV.copy(),
             "spectrum": spectrum,
@@ -215,9 +220,13 @@ def unfold_hybrid_gmres(
         logger.warning("Initial residual is nearly zero")
         spectrum = np.maximum(x0, 0)
         computed_readings = A @ spectrum
-        from .dose_calculation import calculate_dose_rates
+        from .dose_calculation import calculate_dose_rates, default_ln_steps
 
-        doserates = calculate_dose_rates(spectrum, cc_icrp116)
+        if ln_steps is None:
+            ln_steps = default_ln_steps(E_MeV)
+        doserates = calculate_dose_rates(
+            spectrum, cc_icrp116, dlnE_array=ln_steps
+        )
         return {
             "energy": E_MeV.copy(),
             "spectrum": spectrum,
@@ -241,9 +250,13 @@ def unfold_hybrid_gmres(
         logger.warning("Breakdown at first iteration")
         spectrum = np.maximum(x0, 0)
         computed_readings = A @ spectrum
-        from .dose_calculation import calculate_dose_rates
+        from .dose_calculation import calculate_dose_rates, default_ln_steps
 
-        doserates = calculate_dose_rates(spectrum, cc_icrp116)
+        if ln_steps is None:
+            ln_steps = default_ln_steps(E_MeV)
+        doserates = calculate_dose_rates(
+            spectrum, cc_icrp116, dlnE_array=ln_steps
+        )
         return {
             "energy": E_MeV.copy(),
             "spectrum": spectrum,
@@ -399,9 +412,18 @@ def unfold_hybrid_gmres(
         spectrum = np.maximum(best_solution, 0)
 
     # Compute dose rates
-    from .dose_calculation import calculate_dose_rates
+    from .dose_calculation import (
+        INTEGRATION_RULE,
+        SPECTRUM_DEFINITION,
+        SPECTRUM_UNITS,
+        calculate_dose_rates,
+        default_ln_steps,
+        energy_bin_edges,
+    )
 
-    doserates = calculate_dose_rates(spectrum, cc_icrp116)
+    if ln_steps is None:
+        ln_steps = default_ln_steps(E_MeV)
+    doserates = calculate_dose_rates(spectrum, cc_icrp116, dlnE_array=ln_steps)
 
     # Compute effective readings and residual
     computed_readings = A @ spectrum
@@ -412,6 +434,10 @@ def unfold_hybrid_gmres(
         "energy": E_MeV.copy(),
         "spectrum": spectrum.copy(),
         "spectrum_absolute": spectrum.copy(),
+        "spectrum_definition": SPECTRUM_DEFINITION,
+        "spectrum_units": SPECTRUM_UNITS,
+        "energy_bin_edges_MeV": energy_bin_edges(E_MeV),
+        "integration_rule": INTEGRATION_RULE,
         "effective_readings": {
             name: float(val) for name, val in zip(selected, computed_readings)
         },

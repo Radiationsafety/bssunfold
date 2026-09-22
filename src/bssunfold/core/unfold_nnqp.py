@@ -6,34 +6,34 @@ NNQP (Non-Negative Quadratic Programming) solver of Giovannucci & Pehlevan
 
 NNQP solves, by coordinate descent, the convex program
 
-    minimize    1/2 · xᵀ Q x + fᵀ x
-    subject to  x ≥ 0
+    minimize    1/2 В· xбµЂ Q x + fбµЂ x
+    subject to  x в‰Ґ 0
 
 For BSS unfolding we recast the regularised least-squares problem as NNQP:
 
-    minimize    1/2 · ||A x − b||² + α/2 · ||L x||² + α0/2 · ||x||²
-    subject to  x ≥ 0
+    minimize    1/2 В· ||A x в€’ b||ВІ + О±/2 В· ||L x||ВІ + О±0/2 В· ||x||ВІ
+    subject to  x в‰Ґ 0
 
 which has the QP form above with
 
-    Q = Aᵀ A + α · Lᵀ L + α0 · I            (positive-definite)
-    f = − Aᵀ b
+    Q = AбµЂ A + О± В· LбµЂ L + О±0 В· I            (positive-definite)
+    f = в€’ AбµЂ b
 
 The coordinate-descent update for coordinate ``i`` is
 
-    x_i ← max( 0,  −(M_i · x + f_i) / Q_ii )      with M = Q − diag(Q)
+    x_i в†ђ max( 0,  в€’(M_i В· x + f_i) / Q_ii )      with M = Q в€’ diag(Q)
 
 which is the classic NNQP update (Giovannucci & Pehlevan, 2016).  The
 diagonal entries ``Q_ii`` are always strictly positive because ``Q`` is the
-sum of two positive-semidefinite matrices plus ``α0 · I``, so the
-regularisation floor ``α0`` (default ``1e-6``) guarantees strict
-positive-definiteness even when ``AᵀA`` is rank-deficient — which is the
+sum of two positive-semidefinite matrices plus ``О±0 В· I``, so the
+regularisation floor ``О±0`` (default ``1e-6``) guarantees strict
+positive-definiteness even when ``AбµЂA`` is rank-deficient вЂ” which is the
 norm for BSS problems (few detectors, many energy bins).
 
 The implementation here is a self-contained NumPy port of the original
 ``nnqp.py`` (which used ``numba`` for JIT acceleration); we drop the
 ``numba`` hard-dependency and fall back to a vectorised inner loop that is
-fast enough for BSS problems (n ≲ 1000 energy bins).
+fast enough for BSS problems (n в‰І 1000 energy bins).
 """
 
 from typing import Any
@@ -61,7 +61,7 @@ def _nnqp(
     max_iterations: int = 10_000,
     random_state: int | None = None,
 ) -> tuple[np.ndarray, int, bool]:
-    """Solve ``min 0.5 xᵀQx + fᵀx s.t. x ≥ 0`` by coordinate descent.
+    """Solve ``min 0.5 xбµЂQx + fбµЂx s.t. x в‰Ґ 0`` by coordinate descent.
 
     Pure-NumPy port of ``nnqp.nnqp`` (Giovannucci & Pehlevan, 2016,
     https://github.com/simonsfoundation/NNQP).  The original uses ``numba``;
@@ -107,7 +107,7 @@ def _nnqp(
     qdg = np.diag(Q).copy()
     # The diagonal must be strictly positive for the coordinate update to be
     # well-defined. If the user passes a rank-deficient Q, we add a tiny
-    # floor — but only here at the lowest level so callers can override.
+    # floor вЂ” but only here at the lowest level so callers can override.
     bad = qdg <= 0
     if np.any(bad):
         qdg[bad] = np.maximum(qdg[bad], 1e-12)
@@ -130,13 +130,13 @@ def _nnqp(
     for it in range(max_iterations):
         iterations = it + 1
         x_prev = x.copy()
-        # Coordinate-descent sweep — update in place, picking up the latest
+        # Coordinate-descent sweep вЂ” update in place, picking up the latest
         # values of already-updated coordinates (Gauss-Seidel flavour).
         # Vectorised form of the per-coordinate update
-        #   x_i ← max(0, -(M[i,:]·x + f_i) / Q_ii)
-        # Since M has zero diagonal, M[i,:]·x depends only on the other
+        #   x_i в†ђ max(0, -(M[i,:]В·x + f_i) / Q_ii)
+        # Since M has zero diagonal, M[i,:]В·x depends only on the other
         # coordinates, so a Gauss-Seidel sweep is correct.  We do it in a
-        # tight Python loop because BSS problems typically have n ≲ 1000.
+        # tight Python loop because BSS problems typically have n в‰І 1000.
         for i in range(n):
             dum = Dinv[i] * (-(M[i] @ x) - f[i])
             x[i] = dum if dum > 0 else 0.0
@@ -183,17 +183,17 @@ def solve_nnqp(
 
     Recasts the regularised non-negative least-squares problem
 
-        minimize    1/2 · ||A x − b||² + α/2 · ||L x||² + α0/2 · ||x||²
-        subject to  x ≥ 0
+        minimize    1/2 В· ||A x в€’ b||ВІ + О±/2 В· ||L x||ВІ + О±0/2 В· ||x||ВІ
+        subject to  x в‰Ґ 0
 
-    as the NNQP ``min 0.5 xᵀQx + fᵀx s.t. x ≥ 0`` with
+    as the NNQP ``min 0.5 xбµЂQx + fбµЂx s.t. x в‰Ґ 0`` with
 
-        Q = AᵀA + α · LᵀL + α0 · I       (positive-definite)
-        f = − Aᵀ b
+        Q = AбµЂA + О± В· LбµЂL + О±0 В· I       (positive-definite)
+        f = в€’ AбµЂ b
 
     where ``L`` is the finite-difference derivative matrix of order
-    ``smoothness_order`` (0 disables the smoothness term — ``L`` is empty —
-    and ``α0`` is the diagonal regularisation floor).
+    ``smoothness_order`` (0 disables the smoothness term вЂ” ``L`` is empty вЂ”
+    and ``О±0`` is the diagonal regularisation floor).
 
     Parameters
     ----------
@@ -216,7 +216,7 @@ def solve_nnqp(
         Iteration cap (default 10 000).
     floor : float, optional
         Diagonal regularisation floor added to ``Q`` to guarantee strict
-        positive-definiteness even when ``AᵀA`` is rank-deficient
+        positive-definiteness even when ``AбµЂA`` is rank-deficient
         (default 1e-6).
     random_state : int, optional
         Random seed for the initial guess when ``x0`` is ``None``.
@@ -259,6 +259,7 @@ def unfold_nnqp(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     regularization: float = 1e-4,
     smoothness_order: int = 0,
@@ -271,13 +272,17 @@ def unfold_nnqp(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold a neutron spectrum using NNQP (non-negative QP by coordinate descent).
 
     Solves
 
-        minimize    1/2 · ||A x − b||² + α/2 · ||L x||² + α0/2 · ||x||²
-        subject to  x ≥ 0
+        minimize    1/2 В· ||A x в€’ b||ВІ + О±/2 В· ||L x||ВІ + О±0/2 В· ||x||ВІ
+        subject to  x в‰Ґ 0
 
     where ``L`` is the finite-difference derivative matrix of order
     ``smoothness_order``, using the coordinate-descent NNQP solver of
@@ -339,6 +344,7 @@ def unfold_nnqp(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -367,4 +373,8 @@ def unfold_nnqp(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

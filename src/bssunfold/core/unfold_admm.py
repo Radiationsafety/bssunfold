@@ -2,7 +2,7 @@
 
 Alternating Direction Method of Multipliers (Gabay & Mercier, 1976;
 Boyd et al., "Distributed Optimization and Statistical Learning via the
-Alternating Direction Method of Multipliers", 2011 — lecture 11 of the
+Alternating Direction Method of Multipliers", 2011 вЂ” lecture 11 of the
 MIPT optimization course, homework 18).
 
 Solves the constrained regularized unfolding problem
@@ -27,7 +27,7 @@ whose ADMM iterations are fully decoupled:
 - **z1-update**: element-wise soft thresholding (exact prox of the L1 norm);
 - **z2-update**: element-wise soft thresholding of the difference vector
   ``D x + u2`` (exact prox of the 1D total-variation seminorm composed with
-  D through the difference splitting — no inner TV solver needed);
+  D through the difference splitting вЂ” no inner TV solver needed);
 - **u-updates**: scaled dual ascent.
 
 The penalty ``rho`` is adaptively tuned every ``adapt_every`` iterations
@@ -248,6 +248,7 @@ def unfold_admm(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 500,
     tolerance: float = 1e-6,
@@ -261,6 +262,10 @@ def unfold_admm(
     variance_reduction: str = "none",
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using consensus ADMM.
 
@@ -326,6 +331,7 @@ def unfold_admm(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -351,4 +357,8 @@ def unfold_admm(
         variance_reduction=variance_reduction,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

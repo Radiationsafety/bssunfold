@@ -507,7 +507,7 @@ graph TD
 | 101 | `unfold_express` | Parametric / group | `n_groups`, `interval_boundaries`, `max_iterations`, `tol_iteration`, `relative_uncertainty` | — | EXPRESS piecewise-exponential unfolding (Reginatto): the spectrum is represented as a piecewise-exponential function of energy on `n_groups` intervals (default 6; custom boundaries via `interval_boundaries`), and the group parameters are iterated (`max_iterations`, `tol_iteration`) until the folded readings match the measurements within the per-sphere `relative_uncertainty`; returns the full-resolution spectrum evaluated from the fitted segments |
 | 102 | `unfold_ensemble` | Ensemble / meta | `methods`, `weights`, `combination` (weighted_average/median/trimmed_mean), `trim_fraction` | — | Ensemble of unfolders: runs a list of base solver functions with their kwargs (`methods=None` selects a built-in default set), then combines the spectra by inverse-residual weighted average, element-wise `median` or `trimmed_mean` (discarding the most extreme `trim_fraction` of values); variance reduction against method-specific biases and failures |
 
-> **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `variance_reduction` (`none`/`antithetic`/`control`/`both` — lecture-14 variance-reduced Monte-Carlo uncertainty), `save_result`, `random_state`.
+> **Common parameters** (shared by most methods): `readings`, `initial_spectrum`, `calculate_errors`, `noise_level`, `n_montecarlo`, `variance_reduction` (`none`/`antithetic`/`control`/`both` — lecture-14 variance-reduced Monte-Carlo uncertainty), `noise_model` (`gaussian` default / `poisson` — counting statistics: readings are resampled as Poisson-distributed counts, `Var(b_i) = b_i / T`), `measurement_time` (counting time `T` when the readings are rates), `reading_uncertainties` (absolute 1-sigma per reading; takes precedence over the relative `noise_level`), `reading_covariance` (absolute covariance matrix between readings — correlated systematic effects, composed additively on top of the statistical part), `save_result`, `random_state`.
 
 ### Pipeline Example
 
@@ -761,11 +761,13 @@ metrics and follows Xu et al. (NIMA 2026, https://doi.org/10.1016/j.nima.2026.17
 | | `total_flux_ratio` | Ratio of total fluxes sum(p)/sum(q) | (0, ∞) |
 | | `spectral_shape_similarity` | Similarity of normalized spectral shapes | [0, 1] |
 | **Chi-squared** | `chi_squared` | Pearson's chi-squared statistic | [0, ∞) |
+| | `weighted_chi2` | Uncertainty-weighted chi-square (requires per-bin 1-sigma via `compare_spectra(..., uncertainties=...)`) | [0, ∞) |
+| | `reduced_chi2` | Reduced weighted chi-square (chi2/dof; ~1 = differences consistent with the stated uncertainties) | [0, ∞) |
 | | `g_test` | G-test (log-likelihood ratio) | [0, ∞) |
 | | `freeman_tukey` | Freeman-Tukey statistic | [0, ∞) |
 | | `cressie_read` | Cressie-Read power divergence | [0, ∞) |
-| **Statistical** | `anderson_darling` | Anderson-Darling k-sample statistic | [0, ∞) |
-| | `wilcoxon_test` | Wilcoxon signed-rank test statistic | [0, ∞) |
+| **Statistical** | `anderson_darling` | Anderson-Darling k-sample statistic (descriptive; see note) | [0, ∞) |
+| | `wilcoxon_test` | Wilcoxon signed-rank test statistic (descriptive; see note) | [0, ∞) |
 | | `mannwhitneyu_test` | Mann-Whitney U test statistic | [0, ∞) |
 | | `standardized_mean_difference` | Cohen's d (SMD) | (-∞, ∞) |
 | **Integral** | `fluence_averaged_energy` | Fluence-averaged energy ⟨E⟩, single spectrum (MeV) | [0, ∞) |
@@ -797,6 +799,35 @@ The package provides comprehensive output in standardized formats:
 - Energy grid in MeV
 - Unfolded neutron spectrum for the grid of energy bins
 - Uncertainty estimates (if calculated)
+- Spectrum convention keys (see below)
+
+### Spectrum Convention
+
+The forward model of every unfolding method is
+
+```
+b_j = sum_i  R_j(E_i) * phi_i * d(ln E)_i
+```
+
+i.e. the unfolded vector `spectrum` holds a **differential fluence rate per
+unit `d(ln E)`** (lethargy density), *not* per-MeV density and *not* group
+bin totals. The response matrix columns are pre-multiplied by the
+per-bin natural-logarithmic widths of the Detector's energy grid
+(`Detector.ln_steps`, also exposed as `Detector.log_steps` in decades).
+
+Every standardized result therefore carries the keys:
+
+| Key | Meaning |
+|-----|---------|
+| `spectrum_definition` | `"differential_fluence_per_dlnE"` |
+| `spectrum_units` | `"cm^-2 s^-1 (d ln E)^-1"` (up to the units of the readings) |
+| `energy_bin_edges_MeV` | `n + 1` geometric bin edges (geometric midpoints between adjacent centers) |
+| `integration_rule` | `"rectangular_midpoint_dlnE"` |
+
+To convert the lethargy density into group fluence rates or per-MeV
+densities, multiply/divide by the per-bin widths: `Phi_i = phi_i * dlnE_i`,
+`dPhi/dE_i = phi_i / (E_i * dlnE_i)`. Since penalties and dose integrals are
+defined on the lethargy grid, results are invariant to the grid choice.
 
 ### Dose Calculations
 - Effective dose rates for different geometries:
@@ -806,6 +837,27 @@ The package provides comprehensive output in standardized formats:
   - RLAT (Right Lateral)
   - ROT (Rotational)
   - ISO (Isotropic)
+- Dose integration uses the per-bin `d(ln E)_i` widths of the Detector's
+  energy grid (correct for non-uniform grids such as `RF_IHEP`), not a fixed
+  step.
+- `dose_coverage_fraction`: the fraction of the unfolded fluence covered by
+  the energy range of the selected conversion-coefficient dataset;
+  out-of-range bins contribute zero dose and a warning is logged when the
+  coverage is below 100%.
+
+Available conversion-coefficient datasets (`Detector.set_dose_coefficients`):
+
+| Dataset | Quantity | Energy range |
+|---------|----------|--------------|
+| `ICRP116` (default) | Effective dose, ICRP-116 | 1e-9 – 561.7 MeV |
+| `ICRP74_effective` | Effective dose, ICRP-74 | 2.15e-9 – 631 MeV |
+| `ICRP74_operational` | Operational quantities (incl. H*(10) ADE) | 2.15e-9 – 631 MeV |
+| `NRB99_2009_effective` | Effective dose, NRB99-2009 | 1e-6 – 20 MeV |
+
+Note: `doserates` are *effective dose* rates; the operational ambient dose
+equivalent H*(10) is available separately as the
+`ambient_dose_equivalent_rate` comparison metric — these are different
+quantities and must not be mixed.
 
 ### Quality Metrics
 - Residual norm
@@ -829,6 +881,25 @@ The package provides comprehensive output in standardized formats:
 - Nuclear physics experiments
 
 ## 🔬 Advanced Features
+
+### Grid-Aware Regularization (opt-in)
+
+By default, smoothness penalties (`smoothness_order=1/2`, TV, Sobolev) use
+plain bin-index finite differences, so the same physical spectrum penalized
+on two different energy grids yields different roughness and a different
+selected `lambda`. The `unfold_cgls` and `unfold_gks` methods accept
+`grid_aware=True`: the Tikhonov operator then approximates
+
+```
+int (d^n phi / d lnE^n)^2 dlnE
+```
+
+(non-uniform `ln E` derivatives plus per-bin quadrature weights), making the
+penalty — and therefore the selected regularization strength — comparable
+across energy grids. The low-level helpers
+`create_derivative_matrix` / `build_smoothness_penalty` /
+`make_regularization_operator` accept an optional `E_MeV` argument for the
+same effect in custom solvers.
 
 ### Result Management
 ```python

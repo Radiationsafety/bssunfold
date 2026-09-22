@@ -1,12 +1,12 @@
 """Statistical Regularization (Turchin's method) unfolding.
 
-Pure numpy/scipy implementation — no external statreg dependency.
+Pure numpy/scipy implementation вЂ” no external statreg dependency.
 
 Implements Turchin's method of statistical regularisation:
-  φ̂ = argmin { ½‖Σ⁻¹⸍²(Aφ−b)‖² + ½ α ‖D₂ φ‖² }
+  П†М‚ = argmin { ВЅвЂ–ОЈвЃ»В№вёЌВІ(AП†в€’b)вЂ–ВІ + ВЅ О± вЂ–Dв‚‚ П†вЂ–ВІ }
 
-where D₂ is the second-order finite difference operator.
-Regularisation parameter α is selected either by the user or automatically
+where Dв‚‚ is the second-order finite difference operator.
+Regularisation parameter О± is selected either by the user or automatically
 via the L-curve heuristic (maximum curvature).
 """
 
@@ -27,9 +27,9 @@ def _lcurve_statreg(
     n_alphas: int = 50,
     alpha_range: tuple[float, float] = (1e-8, 1e3),
 ) -> float:
-    """Select α by L-curve corner (maximum curvature).
+    """Select О± by L-curve corner (maximum curvature).
 
-    Works in the whitened space: A_tilde = Σ⁻¹⸍² A,  b_tilde = Σ⁻¹⸍² b.
+    Works in the whitened space: A_tilde = ОЈвЃ»В№вёЌВІ A,  b_tilde = ОЈвЃ»В№вёЌВІ b.
     """
     alphas = np.logspace(
         np.log10(alpha_range[0]), np.log10(alpha_range[1]), n_alphas
@@ -90,7 +90,7 @@ def solve_statreg(
     Parameters
     ----------
     A : np.ndarray
-        Response matrix (m × n).
+        Response matrix (m Г— n).
     b : np.ndarray
         Measurement vector (m,).
     x0 : np.ndarray, optional
@@ -99,9 +99,9 @@ def solve_statreg(
         Energy grid (n,). Used for log-energy penalty scaling.
     unfoldermethod : str, optional
         Regularisation method: ``'EmpiricalBayes'`` (L-curve, default) or
-        ``'User'`` (fixed α).
+        ``'User'`` (fixed О±).
     regularization : float, optional
-        Regularisation parameter α for ``'User'`` method (default: 1e-4).
+        Regularisation parameter О± for ``'User'`` method (default: 1e-4).
     basis_name : str, optional
         Ignored (kept for API compatibility).
     boundary : str, optional
@@ -162,6 +162,7 @@ def unfold_statreg(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     unfoldermethod: str = "EmpiricalBayes",
     regularization: float | None = None,
@@ -173,6 +174,10 @@ def unfold_statreg(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using Turchin's statistical regularisation.
 
@@ -229,6 +234,7 @@ def unfold_statreg(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -253,4 +259,8 @@ def unfold_statreg(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

@@ -34,6 +34,7 @@ def solve_cgls(
     noise_level: float | None = None,
     regularization: float = 0.0,
     smoothness_order: int = 0,
+    E_MeV: np.ndarray | None = None,
 ) -> tuple[np.ndarray, int, bool]:
     """Solve the unfolding problem with the CGLS method.
 
@@ -69,6 +70,12 @@ def solve_cgls(
         Derivative order of the regularization operator L used when
         ``regularization`` is positive: 0 (identity), 1 or 2
         (default: 0).
+    E_MeV : np.ndarray, optional
+        Energy grid (n,) in MeV. When provided together with a positive
+        ``regularization`` and ``smoothness_order`` in (1, 2), the
+        regularization operator approximates derivatives with respect to
+        ``ln E`` (grid-aware regularization). Default: None (bin-index
+        differences, legacy behaviour).
 
     Returns
     -------
@@ -90,7 +97,9 @@ def solve_cgls(
 
     L = None
     if regularization > 0:
-        L = make_regularization_operator(n, smoothness_order, identity_for_zero=False)
+        L = make_regularization_operator(
+            n, smoothness_order, identity_for_zero=False, E_MeV=E_MeV
+        )
 
     r = b - A @ x
     s = A.T @ r
@@ -168,16 +177,22 @@ def unfold_cgls(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 100,
     tolerance: float = 1e-12,
     noise_level: float | None = None,
     regularization: float = 0.0,
     smoothness_order: int = 0,
+    grid_aware: bool = False,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold a neutron spectrum with the CGLS method.
 
@@ -210,6 +225,11 @@ def unfold_cgls(
     smoothness_order : int, optional
         Derivative order of the regularization operator L used when
         ``regularization`` is positive (default: 0).
+    grid_aware : bool, optional
+        When True and ``smoothness_order`` in (1, 2), the smoothness
+        operator measures derivatives with respect to ``ln E`` instead of
+        the bin index, making the penalty comparable across different
+        energy grids (default: False).
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty (default: False).
     n_montecarlo : int, optional
@@ -233,6 +253,7 @@ def unfold_cgls(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -243,6 +264,7 @@ def unfold_cgls(
             noise_level=noise_level,
             regularization=regularization,
             smoothness_order=smoothness_order,
+            E_MeV=E_MeV if grid_aware else None,
         ),
         solve_kwargs={},
         method_name="CGLS",
@@ -250,10 +272,15 @@ def unfold_cgls(
             "max_iterations": max_iterations,
             "regularization": float(regularization),
             "smoothness_order": int(smoothness_order),
+            "grid_aware": bool(grid_aware),
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level or 0.01,
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

@@ -150,6 +150,7 @@ def solve_gks(
     max_iterations: int | None = None,
     regularization: float = 1e-8,
     noise_level: float | None = None,
+    E_MeV: np.ndarray | None = None,
 ) -> tuple[np.ndarray, int, bool]:
     """Solve the unfolding problem with the Generalized Krylov Subspace method.
 
@@ -180,6 +181,12 @@ def solve_gks(
         Manual/fallback regularization parameter (default: 1e-8).
     noise_level : float, optional
         Relative noise level used by the Discrepancy Principle.
+    E_MeV : np.ndarray, optional
+        Energy grid (n,) in MeV. When provided together with
+        ``smoothness_order`` in (1, 2), the regularization operator
+        approximates derivatives with respect to ``ln E``
+        (grid-aware regularization). Default: None (bin-index
+        differences, legacy behaviour).
 
     Returns
     -------
@@ -196,7 +203,7 @@ def solve_gks(
         max_iterations = min(m, n)
     max_iterations = max(1, int(max_iterations))
 
-    L = make_regularization_operator(n, smoothness_order)
+    L = make_regularization_operator(n, smoothness_order, E_MeV=E_MeV)
 
     beta = float(np.linalg.norm(b))
     if beta == 0.0:
@@ -299,16 +306,22 @@ def unfold_gks(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     smoothness_order: int = 0,
     regularization_method: str = "gcv",
     max_iterations: int | None = None,
     regularization: float = 1e-8,
     noise_level: float | None = None,
+    grid_aware: bool = False,
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold a neutron spectrum with the Generalized Krylov Subspace method.
 
@@ -342,6 +355,10 @@ def unfold_gks(
         Manual/fallback regularization parameter (default: 1e-8).
     noise_level : float, optional
         Relative noise level used by the Discrepancy Principle.
+    grid_aware : bool, optional
+        When True and ``smoothness_order`` in (1, 2), the smoothness
+        operator measures derivatives with respect to ``ln E`` on the
+        energy grid instead of the bin index (default: False).
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty (default: False).
     n_montecarlo : int, optional
@@ -365,6 +382,7 @@ def unfold_gks(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -375,6 +393,7 @@ def unfold_gks(
             max_iterations=max_iterations,
             regularization=regularization,
             noise_level=noise_level,
+            E_MeV=E_MeV if grid_aware else None,
         ),
         solve_kwargs={},
         method_name="GKS",
@@ -382,10 +401,15 @@ def unfold_gks(
             "regularization_method": regularization_method,
             "smoothness_order": int(smoothness_order),
             "regularization": float(regularization),
+            "grid_aware": bool(grid_aware),
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level or 0.01,
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

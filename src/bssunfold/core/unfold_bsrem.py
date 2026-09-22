@@ -3,13 +3,21 @@
 Port of the ``BSREM`` reconstruction algorithm from PyTomography
 (https://github.com/PyTomography/PyTomography, MIT license) adapted to
 neutron spectrum unfolding. BSREM is a penalised EM with a user-supplied
-relaxation sequence ``alpha(n)`` that guarantees convergence for non-convex
-priors, and a floor clamp that prevents spectrum bins from being locked at
-zero:
+relaxation sequence ``alpha(n)`` and a floor clamp that prevents spectrum
+bins from being locked at zero:
 
     x^{n+1} = x^n + alpha(n)/(omega_m * A^T 1 + eps)
                   * ( A_m^T ( b_m/(A_m x^n + eps) ) - A_m^T 1
                       - omega_m * beta * grad V(x^n) )
+
+Convergence note: for the *unpenalised* Poisson EM step, monotone
+convergence holds for a summable relaxation sequence ``sum alpha(n) <
+inf``. With a non-convex prior ``V`` (log-cosh, relative difference) the
+penalised iteration is *not* guaranteed to converge to a global optimum;
+convergence to a stationary point requires conditions on ``alpha(n)``
+(e.g. summability with a sufficiently small upper bound relative to the
+prior curvature) that this implementation does not verify. Use
+``relaxation`` with care and inspect ``convergence_history``.
 
 where ``m`` indexes the detector subset, ``omega_m`` is the subset fraction
 and ``V`` is a nearest-neighbour prior over the energy axis (see
@@ -165,6 +173,7 @@ def unfold_bsrem(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     prior: str = "none",
     beta: float = 1e-3,
@@ -180,6 +189,10 @@ def unfold_bsrem(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using the BSREM algorithm.
 
@@ -248,6 +261,7 @@ def unfold_bsrem(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -276,4 +290,8 @@ def unfold_bsrem(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

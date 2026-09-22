@@ -140,6 +140,12 @@ def build_coarse_detector(detector, n_coarse: int):
     coarse.sensitivities = {
         d: A_coarse[i].copy() for i, d in enumerate(detector.detector_names)
     }
+    # Keep the per-bin lethargy widths and bin edges consistent with the
+    # coarsened grid (the constructor computed them on the fine grid).
+    from .dose_calculation import default_ln_steps, energy_bin_edges
+
+    coarse.ln_steps = default_ln_steps(coarse_E)
+    coarse.energy_bin_edges_MeV = energy_bin_edges(coarse_E)
     return coarse
 
 

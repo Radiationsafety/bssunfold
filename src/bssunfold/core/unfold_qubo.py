@@ -7,7 +7,7 @@ quantum-inspired simulated annealing (D-Wave Neal) or other QUBO solvers.
 The approach discretizes the spectrum into binary variables and formulates
 the unfolding as:
 
-    min_x ||Ax - b||^2 + λ * R(x)
+    min_x ||Ax - b||^2 + О» * R(x)
 
 subject to x >= 0,
 
@@ -261,6 +261,7 @@ def unfold_qubo(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     n_bits: int = 6,
     max_value: float | None = None,
@@ -273,6 +274,10 @@ def unfold_qubo(
     n_montecarlo: int = 50,  # Reduced due to computational cost
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold using QUBO formulation with quantum-inspired annealing.
 
@@ -344,6 +349,7 @@ def unfold_qubo(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -361,6 +367,10 @@ def unfold_qubo(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )
 
 

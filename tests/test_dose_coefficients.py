@@ -177,9 +177,20 @@ class TestInterpolateCoefficients:
 
     def test_preserves_all_keys(self):
         cc = get_coefficients("ICRP74_operational")
-        E_target = np.logspace(-9, 3, 60)
+        E_target = np.logspace(-8, 3, 60)
         cc_int = interpolate_coefficients(cc, E_target)
-        assert set(cc_int.keys()) == set(cc.keys())
+        # All source keys are preserved, plus the additive
+        # ``_out_of_range_mask`` helper key marking bins outside the source
+        # energy range.
+        assert set(cc.keys()).issubset(set(cc_int.keys()))
+        assert "_out_of_range_mask" in cc_int
+        mask = cc_int["_out_of_range_mask"]
+        assert mask.shape == (60,)
+        assert mask.dtype == bool
+        # logspace(-8, 3): bins above the 631 MeV source edge are out of range
+        assert mask[0] is np.False_ or not mask[0]
+        assert mask[-1]
+        assert not mask[len(mask) // 2]
 
     def test_custom_fill_value(self):
         cc = get_coefficients("NRB99_2009_effective")

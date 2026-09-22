@@ -3,8 +3,11 @@
 Implements Improved Maximum Entropy Deconvolution (Wong 2024)
 using Newton's method with line search (Wolfe conditions) instead of L-BFGS-B.
 
-The algorithm searches for roots of the vector-valued function using Newton's method,
-with guaranteed convergence to the optimal solution through line search.
+The algorithm searches for roots of the vector-valued function using Newton's method
+with line search. The line search (Wolfe conditions) improves step acceptance and
+practical stability, but — as for any Newton iteration on a non-convex maximum-entropy
+objective — convergence to the global optimum is not guaranteed; the iteration may
+converge to a local stationary point or stall if the Jacobian becomes ill-conditioned.
 
 References
 ----------
@@ -96,7 +99,7 @@ def solve_imaxed(
         return At_Sb_A + np.diag(1.0 / (p + 1e-300))
 
     phi = phi_0.copy()
-    # Clamp Armijo constant to (0,1) — callers may pass 1e-6..1e-4
+    # Clamp Armijo constant to (0,1) вЂ” callers may pass 1e-6..1e-4
     c1 = float(np.clip(line_search_tol, 1e-12, 0.5))
 
     grad_norm = np.inf
@@ -135,7 +138,7 @@ def solve_imaxed(
 
         phi = np.maximum(phi + beta * delta, phi_floor)
     else:
-        # loop exhausted without break — recompute grad norm at last phi
+        # loop exhausted without break вЂ” recompute grad norm at last phi
         grad_norm = float(np.linalg.norm(_gradient(phi)))
 
     iterations = iteration + 1
@@ -151,6 +154,7 @@ def unfold_imaxed(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     sigma_factor: float = 0.1,
     max_iterations: int = 5000,
@@ -161,6 +165,10 @@ def unfold_imaxed(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using the IMAXED algorithm.
 
@@ -218,6 +226,7 @@ def unfold_imaxed(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=x0_ref,
         default_initial=np.ones(n_energy_bins),
@@ -238,4 +247,8 @@ def unfold_imaxed(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

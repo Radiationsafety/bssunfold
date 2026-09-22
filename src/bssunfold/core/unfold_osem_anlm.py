@@ -131,8 +131,8 @@ def anlm_filter_1d(
        producing a lightly denoised intermediate spectrum and the "initial"
        normalised weights ``w1(i, j)``.
     3. Stage 2 applies NLM with the point-wise parameter of article eq. 6,
-       ``h2(i) = sqrt(sum_j w1(i, j)^2 * sigma^2)`` — the noise standard
-       deviation smoothed by the initial weights — to the stage-1 output,
+       ``h2(i) = sqrt(sum_j w1(i, j)^2 * sigma^2)`` вЂ” the noise standard
+       deviation smoothed by the initial weights вЂ” to the stage-1 output,
        incrementally reducing the noise while preserving structure.
 
     By default (``log_space=True``) the filter operates on the logarithm
@@ -315,8 +315,8 @@ def solve_osem_anlm(
         Spread of the Gaussian kernel over the similarity window
         (default: 1.0).
     anlm_mode : str, optional
-        ``'subset'`` — ANLM after every subset update (default, article
-        pseudo-code); ``'post'`` — single ANLM application to the OSEM
+        ``'subset'`` вЂ” ANLM after every subset update (default, article
+        pseudo-code); ``'post'`` вЂ” single ANLM application to the OSEM
         result.
     log_space : bool, optional
         Apply the ANLM filter to the logarithm of the spectrum (default:
@@ -407,6 +407,7 @@ def unfold_osem_anlm(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 50,
     n_subsets: int = 1,
@@ -422,6 +423,10 @@ def unfold_osem_anlm(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using the OSEM-ANLM algorithm.
 
@@ -468,8 +473,8 @@ def unfold_osem_anlm(
         Spread of the Gaussian kernel over the similarity window
         (default: 1.0).
     anlm_mode : str, optional
-        ``'subset'`` — ANLM after every subset update (default, article
-        pseudo-code); ``'post'`` — single ANLM application to the OSEM
+        ``'subset'`` вЂ” ANLM after every subset update (default, article
+        pseudo-code); ``'post'`` вЂ” single ANLM application to the OSEM
         result.
     log_space : bool, optional
         Apply the ANLM filter to the logarithm of the spectrum (default:
@@ -501,6 +506,7 @@ def unfold_osem_anlm(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=x0_default,
@@ -532,4 +538,8 @@ def unfold_osem_anlm(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

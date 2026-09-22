@@ -596,7 +596,7 @@ def ssr(
         automatic default ``max(2, log(n) - 2)`` (in partial sum mode)
         or the run length quantile (otherwise), as in R ``ssrR``.
     ps : bool, optional
-        Partial sum mode (default) — recommended; ``False`` switches
+        Partial sum mode (default) вЂ” recommended; ``False`` switches
         to the maximum run criterion with window ``k = fn``.
     funk : int, optional
         ``1`` (default) for the L1 solver, ``2`` for the L2 variant.
@@ -1182,6 +1182,7 @@ def unfold_ssr(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     fn: str | int = "auto",
     max_iterations: int = 500,
@@ -1194,6 +1195,10 @@ def unfold_ssr(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold a neutron spectrum with SSR sign-parsimony regularisation.
 
@@ -1311,6 +1316,7 @@ def unfold_ssr(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=default_initial,
@@ -1323,4 +1329,8 @@ def unfold_ssr(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

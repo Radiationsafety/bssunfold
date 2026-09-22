@@ -199,6 +199,7 @@ def unfold_ensemble(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     methods: list[tuple[Callable, dict[str, Any]]] | None = None,
     weights: np.ndarray | None = None,
@@ -262,8 +263,6 @@ def unfold_ensemble(
     x0_default = np.ones(n_energy_bins) * 0.5
     x0 = initial_spectrum if initial_spectrum is not None else x0_default
 
-    from .dose_calculation import calculate_dose_rates
-
     spectrum, info = solve_ensemble(
         A,
         b,
@@ -276,12 +275,27 @@ def unfold_ensemble(
 
     computed_readings = A @ spectrum
     residual = b - computed_readings
-    doserates = calculate_dose_rates(spectrum, cc_icrp116)
+    from .dose_calculation import (
+        INTEGRATION_RULE,
+        SPECTRUM_DEFINITION,
+        SPECTRUM_UNITS,
+        calculate_dose_rates,
+        default_ln_steps,
+        energy_bin_edges,
+    )
+
+    if ln_steps is None:
+        ln_steps = default_ln_steps(E_MeV)
+    doserates = calculate_dose_rates(spectrum, cc_icrp116, dlnE_array=ln_steps)
 
     result = {
         "energy": E_MeV.copy(),
         "spectrum": spectrum.copy(),
         "spectrum_absolute": spectrum.copy(),
+        "spectrum_definition": SPECTRUM_DEFINITION,
+        "spectrum_units": SPECTRUM_UNITS,
+        "energy_bin_edges_MeV": energy_bin_edges(E_MeV),
+        "integration_rule": INTEGRATION_RULE,
         "effective_readings": {
             name: float(val)
             for name, val in zip(

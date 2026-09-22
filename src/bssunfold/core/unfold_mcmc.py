@@ -490,6 +490,7 @@ def unfold_mcmc(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     sigma_prior: float = 0.05,
     lambda_prior: float = 0.5,
@@ -505,6 +506,10 @@ def unfold_mcmc(
     save_result: bool = False,
     random_state: int | None = None,
     progressbar: bool = False,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using Bayesian MCMC with NUTS sampler.
 
@@ -683,6 +688,7 @@ def unfold_mcmc(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=initial_spectrum,
         default_initial=np.ones(n_energy_bins),
@@ -700,6 +706,10 @@ def unfold_mcmc(
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,
         random_state=random_state,
+        reading_uncertainties=reading_uncertainties,
+        reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
         save_result=False,
     )
 

@@ -23,6 +23,7 @@ def unfold_combined(
     save_result_callback,
     readings: dict[str, float],
     pipeline: list[dict[str, Any]],
+    ln_steps: np.ndarray | None = None,
     calculate_errors: bool = False,
     verbose: bool = True,
 ) -> dict[str, Any] | None:
@@ -159,6 +160,7 @@ def unfold_combined(
                 sensitivities=sensitivities,
                 cc_icrp116=cc_icrp116,
                 save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
                 readings=readings,
                 **params,
             )

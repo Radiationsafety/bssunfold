@@ -3,9 +3,9 @@
 Implements Maximum Entropy Deconvolution (Reginatto & Goldhagen 1999)
 by minimising the primal function in log-space:
 
-    f(x) = -S(x) + ½ Σ_j (b_j - (A@x)_j)² / σ_j²
+    f(x) = -S(x) + ВЅ ОЈ_j (b_j - (A@x)_j)ВІ / Пѓ_jВІ
 
-where S(x) = -Σ_i x_i ln(x_i/x0_i) + Σ_i x_i - Σ_i x0_i is the Shannon
+where S(x) = -ОЈ_i x_i ln(x_i/x0_i) + ОЈ_i x_i - ОЈ_i x0_i is the Shannon
 entropy relative to the reference spectrum x0.
 
 The log transform y_i = ln(x_i) ensures positivity and good numerical
@@ -41,7 +41,7 @@ def solve_maxed(
         Reference (prior) spectrum (n,).
     sigma_factor : float, optional
         Relative measurement uncertainty (default: 0.1).
-        Larger values → smoother spectrum (weaker data term).
+        Larger values в†’ smoother spectrum (weaker data term).
     max_iterations : int, optional
         Maximum L-BFGS-B iterations (default: 5000).
     tolerance : float, optional
@@ -66,8 +66,8 @@ def solve_maxed(
     log_phi_0 = np.log(phi_0)
 
     # Objective and gradient in log-space: y_i = ln(x_i).
-    # f(y) = Σ [e^yi (yi - ln x0_i) - e^yi + x0_i]
-    #       + ½ Σ (b_j - Σ A_ji e^yi)² / σ_j²
+    # f(y) = ОЈ [e^yi (yi - ln x0_i) - e^yi + x0_i]
+    #       + ВЅ ОЈ (b_j - ОЈ A_ji e^yi)ВІ / Пѓ_jВІ
 
     def _f_and_g(y: np.ndarray):
         x = np.exp(y)
@@ -80,7 +80,7 @@ def solve_maxed(
         # Chi-squared part of f
         f_chi = 0.5 * np.sum(residual**2 * sigma2_inv)
 
-        # Gradient: df/dy_i = x_i * [ln(x_i/x0_i) - Aᵀ(r/σ²)_i]
+        # Gradient: df/dy_i = x_i * [ln(x_i/x0_i) - AбµЂ(r/ПѓВІ)_i]
         AT_resid_over_sigma2 = A.T @ (residual * sigma2_inv)
         g = x * (y - log_phi_0 - AT_resid_over_sigma2)
 
@@ -111,6 +111,7 @@ def unfold_maxed(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     sigma_factor: float = 0.1,
     max_iterations: int = 5000,
@@ -120,6 +121,10 @@ def unfold_maxed(
     n_montecarlo: int = 100,
     save_result: bool = False,
     random_state: int | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    reading_covariance: np.ndarray | None = None,
+    noise_model: str = "gaussian",
+    measurement_time: float | None = None,
 ) -> dict[str, Any]:
     """Unfold neutron spectrum using the MAXED algorithm.
 
@@ -143,7 +148,7 @@ def unfold_maxed(
         Reference spectrum. If None, a flat reference is used.
     sigma_factor : float, optional
         Relative measurement uncertainty (default: 0.1).
-        Larger values → smoother spectrum.
+        Larger values в†’ smoother spectrum.
     max_iterations : int, optional
         Maximum L-BFGS-B iterations (default: 5000).
     tolerance : float, optional
@@ -176,6 +181,7 @@ def unfold_maxed(
         sensitivities=sensitivities,
         cc_icrp116=cc_icrp116,
         save_result_callback=save_result_callback,
+        ln_steps=ln_steps,
         readings=readings,
         initial_spectrum=x0_ref,
         default_initial=np.ones(n_energy_bins),
@@ -195,4 +201,8 @@ def unfold_maxed(
         n_montecarlo=n_montecarlo,
         random_state=random_state,
         save_result=save_result,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
     )

@@ -6,10 +6,10 @@ or CGLS).
 
 Algorithm
 --------
-1. **First pass** – use a fast EM-type method with few iterations to
+1. **First pass** вЂ“ use a fast EM-type method with few iterations to
    capture the gross spectral structure.
 2. **Compute residual** ``r = b - A @ x1``.
-3. **Second pass** – use a gradient-based method on the residual to
+3. **Second pass** вЂ“ use a gradient-based method on the residual to
    correct systematic errors: ``x2 = solve_2nd(A, r, 0)``.
 4. **Combine** ``x_final = x1 + alpha * x2`` where *alpha* can be
    fixed or selected via discrepancy principle.
@@ -145,6 +145,7 @@ def unfold_iterative_refinement(
     cc_icrp116: dict[str, np.ndarray],
     save_result_callback,
     readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
     first_pass_kwargs: dict[str, Any] | None = None,
     second_pass_kwargs: dict[str, Any] | None = None,
@@ -208,8 +209,6 @@ def unfold_iterative_refinement(
     x0_default = np.ones(n_energy_bins) * 0.5
     x0 = initial_spectrum if initial_spectrum is not None else x0_default
 
-    from .dose_calculation import calculate_dose_rates
-
     spectrum, info = solve_iterative_refinement(
         A, b, x0,
         first_pass_kwargs=first_pass_kwargs,
@@ -220,12 +219,27 @@ def unfold_iterative_refinement(
 
     computed_readings = A @ spectrum
     residual = b - computed_readings
-    doserates = calculate_dose_rates(spectrum, cc_icrp116)
+    from .dose_calculation import (
+        INTEGRATION_RULE,
+        SPECTRUM_DEFINITION,
+        SPECTRUM_UNITS,
+        calculate_dose_rates,
+        default_ln_steps,
+        energy_bin_edges,
+    )
+
+    if ln_steps is None:
+        ln_steps = default_ln_steps(E_MeV)
+    doserates = calculate_dose_rates(spectrum, cc_icrp116, dlnE_array=ln_steps)
 
     result = {
         "energy": E_MeV.copy(),
         "spectrum": spectrum.copy(),
         "spectrum_absolute": spectrum.copy(),
+        "spectrum_definition": SPECTRUM_DEFINITION,
+        "spectrum_units": SPECTRUM_UNITS,
+        "energy_bin_edges_MeV": energy_bin_edges(E_MeV),
+        "integration_rule": INTEGRATION_RULE,
         "effective_readings": {
             name: float(val)
             for name, val in zip(
