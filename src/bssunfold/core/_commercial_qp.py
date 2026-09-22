@@ -136,10 +136,26 @@ def _require_imports():
 
 
 def _commercial_kwargs(cp, solver, timeout, random_state, x0) -> dict:
-    """Assemble solver kwargs, degrading gracefully when unsupported."""
+    """Assemble solver kwargs, degrading gracefully when unsupported.
+
+    The timeout is mapped to each engine's native cvxpy option name
+    (``TimeLimit`` for Gurobi, ``cplex_params``/``timelimit`` for CPLEX,
+    ``mosek_params``/``MSK_DPAR_OPTIMIZER_MAX_TIME`` for MOSEK); engines
+    without a portable timeout option (COPT, XPRESS) simply omit it. A
+    bare ``timeout=...`` kwarg raises "Unknown parameter" on several of
+    the cvxpy interfaces, which previously surfaced masked as a license
+    error.
+    """
     kwargs: dict[str, Any] = {"solver": solver, "verbose": False}
     if timeout is not None:
-        kwargs["timeout"] = max(float(timeout), 1e-3)
+        limit = max(float(timeout), 1e-3)
+        if solver == "GUROBI":
+            kwargs["TimeLimit"] = limit
+        elif solver == "CPLEX":
+            kwargs["cplex_params"] = {"timelimit": limit}
+        elif solver == "MOSEK":
+            kwargs["mosek_params"] = {"MSK_DPAR_OPTIMIZER_MAX_TIME": limit}
+        # COPT / XPRESS: no portable timeout option — omit it.
     if random_state is not None:
         kwargs["seed"] = int(random_state)
     if x0 is not None:
