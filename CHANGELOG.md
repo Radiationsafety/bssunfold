@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog],
 
 and this project adheres to [Semantic Versioning].
 
-## [Unreleased]
+
+## [0.28.0] - 2026-09-22
 
 ### Added
 
@@ -57,18 +58,6 @@ and this project adheres to [Semantic Versioning].
   into `tests/test_all_unfold_methods_api.py` with auto-skip when the
   engine package is not installed (CPLEX runs for real in the dev
   environment).
-
-### Documentation
-
-- README, `docs/index.rst`, `docs/overview.rst`, `docs/examples.rst`,
-  `docs/math_formulation.rst` and `docs/detector.rst` updated with the
-  five license-required methods (method tables, mermaid family maps,
-  variational-formulation section, autodoc entries, installation extras
-  with explicit **license required** notes); method count 94 → 99.
-
-## [0.28.0] - 2026-09-21
-
-### Added
 
 - **OSEM-ANLM unfolding method** (`unfold_osem_anlm` / `solve_osem_anlm`):
   port of the OSEM-ANLM algorithm of Jamaati et al. (2026), "Enhanced
