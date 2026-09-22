@@ -42,3 +42,4 @@ examples/01_reference_data.png
 .gitignore
 examples/03_methods_comparison.png
 examples/cuqi_quality_analysis_results.csv
+examples/04_residuals_analysis.png
