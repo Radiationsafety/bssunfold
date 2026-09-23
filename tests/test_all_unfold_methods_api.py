@@ -486,30 +486,30 @@ class TestParameterAssignment:
             methods=None, weights=None, combination="weighted_average",
             trim_fraction=0.1,
         ),
+        # norm=1 requires nonneg=True (library guard), so exercise the
+        # non-default combo norm=2 + nonneg=False here for all engines.
         "unfold_gurobi": dict(
-            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            regularization=1e-3, norm=2, timeout=5.0, smoothness_order=1,
             smoothness_weight=0.5, nonneg=False,
             regularization_method="manual", noise_var=0.01,
         ),
         "unfold_mosek": dict(
-            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            regularization=1e-3, norm=2, timeout=5.0, smoothness_order=1,
             smoothness_weight=0.5, nonneg=False,
             regularization_method="manual", noise_var=0.01,
         ),
-        # norm=1 requires nonneg=True (library guard), so exercise the
-        # non-default combo norm=2 + nonneg=False here.
         "unfold_cplex": dict(
             regularization=1e-3, norm=2, timeout=5.0, smoothness_order=1,
             smoothness_weight=0.5, nonneg=False,
             regularization_method="manual", noise_var=0.01,
         ),
         "unfold_copt": dict(
-            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            regularization=1e-3, norm=2, timeout=5.0, smoothness_order=1,
             smoothness_weight=0.5, nonneg=False,
             regularization_method="manual", noise_var=0.01,
         ),
         "unfold_xpress": dict(
-            regularization=1e-3, norm=1, timeout=5.0, smoothness_order=1,
+            regularization=1e-3, norm=2, timeout=5.0, smoothness_order=1,
             smoothness_weight=0.5, nonneg=False,
             regularization_method="manual", noise_var=0.01,
         ),
