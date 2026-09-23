@@ -350,9 +350,12 @@ class TestUnfoldCommercial:
     def test_missing_license_returns_zero_spectrum(self, alias):
         detector = Detector()
         readings = {detector.detector_names[0]: 100.0}
-        if is_commercial_solver_available(alias):
-            pytest.skip(f"{alias} engine is actually installed")
-        with pytest.warns(UserWarning):
+        # Force unavailable path: a free size-limited engine trial can make
+        # available=True and solve without warning (DID NOT WARN on CI).
+        with patch(
+            "bssunfold.core._commercial_qp.is_commercial_solver_available",
+            return_value=False,
+        ), pytest.warns(UserWarning):
             result = self._call(detector, readings, solver=alias, timeout=2.0)
         assert np.all(result["spectrum"] == 0)
         assert result["license_required"] is True
@@ -374,9 +377,10 @@ class TestUnfoldCommercial:
             assert np.any(result["spectrum"] > 0)
 
     def test_detector_gurobi_graceful_zero(self, detector, readings):
-        if is_commercial_solver_available("gurobi"):
-            pytest.skip("gurobi engine is actually installed")
-        with pytest.warns(UserWarning):
+        with patch(
+            "bssunfold.core._commercial_qp.is_commercial_solver_available",
+            return_value=False,
+        ), pytest.warns(UserWarning):
             result = detector.unfold_gurobi(
                 readings, save_result=False, timeout=2.0
             )

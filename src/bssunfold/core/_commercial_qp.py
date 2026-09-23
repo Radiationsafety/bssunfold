@@ -265,8 +265,12 @@ def solve_commercial_qp(
                 n, alpha, smoothness_order, smoothness_weight
             ).toarray()
 
+    # Symmetrize: A'A + penalty is PSD by construction, but float noise can
+    # leave a tiny asymmetry that trips cvxpy's ARPACK PSD probe on some
+    # platforms (ArpackNoConvergence on macOS CI). assume_PSD skips the probe.
+    P = 0.5 * (P + P.T)
     x = cp.Variable(n, nonneg=nonneg)
-    objective = cp.Minimize(0.5 * cp.quad_form(x, P) + q @ x)
+    objective = cp.Minimize(0.5 * cp.quad_form(x, P, assume_PSD=True) + q @ x)
     constraints = []
     if ub is not None:
         finite = np.isfinite(ub)
