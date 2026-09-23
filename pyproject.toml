@@ -5,9 +5,6 @@ description = "Python package for neutron spectrum unfolding from measurements o
 readme = "README.md"
 authors = [
     { name = "Konstantin Chizhov", email = "kchizhov@jinr.ru" },
-    { name = "Alexei Chizhov", email = "chizhov@jinr.ru" },
-    { name = "Dmitry Borschev", email = "bds.22@uni-dubna.ru" },
-    { name = "Maria Akimochkina", email = "a.m.a.mos@yandex.ru" },
 ]
 maintainers = [
   {name = "Konstantin Chizhov", email = "kchizhov@jinr.ru"}
