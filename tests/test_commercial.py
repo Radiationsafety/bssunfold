@@ -12,6 +12,7 @@ IBM CPLEX is installed in the dev environment (Community Edition), so the
 their graceful-failure contracts.
 """
 
+import warnings
 from unittest.mock import patch
 
 import numpy as np
@@ -97,6 +98,19 @@ class TestCommercialMetadata:
     def test_availability_false_when_import_blocked(self, alias):
         with block_import(PIP_MODULES[alias]):
             assert is_commercial_solver_available(alias) is False
+
+    @pytest.mark.parametrize(
+        "exc",
+        [ImportError("no cvxpy"), OSError("bad engine DLL"),
+         AttributeError("broken probe")],
+    )
+    def test_availability_swallows_probe_errors(self, exc):
+        # A broken engine probe (DLL load failure on Windows, corrupt
+        # install, ...) must degrade to available=False instead of
+        # propagating out of solve_commercial before any warning.
+        with patch("cvxpy.installed_solvers", side_effect=exc):
+            for alias in COMMERCIAL_ALIASES:
+                assert is_commercial_solver_available(alias) is False
 
     @pytest.mark.parametrize("alias", COMMERCIAL_ALIASES)
     def test_detector_method_exists(self, alias):
@@ -295,13 +309,34 @@ class TestSolveWithCplex:
         _require_cplex()
         A = np.array([[1.0, 2.0], [3.0, 4.0]])
         b = np.array([5.0, 6.0])
+        # Patch both re-export names of the same class: an exception
+        # raised anywhere before problem.solve used to be masked by
+        # pytest.warns as "DID NOT WARN" on windows/3.14 CI, so collect
+        # warnings explicitly and surface any escaped exception.
         with patch(
             "cvxpy.problems.problem.Problem.solve",
             side_effect=RuntimeError("no license found"),
+        ), patch(
+            "cvxpy.Problem.solve",
+            side_effect=RuntimeError("no license found"),
         ):
-            with pytest.warns(UserWarning, match="license"):
-                x = solve_commercial(A, b, solver="cplex")
-        assert x is None
+            with warnings.catch_warnings(record=True) as rec:
+                warnings.simplefilter("always")
+                try:
+                    x = solve_commercial(A, b, solver="cplex")
+                except Exception as exc:
+                    pytest.fail(
+                        f"solve_commercial raised instead of warning: {exc!r}"
+                    )
+        assert x is None, (
+            "mocked solver error was not intercepted — the real engine "
+            "solved silently (no warning, non-None spectrum)"
+        )
+        msgs = [
+            str(w.message) for w in rec
+            if issubclass(w.category, UserWarning)
+        ]
+        assert any("license" in m for m in msgs), f"emitted: {msgs}"
 
     def test_non_optimal_status_returns_none(self):
         _require_cplex()
@@ -310,10 +345,26 @@ class TestSolveWithCplex:
         with patch(
             "cvxpy.problems.problem.Problem.solve",
             side_effect=lambda *a, **k: None,
+        ), patch(
+            "cvxpy.Problem.solve",
+            side_effect=lambda *a, **k: None,
         ):
-            with pytest.warns(UserWarning, match="did not find a solution"):
-                x = solve_commercial(A, b, solver="cplex")
+            with warnings.catch_warnings(record=True) as rec:
+                warnings.simplefilter("always")
+                try:
+                    x = solve_commercial(A, b, solver="cplex")
+                except Exception as exc:
+                    pytest.fail(
+                        f"solve_commercial raised instead of warning: {exc!r}"
+                    )
         assert x is None
+        msgs = [
+            str(w.message) for w in rec
+            if issubclass(w.category, UserWarning)
+        ]
+        assert any(
+            "did not find a solution" in m for m in msgs
+        ), f"emitted: {msgs}"
 
 
 # ---------------------------------------------------------------------------

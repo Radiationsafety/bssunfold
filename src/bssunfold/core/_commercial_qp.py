@@ -119,7 +119,11 @@ def is_commercial_solver_available(alias: str) -> bool:
         if solver is None:
             return False
         return solver in cp.installed_solvers()
-    except ImportError:
+    except Exception:
+        # Any probe failure (ImportError, OSError from a broken engine
+        # DLL on Windows, AttributeError from a corrupt install) must
+        # degrade to "unavailable" — the caller warns and returns None
+        # instead of an exception escaping before any warning.
         return False
 
 
