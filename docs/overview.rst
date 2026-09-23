@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSunfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 88 unfolding algorithms, 41 spectrum
+Spectrometers (BSS). It provides 102 unfolding algorithms, 41 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 88 methods are accessible as instance methods on the
+All 102 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -32,20 +32,25 @@ categories:
        A --> J["Krylov/hybrid"]
        A --> K["EM family"]
          A --> L["Multi-sphere ratio"]
-         A --> M["Advanced proximal"]
-         A --> N["Evolutionary"]
-         A --> O["Classic RSICC codes"]
+       A --> M["Advanced proximal"]
+       A --> N["Evolutionary"]
+       A --> O["Classic RSICC codes"]
+       A --> Q["Optimization course"]
 
        B --> B1["unfold_cvxpy"]
        B --> B2["unfold_qpsolvers"]
        B --> B3["unfold_tsvd"]
        B --> B4["unfold_tikhonov_legendre"]
+       B --> B5["unfold_pspline_reml"]
+       B --> B6["unfold_tikhonov_sobolev_dp"]
+       B --> B7["unfold_tikhonov_tv"]
 
        J --> J1["unfold_lanczos"]
        J --> J2["unfold_gks"]
        J --> J3["unfold_cgls"]
        J --> J4["unfold_hybrid_gmres"]
        J --> J5["unfold_fista"]
+       J --> J6["unfold_amg"]
 
        C --> C1["unfold_landweber"]
         C --> C2["unfold_mlem"]
@@ -54,8 +59,9 @@ categories:
         C --> C5["unfold_gravel"]
         C --> C6["unfold_doroshenko"]
         C --> C7["unfold_kaczmarz"]
-        C --> C8["unfold_sart"]
-        C --> C9["unfold_randomized_kaczmarz"]
+       C --> C8["unfold_sart"]
+       C --> C9["unfold_randomized_kaczmarz"]
+       C --> C10["unfold_mlem_bs"]
 
        K --> K1["unfold_osem"]
        K --> K4["unfold_osem_anlm"]
@@ -75,6 +81,7 @@ categories:
         D --> D3["unfold_mcmc"]
         D --> D4["unfold_zfit"]
         D --> D5["unfold_eki"]
+        D --> D6["unfold_cuqi"]
 
         E --> E1["unfold_maxed"]
         E --> E2["unfold_imaxed"]
@@ -82,6 +89,8 @@ categories:
         E --> E4["unfold_amaxed_regularization"]
         F --> F1["unfold_statreg"]
         F --> F2["unfold_reconst"]
+        F --> F3["unfold_ssr"]
+        F --> F4["unfold_gee"]
 
        G --> G1["unfold_lmfit"]
        G --> G2["unfold_scipy_direct_method"]
@@ -98,6 +107,12 @@ categories:
        G --> G15["unfold_xpress (license)"]
         G --> G9["unfold_epic"]
         G --> G10["unfold_qubo"]
+        G --> G16["unfold_uno"]
+        G --> G17["unfold_interpret"]
+        G --> G18["unfold_louhi"]
+        G --> G19["unfold_gnowee"]
+        G --> G20["unfold_nnqp"]
+        G --> G21["unfold_qpmad"]
 
         P --> P1["unfold_cs"]
         P --> P2["unfold_nnksvd"]
@@ -118,12 +133,22 @@ categories:
        I --> I7["unfold_hybrid_parametric"]
         I --> I8["unfold_bayesian_parametric"]
         I --> I9["unfold_express"]
+        I --> I10["unfold_fission_ga"]
+        I --> I11["unfold_nspline"]
         M --> M1["unfold_odl_pdhg"]
         M --> M2["unfold_odl_douglas_rachford"]
          N --> N1["unfold_maeo"]
          O --> O1["unfold_crystal_ball"]
          O --> O2["unfold_rfsp_jul"]
          O --> O3["unfold_staysl"]
+         Q --> Q1["unfold_pgd"]
+         Q --> Q2["unfold_frank_wolfe"]
+         Q --> Q3["unfold_mirror_descent"]
+         Q --> Q4["unfold_admm"]
+         Q --> Q5["unfold_lbfgsb"]
+         Q --> Q6["unfold_coordinate_descent"]
+         Q --> Q7["unfold_subgradient"]
+         Q --> Q8["unfold_extragradient"]
 
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
@@ -139,6 +164,7 @@ categories:
          style N fill:#e8f0fe
          style O fill:#e8f0fe
          style P fill:#e8f0fe
+         style Q fill:#e8f0fe
 
 Method Reference
 ~~~~~~~~~~~~~~~~
@@ -717,6 +743,54 @@ Method Reference
      - `smoothness`, `smooth_order` (0/1/2), `auto_smooth`, `chi2_target`, `max_iterations`, `tolerance`, `relative_uncertainty`, `variance_reduction`
      - —
      - LOUHI78 (Routti & Sandberg 1980, Comput. Phys. Commun. 21): constrained weighted least squares ``min ||(b-Aphi)/sigma||^2 + lambda^2 ||L(phi-phi0)||^2`` s.t. ``phi >= 0`` via Hildreth's iterative coordinate QP; identity/first/second-difference smoothing operators anchored to the a-priori spectrum; ``auto_smooth=True`` adjusts lambda by golden-section regression so the data chi-square reaches its expected value; ``louhi_covariance`` propagates uncertainties on the active set.
+   * - 93
+     - ``unfold_amg``
+     - Krylov / preconditioned
+     - `method` (cg/bicgstab/gmres), `preconditioner` (amg/jacobi/gs/sor/ssor/none), `omega`, `max_iterations`, `tolerance`, `outer_iterations`, `nonnegativity`, `regularization`
+     - pyamg (optional)
+     - AMG/stationary-preconditioned Krylov unfolding (Rlinsolve/pyamg analogue): damped normal equations solved with cg/bicgstab/gmres accelerated by algebraic multigrid (smoothed aggregation) or one sweep of a classical stationary iteration (Jacobi/GS/SOR/SSOR); projected outer restarts enforce non-negativity; auto Tikhonov damping stabilises rank-deficient systems
+   * - 94
+     - ``unfold_pspline_reml``
+     - Tikhonov / mixed-model
+     - `n_basis`, `spline_order`, `diff_order`, `knot_spacing` (auto/uniform/log), `weights` (uniform/poisson/array), `lam_relative`
+     - —
+     - P-spline mixed-model unfolding with REML smoothing selection (LMMsolver analogue): spectrum represented as a P-spline, coefficients split into fixed (polynomial trend, null space of the difference penalty) and random (wiggly) parts; smoothing parameter = variance ratio estimated by maximising the REML profile likelihood; Henderson mixed-model equations solved for the final spectrum; reports lambda, effective dimension (ed) and REML diagnostics. See :doc:`pspline_reml`.
+   * - 95
+     - ``unfold_ssr``
+     - Robust / sign-based
+     - `fn` (``"auto"``/int), `max_iterations`, `tolerance`, `smooth_every`, `inner_sweeps`, `fn_ladder_cap`
+     - —
+     - SSR Sign-Simplicity-Regression unfolding (Python port of the R package ``sisireg`` 1.2.1, Metzner 2020/2021): alternates MLEM data-fidelity updates with non-equidistant SSR QSOR sweeps over the energy grid; each sweep replaces interior bins by the simplicitic neighbour interpolation and reverts updates violating the partial sum criterion (``fn``), suppressing sign-inadequate wiggles; ``fn="auto"`` runs Metzner's minimum-statistic ladder; pure NumPy, non-negativity preserved by construction. See :doc:`ssr`.
+   * - 96
+     - ``unfold_gee``
+     - Statistical reg. / robust inference
+     - `family` (gaussian/poisson/gamma), `corstr` (independence/exchangeable/ar1), `regularization`, `max_iterations`, `tolerance`
+     - —
+     - Generalized Estimating Equations unfolding (R ``gee``-analogue, Liang & Zeger 1986): the spheres form a correlated cluster with a working correlation matrix ``R(alpha)`` (moment-estimated from the Pearson residuals); penalised GLS score solved by the IRLS loop; robust Liang-Zeger sandwich uncertainties for the spectrum plus ``alpha``, ``phi``, ``pearson_chi2``, ``gee_converged``. See :doc:`gee`.
+   * - 97
+     - ``unfold_uno``
+     - Optimization / NLP
+     - `preset` (filter_sqp/ipopt_like), `weights` (uniform/poisson/array), `regularization`, `hessian` (exact/bfgs), `max_iterations`, `tolerance`
+     - —
+     - Uno-style Lagrange-Newton constrained unfolding (R ``Uno`` analogue, Vanaret & Leyffer 2024): solves ``min 1/2||W(Ax-b)||^2 + lam/2||D2 x||^2 s.t. x >= 0`` either by the ``filterSQP`` preset (exact Hessian, Fletcher-Leyffer filter) or the IPOPT-like primal-dual interior-point method (exact or BFGS Hessian); reports SolveStatistics-style quality (``objective``, ``constraint_violation``, ``dual_infeasibility``, ``n_iterations``, ``uno_converged``). See :doc:`uno`.
+   * - 98
+     - ``unfold_fission_ga``
+     - Parametric / stochastic
+     - `initial_params`, `fit_scale`, `ga_popsize`, `ga_maxiter`, `ga_tol`, `lm_method` (trf/lm), `lm_max_nfev`, `eps_threshold`
+     - —
+     - Fission-model GA+LM unfolding (port of Ogorodnikov 2024 sections 4-5, ``BonnerFinder()``): three-fraction model (thermal Maxwellian + epithermal tail + Watt-type fast peak, article eq. 4.29) with 7 free parameters; stage 1 — differential-evolution global search minimizing the L1 discrepancy of the folded readings, stage 2 — bounded nonlinear least-squares refinement; optional free scale ``phi_scale``; reports the article's validation criteria and fitted ``model_params`` with ``weight_fractions``; deterministic under ``random_state``
+   * - 99
+     - ``unfold_tikhonov_sobolev_dp``
+     - Regularization
+     - `noise_level`, `delta`, `penalty` (sobolev/curvature/identity), `alpha_range`, `max_iter`
+     - —
+     - Tikhonov + generalized discrepancy principle (port of Ogorodnikov 2024 sections 3/5, ``alfaFinder()``): discrete Sobolev ``W_2^1`` penalty with ``alpha*`` selected as the root of ``rho(alpha) = ||Az-b||^2 - delta^2`` (article eq. 3.8); the monotone discrepancy is bracketed on a log10 grid and refined by Brent's method; status codes mirror ``FFinder`` IERR (0/1/2); reports ``alpha``, ``discrepancy_status``, ``dp_converged``; standalone ``alpha_finder_generalized_discrepancy`` exported for reuse
+   * - 100
+     - ``unfold_cuqi``
+     - Bayesian / MCMC
+     - `sampler` (pcn/cwmh/ula/mala/nuts/gibbs/gibbs_nuts), `prior` (gmrf/ou), `gmrf_order`, `lengthscale`, `noise_level`, `hierarchical`, `delta_alpha`, `delta_beta`, `n_samples`, `n_burnin`, `thin`, `chains`, `scale`, `max_depth`, `step_size`, `credible_level`
+     - cuqipy (optional)
+     - Full Bayesian unfolding with CUQIpy (DTU, uncertainty quantification for inverse problems): log-spectrum model with GMRF (order 1/2) or Ornstein-Uhlenbeck Gaussian prior anchored on an NNLS data-driven center; posterior explored by pCN, component-wise MH, (M)ALA, NUTS or hierarchical HybridGibbs with a conjugate Gamma hyperprior; returns posterior mean spectrum, per-bin std, configurable HPD credible intervals and ESS / Gelman-Rubin R-hat / acceptance-rate diagnostics under ``cuqi_stats``. See :doc:`cuqi_bayes`.
 
 
 

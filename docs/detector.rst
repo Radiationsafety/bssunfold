@@ -214,6 +214,20 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_nnksvd.unfold_nnksvd
 
+.. autofunction:: bssunfold.core.unfold_amg.unfold_amg
+
+.. autofunction:: bssunfold.core.unfold_pspline_reml.unfold_pspline_reml
+
+.. autofunction:: bssunfold.core.unfold_ssr.unfold_ssr
+
+.. autofunction:: bssunfold.core.unfold_gee.unfold_gee
+
+.. autofunction:: bssunfold.core.unfold_uno.unfold_uno
+
+.. autofunction:: bssunfold.core.unfold_fission_ga.unfold_fission_ga
+
+.. autofunction:: bssunfold.core.unfold_tikhonov_sobolev_dp.unfold_tikhonov_sobolev_dp
+
 Core Functions
 ==============
 

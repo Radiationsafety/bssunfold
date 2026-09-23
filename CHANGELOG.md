@@ -156,6 +156,16 @@ and this project adheres to [Semantic Versioning].
   the optional `z3-solver` package is not installed) and the `qubo` /
   `zfit` pytest markers are registered in `pyproject.toml`.
 
+
+### Changed
+- Readme.md - shorten, additional info is in docs.
+
+
+## [0.27.0] - 2026-09-21
+
+### Fixed
+- project structure
+
 ## [0.26.0] - 2026-09-18
 
 ### Added
