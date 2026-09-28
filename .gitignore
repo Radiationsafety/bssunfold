@@ -44,6 +44,8 @@ graphify-out/
 # Example run outputs (notebooks write results here)
 examples/results/*
 !examples/results/.gitkeep
+!examples/results/02_cuqi_unfolding_result.png
+!examples/results/cuqi_quality_analysis_results.csv
 examples/*.png
 
 # Agent/IDE tool directories
