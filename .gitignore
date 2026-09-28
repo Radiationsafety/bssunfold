@@ -1,64 +1,64 @@
-```gitignore
-# Dependencies
+# Python caches and bytecode
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-venv/
-.venv/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environments
 .env
 .env.local
 .env.*
+venv/
+.venv/
+.venv*/
 
-# Build artifacts
+# Build / packaging
 build/
 dist/
+sdist/
 *.egg-info/
 
-# Testing
+# Test and analysis artifacts
 .coverage
+coverage.json
 htmlcov/
-.pytest_cache/
-.mypy_cache/
+bandit.json
+.dynapyt/
+.dynapyt_report/
 
-# Logs
-*.log
+# Generated outputs under tests/ (datasets in tests/ stay tracked)
+tests/**/*.png
+tests/qpsolvers_cvxpy_dose_rate_results.csv
+tests/dose_rate_results.csv
+tests/dose_rate_evaluation.md
+tests/iaea_validation_*.csv
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Docs build output (docs/ sources are tracked)
+docs/_build/
 
-# Editors
+# Local reference library and knowledge-graph output
+addon/
+graphify-out/
+
+# Example run outputs (notebooks write results here)
+examples/results/*
+!examples/results/.gitkeep
+examples/*.png
+
+# Agent/IDE tool directories
 .vscode/
 .idea/
+.opencode/node_modules/
+.sentrux/
+.mimocode/
+.gigacode/
+.continue/
+
+# Logs, OS and editor junk
+*.log
+.DS_Store
+Thumbs.db
 *.swp
 *.swo
 *.tmp
-```
-opencode.json
-graphify-out/
-
-.gitignore
-examples/**.png
-tests/**/*.png
-docs/
-addon/
-.gitignore
-bandit.json
-tests/qpsolvers_cvxpy_dose_rate_results.csv
-examples/robustness_summary.csv
-examples/robustness_all_results.pkl
-.gitignore
-examples/benchmark_results_20260824_121051.csv
-examples/benchmark_summary_20260824_121051.csv
-.sentrux/baseline.toml
-opencode copy.json
-examples/best_method_params.json
-tests/dose_rate_evaluation.md
-examples/full_benchmark_results.csv
-tests/dose_rate_results.csv
-tests/iaea_validation_GSF.csv
-tests/iaea_validation_LANL.csv
-tests/iaea_validation_PTB.csv
-.sentrux/
