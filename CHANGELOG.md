@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Changed
+
+- **Repository hygiene** — rebuilt the malformed `.gitignore` (it contained
+  markdown fences, ignored itself and the tracked `docs/` tree); untracked the
+  committed `coverage.json` artifact; notebook run outputs moved from
+  `examples/` into the gitignored `examples/results/` directory, with writer
+  paths in notebooks 33/34/35/81 updated accordingly; README citation version
+  refreshed to v0.28.0 and a repository-structure section added.
+
 ## [0.28.0] - 2026-09-22
 
 ### Added

@@ -347,6 +347,17 @@ uv add bssunfold[numba]
 
 Benchmarks: [docs — Performance](https://bssunfold.readthedocs.io/en/latest/overview.html#performance)
 
+## 🗂 Repository Structure
+
+| Path | Contents |
+|------|----------|
+| `src/bssunfold/` | the installable package (`core/` unfolding methods, `utils/`, `data/`) |
+| `tests/` | pytest suite; fixtures and datasets in `tests/data/` |
+| `examples/` | numbered tutorial notebooks (`NN-*.ipynb`); run outputs are written to `examples/results/` (gitignored) |
+| `scripts/` | standalone analysis/benchmark scripts (not pytest modules) |
+| `tools/` | repo-maintenance utilities (e.g. figure regeneration, dynamic analysis) |
+| `docs/` | Sphinx documentation sources built on ReadTheDocs |
+
 ## 📖 Citation
 [![Google Scholar](https://img.shields.io/badge/Google%20Scholar-4285F4?style=for-the-badge&logo=google-scholar&logoColor=white)](https://scholar.google.com/citations?user=CtXdf28AAAAJ&hl=en)
 
@@ -372,7 +383,7 @@ or software:
   month        = sep,
   year         = 2026,
   publisher    = {Zenodo},
-  version      = {v0.24.0},
+  version      = {v0.28.0},
   doi          = {10.5281/zenodo.22766603},
   url          = {https://doi.org/10.5281/zenodo.22766603},
 }

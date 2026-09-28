@@ -52,6 +52,11 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 excluded from ruff). They read datasets from and write reports to `tests/`
 via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 
+`examples/` — numbered tutorial notebooks only. Generated outputs (PNG/CSV/pkl/JSON)
+must be written to `examples/results/` (gitignored except `.gitkeep`), never next
+to the notebooks; nbconvert runs execute with the notebook directory as cwd, so
+use relative paths like `results/figure.png`.
+
 ## Testing
 
 ### Test files (70 files, ~3160 tests)
