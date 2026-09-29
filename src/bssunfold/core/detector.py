@@ -5309,6 +5309,8 @@ class Detector:
         initial_spectrum: np.ndarray | None = None,
         alpha: float = 0.05,
         form: str = "gram",
+        q: float = 0.5,
+        n_iterations: int = 5,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -5336,9 +5338,16 @@ class Detector:
             Not used (provided for API consistency).
         alpha : float, optional
             Regularization parameter (default: 0.05).
-        form : {"gram", "direct", "padded"}, optional
+        form : {"gram", "direct", "padded", "iterated"}, optional
             Which Lavrentiev system to solve (default: ``"gram"``).
             See :func:`solve_lavrentiev` for details.
+        q : float, optional
+            Geometric decay rate of α in the iterated form
+            (default: ``0.5``). Only used when ``form="iterated"``.
+        n_iterations : int, optional
+            Number of defect-correction iterations in the iterated
+            form (default: ``5``). Only used when
+            ``form="iterated"``.
         calculate_errors : bool, optional
             Calculate Monte-Carlo errors (default: False).
         noise_level : float, optional
@@ -5353,8 +5362,8 @@ class Detector:
         Returns
         -------
         Dict[str, Any]
-            Unfolding results dictionary, with extra keys ``alpha`` and
-            ``form``.
+            Unfolding results dictionary, with extra keys ``alpha``,
+            ``form``, ``q`` and ``n_iterations``.
         """
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -5374,6 +5383,8 @@ class Detector:
             initial_spectrum=initial_spectrum,
             alpha=alpha,
             form=form,
+            q=q,
+            n_iterations=n_iterations,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

@@ -201,6 +201,94 @@ class TestSolveLavrentiev:
         assert np.all(np.isfinite(z_padded))
         assert np.all(z_padded >= 0)
 
+    # ====================================================================
+    # Iterated Lavrentiev (Bakushinsky's a-priori α-decay scheme)
+    # ====================================================================
+
+    def test_lavrentiev_iterated_basic(self):
+        # The iterated form runs Bakushinsky's defect-correction
+        # iteration on the Gram operator B = A A^T with αₖ = α₀ q^k.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(61)
+        m, n = 6, 25
+        A = rng.random((m, n)) + 0.05
+        b = rng.random(m)
+        z = solve_lavrentiev(
+            A, b, alpha=0.1, form="iterated", q=0.5, n_iterations=5,
+        )
+        assert len(z) == n
+        assert np.all(np.isfinite(z))
+        assert np.all(z >= 0)
+
+    def test_lavrentiev_iterated_q_equals_1_matches_constant_alpha(self):
+        # With q = 1.0, αₖ = α₀ for every k. The iterated scheme
+        # with constant α is the classical Mahale-Nair iterated
+        # Lavrentiev (Ref. [6]). With n_iterations = 1 it must
+        # reproduce the single-step Gram form.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(67)
+        m, n = 6, 25
+        A = rng.random((m, n)) + 0.05
+        b = rng.random(m)
+        z_iter = solve_lavrentiev(
+            A, b, alpha=0.1, form="iterated", q=1.0, n_iterations=1,
+        )
+        z_gram = solve_lavrentiev(A, b, alpha=0.1, form="gram")
+        assert np.allclose(z_iter, z_gram, atol=1e-10), (
+            f"iterated(q=1, K=1) should equal single-step gram; "
+            f"max |Δ| = {np.max(np.abs(z_iter - z_gram)):.3e}"
+        )
+
+    def test_lavrentiev_iterated_rejects_bad_q(self):
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(73)
+        A = np.random.rand(6, 25) + 0.05
+        b = np.random.rand(6)
+        with pytest.raises(ValueError, match="q must satisfy"):
+            solve_lavrentiev(A, b, alpha=0.1, form="iterated", q=0.0)
+        with pytest.raises(ValueError, match="q must satisfy"):
+            solve_lavrentiev(A, b, alpha=0.1, form="iterated", q=1.5)
+
+    def test_lavrentiev_iterated_rejects_bad_n_iterations(self):
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(79)
+        A = np.random.rand(6, 25) + 0.05
+        b = np.random.rand(6)
+        with pytest.raises(ValueError, match="n_iterations must be"):
+            solve_lavrentiev(
+                A, b, alpha=0.1, form="iterated", n_iterations=0,
+            )
+
+    def test_lavrentiev_iterated_bakushinsky_decay(self):
+        # Smoke test: the Bakushinsky geometric-decay rule
+        # αₖ = α₀ q^k produces a finite, non-negative spectrum that
+        # differs from the constant-α (q=1) iterated scheme.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(83)
+        m, n = 6, 25
+        A = rng.random((m, n)) + 0.05
+        b = rng.random(m)
+        z_decay = solve_lavrentiev(
+            A, b, alpha=0.1, form="iterated",
+            q=0.5, n_iterations=5,
+        )
+        z_const = solve_lavrentiev(
+            A, b, alpha=0.1, form="iterated",
+            q=1.0, n_iterations=5,
+        )
+        assert np.all(np.isfinite(z_decay)) and np.all(z_decay >= 0)
+        # The two schemes give different solutions in general
+        # (decay makes later iterations less regularised).
+        assert not np.allclose(z_decay, z_const, atol=1e-9), (
+            "Bakushinsky decay (q<1) should differ from constant-α "
+            "iterated Lavrentiev (q=1)."
+        )
+
     def test_lavrentiev_gram_form_matches_tikhonov_L_identity(self):
         # The Gram form (A A^T + alpha*I) y = b;  z = A^T y is
         # mathematically identical to zeroth-order Tikhonov
@@ -693,6 +781,19 @@ class TestUnfoldLavrentiev:
             readings, alpha=0.1, save_result=False
         )
         assert "spectrum" in result
+
+    def test_unfold_lavrentiev_iterated(self, detector, readings):
+        # The iterated form (Bakushinsky's scheme) runs on the
+        # detector's rectangular response matrix without raising.
+        result = detector.unfold_lavrentiev(
+            readings, alpha=0.1, form="iterated",
+            q=0.5, n_iterations=5,
+        )
+        assert "spectrum" in result
+        assert np.all(result["spectrum"] >= 0)
+        assert result["form"] == "iterated"
+        assert result["q"] == 0.5
+        assert result["n_iterations"] == 5
 
 
 class TestUnfoldScipyDirect:

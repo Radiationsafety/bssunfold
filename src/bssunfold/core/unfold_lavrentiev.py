@@ -96,6 +96,10 @@ References
     Theorem 5.1 (semisimple-zero eigenvalue condition);
     §12 (a-priori parameter choice rules).
     https://num-anal.srcc.msu.ru/list_wrk/ps/b5.pdf
+[5] Bakushinskii A.B., Kokurin M.Yu. *Iterative Methods for
+    Approximate Solution of Inverse Problems*. Springer, 2004.
+[6] Mahale P., Nair M.T. *Iterated Lavrentiev regularization for
+    nonlinear ill-posed problems.* ANZIAM J. **51** (2009), 191–217.
 """
 
 from typing import Any
@@ -113,6 +117,8 @@ def solve_lavrentiev(
     x0: np.ndarray | None = None,
     alpha: float = 0.05,
     form: str = "gram",
+    q: float = 0.5,
+    n_iterations: int = 5,
 ) -> np.ndarray:
     """Solve unfolding using Lavrentiev regularization.
 
@@ -157,6 +163,30 @@ def solve_lavrentiev(
       but loses information in the padded energy bins — prefer
       ``form="gram"`` for production BSS unfolding.
 
+    * ``form="iterated"`` (any A): the **iterated Lavrentiev
+      scheme** with Bakushinsky's a-priori α-decay (Refs. [5], [6]).
+      At iteration ``k = 0, 1, …, n_iterations − 1`` performs the
+      defect-correction update on the m × m Gram operator
+      ``B = A A^T``:
+
+          y_{k+1} = y_k + (B + α_k I_m)^{-1} (b − B y_k),   y_0 = 0
+          α_k     = alpha * q^k                                (Bakushinsky rule)
+
+      and recovers the spectrum ``z = A^T y_{K}`` after ``K =
+      n_iterations`` steps. Geometric decay ``0 < q < 1`` is the
+      classical Bakushinsky a-priori rule; setting ``q = 1.0``
+      recovers the constant-α iterated Lavrentiev of Mahale & Nair
+      (2009), which achieves order-optimality for smoother source
+      conditions (qualification ``μ ≤ K`` instead of ``μ ≤ 1``
+      for the single-step scheme).
+
+      Practical advantage over the single-step Gram form: better
+      recovery of smooth spectral features for the same final
+      ``α_{K-1}`` because the iteration effectively averages the
+      regularized solutions across a range of α values. Cost:
+      ``n_iterations`` solves of an m × m system (cheap for the
+      BSS case ``m ≈ 7``).
+
     Parameters
     ----------
     A : np.ndarray
@@ -167,14 +197,26 @@ def solve_lavrentiev(
         Not used (provided for API compatibility with the shared
         ``make_solve_wrapper`` machinery).
     alpha : float, optional
-        Regularization parameter (default: ``0.05``). Must be
-        non-negative. Larger values produce smoother (more damped)
-        spectra; smaller values track the measurements more closely
-        at the cost of numerical stability.
-    form : {"gram", "direct", "padded"}, optional
+        Regularization parameter (default: ``0.05``). For the
+        single-step forms (``gram``, ``direct``, ``padded``) this is
+        the shift magnitude. For the iterated form (``iterated``)
+        this is the initial shift ``α_0``; subsequent shifts decay
+        geometrically as ``α_k = alpha * q^k``. Must be non-negative.
+    form : {"gram", "direct", "padded", "iterated"}, optional
         Which Lavrentiev system to solve (default: ``"gram"``).
         See the module docstring for the precise mathematical
         formulation and the applicability conditions of each form.
+    q : float, optional
+        Geometric decay rate of the regularization parameter in the
+        iterated form (default: ``0.5``). Only used when
+        ``form="iterated"``. Must satisfy ``0 < q ≤ 1``.
+        ``q = 1.0`` recovers the constant-α iterated Lavrentiev
+        (higher qualification, no Bakushinsky decay); ``q < 1``
+        gives the classical Bakushinsky a-priori rule.
+    n_iterations : int, optional
+        Number of defect-correction iterations in the iterated form
+        (default: ``5``). Only used when ``form="iterated"``.
+        Must be ≥ 1.
 
     Returns
     -------
@@ -186,8 +228,10 @@ def solve_lavrentiev(
     ------
     ValueError
         If ``alpha`` is negative, or if ``form="direct"`` is requested
-        with a non-square response matrix, or if ``form`` is not one
-        of ``"gram"``, ``"direct"``, ``"padded"``.
+        with a non-square response matrix, or if ``form="iterated"``
+        is requested with invalid ``q`` or ``n_iterations``, or if
+        ``form`` is not one of ``"gram"``, ``"direct"``, ``"padded"``,
+        ``"iterated"``.
     """
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
@@ -255,9 +299,49 @@ def solve_lavrentiev(
         # beyond n correspond to padding columns and carry no
         # physical information; they are discarded).
         z = z_full[:n]
+    elif form == "iterated":
+        # Iterated Lavrentiev scheme with Bakushinsky's a-priori
+        # α-decay (Refs. [5], [6]). Defect-correction iteration on
+        # the m x m Gram operator B = A A^T:
+        #
+        #     y_{k+1} = y_k + (B + alpha_k I_m)^{-1} (b - B y_k),
+        #     y_0     = 0,
+        #     alpha_k = alpha * q^k.                        (Bakushinsky)
+        #
+        # After K = n_iterations steps, recover z = A^T y_K.
+        # Geometric decay 0 < q < 1 is Bakushinsky's a-priori rule
+        # (Ref. [5]); q = 1 recovers the constant-α iterated
+        # Lavrentiev of Mahale & Nair (Ref. [6]) which achieves
+        # higher qualification (source conditions with μ up to K
+        # instead of μ ≤ 1).
+        if not (0.0 < q <= 1.0):
+            raise ValueError(
+                f"q must satisfy 0 < q <= 1, got {q!r}"
+            )
+        if n_iterations < 1:
+            raise ValueError(
+                f"n_iterations must be >= 1, got {n_iterations!r}"
+            )
+        B = A @ A.T  # m x m Gram operator
+        y = np.zeros(m)
+        eye_m = np.eye(m)
+        for k in range(n_iterations):
+            alpha_k = alpha * (q ** k)
+            residual = b - B @ y
+            try:
+                update = np.linalg.solve(
+                    B + alpha_k * eye_m, residual,
+                )
+            except np.linalg.LinAlgError:
+                update = np.linalg.lstsq(
+                    B + alpha_k * eye_m, residual, rcond=None,
+                )[0]
+            y = y + update
+        z = A.T @ y
     else:
         raise ValueError(
-            f"form must be 'gram', 'direct', or 'padded', got {form!r}"
+            f"form must be 'gram', 'direct', 'padded', or 'iterated', "
+            f"got {form!r}"
         )
 
     return np.maximum(z, 0.0)
@@ -275,6 +359,8 @@ def unfold_lavrentiev(
     initial_spectrum: np.ndarray | None = None,
     alpha: float = 0.05,
     form: str = "gram",
+    q: float = 0.5,
+    n_iterations: int = 5,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -378,12 +464,16 @@ def unfold_lavrentiev(
             solve_lavrentiev,
             alpha=alpha,
             form=form,
+            q=q,
+            n_iterations=n_iterations,
         ),
         solve_kwargs={},
         method_name="Lavrentiev",
         extra_output={
             "alpha": alpha,
             "form": form,
+            "q": q,
+            "n_iterations": n_iterations,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level,

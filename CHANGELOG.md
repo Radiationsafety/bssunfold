@@ -43,6 +43,19 @@ and this project adheres to [Semantic Versioning].
     but loses information in the padded energy bins — prefer
     `form="gram"` for production BSS unfolding.
 
+  * **Iterated form** (`form="iterated"`): the **iterated Lavrentiev
+    scheme** with Bakushinsky's a-priori α-decay (Refs. [5], [6]).
+    Defect-correction iteration on the m × m Gram operator
+    `B = A A^T`: `y_{k+1} = y_k + (B + α_k I_m)^{-1} (b − B y_k)`,
+    `y_0 = 0`, `α_k = alpha * q^k` (Bakushinsky geometric-decay rule).
+    Recover `z = A^T y_K` after `K = n_iterations` steps. Setting
+    `q = 1.0` recovers the constant-α iterated Lavrentiev of
+    Mahale & Nair (2009), which achieves higher qualification
+    (source conditions with μ up to K instead of μ ≤ 1 for the
+    single-step scheme). Cost: `n_iterations` solves of an m × m
+    system (cheap for the BSS case `m ≈ 7`).
+    New kwargs: `q` (default `0.5`), `n_iterations` (default `5`).
+
   Mathematically, the Gram form is equivalent to zeroth-order
   Tikhonov (`A^T A + α I) z = A^T b` via the push-through identity
   `(A^T A + α I)^{-1} A^T = A^T (A A^T + α I)^{-1}` — but it
@@ -57,17 +70,21 @@ and this project adheres to [Semantic Versioning].
   choice for unfolding on the detector's lethargy grid.
 
   Method-specific kwargs: `alpha` (default 0.05), `form` (default
-  `"gram"`). Result dict carries extra keys `alpha` and `form`.
+  `"gram"`, one of `"gram"`, `"direct"`, `"padded"`, `"iterated"`),
+  `q` (default 0.5, only used when `form="iterated"`),
+  `n_iterations` (default 5, only used when `form="iterated"`).
+  Result dict carries extra keys `alpha`, `form`, `q`, `n_iterations`.
   Backed by pure NumPy/SciPy — no extra dependencies. Example
   notebook: `examples/83-lavrentiev-iaea.ipynb`. Test gate:
   registered in `tests/test_all_unfold_methods_api.py` (signature,
   smoke, IAEA end-to-end, notebook execution) and covered in
   `tests/test_new_methods.py::TestSolveLavrentiev` /
-  `TestUnfoldLavrentiev` (including numerical verification of the
-  Gram-form ⟺ Tikhonov-L=I equivalence via push-through, of the
-  direct-form ≠ Gram-form distinction for square self-adjoint
-  positive A, and of the padded form's known limitation
-  `z[m:] = 0` for `m < n`).
+  `TestUnfoldLavrentiev` (23 tests including numerical verification
+  of the Gram-form ⟺ Tikhonov-L=I equivalence via push-through,
+  of the direct-form ≠ Gram-form distinction for square self-adjoint
+  positive A, of the padded form's known limitation `z[m:] = 0`
+  for `m < n`, and of the iterated form's reduction to single-step
+  Gram when `q=1, n_iterations=1`).
 
   References:
     [1] Muftahov I.R., Sidorov D.N., Sidorov N.A. *On Lavrentiev
@@ -86,6 +103,11 @@ and this project adheres to [Semantic Versioning].
         Theorem 5.1 (semisimple-zero eigenvalue condition);
         §12 (a-priori parameter choice rules).
         https://num-anal.srcc.msu.ru/list_wrk/ps/b5.pdf
+    [5] Bakushinskii A.B., Kokurin M.Yu. *Iterative Methods for
+        Approximate Solution of Inverse Problems*. Springer, 2004.
+    [6] Mahale P., Nair M.T. *Iterated Lavrentiev regularization for
+        nonlinear ill-posed problems.* ANZIAM J. **51** (2009),
+        191–217.
 
 ## [0.28.0] - 2026-09-22
 
