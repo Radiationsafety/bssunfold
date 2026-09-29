@@ -161,6 +161,7 @@ from .unfold_iterative_refinement import (
 from .unfold_kaczmarz import solve_kaczmarz, unfold_kaczmarz
 from .unfold_lanczos import solve_lanczos, unfold_lanczos
 from .unfold_landweber import solve_landweber, unfold_landweber
+from .unfold_lavrentiev import solve_lavrentiev, unfold_lavrentiev
 from .unfold_lbfgsb import solve_lbfgsb, unfold_lbfgsb
 from .unfold_lmfit import solve_lmfit, unfold_lmfit
 from .unfold_louhi import (
@@ -327,6 +328,7 @@ __all__ = [
     "solve_gravel",
     "solve_maxed",
     "solve_tikhonov_legendre",
+    "solve_lavrentiev",
     "solve_bayes",
     "solve_bayes_spline",
     "solve_statreg",
@@ -497,6 +499,7 @@ __all__ = [
     "unfold_gravel",
     "unfold_maxed",
     "unfold_tikhonov_legendre",
+    "unfold_lavrentiev",
     "unfold_bayes",
     "unfold_bayes_spline_regularization",
     "unfold_statreg",

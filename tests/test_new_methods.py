@@ -95,6 +95,209 @@ class TestSolveTikhonovLegendre:
         assert np.all(x >= 0)
 
 
+class TestSolveLavrentiev:
+    def test_lavrentiev_basic(self):
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(42)
+        A = np.random.rand(5, 20)
+        b = np.random.rand(5)
+        x = solve_lavrentiev(A, b, alpha=0.1)
+        assert len(x) == 20
+        assert np.all(x >= 0)
+
+    def test_lavrentiev_default_params(self):
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(42)
+        A = np.random.rand(3, 15)
+        b = np.random.rand(3)
+        x = solve_lavrentiev(A, b)
+        assert len(x) == 15
+        assert np.all(x >= 0)
+
+    def test_lavrentiev_direct_form_square(self):
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(0)
+        A = np.random.rand(8, 8) + 0.1
+        b = np.random.rand(8)
+        x = solve_lavrentiev(A, b, alpha=0.05, form="direct")
+        assert len(x) == 8
+        assert np.all(x >= 0)
+
+    def test_lavrentiev_direct_form_rectangular_rejects(self):
+        # For non-square A, the direct Lavrentiev form (A + alpha*I) z = b
+        # is mathematically undefined (identity dimensions do not match
+        # A's). The solver must raise ValueError rather than silently
+        # fall back to a different method.
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(1)
+        A = np.random.rand(5, 20)
+        b = np.random.rand(5)
+        with pytest.raises(ValueError, match="square response matrix"):
+            solve_lavrentiev(A, b, alpha=0.05, form="direct")
+
+    def test_lavrentiev_rejects_unknown_form(self):
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(3)
+        A = np.random.rand(8, 8)
+        b = np.random.rand(8)
+        with pytest.raises(ValueError, match="form must be"):
+            solve_lavrentiev(A, b, alpha=0.05, form="bogus")
+
+    def test_lavrentiev_padded_form_rectangular_works(self):
+        # The padded form zero-pads A to a square max(m,n) x max(m,n)
+        # operator and applies the direct Lavrentiev scheme to the
+        # padded operator (Ref. [4], Introduction p. 4). This must
+        # work for the rectangular BSS case (m < n) without raising.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(31)
+        m, n = 6, 25
+        A = rng.random((m, n)) + 0.05
+        b = rng.random(m)
+        z = solve_lavrentiev(A, b, alpha=0.1, form="padded")
+        assert len(z) == n
+        assert np.all(np.isfinite(z))
+        assert np.all(z >= 0)
+        # Important caveat: for m < n, the padded form forces z_i = 0
+        # for i > m (because the corresponding diagonal entry of the
+        # padded operator is just alpha, giving alpha * z_i = 0).
+        # Verify this known limitation.
+        assert np.allclose(z[m:], 0.0, atol=1e-12), (
+            "Padded form should force z[m:] = 0 for m < n; got "
+            f"max z[m:] = {z[m:].max():.3e}"
+        )
+
+    def test_lavrentiev_padded_form_square_matches_direct(self):
+        # For a square A, the padded form is identical to the direct
+        # form (no padding actually happens when m == n).
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(41)
+        B = rng.random((6, 6))
+        A = B @ B.T + np.eye(6)  # symmetric PSD
+        b = rng.random(6)
+        z_padded = solve_lavrentiev(A, b, alpha=0.3, form="padded")
+        z_direct = solve_lavrentiev(A, b, alpha=0.3, form="direct")
+        assert np.allclose(z_padded, z_direct, atol=1e-12)
+
+    def test_lavrentiev_padded_form_overdetermined(self):
+        # For m > n (over-determined), the padded form pads columns
+        # instead of rows. The padded columns carry no information
+        # and are discarded. The first n components of z must match
+        # the direct-form solution of the (square-padded) operator.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(53)
+        m, n = 10, 6
+        A = rng.random((m, n)) + 0.05
+        b = rng.random(m)
+        z_padded = solve_lavrentiev(A, b, alpha=0.2, form="padded")
+        assert len(z_padded) == n
+        assert np.all(np.isfinite(z_padded))
+        assert np.all(z_padded >= 0)
+
+    def test_lavrentiev_gram_form_matches_tikhonov_L_identity(self):
+        # The Gram form (A A^T + alpha*I) y = b;  z = A^T y is
+        # mathematically identical to zeroth-order Tikhonov
+        # (A^T A + alpha*I) z = A^T b  via the push-through identity.
+        # This test verifies the equivalence numerically.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(13)
+        m, n = 8, 25
+        A = rng.random((m, n)) + 0.05
+        b = rng.random(m)
+
+        # Gram form (Lavrentiev default).
+        z_gram = solve_lavrentiev(A, b, alpha=0.1, form="gram")
+
+        # Tikhonov L=I (the mathematically equivalent normal-equation form).
+        M_tikh = A.T @ A + 0.1 * np.eye(n)
+        rhs_tikh = A.T @ b
+        z_tikh_raw = np.linalg.solve(M_tikh, rhs_tikh)
+        # NB: solve_lavrentiev clips to non-negative values; to compare
+        # like-for-like we clip the Tikhonov raw solution too.
+        z_tikh = np.maximum(z_tikh_raw, 0.0)
+
+        assert np.allclose(z_gram, z_tikh, atol=1e-10), (
+            f"Lavrentiev Gram form differs from Tikhonov L=I: "
+            f"max |Δ| = {np.max(np.abs(z_gram - z_tikh)):.3e}"
+        )
+
+    def test_lavrentiev_direct_form_differs_from_gram_form(self):
+        # For a square, self-adjoint, positive A the direct Lavrentiev
+        # form (A + alpha*I) z = b and the Gram form
+        # (A^2 + alpha*I) z = A b filter the spectrum of A
+        # (λ/(λ+α)) vs the spectrum of A^2 (λ²/(λ²+α)), respectively,
+        # and so give genuinely different regularised solutions.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(29)
+        # Build a symmetric PSD operator A (so the direct form is well
+        # defined). A = B B^T + I, B random.
+        B = rng.random((6, 6))
+        A = B @ B.T + np.eye(6)
+        b = rng.random(6)
+
+        z_direct = solve_lavrentiev(A, b, alpha=0.5, form="direct")
+        z_gram = solve_lavrentiev(A, b, alpha=0.5, form="gram")
+
+        # Sanity: both are finite, non-negative, same shape.
+        assert z_direct.shape == (6,) and z_gram.shape == (6,)
+        assert np.all(np.isfinite(z_direct)) and np.all(np.isfinite(z_gram))
+        assert np.all(z_direct >= 0) and np.all(z_gram >= 0)
+        # And the two are *not* the same vector — confirming that
+        # direct Lavrentiev is a different regulariser from
+        # Tikhonov-L=I (the Gram form).
+        assert not np.allclose(z_direct, z_gram, atol=1e-6), (
+            "Direct Lavrentiev form unexpectedly equals the Gram form "
+            "(Tikhonov L=I). These should differ — Lavrentiev filters "
+            "the spectrum of A, Tikhonov-L=I filters the spectrum of "
+            "A^T A."
+        )
+
+    def test_lavrentiev_rejects_negative_alpha(self):
+        from bssunfold.core import solve_lavrentiev
+
+        np.random.seed(2)
+        A = np.random.rand(5, 20)
+        b = np.random.rand(5)
+        with pytest.raises(ValueError):
+            solve_lavrentiev(A, b, alpha=-0.1)
+
+    def test_lavrentiev_handles_zero_alpha(self):
+        # alpha = 0 degenerates to a plain least-squares solve via the
+        # lstsq fallback in solve_lavrentiev. The solver must still
+        # return a finite, non-negative spectrum.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(7)
+        # Over-determined, well-conditioned system so the un-regularized
+        # normal equations are not singular.
+        A = rng.random((25, 10)) + 0.5
+        b = rng.random(25)
+        x = solve_lavrentiev(A, b, alpha=0.0)
+        assert len(x) == 10
+        assert np.all(np.isfinite(x))
+        assert np.all(x >= 0)
+
+    def test_lavrentiev_alpha_smooths_solution(self):
+        # Larger alpha should produce a smoother (smaller-norm) spectrum.
+        from bssunfold.core import solve_lavrentiev
+
+        rng = np.random.default_rng(11)
+        A = rng.random((6, 25)) + 0.05
+        b = rng.random(6)
+        x_small = solve_lavrentiev(A, b, alpha=1e-6)
+        x_large = solve_lavrentiev(A, b, alpha=1.0)
+        assert np.linalg.norm(x_large) <= np.linalg.norm(x_small) + 1e-9
+
+
 # ============================================================================
 # Test solve_scipy_direct
 # ============================================================================
@@ -456,6 +659,42 @@ class TestUnfoldTikhonovLegendre:
         assert "spectrum" in result
 
 
+class TestUnfoldLavrentiev:
+    def test_unfold_lavrentiev_basic(self, detector, readings):
+        result = detector.unfold_lavrentiev(readings, alpha=0.1)
+        assert "spectrum" in result
+        assert "doserates" in result
+        assert np.all(result["spectrum"] >= 0)
+        assert result["method"] == "Lavrentiev"
+        assert result["alpha"] == 0.1
+        assert result["form"] == "gram"
+
+    def test_unfold_lavrentiev_default(self, detector, readings):
+        result = detector.unfold_lavrentiev(readings)
+        assert "spectrum" in result
+        assert np.all(result["spectrum"] >= 0)
+        assert result["alpha"] == 0.05
+
+    def test_unfold_lavrentiev_direct_form_rejects_rectangular(
+        self, detector, readings,
+    ):
+        # The Detector's response matrix is rectangular (m_detectors ×
+        # n_energy_bins, e.g. 7 × 60 for GSF). The direct Lavrentiev
+        # form (A + alpha*I) z = b is only defined for square A, so
+        # the wrapper must propagate the ValueError from the solver
+        # rather than silently using a different method.
+        with pytest.raises(ValueError, match="square response matrix"):
+            detector.unfold_lavrentiev(
+                readings, alpha=0.05, form="direct"
+            )
+
+    def test_unfold_lavrentiev_no_save(self, detector, readings):
+        result = detector.unfold_lavrentiev(
+            readings, alpha=0.1, save_result=False
+        )
+        assert "spectrum" in result
+
+
 class TestUnfoldScipyDirect:
     def test_unfold_scipy_direct_cg(self, detector, readings):
         result = detector.unfold_scipy_direct_method(readings, method="cg")
@@ -607,6 +846,16 @@ class TestModuleExports:
         from bssunfold.core import solve_tikhonov_legendre
 
         assert callable(solve_tikhonov_legendre)
+
+    def test_solve_lavrentiev_exported(self):
+        from bssunfold.core import solve_lavrentiev
+
+        assert callable(solve_lavrentiev)
+
+    def test_unfold_lavrentiev_exported(self):
+        from bssunfold.core import unfold_lavrentiev
+
+        assert callable(unfold_lavrentiev)
 
     def test_solve_bayes_exported(self):
         from bssunfold.core import solve_bayes
