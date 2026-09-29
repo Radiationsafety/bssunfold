@@ -161,6 +161,7 @@ from .unfold_iterative_refinement import (
 from .unfold_kaczmarz import solve_kaczmarz, unfold_kaczmarz
 from .unfold_lanczos import solve_lanczos, unfold_lanczos
 from .unfold_landweber import solve_landweber, unfold_landweber
+from .unfold_lavrentiev import solve_lavrentiev, unfold_lavrentiev
 from .unfold_lbfgsb import solve_lbfgsb, unfold_lbfgsb
 from .unfold_lmfit import solve_lmfit, unfold_lmfit
 from .unfold_louhi import (
@@ -311,6 +312,7 @@ __all__ = [
     "solve_cuqi_bayesian",
     "check_cuqi_available",
     "solve_landweber",
+    "solve_lavrentiev",
     "solve_mlem",
     "solve_nnqp",
     "solve_qpmad",
@@ -477,6 +479,7 @@ __all__ = [
     "unfold_cvxpy",
     "unfold_cuqi",
     "unfold_landweber",
+    "unfold_lavrentiev",
     "unfold_mlem",
     "unfold_nnqp",
     "unfold_qpmad",

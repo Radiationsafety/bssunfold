@@ -174,7 +174,7 @@ class TestAllUnfoldMethodsImported:
         "unfold_imaxed", "unfold_mystic_hybrid", "unfold_nsduaz",
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
-        "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_method_is_detector_attribute(self, method_name: str) -> None:
@@ -194,7 +194,7 @@ class TestAllUnfoldMethodsImported:
             "unfold_imaxed", "unfold_mystic_hybrid", "unfold_nsduaz",
             "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
             "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
-            "unfold_tikhonov_legendre", "unfold_ensemble",
+            "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
             "unfold_gurobi", "unfold_mosek", "unfold_cplex",
             "unfold_copt", "unfold_xpress",
         }
@@ -299,6 +299,7 @@ SMOKE_KWARGS: dict[str, dict[str, Any]] = {
     "unfold_scipy_direct_method": dict(max_iterations=10),
     "unfold_staysl": dict(),
     "unfold_tikhonov_legendre": dict(),
+    "unfold_lavrentiev": dict(alpha=0.01),
     "unfold_ensemble": dict(),
     # commercial engines (license required); short timeouts keep CI fast
     "unfold_gurobi": dict(timeout=5.0),
@@ -543,7 +544,7 @@ class TestParameterAssignment:
         "unfold_imaxed", "unfold_mystic_hybrid", "unfold_nsduaz",
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
-        "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_unexpected_kwarg_raises(
@@ -567,7 +568,7 @@ class TestParameterAssignment:
         "unfold_imaxed", "unfold_mystic_hybrid", "unfold_nsduaz",
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
-        "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_initial_spectrum_kwarg(
@@ -621,7 +622,7 @@ class TestIAEACompendiumEndToEnd:
         "unfold_directed_divergence", "unfold_express", "unfold_ferdor",
         "unfold_imaxed", "unfold_nsduaz", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
-        "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
     ])
     def test_method_runs_on_iaea(
         self, detector: Detector, iaea_csv: pd.DataFrame,
@@ -698,6 +699,7 @@ class TestNotebooksExecute:
         "79-louhi-iaea.ipynb": "unfold_louhi",
         "80-osem-anlm-iaea.ipynb": "unfold_osem_anlm",
         "81-cuqi-quality-analysis-iaea.ipynb": "unfold_cuqi",
+        "82-lavrentiev-iaea.ipynb": "unfold_lavrentiev",
     }
 
     @pytest.fixture(autouse=True)

@@ -120,6 +120,7 @@ from .unfold_iterative_refinement import (
 from .unfold_kaczmarz import unfold_kaczmarz as unfold_kaczmarz_impl
 from .unfold_lanczos import unfold_lanczos as unfold_lanczos_impl
 from .unfold_landweber import unfold_landweber as unfold_landweber_impl
+from .unfold_lavrentiev import unfold_lavrentiev as unfold_lavrentiev_impl
 from .unfold_lbfgsb import unfold_lbfgsb as unfold_lbfgsb_impl
 from .unfold_lmfit import unfold_lmfit as unfold_lmfit_impl
 from .unfold_louhi import unfold_louhi as unfold_louhi_impl
@@ -5294,6 +5295,82 @@ class Detector:
             initial_spectrum=initial_spectrum,
             delta=delta,
             n_polynomials=n_polynomials,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_lavrentiev(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        alpha: float = 1.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold using Lavrentiev regularization with shift.
+
+        Solves the regularized normal system
+        ``(A^T A + alpha * I) x = A^T b + alpha * x0``, where ``x0`` is
+        the a-priori guess (the shift) and ``alpha`` is the regularization
+        parameter.  This is equivalent to minimizing
+        ``||A x - b||^2 + alpha * ||x - x0||^2``.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            A-priori guess of the solution (the shift).  If None, a zero
+            vector is used.
+        alpha : float, optional
+            Regularization parameter (default: 1.0).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo uncertainty (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional key ``alpha``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_lavrentiev_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
+            initial_spectrum=initial_spectrum,
+            alpha=alpha,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

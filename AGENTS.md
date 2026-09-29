@@ -34,6 +34,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/unfold_parametric.py` — FRUIT solver backends (`solve_parametric_cvxpy`/`qpsolvers`/`combined`) + public `unfold_parametric`; model/fit lives in `core/_fruit.py`
 - `core/unfold_fission_ga.py` — Fission-model GA+LM unfolding (`unfold_fission_ga`/`solve_fission_ga`, port of Ogorodnikov 2024 sections 4-5, `BonnerFinder()`): three-fraction Fission model (article eq. 4.29) + differential-evolution global search + bounded nonlinear least-squares refinement, with the article's validation criteria (`validation`) and fitted `model_params` (incl. `weight_fractions`); optional free scale `phi_scale` (`fit_scale=True`)
 - `core/unfold_tikhonov_sobolev_dp.py` — Tikhonov with the generalized discrepancy principle (`unfold_tikhonov_sobolev_dp`/`solve_tikhonov_sobolev_dp`, port of Ogorodnikov 2024 sections 3/5, `alfaFinder()`): discrete Sobolev `W_2^1` penalty + `alpha*` from `rho(alpha) = ||Az-b||^2 - delta^2 = 0` (bracketing + Brent, article's Newton/chord analogue); standalone `alpha_finder_generalized_discrepancy` / `generalized_discrepancy` exported for reuse
+- `core/unfold_lavrentiev.py` — Lavrentiev regularization with shift (`unfold_lavrentiev`/`solve_lavrentiev`): solves `(A^T A + alpha*I) x = A^T b + alpha*x0` (shifted Tikhonov), equivalent to minimizing `||Ax - b||^2 + alpha*||x - x0||^2`; works for rectangular matrices without zero-padding
 - `core/unfold_osem_anlm.py` — OSEM-ANLM unfolding (`unfold_osem_anlm`/`solve_osem_anlm`, Jamaati et al. 2026, Sci. Rep.): ordered-subset EM interleaved with the two-stage asymptotic non-local means filter (`anlm_filter_1d` standalone 1D filter, `estimate_noise_1d` robust MAD noise estimate); `anlm_mode='subset'/'post'`, log-space filtering by default
 - `core/unfold_louhi.py` — LOUHI78 unfolding (`unfold_louhi`/`solve_louhi`, Routti & Sandberg 1980): constrained weighted least squares with generalized smoothing solved by Hildreth's iterative coordinate QP; `louhi_smoothing_matrix` / `louhi_covariance` helpers, `auto_smooth=True` golden-section regression of the smoothing weight
 - `core/unfold_parametric2.py` — public BON95 `solve_parametric2`/`unfold_parametric2`; family logic lives in `core/_bon95.py`
@@ -54,7 +55,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 
 ## Testing
 
-### Test files (70 files, ~3160 tests)
+### Test files (71 files, ~3180 tests)
 
 | File | Focus |
 |------|-------|
@@ -77,7 +78,12 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 | `tests/test_ogorodnikov2024.py` | Ogorodnikov (2024) ports: Fission-model GA+LM (`unfold_fission_ga`) and Tikhonov + generalized discrepancy (`unfold_tikhonov_sobolev_dp`, `alpha_finder_generalized_discrepancy`) — quasi-real GSF experiments, DP property checks, IAEA Compendium data cases |
 | `tests/test_osem_anlm.py` | OSEM-ANLM (`unfold_osem_anlm`/`solve_osem_anlm`, Jamaati et al. 2026): ANLM filter identity/smoothing properties, `estimate_noise_1d`, solver equivalence with plain OSEM for the identity filter, `post`-mode composition, subset variants, validation, Detector wrapper |
 | `tests/test_louhi.py` | LOUHI78 (`unfold_louhi`/`solve_louhi`, Routti & Sandberg 1980): smoothing operators, Hildreth QP core, `auto_smooth` golden-section regression, `louhi_covariance` error propagation, validation, Detector integration |
+| `tests/test_lavrentiev.py` | Lavrentiev regularization with shift (`unfold_lavrentiev`/`solve_lavrentiev`): rectangular/square matrices, shift behaviour, Tikhonov equivalence at zero shift, Detector integration, IAEA end-to-end |
 | `tests/test_all_unfold_methods_api.py` | Single-gate API suite for every public `unfold_*`: import/`__all__` presence on Detector, canonical signature + common kwargs, smoke results (standardized keys, finiteness), non-default kwarg assignment, unexpected-kwarg TypeError, IAEA end-to-end subset, and nbconvert execution of the IAEA notebooks (`NOTEBOOKS` dict; skipped when an optional backend or nbconvert is missing) |
+
+### IAEA notebooks (`examples/`)
+
+Numbered `NN-<method>-iaea.ipynb` notebooks demonstrate each unfolding method on the IAEA Compendium benchmark spectrum (`t4-14-s.txt_1`): detector setup, reference-spectrum folding, unfolding with parameter sweeps, informed a-priori comparison, baselines (GRAVEL/MLEM) and quality metrics. `82-lavrentiev-iaea.ipynb` covers `unfold_lavrentiev`.
 
 ### Analysis tools
 
