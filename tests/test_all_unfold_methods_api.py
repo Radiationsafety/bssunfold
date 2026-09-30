@@ -231,7 +231,7 @@ class TestMethodSignatureContract:
         "unfold_imaxed", "unfold_mystic_hybrid", "unfold_nsduaz",
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
-        "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_signature_starts_with_readings(self, method_name: str) -> None:
@@ -252,7 +252,7 @@ class TestMethodSignatureContract:
         "unfold_imaxed", "unfold_mystic_hybrid", "unfold_nsduaz",
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
-        "unfold_tikhonov_legendre", "unfold_ensemble",
+        "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_signature_has_common_kwargs(self, method_name: str) -> None:
@@ -299,7 +299,7 @@ SMOKE_KWARGS: dict[str, dict[str, Any]] = {
     "unfold_scipy_direct_method": dict(max_iterations=10),
     "unfold_staysl": dict(),
     "unfold_tikhonov_legendre": dict(),
-    "unfold_lavrentiev": dict(alpha=0.01),
+    "unfold_lavrentiev": dict(),
     "unfold_ensemble": dict(),
     # commercial engines (license required); short timeouts keep CI fast
     "unfold_gurobi": dict(timeout=5.0),
@@ -482,6 +482,9 @@ class TestParameterAssignment:
         ),
         "unfold_tikhonov_legendre": dict(
             delta=0.02, n_polynomials=10,
+        ),
+        "unfold_lavrentiev": dict(
+            alpha=0.02,
         ),
         "unfold_ensemble": dict(
             methods=None, weights=None, combination="weighted_average",
@@ -695,6 +698,7 @@ class TestNotebooksExecute:
         "75-scipy-direct-iaea.ipynb": "unfold_scipy_direct_method",
         "76-staysl-iaea.ipynb": "unfold_staysl",
         "77-tikhonov-legendre-iaea.ipynb": "unfold_tikhonov_legendre",
+        "83-lavrentiev-iaea.ipynb": "unfold_lavrentiev",
         "78-ensemble-iaea.ipynb": "unfold_ensemble",
         "79-louhi-iaea.ipynb": "unfold_louhi",
         "80-osem-anlm-iaea.ipynb": "unfold_osem_anlm",

@@ -7,6 +7,108 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+
+- **Lavrentiev regularization unfolding** — new `unfold_lavrentiev`
+  method (and `solve_lavrentiev` core solver) implementing the
+  classical Lavrentiev regularization scheme for ill-posed operator
+  equations `A z = b` (M.M. Lavrentiev, 1962; see Ref. [1]):
+
+  * **Gram form** (`form="gram"`, default): the textbook
+    generalization of Lavrentiev's idea to non-square operators —
+    apply the shifted-operator scheme `(B + α I) y = b` to the
+    m×m square positive semi-definite Gram operator `B = A A^T`,
+    then recover the spectrum via the adjoint `z = A^T y`. This is
+    the appropriate form for Bonner-sphere unfolding where
+    `A ∈ ℝ^{m×n}` with `m` ≈ 7 detectors ≪ `n` ≈ 60 energy bins:
+    it solves an m×m system (cheap) and avoids forming the n×n
+    normal equations.
+
+  * **Direct form** (`form="direct"`): the genuine Lavrentiev scheme
+    `(A + α I) z = b` applied directly to the operator A. Requires
+    a square response matrix; raises `ValueError` for rectangular A.
+
+  * **Padded form** (`form="padded"`): zero-pads a rectangular A to
+    a square `max(m, n) × max(m, n)` matrix with zero rows (when
+    `m < n`) or zero columns (when `m > n`) and applies the direct
+    Lavrentiev scheme to the padded operator (Ref. [4], Introduction
+    p. 4 — the textbook reduction of rectangular operators to the
+    square case). Valid under Theorem 5.1 of Ref. [4] (semisimple
+    zero eigenvalue of the padded matrix). Practical caveat: when
+    `m < n` (the BSS case) the bottom `n − m` rows of the padded
+    operator are zero, so the recovered `z_i` for `i > m` are
+    **forced to zero**. The method is mathematically legitimate
+    but loses information in the padded energy bins — prefer
+    `form="gram"` for production BSS unfolding.
+
+  * **Iterated form** (`form="iterated"`): the **iterated Lavrentiev
+    scheme** with Bakushinsky's a-priori α-decay (Refs. [5], [6]).
+    Defect-correction iteration on the m × m Gram operator
+    `B = A A^T`: `y_{k+1} = y_k + (B + α_k I_m)^{-1} (b − B y_k)`,
+    `y_0 = 0`, `α_k = alpha * q^k` (Bakushinsky geometric-decay rule).
+    Recover `z = A^T y_K` after `K = n_iterations` steps. Setting
+    `q = 1.0` recovers the constant-α iterated Lavrentiev of
+    Mahale & Nair (2009), which achieves higher qualification
+    (source conditions with μ up to K instead of μ ≤ 1 for the
+    single-step scheme). Cost: `n_iterations` solves of an m × m
+    system (cheap for the BSS case `m ≈ 7`).
+    New kwargs: `q` (default `0.5`), `n_iterations` (default `5`).
+
+  Mathematically, the Gram form is equivalent to zeroth-order
+  Tikhonov (`A^T A + α I) z = A^T b` via the push-through identity
+  `(A^T A + α I)^{-1} A^T = A^T (A A^T + α I)^{-1}` — but it
+  predates and motivates Tikhonov's variational formulation, and
+  the m×m system is the practical reason to prefer this form for
+  BSS unfolding. The direct form is *genuinely distinct from*
+  Tikhonov even for self-adjoint positive A (it filters the
+  spectrum of A by `λ/(λ+α)` instead of `λ²/(λ²+α)`).
+
+  The method operates **directly on the discrete n-bin energy
+  grid** (no projection onto a polynomial basis) — the appropriate
+  choice for unfolding on the detector's lethargy grid.
+
+  Method-specific kwargs: `alpha` (default 0.05), `form` (default
+  `"gram"`, one of `"gram"`, `"direct"`, `"padded"`, `"iterated"`),
+  `q` (default 0.5, only used when `form="iterated"`),
+  `n_iterations` (default 5, only used when `form="iterated"`).
+  Result dict carries extra keys `alpha`, `form`, `q`, `n_iterations`.
+  Backed by pure NumPy/SciPy — no extra dependencies. Example
+  notebook: `examples/83-lavrentiev-iaea.ipynb`. Test gate:
+  registered in `tests/test_all_unfold_methods_api.py` (signature,
+  smoke, IAEA end-to-end, notebook execution) and covered in
+  `tests/test_new_methods.py::TestSolveLavrentiev` /
+  `TestUnfoldLavrentiev` (23 tests including numerical verification
+  of the Gram-form ⟺ Tikhonov-L=I equivalence via push-through,
+  of the direct-form ≠ Gram-form distinction for square self-adjoint
+  positive A, of the padded form's known limitation `z[m:] = 0`
+  for `m < n`, and of the iterated form's reduction to single-step
+  Gram when `q=1, n_iterations=1`).
+
+  References:
+    [1] Muftahov I.R., Sidorov D.N., Sidorov N.A. *On Lavrentiev
+        regularization of integral equations of the first kind in
+        the space of continuous functions.* Izv. Irkutsk. Gos.
+        Univ. Ser. Mat. **15** (2016), 62–77.
+        https://cyberleninka.ru/article/n/o-regulyarizatsii-po-lavrentievu-integralnyh-uravneniy-pervogo-roda-v-prostranstve-nepreryvnyh-funktsiy
+    [2] Lavrentiev M.M., Savel'ev L.Ya. *Operator Theory and
+        Ill-Posed Problems*. Nauka, Novosibirsk, 1990 (in Russian).
+    [3] Tikhonov A.N., Arsenin V.Y. *Solutions of Ill-Posed
+        Problems*. Wiley, New York, 1977.
+    [4] *Method of Shift Regularization: Theory and Applications*
+        («Метод регуляризации сдвигом»). MSU NIVC preprint, 370 pp.,
+        2013. Chapter 1 §5 «Метод регуляризации М.М. Лаврентьева»;
+        Introduction p. 4 (zero-padding reduction of rectangular A);
+        Theorem 5.1 (semisimple-zero eigenvalue condition);
+        §12 (a-priori parameter choice rules).
+        https://num-anal.srcc.msu.ru/list_wrk/ps/b5.pdf
+    [5] Bakushinskii A.B., Kokurin M.Yu. *Iterative Methods for
+        Approximate Solution of Inverse Problems*. Springer, 2004.
+    [6] Mahale P., Nair M.T. *Iterated Lavrentiev regularization for
+        nonlinear ill-posed problems.* ANZIAM J. **51** (2009),
+        191–217.
+
 ## [0.28.0] - 2026-09-22
 
 ### Added

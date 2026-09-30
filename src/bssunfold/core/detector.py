@@ -5307,7 +5307,10 @@ class Detector:
         self,
         readings: dict[str, float],
         initial_spectrum: np.ndarray | None = None,
-        alpha: float = 1.0,
+        alpha: float = 0.05,
+        form: str = "gram",
+        q: float = 0.5,
+        n_iterations: int = 5,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -5319,25 +5322,34 @@ class Detector:
         noise_model: str = "gaussian",
         measurement_time: float | None = None,
     ) -> dict[str, Any]:
-        """Unfold using Lavrentiev regularization with shift.
+        """Unfold neutron spectrum using Lavrentiev (identity) regularization.
 
-        Solves the regularized normal system
-        ``(A^T A + alpha * I) x = A^T b + alpha * x0``, where ``x0`` is
-        the a-priori guess (the shift) and ``alpha`` is the regularization
-        parameter.  This is equivalent to minimizing
-        ``||A x - b||^2 + alpha * ||x - x0||^2``.
+        Solves the regularized system
+        ``(A^T A + alpha * I) z = A^T b`` (the default ``"normal"`` form,
+        equivalent to zeroth-order Tikhonov with ``L = I``) or, when
+        ``form="direct"`` and ``A`` is square, the classical Lavrentiev
+        scheme ``(A + alpha * I) z = b``.
 
         Parameters
         ----------
         readings : Dict[str, float]
             Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
-            A-priori guess of the solution (the shift).  If None, a zero
-            vector is used.
+            Not used (provided for API consistency).
         alpha : float, optional
-            Regularization parameter (default: 1.0).
+            Regularization parameter (default: 0.05).
+        form : {"gram", "direct", "padded", "iterated"}, optional
+            Which Lavrentiev system to solve (default: ``"gram"``).
+            See :func:`solve_lavrentiev` for details.
+        q : float, optional
+            Geometric decay rate of α in the iterated form
+            (default: ``0.5``). Only used when ``form="iterated"``.
+        n_iterations : int, optional
+            Number of defect-correction iterations in the iterated
+            form (default: ``5``). Only used when
+            ``form="iterated"``.
         calculate_errors : bool, optional
-            Calculate Monte-Carlo uncertainty (default: False).
+            Calculate Monte-Carlo errors (default: False).
         noise_level : float, optional
             Noise level for Monte-Carlo (default: 0.01).
         n_montecarlo : int, optional
@@ -5352,7 +5364,8 @@ class Detector:
         Returns
         -------
         Dict[str, Any]
-            Unfolding results dictionary with additional key ``alpha``.
+            Unfolding results dictionary, with extra keys ``alpha``,
+            ``form``, ``q`` and ``n_iterations``.
         """
 
         mask = self._max_energy_mask(max_neutron_energy)
@@ -5371,6 +5384,9 @@ class Detector:
             measurement_time=measurement_time,
             initial_spectrum=initial_spectrum,
             alpha=alpha,
+            form=form,
+            q=q,
+            n_iterations=n_iterations,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
