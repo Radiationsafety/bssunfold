@@ -109,6 +109,23 @@ and this project adheres to [Semantic Versioning].
         nonlinear ill-posed problems.* ANZIAM J. **51** (2009),
         191–217.
 
+- **Newton-Kantorovich root-finder for the generalized discrepancy
+  principle** — new ``method="newton_kantorovich"`` option in
+  ``alpha_finder_generalized_discrepancy``, ``solve_tikhonov_sobolev_dp``
+  and ``unfold_tikhonov_sobolev_dp``. Uses the analytic derivative
+  :math:`\rho'(\alpha)` (computed via the chain rule on the Tikhonov
+  solution) for quadratic convergence on :math:`\log_{10}(\alpha)`,
+  with automatic fallback to Brent's method when the Newton step
+  leaves the bracket or the derivative vanishes. Typically reduces
+  the number of Tikhonov solves by 30–50 % compared to Brent.
+  New public functions: ``generalized_discrepancy_derivative`` and
+  ``alpha_finder_newton_kantorovich``. Result dict carries the extra
+  key ``dp_method``. Covered by 7 new tests in
+  ``tests/test_ogorodnikov2024.py::TestNewtonKantorovich``
+  (finite-difference derivative check, root accuracy, agreement
+  with Brent, iteration-count comparison, penalty variants,
+  end-to-end solver test, invalid-method guard).
+
 ## [0.28.0] - 2026-09-22
 
 ### Added

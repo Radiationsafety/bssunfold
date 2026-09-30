@@ -333,7 +333,9 @@ Installable extras (see [pyproject.toml](https://github.com/Radiationsafety/bssu
 | `all` | all open-source optional backends above (except commercial engines and `solvers-proxqp`) | — |
 | `test` | `pytest` | test suite |
 
-All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre, NSpline, SSR, GEE, Uno, LOUHI, and the optimization-course solvers) have **no extra dependencies** beyond NumPy/SciPy.
+All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre, NSpline, SSR, GEE, Uno, LOUHI, Lavrentiev, and the optimization-course solvers) have **no extra dependencies** beyond NumPy/SciPy.
+
+The generalized discrepancy principle of `unfold_tikhonov_sobolev_dp` supports two root-finders via `method=`: `"brent"` (default, robust superlinear) and `"newton_kantorovich"` (quadratic convergence using the analytic derivative ρ′(α), with automatic fallback to Brent — typically 30–50 % fewer Tikhonov solves).
 
 ## Performance
 

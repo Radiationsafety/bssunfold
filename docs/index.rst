@@ -19,6 +19,7 @@ bssunfold is a Python package for neutron spectrum unfolding using various algor
    gee
    uno
    louhi
+   lavrentiev
    interpretation
    examples
    reconst_comparison
