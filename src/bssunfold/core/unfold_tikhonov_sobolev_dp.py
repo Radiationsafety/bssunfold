@@ -47,7 +47,9 @@ from ._matrix_utils import create_derivative_matrix
 
 __all__ = [
     "generalized_discrepancy",
+    "generalized_discrepancy_derivative",
     "alpha_finder_generalized_discrepancy",
+    "alpha_finder_newton_kantorovich",
     "solve_tikhonov_sobolev_dp",
     "unfold_tikhonov_sobolev_dp",
 ]
@@ -122,23 +124,65 @@ def generalized_discrepancy(
     return float(residual @ residual - delta_sq)
 
 
-def alpha_finder_generalized_discrepancy(
+def generalized_discrepancy_derivative(
+    alpha: float,
+    N: np.ndarray,
+    K: np.ndarray,
+    rhs: np.ndarray,
+    A: np.ndarray,
+    b: np.ndarray,
+    delta_sq: float,
+) -> tuple[float, float]:
+    """Return ``(rho(alpha), rho'(alpha))`` for Newton iteration.
+
+    The derivative is computed analytically via the chain rule:
+    ``dz/dalpha = -(N + alpha K)^{-1} K z`` and
+    ``rho'(alpha) = 2 (A z - b)^T A dz/dalpha``.
+
+    Parameters
+    ----------
+    alpha : float
+        Regularization parameter (must be > 0).
+    N, K : np.ndarray
+        Normal matrix ``A^T A`` and penalty Gram matrix ``L^T L``.
+    rhs : np.ndarray
+        Right-hand side ``A^T b``.
+    A : np.ndarray
+        Response matrix.
+    b : np.ndarray
+        Measurement vector.
+    delta_sq : float
+        Squared noise level ``delta**2``.
+
+    Returns
+    -------
+    tuple
+        ``(rho, rho_prime)``.
+    """
+    z_alpha = _solve_regularized(N, K, rhs, alpha)
+    residual = A @ z_alpha - b
+    rho = float(residual @ residual - delta_sq)
+
+    Kz = K @ z_alpha
+    dz_dalpha = -_solve_regularized(N, K, Kz, alpha)
+    rho_prime = 2.0 * float(residual @ (A @ dz_dalpha))
+    return rho, rho_prime
+
+
+def alpha_finder_newton_kantorovich(
     A: np.ndarray,
     b: np.ndarray,
     delta: float,
     L: np.ndarray | None = None,
     alpha_range: tuple[float, float] = (1e-10, 1e10),
-    max_iter: int = 100,
-    xtol: float = 1e-8,
+    max_iter: int = 50,
+    xtol: float = 1e-10,
 ) -> dict[str, Any]:
-    """Find ``alpha*`` as the root of the generalized discrepancy.
+    """Find ``alpha*`` via Newton-Kantorovich on ``log10(alpha)``.
 
-    Implements the article's step 2 of the regularizing algorithm: the
-    optimal regularization parameter ``alpha*``, consistent with the
-    data error level, is computed as the root of ``rho(alpha*) = 0``.  The root
-    is bracketed on a log10 grid and refined with Brent's method (a
-    robust combination of the bisection, chord/secant and inverse
-    quadratic methods used in the article).
+    Uses the analytic derivative ``rho'(alpha)`` for quadratic convergence.
+    Falls back to Brent's method if the Newton step leaves the bracket or
+    the Kantorovich condition is violated.
 
     Parameters
     ----------
@@ -148,7 +192,197 @@ def alpha_finder_generalized_discrepancy(
         Measurement vector (m,).
     delta : float
         RMS noise level; ``alpha*`` satisfies
-        ``|| A z_alpha* - b ||^2 = delta^2``.
+        ``||A z_alpha* - b||^2 = delta^2``.
+    L : np.ndarray, optional
+        Penalty operator (k x n).  Defaults to the first-difference
+        (Sobolev W_2^1) operator.
+    alpha_range : tuple, optional
+        Search interval for ``alpha`` (default: (1e-10, 1e10)).
+    max_iter : int, optional
+        Maximum number of Newton iterations (default: 50).
+    xtol : float, optional
+        Absolute tolerance on log10(alpha) (default: 1e-10).
+
+    Returns
+    -------
+    dict
+        Dictionary with keys ``alpha``, ``residual_sq``, ``rho``,
+        ``status``, ``converged``, ``n_iter`` and ``min_residual_sq`` /
+        ``max_residual_sq`` diagnostics.
+    """
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float).ravel()
+    n = A.shape[1]
+
+    if L is None:
+        L = _penalty_matrix(n, "sobolev")
+    L = np.asarray(L, dtype=float)
+
+    delta = float(delta)
+    if delta <= 0:
+        raise ValueError(f"delta must be positive, got {delta}")
+    delta_sq = delta * delta
+
+    N = A.T @ A
+    K = L.T @ L
+    rhs = A.T @ b
+
+    alpha_min, alpha_max = float(alpha_range[0]), float(alpha_range[1])
+    if not (0 < alpha_min < alpha_max):
+        raise ValueError(
+            f"alpha_range must satisfy 0 < alpha_min < alpha_max, got {alpha_range}"
+        )
+
+    def rho_log10(t: float) -> float:
+        return generalized_discrepancy(10.0**t, N, K, rhs, A, b, delta_sq)
+
+    def rho_prime_log10(t: float) -> float:
+        _, drho = generalized_discrepancy_derivative(
+            10.0**t, N, K, rhs, A, b, delta_sq
+        )
+        return drho * (10.0**t) * np.log(10.0)
+
+    n_iter = 0
+    rho_min = generalized_discrepancy(alpha_min, N, K, rhs, A, b, delta_sq)
+    rho_max = generalized_discrepancy(alpha_max, N, K, rhs, A, b, delta_sq)
+    n_iter += 2
+
+    z_ls, *_ = np.linalg.lstsq(A, b, rcond=None)
+    min_residual_sq = float(np.linalg.norm(A @ z_ls - b) ** 2)
+
+    if rho_min > 0:
+        z_alpha = _solve_regularized(N, K, rhs, alpha_min)
+        return {
+            "alpha": alpha_min,
+            "residual_sq": float(np.linalg.norm(A @ z_alpha - b) ** 2),
+            "rho": float(rho_min),
+            "status": STATUS_RHO_POSITIVE,
+            "converged": False,
+            "n_iter": n_iter,
+            "min_residual_sq": min_residual_sq,
+            "max_residual_sq": float(rho_max + delta_sq),
+        }
+
+    if rho_max < 0:
+        z_alpha = _solve_regularized(N, K, rhs, alpha_max)
+        return {
+            "alpha": alpha_max,
+            "residual_sq": float(np.linalg.norm(A @ z_alpha - b) ** 2),
+            "rho": float(rho_max),
+            "status": STATUS_RHO_NEGATIVE,
+            "converged": False,
+            "n_iter": n_iter,
+            "min_residual_sq": min_residual_sq,
+            "max_residual_sq": float(rho_max + delta_sq),
+        }
+
+    t_min, t_max = np.log10(alpha_min), np.log10(alpha_max)
+    t = 0.5 * (t_min + t_max)
+
+    for _ in range(max_iter):
+        rho_val, drho_val = generalized_discrepancy_derivative(
+            10.0**t, N, K, rhs, A, b, delta_sq
+        )
+        n_iter += 1
+
+        if abs(rho_val) < delta_sq * xtol:
+            alpha_star = float(10.0**t)
+            z_alpha = _solve_regularized(N, K, rhs, alpha_star)
+            residual_sq = float(np.linalg.norm(A @ z_alpha - b) ** 2)
+            return {
+                "alpha": alpha_star,
+                "residual_sq": residual_sq,
+                "rho": float(residual_sq - delta_sq),
+                "status": STATUS_OK,
+                "converged": True,
+                "n_iter": n_iter,
+                "min_residual_sq": min_residual_sq,
+                "max_residual_sq": float(rho_max + delta_sq),
+            }
+
+        drho_log10 = drho_val * (10.0**t) * np.log(10.0)
+        if abs(drho_log10) < 1e-300:
+            break
+
+        t_new = t - rho_val / drho_log10
+
+        if not (t_min < t_new < t_max):
+            break
+
+        if abs(t_new - t) < xtol:
+            t = t_new
+            alpha_star = float(10.0**t)
+            z_alpha = _solve_regularized(N, K, rhs, alpha_star)
+            residual_sq = float(np.linalg.norm(A @ z_alpha - b) ** 2)
+            return {
+                "alpha": alpha_star,
+                "residual_sq": residual_sq,
+                "rho": float(residual_sq - delta_sq),
+                "status": STATUS_OK,
+                "converged": True,
+                "n_iter": n_iter,
+                "min_residual_sq": min_residual_sq,
+                "max_residual_sq": float(rho_max + delta_sq),
+            }
+
+        t = t_new
+
+    root, results = brentq(
+        rho_log10,
+        t_min,
+        t_max,
+        xtol=xtol,
+        rtol=1e-10,
+        maxiter=max_iter,
+        full_output=True,
+    )
+    n_iter += int(results.function_calls)
+    alpha_star = float(10.0**root)
+    z_alpha = _solve_regularized(N, K, rhs, alpha_star)
+    residual_sq = float(np.linalg.norm(A @ z_alpha - b) ** 2)
+
+    return {
+        "alpha": alpha_star,
+        "residual_sq": residual_sq,
+        "rho": float(residual_sq - delta_sq),
+        "status": STATUS_OK,
+        "converged": True,
+        "n_iter": n_iter,
+        "min_residual_sq": min_residual_sq,
+        "max_residual_sq": float(rho_max + delta_sq),
+    }
+
+
+def alpha_finder_generalized_discrepancy(
+    A: np.ndarray,
+    b: np.ndarray,
+    delta: float,
+    L: np.ndarray | None = None,
+    alpha_range: tuple[float, float] = (1e-10, 1e10),
+    max_iter: int = 100,
+    xtol: float = 1e-8,
+    method: str = "brent",
+) -> dict[str, Any]:
+    """Find ``alpha*`` as the root of the generalized discrepancy.
+
+    Implements the article's step 2 of the regularizing algorithm: the
+    optimal regularization parameter ``alpha*``, consistent with the
+    data error level, is computed as the root of ``rho(alpha*) = 0``.  The root
+    is bracketed on a log10 grid and refined with Brent's method (a
+    robust combination of the bisection, chord/secant and inverse
+    quadratic interpolation methods used in the article) or, when
+    ``method="newton_kantorovich"``, with a Newton-Kantorovich iteration
+    using the analytic derivative ``rho'(alpha)``.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b : np.ndarray
+        Measurement vector (m,).
+    delta : float
+        RMS noise level; ``alpha*`` satisfies
+        ``||A z_alpha* - b||^2 = delta^2``.
     L : np.ndarray, optional
         Penalty operator (k x n).  Defaults to the first-difference
         (Sobolev W_2^1) operator.
@@ -158,6 +392,9 @@ def alpha_finder_generalized_discrepancy(
         Maximum number of root-finder iterations (default: 100).
     xtol : float, optional
         Absolute tolerance on log10(alpha) (default: 1e-8).
+    method : str, optional
+        Root-finding method: ``"brent"`` (default) or
+        ``"newton_kantorovich"``.
 
     Returns
     -------
@@ -166,6 +403,16 @@ def alpha_finder_generalized_discrepancy(
         ``status``, ``converged``, ``n_iter`` and ``min_residual_sq`` /
         ``max_residual_sq`` diagnostics.
     """
+    if method == "newton_kantorovich":
+        return alpha_finder_newton_kantorovich(
+            A, b, delta, L=L, alpha_range=alpha_range,
+            max_iter=max_iter, xtol=xtol,
+        )
+    if method != "brent":
+        raise ValueError(
+            f"Unknown method: {method!r}. "
+            "Choose from 'brent', 'newton_kantorovich'."
+        )
     A = np.asarray(A, dtype=float)
     b = np.asarray(b, dtype=float).ravel()
     n = A.shape[1]
@@ -270,6 +517,7 @@ def solve_tikhonov_sobolev_dp(
     penalty: str = "sobolev",
     alpha_range: tuple[float, float] = (1e-10, 1e10),
     max_iter: int = 100,
+    method: str = "brent",
 ) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding with Tikhonov + generalized discrepancy principle.
 
@@ -301,6 +549,9 @@ def solve_tikhonov_sobolev_dp(
         Search interval for the regularization parameter.
     max_iter : int, optional
         Maximum number of root-finder iterations.
+    method : str, optional
+        Root-finding method: ``"brent"`` (default) or
+        ``"newton_kantorovich"``.
 
     Returns
     -------
@@ -328,6 +579,7 @@ def solve_tikhonov_sobolev_dp(
         L=L,
         alpha_range=alpha_range,
         max_iter=max_iter,
+        method=method,
     )
 
     N = A.T @ A
@@ -353,6 +605,7 @@ def unfold_tikhonov_sobolev_dp(
     penalty: str = "sobolev",
     alpha_range: tuple[float, float] = (1e-10, 1e10),
     max_iter: int = 100,
+    method: str = "brent",
     calculate_errors: bool = False,
     n_montecarlo: int = 100,
     save_result: bool = False,
@@ -399,6 +652,9 @@ def unfold_tikhonov_sobolev_dp(
         Search interval for the regularization parameter.
     max_iter : int, optional
         Maximum number of root-finder iterations (default: 100).
+    method : str, optional
+        Root-finding method: ``"brent"`` (default) or
+        ``"newton_kantorovich"``.
     calculate_errors : bool, optional
         If True, calculate Monte-Carlo uncertainty (default: False).
     n_montecarlo : int, optional
@@ -432,6 +688,7 @@ def unfold_tikhonov_sobolev_dp(
             penalty=penalty,
             alpha_range=alpha_range,
             max_iter=max_iter,
+            method=method,
         )
         # Record only the clean-fit metadata (Monte-Carlo replicates
         # use perturbed readings and would overwrite them).
@@ -446,6 +703,7 @@ def unfold_tikhonov_sobolev_dp(
                 L=_penalty_matrix(A.shape[1], penalty),
                 alpha_range=alpha_range,
                 max_iter=max_iter,
+                method=method,
             )
             holder["alpha"] = info["alpha"]
             holder["discrepancy_status"] = info["status"]
@@ -471,6 +729,7 @@ def unfold_tikhonov_sobolev_dp(
             "penalty": penalty,
             "delta": float(delta) if delta is not None else None,
             "noise_level": float(noise_level),
+            "dp_method": method,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level or 0.01,

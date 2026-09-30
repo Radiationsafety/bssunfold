@@ -43,7 +43,9 @@ from bssunfold.core.unfold_tikhonov_sobolev_dp import (
     STATUS_RHO_NEGATIVE,
     STATUS_RHO_POSITIVE,
     alpha_finder_generalized_discrepancy,
+    alpha_finder_newton_kantorovich,
     generalized_discrepancy,
+    generalized_discrepancy_derivative,
     solve_tikhonov_sobolev_dp,
 )
 
@@ -242,6 +244,92 @@ class TestGeneralizedDiscrepancy:
         assert cosine > 0.99
         rel_err = np.linalg.norm(spectrum - x_true) / np.linalg.norm(x_true)
         assert rel_err < 0.2
+
+
+class TestNewtonKantorovich:
+    """Tests for the Newton-Kantorovich root-finder on the discrepancy."""
+
+    @pytest.fixture
+    def linear_problem(self):
+        rng = np.random.default_rng(42)
+        m, n = 8, 20
+        A = rng.uniform(0.1, 1.0, size=(m, n))
+        x_true = rng.uniform(0.5, 2.0, size=n)
+        b = A @ x_true
+        noise = 0.02 * np.linalg.norm(b)
+        noise_vec = noise * rng.standard_normal(m) / np.sqrt(m)
+        noise_vec *= noise / np.linalg.norm(noise_vec)
+        b = b + noise_vec
+        return A, b, float(np.linalg.norm(noise_vec))
+
+    def test_derivative_correctness(self, linear_problem):
+        A, b, delta = linear_problem
+        n = A.shape[1]
+        L = np.eye(n)
+        N = A.T @ A
+        K = L.T @ L
+        rhs = A.T @ b
+        delta_sq = delta**2
+
+        alpha = 0.5
+        rho, drho = generalized_discrepancy_derivative(
+            alpha, N, K, rhs, A, b, delta_sq
+        )
+
+        eps = 1e-6
+        rho_plus = generalized_discrepancy(
+            alpha + eps, N, K, rhs, A, b, delta_sq
+        )
+        rho_minus = generalized_discrepancy(
+            alpha - eps, N, K, rhs, A, b, delta_sq
+        )
+        drho_fd = (rho_plus - rho_minus) / (2 * eps)
+
+        assert abs(drho - drho_fd) / abs(drho_fd) < 1e-4
+
+    def test_newton_kantorovich_finds_root(self, linear_problem):
+        A, b, delta = linear_problem
+        info = alpha_finder_newton_kantorovich(A, b, delta)
+        assert info["status"] == STATUS_OK
+        assert info["converged"]
+        assert abs(info["rho"]) / delta**2 < 1e-6
+
+    def test_newton_kantorovich_matches_brent(self, linear_problem):
+        A, b, delta = linear_problem
+        info_nk = alpha_finder_newton_kantorovich(A, b, delta)
+        info_brent = alpha_finder_generalized_discrepancy(A, b, delta)
+        assert abs(info_nk["alpha"] - info_brent["alpha"]) / info_brent["alpha"] < 1e-3
+
+    def test_newton_kantorovich_fewer_iterations(self, linear_problem):
+        A, b, delta = linear_problem
+        info_nk = alpha_finder_newton_kantorovich(A, b, delta)
+        info_brent = alpha_finder_generalized_discrepancy(A, b, delta)
+        assert info_nk["n_iter"] <= info_brent["n_iter"]
+
+    def test_newton_kantorovich_with_penalty(self, linear_problem):
+        A, b, delta = linear_problem
+        n = A.shape[1]
+        from bssunfold.core.unfold_tikhonov_sobolev_dp import _penalty_matrix
+
+        L = _penalty_matrix(n, "sobolev")
+        info = alpha_finder_newton_kantorovich(A, b, delta, L=L)
+        assert info["status"] == STATUS_OK
+        assert info["converged"]
+
+    def test_solve_tikhonov_sobolev_dp_newton(self, linear_problem):
+        A, b, delta = linear_problem
+        spectrum, n_iter, converged = solve_tikhonov_sobolev_dp(
+            A, b, delta=delta, method="newton_kantorovich"
+        )
+        assert converged
+        assert spectrum.shape == (A.shape[1],)
+        resid = np.linalg.norm(A @ spectrum - b)
+        assert abs(resid**2 - delta**2) / delta**2 < 1e-3
+
+    def test_invalid_method_raises(self, linear_problem):
+        A, b, delta = linear_problem
+        with pytest.raises(ValueError):
+            alpha_finder_generalized_discrepancy(A, b, delta, method="invalid")
 
 
 class TestSolveTikhonovSobolevDP:
