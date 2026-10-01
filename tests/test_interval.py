@@ -5,7 +5,11 @@ import pandas as pd
 import pytest
 
 from src.bssunfold import RF_GSF, Detector
-from src.bssunfold.core.unfold_interval import solve_interval
+from src.bssunfold.core.unfold_interval import (
+    solve_interval,
+    solve_interval_posterior,
+    solve_interval_tol,
+)
 
 
 @pytest.fixture
@@ -96,7 +100,9 @@ class TestUnfoldInterval:
         assert width_wide >= width_narrow
 
     def test_tv_regularization(self, detector, readings):
-        result_no_tv = detector.unfold_interval(readings, noise_level=0.1, tv_bound=None)
+        result_no_tv = detector.unfold_interval(
+            readings, noise_level=0.1, tv_bound=None
+        )
         result_tv = detector.unfold_interval(readings, noise_level=0.1, tv_bound=1.0)
         assert "tv_bound" in result_no_tv
         assert "tv_bound" in result_tv
@@ -134,3 +140,177 @@ class TestUnfoldInterval:
         result = detector.unfold_interval(readings, noise_level=0.1)
         assert "effective_readings" in result
         assert len(result["effective_readings"]) > 0
+
+
+class TestSolveIntervalTol:
+    def test_basic(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        x_min, x_max, info = solve_interval_tol(A, b_lo, b_hi)
+        assert x_min.shape == (2,)
+        assert x_max.shape == (2,)
+        assert np.all(x_min <= x_max)
+        assert np.all(x_min >= 0)
+        assert "tol_max" in info
+        assert "x_pseudo" in info
+        assert "converged" in info
+
+    def test_tol_functional_properties(self):
+        A = np.array([[1.0, 0.0], [0.0, 1.0]])
+        b_lo = np.array([0.5, 0.5])
+        b_hi = np.array([1.5, 1.5])
+        x_min, x_max, info = solve_interval_tol(A, b_lo, b_hi)
+        assert "tol_max" in info
+        assert isinstance(info["tol_max"], float)
+        assert np.all(x_min <= x_max)
+
+    def test_uncertainty_scaling(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b = np.array([1.0, 2.0])
+        x_min_narrow, x_max_narrow, _ = solve_interval_tol(A, b - 0.1, b + 0.1)
+        x_min_wide, x_max_wide, _ = solve_interval_tol(A, b - 0.5, b + 0.5)
+        width_narrow = np.sum(x_max_narrow - x_min_narrow)
+        width_wide = np.sum(x_max_wide - x_min_wide)
+        assert width_wide >= width_narrow
+
+    def test_invalid_bounds(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([1.5, 1.5])
+        b_hi = np.array([0.5, 2.5])
+        with pytest.raises(ValueError, match="b_lo must be <= b_hi"):
+            solve_interval_tol(A, b_lo, b_hi)
+
+    def test_negative_blo(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([-0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        with pytest.raises(ValueError, match="b_lo must be non-negative"):
+            solve_interval_tol(A, b_lo, b_hi)
+
+
+class TestSolveIntervalPosterior:
+    def test_basic(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        x_min, x_max, info = solve_interval_posterior(A, b_lo, b_hi)
+        assert x_min.shape == (2,)
+        assert x_max.shape == (2,)
+        assert np.all(x_min <= x_max)
+        assert np.all(x_min >= 0)
+        assert "n_samples" in info
+        assert "sensitivity" in info
+        assert "residuals" in info
+
+    def test_uncertainty_scaling(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b = np.array([1.0, 2.0])
+        x_min_narrow, x_max_narrow, _ = solve_interval_posterior(A, b - 0.1, b + 0.1)
+        x_min_wide, x_max_wide, _ = solve_interval_posterior(A, b - 0.5, b + 0.5)
+        width_narrow = np.sum(x_max_narrow - x_min_narrow)
+        width_wide = np.sum(x_max_wide - x_min_wide)
+        assert width_wide >= width_narrow
+
+    def test_invalid_bounds(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([1.5, 1.5])
+        b_hi = np.array([0.5, 2.5])
+        with pytest.raises(ValueError, match="b_lo must be <= b_hi"):
+            solve_interval_posterior(A, b_lo, b_hi)
+
+    def test_negative_blo(self):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([-0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        with pytest.raises(ValueError, match="b_lo must be non-negative"):
+            solve_interval_posterior(A, b_lo, b_hi)
+
+
+class TestDetectorUnfoldIntervalTol:
+    def test_basic(self, detector, readings):
+        result = detector.unfold_interval_tol(readings, noise_level=0.1)
+        assert "spectrum_lower" in result
+        assert "spectrum_upper" in result
+        assert "spectrum" in result
+        assert result["method"] == "IntervalTol"
+
+    def test_interval_ordering(self, detector, readings):
+        result = detector.unfold_interval_tol(readings, noise_level=0.1)
+        assert np.all(result["spectrum_lower"] <= result["spectrum_upper"])
+
+    def test_nonnegative(self, detector, readings):
+        result = detector.unfold_interval_tol(readings, noise_level=0.1)
+        assert np.all(result["spectrum_lower"] >= 0)
+
+    def test_midpoint_in_interval(self, detector, readings):
+        result = detector.unfold_interval_tol(readings, noise_level=0.1)
+        assert np.all(result["spectrum"] >= result["spectrum_lower"])
+        assert np.all(result["spectrum"] <= result["spectrum_upper"])
+
+    def test_tol_metadata(self, detector, readings):
+        result = detector.unfold_interval_tol(readings, noise_level=0.1)
+        assert "tol_max" in result
+        assert "x_pseudo" in result
+        assert "converged" in result
+        assert "n_iter" in result
+
+    def test_uncertainty_scaling(self, detector, readings):
+        result_narrow = detector.unfold_interval_tol(readings, noise_level=0.05)
+        result_wide = detector.unfold_interval_tol(readings, noise_level=0.2)
+        width_narrow = np.sum(
+            result_narrow["spectrum_upper"] - result_narrow["spectrum_lower"]
+        )
+        width_wide = np.sum(
+            result_wide["spectrum_upper"] - result_wide["spectrum_lower"]
+        )
+        assert width_wide >= width_narrow
+
+    def test_doserates_present(self, detector, readings):
+        result = detector.unfold_interval_tol(readings, noise_level=0.1)
+        assert "doserates" in result
+        assert len(result["doserates"]) > 0
+
+
+class TestDetectorUnfoldIntervalPosterior:
+    def test_basic(self, detector, readings):
+        result = detector.unfold_interval_posterior(readings, noise_level=0.1)
+        assert "spectrum_lower" in result
+        assert "spectrum_upper" in result
+        assert "spectrum" in result
+        assert result["method"] == "IntervalPosterior"
+
+    def test_interval_ordering(self, detector, readings):
+        result = detector.unfold_interval_posterior(readings, noise_level=0.1)
+        assert np.all(result["spectrum_lower"] <= result["spectrum_upper"])
+
+    def test_nonnegative(self, detector, readings):
+        result = detector.unfold_interval_posterior(readings, noise_level=0.1)
+        assert np.all(result["spectrum_lower"] >= 0)
+
+    def test_midpoint_in_interval(self, detector, readings):
+        result = detector.unfold_interval_posterior(readings, noise_level=0.1)
+        assert np.all(result["spectrum"] >= result["spectrum_lower"])
+        assert np.all(result["spectrum"] <= result["spectrum_upper"])
+
+    def test_posterior_metadata(self, detector, readings):
+        result = detector.unfold_interval_posterior(readings, noise_level=0.1)
+        assert "n_samples" in result
+        assert "sensitivity" in result
+        assert "residuals" in result
+
+    def test_uncertainty_scaling(self, detector, readings):
+        result_narrow = detector.unfold_interval_posterior(readings, noise_level=0.05)
+        result_wide = detector.unfold_interval_posterior(readings, noise_level=0.2)
+        width_narrow = np.sum(
+            result_narrow["spectrum_upper"] - result_narrow["spectrum_lower"]
+        )
+        width_wide = np.sum(
+            result_wide["spectrum_upper"] - result_wide["spectrum_lower"]
+        )
+        assert width_wide >= width_narrow
+
+    def test_doserates_present(self, detector, readings):
+        result = detector.unfold_interval_posterior(readings, noise_level=0.1)
+        assert "doserates" in result
+        assert len(result["doserates"]) > 0

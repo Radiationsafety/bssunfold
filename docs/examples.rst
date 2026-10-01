@@ -405,6 +405,10 @@ Notebook                                                         Method
 ``79-louhi-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_louhi`
 ``80-osem-anlm-iaea.ipynb``                                     :meth:`~bssunfold.Detector.unfold_osem_anlm`
 ``81-cuqi-quality-analysis-iaea.ipynb``                         :meth:`~bssunfold.Detector.unfold_cuqi`
+``82-commercial-solvers-iaea.ipynb``                             :meth:`~bssunfold.Detector.unfold_commercial`
+``82-lavrentiev-iaea.ipynb``                                    :meth:`~bssunfold.Detector.unfold_lavrentiev`
+``83-interval-tol-iaea.ipynb``                                  :meth:`~bssunfold.Detector.unfold_interval_tol`
+``84-interval-posterior-iaea.ipynb``                            :meth:`~bssunfold.Detector.unfold_interval_posterior`
 ==============================================================  ============================
 
 Notebook ``81`` additionally demonstrates the CUQIpy quality-analysis

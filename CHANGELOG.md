@@ -11,6 +11,30 @@ and this project adheres to [Semantic Versioning].
 
 ### Added
 
+- **Interval unfolding with Shary's recognizing functional** — new
+  `unfold_interval_tol` method (and `solve_interval_tol` core solver)
+  implementing the interval regularization approach of S.P. Shary:
+
+  * Maximizes the recognizing functional
+    `Tol(x) = min_i [rad(b_i) - |mid(b_i) - a_i·x|]` to find a
+    pseudo-solution of the interval system `Ax ⊆ b`.
+  * More efficient than the traditional 2n LP formulation for
+    ill-conditioned systems.
+  * Returns `tol_max`, `x_pseudo`, `converged`, and `n_iter` as
+    additional metadata.
+  * Supports TV regularization via the `tv_bound` parameter.
+
+- **Interval unfolding with posterior analysis** — new
+  `unfold_interval_posterior` method (and `solve_interval_posterior`
+  core solver) implementing Matiyasevich's posterior interval analysis:
+
+  * Uses the traditional LP approach but refines the intervals using
+    posterior analysis for tighter bounds.
+  * Computes per-bin sensitivity vector and residuals for diagnostic
+    information.
+  * Returns `n_samples`, `sensitivity`, and `residuals` as additional
+    metadata.
+
 - **Lavrentiev regularization unfolding** — new `unfold_lavrentiev`
   method (and `solve_lavrentiev` core solver) implementing the
   classical Lavrentiev regularization scheme for ill-posed operator

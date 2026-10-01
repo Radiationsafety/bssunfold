@@ -114,7 +114,15 @@ from .unfold_interpret import (
 from .unfold_interpret import (
     unfold_interpret as unfold_interpret_impl,
 )
-from .unfold_interval import unfold_interval as unfold_interval_impl
+from .unfold_interval import (
+    unfold_interval as unfold_interval_impl,
+)
+from .unfold_interval import (
+    unfold_interval_posterior as unfold_interval_posterior_impl,
+)
+from .unfold_interval import (
+    unfold_interval_tol as unfold_interval_tol_impl,
+)
 from .unfold_iterative_refinement import (
     unfold_iterative_refinement as unfold_iterative_refinement_impl,
 )
@@ -4646,6 +4654,134 @@ class Detector:
             noise_level=noise_level,
             tv_bound=tv_bound,
             save_result=save_result,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval_tol(
+        self,
+        readings: dict[str, float],
+        tv_bound: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+        max_iter: int = 1000,
+        tol: float = 1e-6,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using Shary's recognizing functional.
+
+        Finds a pseudo-solution by maximizing the recognizing functional
+        Tol(x), then computes bounds using directional search. More efficient
+        than the traditional 2n LP approach for ill-conditioned systems.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        tv_bound : float, optional
+            Total Variation bound for regularization.
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading.
+        noise_level : float, optional
+            Relative noise level for interval construction (default: 0.05).
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+        max_iter : int, optional
+            Maximum iterations for optimization.
+        tol : float, optional
+            Convergence tolerance.
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result with additional keys:
+
+            - ``spectrum_lower`` -- lower bounds on the spectrum (n,)
+            - ``spectrum_upper`` -- upper bounds on the spectrum (n,)
+            - ``tol_max`` -- maximum value of the recognizing functional
+            - ``x_pseudo`` -- pseudo-solution point
+            - ``converged`` -- whether optimization converged
+            - ``n_iter`` -- number of iterations
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_tol_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            tv_bound=tv_bound,
+            save_result=save_result,
+            max_iter=max_iter,
+            tol=tol,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval_posterior(
+        self,
+        readings: dict[str, float],
+        tv_bound: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+        n_samples: int = 100,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using posterior interval analysis.
+
+        Uses the traditional LP approach but refines the intervals using
+        posterior analysis (Matiyasevich's method) for tighter bounds.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        tv_bound : float, optional
+            Total Variation bound for regularization.
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading.
+        noise_level : float, optional
+            Relative noise level for interval construction (default: 0.05).
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+        n_samples : int, optional
+            Number of Monte Carlo samples for posterior refinement.
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result with additional keys:
+
+            - ``spectrum_lower`` -- lower bounds on the spectrum (n,)
+            - ``spectrum_upper`` -- upper bounds on the spectrum (n,)
+            - ``n_samples`` -- number of samples used
+            - ``sensitivity`` -- sensitivity vector
+            - ``residuals`` -- residual vector
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_posterior_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            tv_bound=tv_bound,
+            save_result=save_result,
+            n_samples=n_samples,
         )
         return self._expand_result(result, mask, readings)
 
