@@ -114,6 +114,7 @@ from .unfold_interpret import (
 from .unfold_interpret import (
     unfold_interpret as unfold_interpret_impl,
 )
+from .unfold_interval import unfold_interval as unfold_interval_impl
 from .unfold_iterative_refinement import (
     unfold_iterative_refinement as unfold_iterative_refinement_impl,
 )
@@ -782,6 +783,8 @@ class Detector:
             "ci_high",
             "bootstrap_mean",
             "bootstrap_std",
+            "spectrum_lower",
+            "spectrum_upper",
         )
         if n_active != n_full:
             for key in spectrum_keys:
@@ -4584,6 +4587,65 @@ class Detector:
             random_state=random_state,
             tolerance=tolerance,
             interpret_options=interpret_options,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval(
+        self,
+        readings: dict[str, float],
+        tv_bound: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using interval linear programming.
+
+        Computes guaranteed bounds on the spectrum by solving, for each
+        energy bin, two linear programs (min and max) subject to interval
+        constraints on the readings and an optional Total Variation (TV)
+        smoothness bound.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        tv_bound : float, optional
+            Total Variation bound for regularization. If None, no TV
+            regularization is applied (intervals may be wide).
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading. Takes precedence over
+            ``noise_level``.
+        noise_level : float, optional
+            Relative noise level for interval construction (default: 0.05).
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result with additional keys:
+
+            - ``spectrum_lower`` -- lower bounds on the spectrum (n,)
+            - ``spectrum_upper`` -- upper bounds on the spectrum (n,)
+            - ``tv_bound`` -- TV bound used (or None)
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            tv_bound=tv_bound,
+            save_result=save_result,
         )
         return self._expand_result(result, mask, readings)
 
