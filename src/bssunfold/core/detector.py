@@ -118,6 +118,9 @@ from .unfold_interval import (
     unfold_interval as unfold_interval_impl,
 )
 from .unfold_interval import (
+    unfold_interval_intvalpy as unfold_interval_intvalpy_impl,
+)
+from .unfold_interval import (
     unfold_interval_posterior as unfold_interval_posterior_impl,
 )
 from .unfold_interval import (
@@ -4782,6 +4785,72 @@ class Detector:
             tv_bound=tv_bound,
             save_result=save_result,
             n_samples=n_samples,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval_intvalpy(
+        self,
+        readings: dict[str, float],
+        tv_bound: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+        method: str = "rohn",
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using interval analysis with intvalpy.
+
+        This method uses the intvalpy package for interval analysis.
+        It finds a pseudo-solution using Tol.maximize, then computes
+        bounds using LP for each variable. If the tolerance set is empty,
+        uses the pseudo-solution as the best approximation.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        tv_bound : float, optional
+            Total Variation bound for regularization.
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading.
+        noise_level : float, optional
+            Relative noise level for interval construction (default: 0.05).
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+        method : str, optional
+            Method for finding bounds: "rohn" (default) or "shary".
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result with additional keys:
+
+            - ``spectrum_lower`` -- lower bounds on the spectrum (n,)
+            - ``spectrum_upper`` -- upper bounds on the spectrum (n,)
+            - ``tol_max`` -- maximum of the recognizing functional
+            - ``x_pseudo`` -- pseudo-solution point
+            - ``n_iter`` -- number of iterations
+            - ``n_calls`` -- number of function calls
+            - ``exit_code`` -- exit code of the algorithm
+            - ``method`` -- method used
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_intvalpy_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            tv_bound=tv_bound,
+            save_result=save_result,
+            method=method,
         )
         return self._expand_result(result, mask, readings)
 

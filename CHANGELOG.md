@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning].
 
 ### Added
 
+- **Interval unfolding with intvalpy** — new `unfold_interval_intvalpy`
+  method (and `solve_interval_intvalpy` core solver) implementing interval
+  analysis using the `intvalpy` package:
+
+  * Uses `Tol.maximize` to find a pseudo-solution of the interval system.
+  * Computes bounds using LP for each variable.
+  * If the tolerance set is empty (`tol_max < 0`), uses the pseudo-solution
+    as the best approximation (following the literature).
+  * Supports both "rohn" and "shary" methods.
+  * Returns `tol_max`, `x_pseudo`, `n_iter`, `n_calls`, `exit_code`, and
+    `method` as additional metadata.
+  * Requires optional dependency: `pip install "bssunfold[intvalpy]"`.
+
 - **Interval unfolding with Shary's recognizing functional** — new
   `unfold_interval_tol` method (and `solve_interval_tol` core solver)
   implementing the interval regularization approach of S.P. Shary:

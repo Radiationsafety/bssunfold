@@ -7,6 +7,7 @@ import pytest
 from src.bssunfold import RF_GSF, Detector
 from src.bssunfold.core.unfold_interval import (
     solve_interval,
+    solve_interval_intvalpy,
     solve_interval_posterior,
     solve_interval_tol,
 )
@@ -312,5 +313,119 @@ class TestDetectorUnfoldIntervalPosterior:
 
     def test_doserates_present(self, detector, readings):
         result = detector.unfold_interval_posterior(readings, noise_level=0.1)
+        assert "doserates" in result
+        assert len(result["doserates"]) > 0
+
+
+class TestSolveIntervalIntvalpy:
+    def test_basic(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        x_min, x_max, info = solve_interval_intvalpy(A, b_lo, b_hi)
+        assert x_min.shape == (2,)
+        assert x_max.shape == (2,)
+        assert np.all(x_min <= x_max)
+        assert np.all(x_min >= 0)
+        assert "tol_max" in info
+        assert "x_pseudo" in info
+        assert "method" in info
+
+    def test_rohn_method(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        x_min, x_max, info = solve_interval_intvalpy(A, b_lo, b_hi, method="rohn")
+        assert info["method"] == "rohn"
+        assert np.all(x_min <= x_max)
+
+    def test_shary_method(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        x_min, x_max, info = solve_interval_intvalpy(A, b_lo, b_hi, method="shary")
+        assert info["method"] == "shary"
+        assert np.all(x_min <= x_max)
+
+    def test_uncertainty_scaling(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b = np.array([1.0, 2.0])
+        x_min_narrow, x_max_narrow, _ = solve_interval_intvalpy(A, b - 0.1, b + 0.1)
+        x_min_wide, x_max_wide, _ = solve_interval_intvalpy(A, b - 0.5, b + 0.5)
+        width_narrow = np.sum(x_max_narrow - x_min_narrow)
+        width_wide = np.sum(x_max_wide - x_min_wide)
+        assert width_wide >= width_narrow
+
+    def test_invalid_bounds(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([1.5, 1.5])
+        b_hi = np.array([0.5, 2.5])
+        with pytest.raises(ValueError, match="b_lo must be <= b_hi"):
+            solve_interval_intvalpy(A, b_lo, b_hi)
+
+    def test_negative_blo(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([-0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        with pytest.raises(ValueError, match="b_lo must be non-negative"):
+            solve_interval_intvalpy(A, b_lo, b_hi)
+
+
+class TestDetectorUnfoldIntervalIntvalpy:
+    def test_basic(self, detector, readings):
+        pytest.importorskip("intvalpy")
+        result = detector.unfold_interval_intvalpy(readings, noise_level=0.1)
+        assert "spectrum_lower" in result
+        assert "spectrum_upper" in result
+        assert "spectrum" in result
+        assert result["method"] == "IntervalIntvalpy"
+
+    def test_interval_ordering(self, detector, readings):
+        pytest.importorskip("intvalpy")
+        result = detector.unfold_interval_intvalpy(readings, noise_level=0.1)
+        assert np.all(result["spectrum_lower"] <= result["spectrum_upper"])
+
+    def test_nonnegative(self, detector, readings):
+        pytest.importorskip("intvalpy")
+        result = detector.unfold_interval_intvalpy(readings, noise_level=0.1)
+        assert np.all(result["spectrum_lower"] >= 0)
+
+    def test_midpoint_in_interval(self, detector, readings):
+        pytest.importorskip("intvalpy")
+        result = detector.unfold_interval_intvalpy(readings, noise_level=0.1)
+        assert np.all(result["spectrum"] >= result["spectrum_lower"])
+        assert np.all(result["spectrum"] <= result["spectrum_upper"])
+
+    def test_intvalpy_metadata(self, detector, readings):
+        pytest.importorskip("intvalpy")
+        result = detector.unfold_interval_intvalpy(readings, noise_level=0.1)
+        assert "tol_max" in result
+        assert "x_pseudo" in result
+        assert "n_iter" in result
+        assert "n_calls" in result
+        assert "exit_code" in result
+        assert "intvalpy_method" in result
+
+    def test_uncertainty_scaling(self, detector, readings):
+        pytest.importorskip("intvalpy")
+        result_narrow = detector.unfold_interval_intvalpy(readings, noise_level=0.05)
+        result_wide = detector.unfold_interval_intvalpy(readings, noise_level=0.2)
+        width_narrow = np.sum(
+            result_narrow["spectrum_upper"] - result_narrow["spectrum_lower"]
+        )
+        width_wide = np.sum(
+            result_wide["spectrum_upper"] - result_wide["spectrum_lower"]
+        )
+        assert width_wide >= width_narrow
+
+    def test_doserates_present(self, detector, readings):
+        pytest.importorskip("intvalpy")
+        result = detector.unfold_interval_intvalpy(readings, noise_level=0.1)
         assert "doserates" in result
         assert len(result["doserates"]) > 0

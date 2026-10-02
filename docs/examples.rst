@@ -409,6 +409,7 @@ Notebook                                                         Method
 ``82-lavrentiev-iaea.ipynb``                                    :meth:`~bssunfold.Detector.unfold_lavrentiev`
 ``83-interval-tol-iaea.ipynb``                                  :meth:`~bssunfold.Detector.unfold_interval_tol`
 ``84-interval-posterior-iaea.ipynb``                            :meth:`~bssunfold.Detector.unfold_interval_posterior`
+``85-interval-posterior-iaea.ipynb``                            :meth:`~bssunfold.Detector.unfold_interval_posterior`
 ==============================================================  ============================
 
 Notebook ``81`` additionally demonstrates the CUQIpy quality-analysis

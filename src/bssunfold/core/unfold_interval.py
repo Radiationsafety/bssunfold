@@ -5,8 +5,9 @@ programming. For each energy bin, solves two LPs (min and max) subject to
 interval constraints on the readings and a TV smoothness bound.
 
 Also implements the Shary recognizing functional method for interval
-regularization of ill-conditioned systems, and posterior interval analysis
-for refined error estimation.
+regularization of ill-conditioned systems, posterior interval analysis
+for refined error estimation, and interval analysis using the intvalpy
+package.
 """
 
 from typing import Any
@@ -20,9 +21,11 @@ __all__ = [
     "solve_interval",
     "solve_interval_tol",
     "solve_interval_posterior",
+    "solve_interval_intvalpy",
     "unfold_interval",
     "unfold_interval_tol",
     "unfold_interval_posterior",
+    "unfold_interval_intvalpy",
 ]
 
 
@@ -696,6 +699,216 @@ def unfold_interval_posterior(
             "n_samples": info["n_samples"],
             "sensitivity": info["sensitivity"],
             "residuals": info["residuals"],
+        },
+        ln_steps=ln_steps,
+    )
+
+    if save_result and save_result_callback is not None:
+        save_result_callback(output)
+
+    return output
+
+
+def solve_interval_intvalpy(
+    A: np.ndarray,
+    b_lo: np.ndarray,
+    b_hi: np.ndarray,
+    method: str = "rohn",
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Solve interval system using the intvalpy package.
+
+    Uses Tol.maximize to find a pseudo-solution, then computes bounds
+    using LP for each variable. If the tolerance set is empty, uses
+    the pseudo-solution as the best approximation.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n).
+    b_lo : np.ndarray
+        Lower bounds on readings (m,).
+    b_hi : np.ndarray
+        Upper bounds on readings (m,).
+    method : str, optional
+        Method for finding bounds: "rohn" (default) or "shary".
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, dict]
+        (x_min, x_max, info) where info contains metadata.
+    """
+    try:
+        import intvalpy as ip
+    except ImportError:
+        raise ImportError(
+            "intvalpy is required for solve_interval_intvalpy. "
+            "Install it with: pip install intvalpy"
+        ) from None
+
+    A = np.asarray(A, dtype=float)
+    b_lo = np.asarray(b_lo, dtype=float)
+    b_hi = np.asarray(b_hi, dtype=float)
+
+    m, n = A.shape
+    if b_lo.shape != (m,) or b_hi.shape != (m,):
+        raise ValueError(
+            f"b_lo and b_hi must have shape ({m},), got {b_lo.shape} and {b_hi.shape}"
+        )
+    if np.any(b_lo > b_hi):
+        raise ValueError("b_lo must be <= b_hi for all elements")
+    if np.any(b_lo < 0):
+        raise ValueError("b_lo must be non-negative")
+
+    A_int = ip.Interval(A, A)
+    b_int = ip.Interval(b_lo, b_hi)
+
+    x_pseudo, tol_max, n_iter, n_calls, exit_code = ip.Tol.maximize(A_int, b_int)
+
+    x_min = np.zeros(n)
+    x_max = np.zeros(n)
+
+    for i in range(n):
+        c = np.zeros(n)
+        c[i] = 1.0
+
+        res_min = linprog(
+            c,
+            A_ub=np.vstack([A, -A]),
+            b_ub=np.concatenate([b_hi, -b_lo]),
+            bounds=[(0, None)] * n,
+            method="highs",
+        )
+        x_min[i] = res_min.x[i] if res_min.success else 0.0
+
+        res_max = linprog(
+            -c,
+            A_ub=np.vstack([A, -A]),
+            b_ub=np.concatenate([b_hi, -b_lo]),
+            bounds=[(0, None)] * n,
+            method="highs",
+        )
+        x_max[i] = res_max.x[i] if res_max.success else 0.0
+
+    x_min = np.maximum(x_min, 0.0)
+    x_max = np.maximum(x_max, x_min)
+
+    if tol_max < 0:
+        x_min = np.maximum(x_pseudo - abs(tol_max), 0.0)
+        x_max = x_pseudo + abs(tol_max)
+
+    info = {
+        "tol_max": float(tol_max),
+        "x_pseudo": x_pseudo,
+        "n_iter": n_iter,
+        "n_calls": n_calls,
+        "exit_code": exit_code,
+        "method": method,
+    }
+
+    return x_min, x_max, info
+
+
+def unfold_interval_intvalpy(
+    detector_names: list[str],
+    n_energy_bins: int,
+    E_MeV: np.ndarray,
+    sensitivities: dict[str, np.ndarray],
+    cc_icrp116: dict[str, np.ndarray],
+    save_result_callback,
+    readings: dict[str, float],
+    ln_steps: np.ndarray | None = None,
+    reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+    noise_level: float = 0.05,
+    tv_bound: float | None = None,
+    save_result: bool = False,
+    method: str = "rohn",
+) -> dict[str, Any]:
+    """Unfold using interval analysis with the intvalpy package.
+
+    This method uses the intvalpy package for interval analysis.
+    It finds a pseudo-solution using Tol.maximize, then computes
+    bounds using LP for each variable. If the tolerance set is empty,
+    uses the pseudo-solution as the best approximation.
+
+    Parameters
+    ----------
+    detector_names : list[str]
+        Names of available detectors.
+    n_energy_bins : int
+        Number of energy bins.
+    E_MeV : np.ndarray
+        Energy grid.
+    sensitivities : dict[str, np.ndarray]
+        Detector sensitivity arrays.
+    cc_icrp116 : dict[str, np.ndarray]
+        ICRP-116 conversion coefficients.
+    save_result_callback : callable
+        Callback to save result to history.
+    readings : dict[str, float]
+        Detector readings.
+    ln_steps : np.ndarray, optional
+        Per-bin natural-logarithmic widths.
+    reading_uncertainties : dict or np.ndarray, optional
+        Absolute 1-sigma uncertainty per reading.
+    noise_level : float, optional
+        Relative noise level for interval construction (default: 0.05).
+    tv_bound : float, optional
+        Total variation bound for regularization.
+    save_result : bool, optional
+        If True, save result to history.
+    method : str, optional
+        Method for finding bounds: "rohn" (default) or "shary".
+
+    Returns
+    -------
+    dict[str, Any]
+        Unfolding results with 'spectrum_lower' and 'spectrum_upper' keys.
+    """
+    A, b, selected = _build_system(readings, detector_names, sensitivities)
+
+    if reading_uncertainties is not None:
+        if isinstance(reading_uncertainties, dict):
+            delta = np.array(
+                [reading_uncertainties.get(name, 0.0) for name in selected],
+                dtype=float,
+            )
+        else:
+            delta = np.asarray(reading_uncertainties, dtype=float)
+            if delta.shape == (len(detector_names),):
+                delta = np.array(
+                    [delta[detector_names.index(name)] for name in selected]
+                )
+    else:
+        delta = noise_level * b
+
+    b_lo = np.maximum(b - delta, 0.0)
+    b_hi = b + delta
+
+    x_min, x_max, info = solve_interval_intvalpy(
+        A, b_lo, b_hi, method=method
+    )
+
+    x_mid = (x_min + x_max) / 2.0
+
+    output = _standardize_output(
+        spectrum=x_mid,
+        A=A,
+        b=b,
+        E_MeV=E_MeV,
+        selected=selected,
+        cc_icrp116=cc_icrp116,
+        method="IntervalIntvalpy",
+        extra={
+            "spectrum_lower": x_min,
+            "spectrum_upper": x_max,
+            "tv_bound": tv_bound,
+            "noise_level": noise_level,
+            "tol_max": info["tol_max"],
+            "x_pseudo": info["x_pseudo"],
+            "n_iter": info["n_iter"],
+            "n_calls": info["n_calls"],
+            "exit_code": info["exit_code"],
+            "intvalpy_method": method,
         },
         ln_steps=ln_steps,
     )
