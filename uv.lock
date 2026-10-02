@@ -602,6 +602,7 @@ version = "0.29.0"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy" },
+    { name = "intvalpy" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
@@ -846,6 +847,7 @@ requires-dist = [
     { name = "dwave-neal", marker = "extra == 'qubo'", specifier = ">=0.6.0" },
     { name = "ecos", marker = "extra == 'ecos'", specifier = ">=2.0.14" },
     { name = "gurobipy", marker = "extra == 'gurobi'", specifier = ">=11.0" },
+    { name = "intvalpy", specifier = ">=2.0.3" },
     { name = "intvalpy", marker = "extra == 'intvalpy'", specifier = ">=2.0" },
     { name = "jax", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxlib", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
