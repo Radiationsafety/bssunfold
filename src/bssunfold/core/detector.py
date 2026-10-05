@@ -118,10 +118,22 @@ from .unfold_interval import (
     unfold_interval as unfold_interval_impl,
 )
 from .unfold_interval import (
+    unfold_interval_center as unfold_interval_center_impl,
+)
+from .unfold_interval import (
     unfold_interval_intvalpy as unfold_interval_intvalpy_impl,
 )
 from .unfold_interval import (
+    unfold_interval_matrix as unfold_interval_matrix_impl,
+)
+from .unfold_interval import (
+    unfold_interval_pia as unfold_interval_pia_impl,
+)
+from .unfold_interval import (
     unfold_interval_posterior as unfold_interval_posterior_impl,
+)
+from .unfold_interval import (
+    unfold_interval_regularization as unfold_interval_regularization_impl,
 )
 from .unfold_interval import (
     unfold_interval_tol as unfold_interval_tol_impl,
@@ -4609,6 +4621,7 @@ class Detector:
         noise_level: float = 0.05,
         max_neutron_energy: float | None = None,
         save_result: bool = False,
+        compatibility_report: bool = False,
     ) -> dict[str, Any]:
         """Unfold neutron spectrum using interval linear programming.
 
@@ -4633,6 +4646,10 @@ class Detector:
             Upper energy cutoff in MeV.
         save_result : bool, optional
             Save result to history (default: False).
+        compatibility_report : bool, optional
+            If True, add a ``compatibility`` key with pairwise corridor
+            compatibility diagnostics (Jaccard indices, maximal
+            compatible subsets, outlier candidates).
 
         Returns
         -------
@@ -4657,6 +4674,7 @@ class Detector:
             noise_level=noise_level,
             tv_bound=tv_bound,
             save_result=save_result,
+            compatibility_report=compatibility_report,
         )
         return self._expand_result(result, mask, readings)
 
@@ -4670,12 +4688,19 @@ class Detector:
         save_result: bool = False,
         max_iter: int = 1000,
         tol: float = 1e-6,
+        drop_infeasible: int = 0,
+        functional: str = "tol",
+        variativity: bool = False,
+        weights: dict[str, float] | np.ndarray | None = None,
     ) -> dict[str, Any]:
         """Unfold neutron spectrum using Shary's recognizing functional.
 
-        Finds a pseudo-solution by maximizing the recognizing functional
-        Tol(x), then computes bounds using directional search. More efficient
-        than the traditional 2n LP approach for ill-conditioned systems.
+        Maximizes the recognizing functional Tol (or Uss) exactly with a
+        single linear program, then computes guaranteed componentwise
+        bounds of the information set with 2n LPs. A negative ``tol_max``
+        certifies incompatible readings; ``generators`` then marks the
+        most restrictive readings and ``drop_infeasible`` iteratively
+        removes the worst offenders.
 
         Parameters
         ----------
@@ -4692,9 +4717,21 @@ class Detector:
         save_result : bool, optional
             Save result to history (default: False).
         max_iter : int, optional
-            Maximum iterations for optimization.
+            Legacy parameter, unused by the LP core.
         tol : float, optional
-            Convergence tolerance.
+            Legacy parameter, unused by the LP core.
+        drop_infeasible : int, optional
+            Number of worst-violating readings to drop while the system
+            stays incompatible (default: 0).
+        functional : str, optional
+            "tol" (default) or "uss"; for a point matrix they coincide.
+        variativity : bool, optional
+            If True, also compute the X-variativity (SEV) scalar measure
+            of the information-set size.
+        weights : dict or np.ndarray, optional
+            Positive per-reading weights for the recognizing functional
+            (value of each equation, as in tolsolvty); a dict is keyed
+            by detector name, unlisted readings default to 1.
 
         Returns
         -------
@@ -4705,8 +4742,11 @@ class Detector:
             - ``spectrum_upper`` -- upper bounds on the spectrum (n,)
             - ``tol_max`` -- maximum value of the recognizing functional
             - ``x_pseudo`` -- pseudo-solution point
-            - ``converged`` -- whether optimization converged
-            - ``n_iter`` -- number of iterations
+            - ``converged`` -- whether the LP converged
+            - ``n_iter`` -- number of LPs solved
+            - ``generators`` -- indices of the most restrictive readings
+            - ``generators_profile`` -- all generator values, ascending
+            - ``dropped_readings`` -- names of dropped readings
         """
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_interval_tol_impl(
@@ -4724,6 +4764,10 @@ class Detector:
             save_result=save_result,
             max_iter=max_iter,
             tol=tol,
+            drop_infeasible=drop_infeasible,
+            functional=functional,
+            variativity=variativity,
+            weights=weights,
         )
         return self._expand_result(result, mask, readings)
 
@@ -4737,11 +4781,15 @@ class Detector:
         save_result: bool = False,
         n_samples: int = 100,
         normalize: bool = False,
+        random_state: int | None = None,
     ) -> dict[str, Any]:
-        """Unfold neutron spectrum using posterior interval analysis.
+        """Unfold neutron spectrum with posterior Monte-Carlo analysis.
 
-        Uses the traditional LP approach but refines the intervals using
-        posterior analysis (Matiyasevich's method) for tighter bounds.
+        Computes guaranteed componentwise bounds with interval LP and
+        supplements them with a Monte-Carlo sample cloud inside the
+        information set; the empirical envelope (``spectrum_mc_lower`` /
+        ``spectrum_mc_upper``) is a statistical inner approximation that
+        typically tightens the guaranteed box.
 
         Parameters
         ----------
@@ -4761,14 +4809,18 @@ class Detector:
             Number of Monte Carlo samples for posterior refinement.
         normalize : bool, optional
             If True, normalize the spectrum to match the total fluence.
+        random_state : int, optional
+            Seed for the random Monte-Carlo objectives (reproducibility).
 
         Returns
         -------
         dict[str, Any]
             Standardized unfolding result with additional keys:
 
-            - ``spectrum_lower`` -- lower bounds on the spectrum (n,)
-            - ``spectrum_upper`` -- upper bounds on the spectrum (n,)
+            - ``spectrum_lower`` -- guaranteed lower bounds (n,)
+            - ``spectrum_upper`` -- guaranteed upper bounds (n,)
+            - ``spectrum_mc_lower`` -- Monte-Carlo inner envelope (n,)
+            - ``spectrum_mc_upper`` -- Monte-Carlo inner envelope (n,)
             - ``n_samples`` -- number of samples used
             - ``sensitivity`` -- sensitivity vector
             - ``residuals`` -- residual vector
@@ -4790,6 +4842,7 @@ class Detector:
             save_result=save_result,
             n_samples=n_samples,
             normalize=normalize,
+            random_state=random_state,
         )
         return self._expand_result(result, mask, readings)
 
@@ -4866,6 +4919,336 @@ class Detector:
             method=method,
             normalize=normalize,
             regularization=regularization,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval_center(
+        self,
+        readings: dict[str, float],
+        tv_bound: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+        weights: dict[str, float] | np.ndarray | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum with the center-of-uncertainty method.
+
+        Implements the Askerkin-Sukhanov approach: guaranteed componentwise
+        bounds plus, when the readings are incompatible (empty information
+        set), a minimal data-widening linear program that quantifies the
+        incompatibility per reading (``epsilon``) and repairs the intervals
+        before recomputing the bounds.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        tv_bound : float, optional
+            Total Variation bound for regularization.
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading.
+        noise_level : float, optional
+            Relative noise level for interval construction (default: 0.05).
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+        weights : dict or np.ndarray, optional
+            Positive widening weights gamma per reading; default all ones.
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result with additional keys:
+
+            - ``spectrum_lower`` -- lower bounds on the spectrum (n,)
+            - ``spectrum_upper`` -- upper bounds on the spectrum (n,)
+            - ``tol_max`` -- compatibility reserve of the pseudo-solution
+            - ``x_pseudo`` -- center-of-uncertainty pseudo-solution
+            - ``epsilon`` -- minimal widening per reading
+            - ``incompatibility`` -- total widening (0 for compatible data)
+            - ``compatible`` -- whether the information set is non-empty
+            - ``b_lo_effective`` / ``b_hi_effective`` -- repaired intervals
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_center_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            tv_bound=tv_bound,
+            save_result=save_result,
+            weights=weights,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval_pia(
+        self,
+        readings: dict[str, float],
+        tv_bound: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+        norm: str = "inf",
+        weights: dict[str, float] | np.ndarray | None = None,
+        compute_bounds: bool = False,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum by simple interval approximation (PIA).
+
+        Fits a spectrum minimizing the distance of the folded readings to
+        the interval corridors (Rutkowski's PIA): Chebyshev-type (``norm``
+        "inf") or weighted L1. A robust point estimate for possibly
+        incompatible readings; for compatible data the residual distances
+        vanish.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        tv_bound : float, optional
+            Total Variation bound for regularization.
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading.
+        noise_level : float, optional
+            Relative noise level for interval construction (default: 0.05).
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+        norm : str, optional
+            ``"inf"`` (default) for Chebyshev-type or ``"one"`` for
+            weighted L1 distance to the interval corridors.
+        weights : dict or np.ndarray, optional
+            Positive weights per reading for the L1 norm.
+        compute_bounds : bool, optional
+            If True, also compute guaranteed componentwise bounds with
+            interval LP (default False, the PIA estimate is a point).
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result with additional keys:
+
+            - ``spectrum_lower`` / ``spectrum_upper`` -- bounds (PIA
+              estimate mirrored unless ``compute_bounds`` is True)
+            - ``norm`` -- norm used
+            - ``distances`` -- per-reading distance to its interval
+            - ``max_distance`` / ``total_distance`` / ``mean_distance``
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_pia_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            tv_bound=tv_bound,
+            save_result=save_result,
+            norm=norm,
+            weights=weights,
+            compute_bounds=compute_bounds,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval_matrix(
+        self,
+        readings: dict[str, float],
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+        sensitivity_uncertainties: (
+            dict[str, float] | np.ndarray | float | None
+        ) = None,
+        A_lo: np.ndarray | None = None,
+        A_hi: np.ndarray | None = None,
+        tv_bound: float | None = None,
+        functional: str = "tol",
+        inner_box: bool = False,
+        variativity: bool = True,
+    ) -> dict[str, Any]:
+        """Unfold with an interval response matrix (uncertain sensitivities).
+
+        Encloses the tolerable (``functional="tol"``, Rohn's LP reduction of
+        the ∀-solution set) or united (``"uss"``, Belek's polyhedron)
+        solution set of the interval system ``**A x = **b`` componentwise
+        via 2n LPs. Optionally adds Khlebnikov's inner box (for small bin
+        counts) and the X-variativity (SEV) scalar uncertainty measure.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading.
+        noise_level : float, optional
+            Relative noise level for reading interval construction.
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+        sensitivity_uncertainties : dict, np.ndarray or float, optional
+            Relative 1-sigma uncertainty per detector (0.1 = 10%) used to
+            build ``A_lo = A(1-u)``, ``A_hi = A(1+u)``.
+        A_lo : np.ndarray, optional
+            Explicit lower bound of the interval response matrix.
+        A_hi : np.ndarray, optional
+            Explicit upper bound of the interval response matrix.
+        tv_bound : float, optional
+            Total Variation bound for the enclosure LPs.
+        functional : str, optional
+            "tol" (default) or "uss".
+        inner_box : bool, optional
+            Compute the Khlebnikov inner box (tol only, n <= 10 bins).
+        variativity : bool, optional
+            Compute the SEV variativity (default True).
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result with additional keys:
+
+            - ``spectrum_lower`` / ``spectrum_upper`` -- enclosure bounds
+            - ``tol_max`` -- max recognizing functional (LP certificate)
+            - ``x_pseudo`` -- pseudo-solution
+            - ``functional`` -- which set was enclosed
+            - ``sev`` -- X-variativity (or None)
+            - ``inner_lower`` / ``inner_upper`` -- Khlebnikov inner box
+              (None unless requested and small)
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_matrix_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            save_result=save_result,
+            sensitivity_uncertainties=sensitivity_uncertainties,
+            A_lo=A_lo,
+            A_hi=A_hi,
+            tv_bound=tv_bound,
+            functional=functional,
+            inner_box=inner_box,
+            variativity=variativity,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_interval_regularization(
+        self,
+        readings: dict[str, float],
+        tv_bound: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        noise_level: float = 0.05,
+        max_neutron_energy: float | None = None,
+        save_result: bool = False,
+        tau: float = 0.05,
+        inflation: str = "shift",
+        functional: str = "tol",
+        inner_box: bool = False,
+        tau_grid: list[float] | None = None,
+        smoothing: str = "none",
+        face_slack: float = 0.0,
+    ) -> dict[str, Any]:
+        """Unfold via Shary's interval regularization of the point matrix.
+
+        Embeds the ill-conditioned response matrix into an interval
+        family by inflating it — ``inflation="shift"`` adds ``tau I`` on
+        the diagonal (the Lavrentiev shift in all directions at once),
+        ``inflation="relative"`` widens each element by ``tau * |a_ij|``
+        — and takes the exact LP maximizer of the recognizing functional
+        Tol (or Uss) as the regularized spectrum. ``spectrum_lower`` /
+        ``spectrum_upper`` enclose the tolerable solution set of the
+        inflated system. ``tau`` is the regularization parameter:
+        ``tau -> 0`` recovers the Chebyshev solution; ``tau_grid``
+        reports a per-level sweep for choosing it.
+
+        Parameters
+        ----------
+        readings : dict[str, float]
+            Detector readings.
+        tv_bound : float, optional
+            Total Variation bound for the enclosure LPs.
+        reading_uncertainties : dict or np.ndarray, optional
+            Absolute 1-sigma uncertainty per reading.
+        noise_level : float, optional
+            Relative noise level for reading interval construction.
+        max_neutron_energy : float, optional
+            Upper energy cutoff in MeV.
+        save_result : bool, optional
+            Save result to history (default: False).
+        tau : float, optional
+            Inflation level / regularization parameter (default: 0.05).
+        inflation : str, optional
+            "shift" (default) or "relative".
+        functional : str, optional
+            "tol" (default) or "uss".
+        inner_box : bool, optional
+            Compute the Khlebnikov inner box (tol only, n <= 10 bins).
+        tau_grid : list[float], optional
+            Inflation levels to sweep (one LP per level).
+        smoothing : str, optional
+            "none" (default) keeps the spiky LP vertex; "curvature" or
+            "variation" return a smooth representative of the max-Tol
+            face as ``spectrum``.
+        face_slack : float, optional
+            Relative slack in [0, 1) of the face constraint when
+            smoothing (default 0).
+
+        Returns
+        -------
+        dict[str, Any]
+            Standardized unfolding result whose ``spectrum`` is the
+            regularized pseudo-solution, with additional keys:
+
+            - ``spectrum_lower`` / ``spectrum_upper`` -- enclosure bounds
+            - ``tol_max`` -- max recognizing functional (inflation level
+              dependent; shrinks with tau for "tol")
+            - ``x_pseudo`` -- regularized estimate
+            - ``tau`` / ``inflation`` -- regularization settings
+            - ``tau_sweep`` -- list of per-level dicts when requested
+            - ``x_smoothed`` -- smooth face point when smoothing was
+              requested and succeeded (then also the ``spectrum``)
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_interval_regularization_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            noise_level=noise_level,
+            save_result=save_result,
+            tau=tau,
+            inflation=inflation,
+            tv_bound=tv_bound,
+            functional=functional,
+            inner_box=inner_box,
+            tau_grid=tau_grid,
+            smoothing=smoothing,
+            face_slack=face_slack,
         )
         return self._expand_result(result, mask, readings)
 

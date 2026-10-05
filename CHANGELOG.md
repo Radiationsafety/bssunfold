@@ -175,6 +175,91 @@ and this project adheres to [Semantic Versioning].
   with Brent, iteration-count comparison, penalty variants,
   end-to-end solver test, invalid-method guard).
 
+- **Book-driven interval method extensions** — the interval family gains
+  three new methods, exact LP cores and uncertainty diagnostics,
+  following Dazhenov, Zyabin, Kumkov & Shary, *Processing and Analysis of
+  Interval Data* (Izhevsk, 2024), ch. 4:
+
+  * ``unfold_interval_center`` / ``solve_interval_center`` — center of
+    uncertainty (Askerkin & Sukhanov): guaranteed 2n-LP bounds plus, for
+    incompatible readings, a minimal-widening LP quantifying the
+    incompatibility per reading (``epsilon``, ``incompatibility``) and
+    repairing the intervals before recomputing the bounds; optional
+    per-reading ``weights``.
+  * ``unfold_interval_pia`` / ``solve_interval_pia`` — simple interval
+    approximation (Rutkowski's PIA): one LP minimizing the Chebyshev or
+    weighted-L1 distance of the folded readings to the interval
+    corridors; a robust point estimate for incompatible data with
+    per-reading ``distances``; ``compute_bounds=True`` adds the
+    componentwise hull.
+  * ``unfold_interval_matrix`` / ``solve_interval_matrix`` — interval
+    response matrix: relative ``sensitivity_uncertainties`` (or explicit
+    ``A_lo``/``A_hi``) turn the response functions into an interval
+    matrix; componentwise external bounds of the tolerable set via
+    Rohn's split-variable system (2n LPs), the united-set variant
+    (``functional="uss"``, Belek criterion), and the Khlebnikov inner
+    box for small systems (``inner_box``, n <= 10, no TV).
+  * ``interval_sev_variativity`` — X-variativity (SEV) scalar of the
+    estimate uncertainty (book eq. 4.66–4.67 with the reduced-matrix
+    conditioning constant, eq. 4.71); exposed via
+    ``variativity=True`` in the tol/matrix methods (``sev`` key; `inf`
+    for rank-deficient underdetermined systems, `0` for empty sets).
+  * ``interval_compatibility_report`` — pairwise compatibility-graph
+    diagnostics of reading corridors: signed Jaccard indices, maximal
+    compatible subsets (cliques of an interval graph) and outlier
+    candidates.
+  * All interval ``unfold_*`` methods now return per-bin ``width`` and
+    ``relative_width`` and guaranteed ``doserates_lower`` /
+    ``doserates_upper`` bounds (linearity of the dose functionals for
+    non-negative spectra).
+  * ``unfold_interval_regularization`` /
+    ``solve_interval_regularization`` — interval regularization (Shary,
+    2017): the point system is embedded into ``[A] x = [b]`` by
+    inflating the response matrix with ``tau`` — ``inflation="shift"``
+    (``A ± tau·I``, a Lavrentiev shift in all directions at once) or
+    ``inflation="relative"`` (``A ± tau·|a_ij|``) — and the
+    pseudo-solution ``argmax Tol`` is the regularized spectrum;
+    ``tau_grid`` sweeps the trade-off between the tolerance-set
+    ``tol_max`` and the minimax residual. At ``tau=0`` the method
+    reduces to the plain Tol LP; shrinking the tolerable set and
+    expanding the united one are both exposed. Since the argmax Tol is
+    an LP vertex (a spiky spectrum), ``smoothing="variation"`` /
+    ``"curvature"`` replace it with a smooth representative of the same
+    max-Tol face — one additional exact LP minimizing the
+    first-/second-difference absolute sum, ``tol_max`` unchanged and the
+    point kept inside the componentwise enclosure (dead response
+    columns pinned to zero); ``face_slack`` relaxes the face constraint.
+  * New IAEA benchmark notebooks ``87-interval-center-iaea.ipynb``,
+    ``88-interval-pia-iaea.ipynb``, ``89-interval-matrix-iaea.ipynb``
+    and ``90-interval-regularization-iaea.ipynb``.
+  * Cross-validation fixtures of the exact LP Tol maximization against
+    the published reference values of tolsolvty (Smolskiy),
+    ``tests/data/tolsolvty/1..7`` — the LP reproduces all seven
+    reference maxima to machine precision.
+
+### Changed
+
+- **``unfold_interval_tol`` now maximizes Tol exactly by LP** (book
+  ``tolprog``): the previous L-BFGS-B smooth surrogate is replaced by a
+  single linear program over `[x, t, tau]`, correct under `tv_bound`
+  (the old core silently ignored TV in the Tol LP bounds). The result
+  gains ``generators`` (active rows — a built-in outlier detector),
+  ``violations`` and the optional ``drop_infeasible`` reading-removal
+  and ``functional="uss"`` united-set mode; ``max_iter``/``tol`` remain
+  accepted but unused. ``unfold_interval_tol`` additionally gained
+  per-reading ``weights`` (positive row weights of the Tol functional,
+  LP-exact) and a ``generators_profile`` output (tolsolvty-style
+  ordered list of ``[row, weighted reserve]``). Validated against the
+  book's Example (exact ``tol_max`` and pseudo-solution).
+- **``unfold_interval_posterior`` performs real Monte-Carlo posterior
+  analysis**: the previously unused ``n_samples`` now drives an
+  outer-approximation cloud — ``n_samples`` LPs maximizing random
+  non-negative objectives over the information set — yielding the
+  empirical envelope ``spectrum_mc_lower``/``spectrum_mc_upper`` and
+  per-bin ``spectrum_mc_mean``/``spectrum_mc_std`` (inner
+  approximation, flagged ``posterior_mc_inner=True``);
+  ``random_state`` gives reproducibility.
+
 ### Fixed
 
 - **`intvalpy` extra was not documented and only partially wired into

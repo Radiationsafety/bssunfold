@@ -155,6 +155,10 @@ categories:
        R --> R2["unfold_interval_tol"]
        R --> R3["unfold_interval_posterior"]
        R --> R4["unfold_interval_intvalpy (intvalpy)"]
+       R --> R5["unfold_interval_center"]
+       R --> R6["unfold_interval_pia"]
+       R --> R7["unfold_interval_matrix"]
+       R --> R8["unfold_interval_regularization"]
 
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
@@ -807,21 +811,45 @@ Method Reference
    * - 102
      - ``unfold_interval_tol``
      - Interval analysis
-     - `tv_bound`, `reading_uncertainties`, `noise_level`, `max_iter`, `tol`
+     - `tv_bound`, `reading_uncertainties`, `noise_level`, `max_iter`, `tol`, `drop_infeasible`, `functional` (tol/uss), `variativity`, `weights`
      - —
-     - Shary's recognizing functional (interval regularization): maximizes ``Tol(x) = min_i [rad(b_i) - |mid(b_i) - a_i·x|]`` to find a pseudo-solution of the interval system ``Ax ⊆ b``, then computes bounds by directional search — more efficient than the 2n-LP formulation for ill-conditioned systems; reports ``tol_max``, ``x_pseudo``, ``converged``, ``n_iter``
+     - Shary's recognizing functional maximized exactly by one LP (``tolprog``): ``max tau`` s.t. ``|Ax - mid(b)| + tau <= rad(b)``, ``x >= 0``; the pseudo-solution ``x_pseudo`` and ``tol_max`` come with ``generators`` (active rows — an outlier detector), the sorted ``generators_profile`` of all generator values (ascending, tolsolvty-style) and optional ``drop_infeasible`` removal of the least-covering readings; positive ``weights`` set the value of each reading in the functional; ``functional="uss"`` switches the quantifier to the united set; ``variativity=True`` adds the SEV X-variativity scalar
    * - 103
      - ``unfold_interval_posterior``
      - Interval analysis
-     - `tv_bound`, `reading_uncertainties`, `noise_level`, `n_samples`, `normalize`
+     - `tv_bound`, `reading_uncertainties`, `noise_level`, `n_samples`, `normalize`, `random_state`
      - —
-     - Matiyasevich's posterior interval analysis: the traditional LP bounds are refined by posterior sampling for tighter guaranteed intervals; reports per-bin ``sensitivity`` and ``residuals`` diagnostics
+     - Posterior interval analysis: guaranteed componentwise LP bounds over the information set plus a Monte-Carlo cloud of extreme points (``n_samples`` random non-negative objectives maximized over the set) giving the empirical inner envelope ``spectrum_mc_lower`` / ``spectrum_mc_upper`` and per-bin mean/std; envelope and spread tighten the practical picture (the MC envelope is an inner approximation, marked ``posterior_mc_inner``)
    * - 104
      - ``unfold_interval_intvalpy``
      - Interval analysis
      - `tv_bound`, `reading_uncertainties`, `noise_level`, `method` (rohn/shary), `normalize`, `regularization`
      - intvalpy (optional, ``bssunfold[intvalpy]``)
      - Interval analysis via the ``intvalpy`` package: pseudo-solution from ``Tol.maximize`` plus LP bounds per variable; falls back to the pseudo-solution as best approximation when the tolerance set is empty (``tol_max < 0``); reports ``tol_max``, ``x_pseudo``, ``n_iter``, ``n_calls``, ``exit_code``, ``method``
+   * - 105
+     - ``unfold_interval_center``
+     - Interval analysis
+     - `tv_bound`, `reading_uncertainties`, `noise_level`, `weights`
+     - —
+     - Center of uncertainty (Askerkin & Sukhanov): guaranteed 2n-LP bounds and their center; when the readings are incompatible (empty information set) a second LP minimizes the weighted total widening ``sum(gamma_i * eps_i)`` of the corridors — quantifying incompatibility per reading (``epsilon``, ``incompatibility``) — and the bounds are rebuilt from the repaired intervals
+   * - 106
+     - ``unfold_interval_pia``
+     - Interval analysis
+     - `tv_bound`, `reading_uncertainties`, `noise_level`, `norm` (inf/one), `weights`, `compute_bounds`
+     - —
+     - Simple interval approximation (PIA, Rutkowski): one LP minimizing the Chebyshev or weighted-L1 distance of the folded readings to the interval corridors — a robust point estimate also for incompatible data; reports per-reading ``distances``, ``max_distance``, ``total_distance`` (zero for compatible readings); ``compute_bounds=True`` adds the componentwise hull
+   * - 107
+     - ``unfold_interval_matrix``
+     - Interval analysis
+     - `reading_uncertainties`, `noise_level`, `sensitivity_uncertainties`, `A_lo`, `A_hi`, `tv_bound`, `functional` (tol/uss), `inner_box`, `variativity`
+     - —
+     - Interval response matrix: propagates uncertainty of the response functions themselves (``sensitivity_uncertainties`` per sphere or explicit ``A_lo``/``A_hi``) through Rohn's componentwise external estimate of the tolerable solution set (system 4.36 in split variables), with the united-set variant, the Khlebnikov inner box for small systems (``inner_box``, n <= 10) and SEV X-variativity
+   * - 108
+     - ``unfold_interval_regularization``
+     - Interval analysis
+     - `reading_uncertainties`, `noise_level`, `tau`, `inflation` (shift/relative), `tv_bound`, `functional` (tol/uss), `inner_box`, `tau_grid`, `smoothing` (none/variation/curvature), `face_slack`
+     - —
+     - Interval regularization of the point response matrix (Shary 2017 — a Lavrentiev shift in all directions at once): embeds ``A`` into the family ``A +- tau I`` (``inflation="shift"``) or ``A +- tau |a_ij|`` (``"relative"``) and takes the exact LP maximizer of Tol as the regularized spectrum (``spectrum`` is the pseudo-solution); ``tau = 0`` recovers the Chebyshev solution of the point system; widening shrinks the tolerable set and expands the united one; ``tau_grid`` sweeps the reserve/fit trade-off; the argmax is an LP vertex (spiky), so ``smoothing="variation"``/``"curvature"`` replace it by a smooth representative of the same max-Tol face (one extra LP, ``tol_max`` unchanged, ``face_slack`` relaxes the face)
 
 
 

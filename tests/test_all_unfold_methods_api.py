@@ -71,6 +71,7 @@ OPTIONAL_BACKENDS: dict[str, list[str]] = {
     "cuqi": ["unfold_cuqi"],
     "lmfit": ["unfold_lmfit"],
     "numba": ["unfold_genetic", "unfold_fission_ga"],
+    "intvalpy": ["unfold_interval_intvalpy"],
     # Commercial engines — license required; skipped unless the engine
     # package is importable AND cvxpy reports the solver as installed.
     "gurobipy": ["unfold_gurobi"],
@@ -175,7 +176,9 @@ class TestAllUnfoldMethodsImported:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress",
+        "unfold_interval_center", "unfold_interval_pia", "unfold_interval_matrix",
+        "unfold_interval_regularization",
     ])
     def test_method_is_detector_attribute(self, method_name: str) -> None:
         assert hasattr(Detector, method_name), \
@@ -232,7 +235,9 @@ class TestMethodSignatureContract:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress",
+        "unfold_interval_center", "unfold_interval_pia", "unfold_interval_matrix",
+        "unfold_interval_regularization",
     ])
     def test_signature_starts_with_readings(self, method_name: str) -> None:
         sig = inspect.signature(getattr(Detector, method_name))
@@ -307,6 +312,11 @@ SMOKE_KWARGS: dict[str, dict[str, Any]] = {
     "unfold_cplex": dict(timeout=5.0),
     "unfold_copt": dict(timeout=5.0),
     "unfold_xpress": dict(timeout=5.0),
+    # interval family (pure-LP, no optional backend)
+    "unfold_interval_center": dict(tv_bound=20.0),
+    "unfold_interval_pia": dict(tv_bound=20.0),
+    "unfold_interval_matrix": dict(sensitivity_uncertainties=0.05),
+    "unfold_interval_regularization": dict(tau=0.05),
 }
 
 #: Required output keys per ``_standardize_output`` in _base_unfolder.py.
@@ -517,6 +527,25 @@ class TestParameterAssignment:
             smoothness_weight=0.5, nonneg=False,
             regularization_method="manual", noise_var=0.01,
         ),
+        "unfold_interval_center": dict(
+            tv_bound=50.0,
+            weights={"3in": 1.0, "5in": 2.0, "10in": 1.0, "18in": 1.0},
+        ),
+        "unfold_interval_pia": dict(
+            tv_bound=50.0, norm="one", compute_bounds=True,
+            weights={"3in": 1.0, "5in": 2.0, "10in": 1.0, "18in": 1.0},
+        ),
+        "unfold_interval_matrix": dict(
+            sensitivity_uncertainties={"3in": 0.05, "5in": 0.05,
+                                       "10in": 0.05, "18in": 0.05},
+            tv_bound=50.0, functional="uss", inner_box=True,
+            variativity=False,
+        ),
+        "unfold_interval_regularization": dict(
+            tau=0.1, inflation="relative", functional="uss",
+            tau_grid=[0.0, 0.05, 0.1], smoothing="variation",
+            face_slack=0.1,
+        ),
     }
 
     @pytest.mark.parametrize("method_name", list(PARAM_OVERRIDES.keys()))
@@ -548,7 +577,9 @@ class TestParameterAssignment:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
+        "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress",
+        "unfold_interval_center", "unfold_interval_pia", "unfold_interval_matrix",
+        "unfold_interval_regularization",
     ])
     def test_unexpected_kwarg_raises(
         self, detector: Detector, simple_readings: dict[str, float],
@@ -626,6 +657,8 @@ class TestIAEACompendiumEndToEnd:
         "unfold_imaxed", "unfold_nsduaz", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
+        "unfold_interval_center", "unfold_interval_pia",
+        "unfold_interval_regularization",
     ])
     def test_method_runs_on_iaea(
         self, detector: Detector, iaea_csv: pd.DataFrame,
@@ -698,12 +731,18 @@ class TestNotebooksExecute:
         "75-scipy-direct-iaea.ipynb": "unfold_scipy_direct_method",
         "76-staysl-iaea.ipynb": "unfold_staysl",
         "77-tikhonov-legendre-iaea.ipynb": "unfold_tikhonov_legendre",
-        "83-lavrentiev-iaea.ipynb": "unfold_lavrentiev",
+        "84-lavrentiev-iaea.ipynb": "unfold_lavrentiev",
         "78-ensemble-iaea.ipynb": "unfold_ensemble",
         "79-louhi-iaea.ipynb": "unfold_louhi",
         "80-osem-anlm-iaea.ipynb": "unfold_osem_anlm",
         "81-cuqi-quality-analysis-iaea.ipynb": "unfold_cuqi",
-        "82-lavrentiev-iaea.ipynb": "unfold_lavrentiev",
+        "83-interval-tol-iaea.ipynb": "unfold_interval_tol",
+        "85-interval-posterior-iaea.ipynb": "unfold_interval_posterior",
+        "86-interval-intvalpy-iaea.ipynb": "unfold_interval_intvalpy",
+        "87-interval-center-iaea.ipynb": "unfold_interval_center",
+        "88-interval-pia-iaea.ipynb": "unfold_interval_pia",
+        "89-interval-matrix-iaea.ipynb": "unfold_interval_matrix",
+        "90-interval-regularization-iaea.ipynb": "unfold_interval_regularization",
     }
 
     @pytest.fixture(autouse=True)

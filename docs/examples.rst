@@ -405,12 +405,15 @@ Notebook                                                         Method
 ``79-louhi-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_louhi`
 ``80-osem-anlm-iaea.ipynb``                                     :meth:`~bssunfold.Detector.unfold_osem_anlm`
 ``81-cuqi-quality-analysis-iaea.ipynb``                         :meth:`~bssunfold.Detector.unfold_cuqi`
-``82-commercial-solvers-iaea.ipynb``                             :meth:`~bssunfold.Detector.unfold_commercial`
-``82-lavrentiev-iaea.ipynb``                                    :meth:`~bssunfold.Detector.unfold_lavrentiev`
+``82-commercial-solvers-iaea.ipynb``                            :meth:`~bssunfold.Detector.unfold_commercial`
+``84-lavrentiev-iaea.ipynb``                                    :meth:`~bssunfold.Detector.unfold_lavrentiev`
 ``83-interval-tol-iaea.ipynb``                                  :meth:`~bssunfold.Detector.unfold_interval_tol`
-``84-interval-posterior-iaea.ipynb``                            :meth:`~bssunfold.Detector.unfold_interval_posterior`
 ``85-interval-posterior-iaea.ipynb``                            :meth:`~bssunfold.Detector.unfold_interval_posterior`
 ``86-interval-intvalpy-iaea.ipynb``                             :meth:`~bssunfold.Detector.unfold_interval_intvalpy`
+``87-interval-center-iaea.ipynb``                               :meth:`~bssunfold.Detector.unfold_interval_center`
+``88-interval-pia-iaea.ipynb``                                  :meth:`~bssunfold.Detector.unfold_interval_pia`
+``89-interval-matrix-iaea.ipynb``                               :meth:`~bssunfold.Detector.unfold_interval_matrix`
+``90-interval-regularization-iaea.ipynb``                       :meth:`~bssunfold.Detector.unfold_interval_regularization`
 ==============================================================  ============================
 
 Notebook ``81`` additionally demonstrates the CUQIpy quality-analysis
