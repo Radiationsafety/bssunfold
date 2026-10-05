@@ -714,6 +714,8 @@ def solve_interval_intvalpy(
     b_lo: np.ndarray,
     b_hi: np.ndarray,
     method: str = "rohn",
+    normalize: bool = False,
+    regularization: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     """Solve interval system using the intvalpy package.
 
@@ -731,6 +733,10 @@ def solve_interval_intvalpy(
         Upper bounds on readings (m,).
     method : str, optional
         Method for finding bounds: "rohn" (default) or "shary".
+    normalize : bool, optional
+        If True, normalize the spectrum to match the total fluence.
+    regularization : float, optional
+        Regularization parameter for Tikhonov regularization.
 
     Returns
     -------
@@ -761,6 +767,7 @@ def solve_interval_intvalpy(
 
     A_int = ip.Interval(A, A)
     b_int = ip.Interval(b_lo, b_hi)
+    b_mid = (b_lo + b_hi) / 2.0
 
     x_pseudo, tol_max, n_iter, n_calls, exit_code = ip.Tol.maximize(A_int, b_int)
 
@@ -796,6 +803,32 @@ def solve_interval_intvalpy(
         x_min = np.maximum(x_pseudo - abs(tol_max), 0.0)
         x_max = x_pseudo + abs(tol_max)
 
+    if regularization is not None and regularization > 0:
+        x_mid = (x_min + x_max) / 2.0
+        n = len(x_mid)
+        D = np.diff(np.eye(n), axis=0)
+        A_reg = np.vstack([A, regularization * D])
+        b_reg = np.concatenate([b_mid, np.zeros(n - 1)])
+        res_reg = linprog(
+            np.zeros(n),
+            A_ub=A_reg,
+            b_ub=b_reg,
+            bounds=[(0, None)] * n,
+            method="highs",
+        )
+        if res_reg.success:
+            x_reg = res_reg.x
+            x_min = np.maximum(x_reg - (x_max - x_min) / 2.0, 0.0)
+            x_max = x_reg + (x_max - x_min) / 2.0
+
+    if normalize:
+        x_mid = (x_min + x_max) / 2.0
+        total = np.sum(x_mid)
+        if total > 0:
+            scale = np.sum(b_mid) / total
+            x_min = x_min * scale
+            x_max = x_max * scale
+
     info = {
         "tol_max": float(tol_max),
         "x_pseudo": x_pseudo,
@@ -803,6 +836,8 @@ def solve_interval_intvalpy(
         "n_calls": n_calls,
         "exit_code": exit_code,
         "method": method,
+        "normalize": normalize,
+        "regularization": regularization,
     }
 
     return x_min, x_max, info
@@ -822,6 +857,8 @@ def unfold_interval_intvalpy(
     tv_bound: float | None = None,
     save_result: bool = False,
     method: str = "rohn",
+    normalize: bool = False,
+    regularization: float | None = None,
 ) -> dict[str, Any]:
     """Unfold using interval analysis with the intvalpy package.
 
@@ -858,6 +895,10 @@ def unfold_interval_intvalpy(
         If True, save result to history.
     method : str, optional
         Method for finding bounds: "rohn" (default) or "shary".
+    normalize : bool, optional
+        If True, normalize the spectrum to match the total fluence.
+    regularization : float, optional
+        Regularization parameter for Tikhonov regularization.
 
     Returns
     -------
@@ -885,7 +926,7 @@ def unfold_interval_intvalpy(
     b_hi = b + delta
 
     x_min, x_max, info = solve_interval_intvalpy(
-        A, b_lo, b_hi, method=method
+        A, b_lo, b_hi, method=method, normalize=normalize, regularization=regularization
     )
 
     x_mid = (x_min + x_max) / 2.0
@@ -909,6 +950,8 @@ def unfold_interval_intvalpy(
             "n_calls": info["n_calls"],
             "exit_code": info["exit_code"],
             "intvalpy_method": method,
+            "normalize": normalize,
+            "regularization": regularization,
         },
         ln_steps=ln_steps,
     )

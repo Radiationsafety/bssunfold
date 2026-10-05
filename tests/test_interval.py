@@ -429,3 +429,36 @@ class TestDetectorUnfoldIntervalIntvalpy:
         result = detector.unfold_interval_intvalpy(readings, noise_level=0.1)
         assert "doserates" in result
         assert len(result["doserates"]) > 0
+
+
+class TestSolveIntervalIntvalpyNormalize:
+    def test_normalize(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        x_min_raw, x_max_raw, _ = solve_interval_intvalpy(
+            A, b_lo, b_hi, normalize=False
+        )
+        x_min_norm, x_max_norm, _ = solve_interval_intvalpy(
+            A, b_lo, b_hi, normalize=True
+        )
+        sum_raw = np.sum((x_min_raw + x_max_raw) / 2.0)
+        sum_norm = np.sum((x_min_norm + x_max_norm) / 2.0)
+        b_mid_sum = np.sum((b_lo + b_hi) / 2.0)
+        assert abs(sum_norm - b_mid_sum) < 1e-6
+        assert sum_norm != sum_raw
+
+    def test_regularization(self):
+        pytest.importorskip("intvalpy")
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b_lo = np.array([0.5, 1.5])
+        b_hi = np.array([1.5, 2.5])
+        x_min_raw, x_max_raw, _ = solve_interval_intvalpy(
+            A, b_lo, b_hi, regularization=None
+        )
+        x_min_reg, x_max_reg, _ = solve_interval_intvalpy(
+            A, b_lo, b_hi, regularization=0.1
+        )
+        assert np.all(x_min_reg <= x_max_reg)
+        assert np.all(x_min_reg >= 0)

@@ -4797,6 +4797,8 @@ class Detector:
         max_neutron_energy: float | None = None,
         save_result: bool = False,
         method: str = "rohn",
+        normalize: bool = False,
+        regularization: float | None = None,
     ) -> dict[str, Any]:
         """Unfold neutron spectrum using interval analysis with intvalpy.
 
@@ -4821,6 +4823,10 @@ class Detector:
             Save result to history (default: False).
         method : str, optional
             Method for finding bounds: "rohn" (default) or "shary".
+        normalize : bool, optional
+            If True, normalize the spectrum to match the total fluence.
+        regularization : float, optional
+            Regularization parameter for Tikhonov regularization.
 
         Returns
         -------
@@ -4835,6 +4841,8 @@ class Detector:
             - ``n_calls`` -- number of function calls
             - ``exit_code`` -- exit code of the algorithm
             - ``method`` -- method used
+            - ``normalize`` -- whether normalization was applied
+            - ``regularization`` -- regularization parameter used
         """
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_interval_intvalpy_impl(
@@ -4851,6 +4859,8 @@ class Detector:
             tv_bound=tv_bound,
             save_result=save_result,
             method=method,
+            normalize=normalize,
+            regularization=regularization,
         )
         return self._expand_result(result, mask, readings)
 
