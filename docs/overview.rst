@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSunfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 102 unfolding algorithms, 41 spectrum
+Spectrometers (BSS). It provides 106 unfolding algorithms, 41 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 102 methods are accessible as instance methods on the
+All 106 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -36,6 +36,7 @@ categories:
        A --> N["Evolutionary"]
        A --> O["Classic RSICC codes"]
        A --> Q["Optimization course"]
+       A --> R["Interval analysis"]
 
        B --> B1["unfold_cvxpy"]
        B --> B2["unfold_qpsolvers"]
@@ -150,6 +151,11 @@ categories:
          Q --> Q7["unfold_subgradient"]
          Q --> Q8["unfold_extragradient"]
 
+       R --> R1["unfold_interval"]
+       R --> R2["unfold_interval_tol"]
+       R --> R3["unfold_interval_posterior"]
+       R --> R4["unfold_interval_intvalpy (intvalpy)"]
+
        style A fill:#4a90d9,color:#fff
        style B fill:#e8f0fe
        style C fill:#e8f0fe
@@ -165,6 +171,7 @@ categories:
          style O fill:#e8f0fe
          style P fill:#e8f0fe
          style Q fill:#e8f0fe
+         style R fill:#e8f0fe
 
 Method Reference
 ~~~~~~~~~~~~~~~~
@@ -791,6 +798,30 @@ Method Reference
      - `sampler` (pcn/cwmh/ula/mala/nuts/gibbs/gibbs_nuts), `prior` (gmrf/ou), `gmrf_order`, `lengthscale`, `noise_level`, `hierarchical`, `delta_alpha`, `delta_beta`, `n_samples`, `n_burnin`, `thin`, `chains`, `scale`, `max_depth`, `step_size`, `credible_level`
      - cuqipy (optional)
      - Full Bayesian unfolding with CUQIpy (DTU, uncertainty quantification for inverse problems): log-spectrum model with GMRF (order 1/2) or Ornstein-Uhlenbeck Gaussian prior anchored on an NNLS data-driven center; posterior explored by pCN, component-wise MH, (M)ALA, NUTS or hierarchical HybridGibbs with a conjugate Gamma hyperprior; returns posterior mean spectrum, per-bin std, configurable HPD credible intervals and ESS / Gelman-Rubin R-hat / acceptance-rate diagnostics under ``cuqi_stats``. See :doc:`cuqi_bayes`.
+   * - 101
+     - ``unfold_interval``
+     - Interval analysis
+     - `tv_bound`, `reading_uncertainties`, `noise_level`
+     - —
+     - Guaranteed spectrum bounds via interval linear programming: for each energy bin solves the min/max LP subject to ``b_lo <= Ax <= b_hi``, ``x >= 0`` and an optional total-variation bound; returns ``spectrum_lower`` / ``spectrum_upper``
+   * - 102
+     - ``unfold_interval_tol``
+     - Interval analysis
+     - `tv_bound`, `reading_uncertainties`, `noise_level`, `max_iter`, `tol`
+     - —
+     - Shary's recognizing functional (interval regularization): maximizes ``Tol(x) = min_i [rad(b_i) - |mid(b_i) - a_i·x|]`` to find a pseudo-solution of the interval system ``Ax ⊆ b``, then computes bounds by directional search — more efficient than the 2n-LP formulation for ill-conditioned systems; reports ``tol_max``, ``x_pseudo``, ``converged``, ``n_iter``
+   * - 103
+     - ``unfold_interval_posterior``
+     - Interval analysis
+     - `tv_bound`, `reading_uncertainties`, `noise_level`, `n_samples`, `normalize`
+     - —
+     - Matiyasevich's posterior interval analysis: the traditional LP bounds are refined by posterior sampling for tighter guaranteed intervals; reports per-bin ``sensitivity`` and ``residuals`` diagnostics
+   * - 104
+     - ``unfold_interval_intvalpy``
+     - Interval analysis
+     - `tv_bound`, `reading_uncertainties`, `noise_level`, `method` (rohn/shary), `normalize`, `regularization`
+     - intvalpy (optional, ``bssunfold[intvalpy]``)
+     - Interval analysis via the ``intvalpy`` package: pseudo-solution from ``Tol.maximize`` plus LP bounds per variable; falls back to the pseudo-solution as best approximation when the tolerance set is empty (``tol_max < 0``); reports ``tol_max``, ``x_pseudo``, ``n_iter``, ``n_calls``, ``exit_code``, ``method``
 
 
 

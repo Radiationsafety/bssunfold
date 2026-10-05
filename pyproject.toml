@@ -124,7 +124,11 @@ interpret = [
      "zfit>=0.10.0",
      "tensorflow>=2.15.0",
  ]
-test = [
+intvalpy = [
+     "intvalpy>=2.0",
+ ]
+
+ test = [
      "pytest>=9.0.3",
  ]
 # All optional backends

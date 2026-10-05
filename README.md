@@ -329,6 +329,7 @@ Installable extras (see [pyproject.toml](https://github.com/Radiationsafety/bssu
 | `maeo` | `pymoo` | `unfold_maeo` |
 | `qubo` | `pyqubo` + `dwave-neal` | `unfold_qubo` |
 | `zfit` | `zfit` + `tensorflow` | `unfold_zfit` |
+| `intvalpy` | `intvalpy` | `unfold_interval_intvalpy` |
 | `cuqi` | `cuqipy` (NumPy ≥ 2.4: [maintained fork](https://github.com/Radiationsafety/CUQIpy/tree/numpy2-support)) | `unfold_cuqi` |
 | `gurobi` / `mosek` / `cplex` / `copt` / `xpress` / `commercial` | proprietary QP engines — **LICENSE REQUIRED**, not distributed with bssunfold, excluded from `all` | `unfold_gurobi`, `unfold_mosek`, `unfold_cplex`, `unfold_copt`, `unfold_xpress` |
 | `all` | all open-source optional backends above (except commercial engines and `solvers-proxqp`) | — |

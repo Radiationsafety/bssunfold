@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning].
 
 ### Added
 
+- **Interval unfolding with guaranteed LP bounds** — new `unfold_interval`
+  method (and `solve_interval` core solver) computing guaranteed bounds on
+  the spectrum from the interval reading system:
+
+  * For each energy bin solves the min/max linear program subject to
+    `b_lo <= Ax <= b_hi`, `x >= 0`.
+  * Optional total-variation bound (`tv_bound`) regularizes wide intervals.
+  * Intervals built from per-reading uncertainties (`reading_uncertainties`)
+    or a relative `noise_level` (default 5%).
+  * Returns `spectrum_lower` / `spectrum_upper` in addition to the
+    standard result keys.
+
 - **Interval unfolding with intvalpy** — new `unfold_interval_intvalpy`
   method (and `solve_interval_intvalpy` core solver) implementing interval
   analysis using the `intvalpy` package:

@@ -40,7 +40,7 @@ Overview
 Features
 --------
 
-- **Multiple Unfolding Algorithms** (102 methods):
+- **Multiple Unfolding Algorithms** (106 methods):
   - **Tikhonov-type**: CVXPY, qpsolvers (L1/L2/smoothness), Legendre basis, TSVD, EPIC (Equal Posterior Information Condition)
   - **Krylov/hybrid**: Lanczos, GKS (Golub-Kahan bidiagonalization + projected GCV/DP/L-curve), CGLS, FISTA (accelerated proximal gradient), Hybrid GMRES
   - **Iterative**: Landweber, MLEM (pure NumPy + ODL), MLEM-STOP (J-factor stopping), GRAVEL, Doroshenko, Kaczmarz
@@ -48,6 +48,7 @@ Features
   - **Bayesian**: D'Agostini (Bayes), Bayes with spline regularisation, zfit (Poisson likelihood), full Bayesian MCMC (NUTS via pymc), CUQIpy uncertainty-quantified MCMC (pCN, CWMH, ULA, MALA, NUTS, hierarchical Gibbs with Gamma hyperprior — posterior HPD intervals, ESS/R-hat diagnostics)
   - **Maximum Entropy**: MAXED (primal log-space dual minimisation), IMAXED, AMAXED, AMAXED-Regularization (Wong 2024 PhD thesis)
   - **Statistical Regularisation**: Turchin's method (StatReg), Fortran STREG1 port (Reconst)
+  - **Interval Analysis**: guaranteed interval bounds via LP (``unfold_interval``), Shary's recognizing functional (``unfold_interval_tol``), Matiyasevich's posterior interval analysis (``unfold_interval_posterior``), intvalpy-based interval solving (``unfold_interval_intvalpy``, optional dependency)
   - **Optimisation-based**: lmfit (L1/L2/Elastic Net), Scipy direct (CG, GMRES, LSQR), Mystic (direct-search: fmin, Powell, diffev), SMT (exact constraint solving via Z3), Genetic (meta-heuristic: PSO, GA, DE, ES, EP, ABC, GWO, CMA-ES, NSGA-II via MEALPY), CS (compressive sensing), SCIP (pyscipopt), CPLEX (docplex), commercial QP engines via cvxpy (Gurobi / MOSEK / CPLEX / COPT / XPRESS, **license required**), QUBO (quantum-inspired simulated annealing)
   - **Advanced proximal**: ODL-style Primal-Dual Hybrid Gradient (PDHG) and Douglas-Rachford splitting with TV (pure-NumPy)
   - **Evolutionary**: MAEO (multi-island NSGA-III / C-TAEA / AGE-MOEA-II / SPEA2 ensemble)
