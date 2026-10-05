@@ -131,7 +131,9 @@ intvalpy = [
  test = [
      "pytest>=9.0.3",
  ]
-# All optional backends
+# All optional backends (except the proprietary commercial engines, the
+# platform-specific solver bundles and `cuqi`: the PyPI cuqipy release caps
+# NumPy <= 2.2 and conflicts with this project's numpy>=2.4 requirement).
 all = [
     "bssunfold[ecos]",
     "bssunfold[lmfit]",
@@ -139,19 +141,20 @@ all = [
     "bssunfold[tikhonov]",
     "bssunfold[qpsolvers]",
     "bssunfold[numba]",
+    "bssunfold[amg]",
     "bssunfold[mystic]",
     "bssunfold[smt]",
     "bssunfold[scip]",
     "bssunfold[docplex]",
     "bssunfold[mealpy]",
-     "bssunfold[interpret]",
-     "bssunfold[mcmc]",
-     "bssunfold[maeo]",
-     "bssunfold[qubo]",
-     "bssunfold[zfit]",
-     "intvalpy>=2.0",
-     "bssunfold[test]",
- ]
+    "bssunfold[interpret]",
+    "bssunfold[mcmc]",
+    "bssunfold[maeo]",
+    "bssunfold[qubo]",
+    "bssunfold[zfit]",
+    "bssunfold[intvalpy]",
+    "bssunfold[test]",
+]
 # Base set of QP solvers available on all platforms (including Windows)
 solvers-core = [
     "qpsolvers[osqp,piqp,qpalm,scs,clarabel]>=4.10.0",

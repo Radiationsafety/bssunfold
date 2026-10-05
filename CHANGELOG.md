@@ -175,6 +175,18 @@ and this project adheres to [Semantic Versioning].
   with Brent, iteration-count comparison, penalty variants,
   end-to-end solver test, invalid-method guard).
 
+### Fixed
+
+- **`intvalpy` extra was not documented and only partially wired into
+  `all`**: the README install section now lists
+  `pip install "bssunfold[intvalpy]"` for `unfold_interval_intvalpy`,
+  and the `all` extra in `pyproject.toml` depends on
+  `bssunfold[intvalpy]` (and `bssunfold[amg]`) like every other backend
+  instead of pinning `intvalpy` directly. The README `all` row now names
+  the extras it aggregates and states that `cuqi` is excluded — the PyPI
+  `cuqipy` release caps NumPy ≤ 2.2 and conflicts with the
+  `numpy>=2.4` base requirement, so it cannot be part of `all`.
+
 ## [0.28.0] - 2026-09-22
 
 ### Added

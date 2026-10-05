@@ -623,6 +623,7 @@ all = [
     { name = "mystic" },
     { name = "numba" },
     { name = "odl" },
+    { name = "pyamg" },
     { name = "pymc", version = "5.28.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "pymc", version = "6.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pymoo" },
@@ -810,6 +811,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "arviz", marker = "extra == 'mcmc'", specifier = ">=0.17.0" },
+    { name = "bssunfold", extras = ["amg"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["copt"], marker = "extra == 'commercial'" },
     { name = "bssunfold", extras = ["cplex"], marker = "extra == 'commercial'" },
     { name = "bssunfold", extras = ["docplex"], marker = "extra == 'all'" },
@@ -817,6 +819,7 @@ requires-dist = [
     { name = "bssunfold", extras = ["ecos"], marker = "extra == 'solvers-core'" },
     { name = "bssunfold", extras = ["gurobi"], marker = "extra == 'commercial'" },
     { name = "bssunfold", extras = ["interpret"], marker = "extra == 'all'" },
+    { name = "bssunfold", extras = ["intvalpy"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["lmfit"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["maeo"], marker = "extra == 'all'" },
     { name = "bssunfold", extras = ["mcmc"], marker = "extra == 'all'" },
@@ -847,7 +850,6 @@ requires-dist = [
     { name = "dwave-neal", marker = "extra == 'qubo'", specifier = ">=0.6.0" },
     { name = "ecos", marker = "extra == 'ecos'", specifier = ">=2.0.14" },
     { name = "gurobipy", marker = "extra == 'gurobi'", specifier = ">=11.0" },
-    { name = "intvalpy", marker = "extra == 'all'", specifier = ">=2.0" },
     { name = "intvalpy", marker = "extra == 'intvalpy'", specifier = ">=2.0" },
     { name = "jax", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxlib", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },

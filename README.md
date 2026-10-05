@@ -110,6 +110,7 @@ pip install "bssunfold[qubo]"     # unfold_qubo (pyqubo + dwave-neal)
 pip install "bssunfold[zfit]"     # unfold_zfit (zfit + tensorflow)
 pip install "bssunfold[cuqi]"     # unfold_cuqi (cuqipy)
 pip install "bssunfold[amg]"      # unfold_amg (pyamg)
+pip install "bssunfold[intvalpy]" # unfold_interval_intvalpy (intvalpy)
 
 # Commercial QP engines — LICENSE REQUIRED (not distributed with bssunfold;
 # you must hold a valid license for the engine, academic/community
@@ -332,7 +333,7 @@ Installable extras (see [pyproject.toml](https://github.com/Radiationsafety/bssu
 | `intvalpy` | `intvalpy` | `unfold_interval_intvalpy` |
 | `cuqi` | `cuqipy` (NumPy ≥ 2.4: [maintained fork](https://github.com/Radiationsafety/CUQIpy/tree/numpy2-support)) | `unfold_cuqi` |
 | `gurobi` / `mosek` / `cplex` / `copt` / `xpress` / `commercial` | proprietary QP engines — **LICENSE REQUIRED**, not distributed with bssunfold, excluded from `all` | `unfold_gurobi`, `unfold_mosek`, `unfold_cplex`, `unfold_copt`, `unfold_xpress` |
-| `all` | all open-source optional backends above (except commercial engines and `solvers-proxqp`) | — |
+| `all` | all method extras above: `ecos`, `lmfit`, `mlem`, `tikhonov`, `qpsolvers`, `numba`, `amg`, `mystic`, `mealpy`, `smt`, `scip`, `docplex`, `interpret`, `mcmc`, `maeo`, `qubo`, `zfit`, `intvalpy` + `test`. Excludes the commercial engines, `cuqi` (PyPI `cuqipy` caps NumPy ≤ 2.2) and the solver bundles `solvers-core` / `solvers-proxqp` / `solvers-jax` — install those explicitly | — |
 | `test` | `pytest` | test suite |
 
 All other methods (GRAVEL, MAXED, Bayes, StatReg, Reconst, TSVD, ScipyDirect, Landweber, Kaczmarz, Doroshenko, MLEM, TikhonovLegendre, NSpline, SSR, GEE, Uno, LOUHI, Lavrentiev, and the optimization-course solvers) have **no extra dependencies** beyond NumPy/SciPy.
