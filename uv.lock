@@ -602,7 +602,6 @@ version = "0.29.0"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy" },
-    { name = "intvalpy" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
@@ -618,6 +617,7 @@ all = [
     { name = "docplex" },
     { name = "dwave-neal" },
     { name = "ecos" },
+    { name = "intvalpy" },
     { name = "lmfit" },
     { name = "mealpy" },
     { name = "mystic" },
@@ -675,9 +675,6 @@ gurobi = [
 ]
 interpret = [
     { name = "pyoptexplain" },
-]
-intvalpy = [
-    { name = "intvalpy" },
 ]
 lmfit = [
     { name = "lmfit" },
@@ -847,8 +844,7 @@ requires-dist = [
     { name = "dwave-neal", marker = "extra == 'qubo'", specifier = ">=0.6.0" },
     { name = "ecos", marker = "extra == 'ecos'", specifier = ">=2.0.14" },
     { name = "gurobipy", marker = "extra == 'gurobi'", specifier = ">=11.0" },
-    { name = "intvalpy", specifier = ">=2.0.3" },
-    { name = "intvalpy", marker = "extra == 'intvalpy'", specifier = ">=2.0" },
+    { name = "intvalpy", marker = "extra == 'all'", specifier = ">=2.0" },
     { name = "jax", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxlib", marker = "extra == 'solvers-jax'", specifier = ">=0.4.0" },
     { name = "jaxopt", marker = "extra == 'solvers-jax'", specifier = ">=0.8.0" },
@@ -879,7 +875,7 @@ requires-dist = [
     { name = "z3-solver", marker = "extra == 'smt'", specifier = ">=4.13.0" },
     { name = "zfit", marker = "extra == 'zfit'", specifier = ">=0.10.0" },
 ]
-provides-extras = ["cuqi", "ecos", "lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "amg", "mystic", "mealpy", "smt", "scip", "docplex", "gurobi", "mosek", "cplex", "copt", "xpress", "commercial", "interpret", "mcmc", "maeo", "qubo", "zfit", "intvalpy", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
+provides-extras = ["cuqi", "ecos", "lmfit", "mlem", "tikhonov", "qpsolvers", "numba", "amg", "mystic", "mealpy", "smt", "scip", "docplex", "gurobi", "mosek", "cplex", "copt", "xpress", "commercial", "interpret", "mcmc", "maeo", "qubo", "zfit", "test", "all", "solvers-core", "solvers-proxqp", "solvers-jax", "all-solvers", "windows"]
 
 [package.metadata.requires-dev]
 dev = [
