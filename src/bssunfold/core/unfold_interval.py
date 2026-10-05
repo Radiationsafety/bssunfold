@@ -334,6 +334,7 @@ def solve_interval_posterior(
     b_hi: np.ndarray,
     tv_bound: float | None = None,
     n_samples: int = 100,
+    normalize: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     """Solve interval system with posterior interval analysis.
 
@@ -352,6 +353,8 @@ def solve_interval_posterior(
         Total variation bound for regularization.
     n_samples : int, optional
         Number of Monte Carlo samples for posterior refinement.
+    normalize : bool, optional
+        If True, normalize the spectrum to match the total fluence.
 
     Returns
     -------
@@ -387,10 +390,18 @@ def solve_interval_posterior(
         dr = A @ dx
         sensitivity[i] = np.sum(np.abs(dr) * b_rad)
 
+    if normalize:
+        total = np.sum(x_mid)
+        if total > 0:
+            scale = np.sum(A @ x_mid) / total
+            x_min = x_min * scale
+            x_max = x_max * scale
+
     info = {
         "n_samples": n_samples,
         "sensitivity": sensitivity,
         "residuals": residuals,
+        "normalize": normalize,
     }
 
     return x_min, x_max, info
@@ -617,6 +628,7 @@ def unfold_interval_posterior(
     tv_bound: float | None = None,
     save_result: bool = False,
     n_samples: int = 100,
+    normalize: bool = False,
 ) -> dict[str, Any]:
     """Unfold using posterior interval analysis.
 
@@ -651,6 +663,8 @@ def unfold_interval_posterior(
         If True, save result to history.
     n_samples : int, optional
         Number of Monte Carlo samples for posterior refinement.
+    normalize : bool, optional
+        If True, normalize the spectrum to match the total fluence.
 
     Returns
     -------
@@ -678,7 +692,7 @@ def unfold_interval_posterior(
     b_hi = b + delta
 
     x_min, x_max, info = solve_interval_posterior(
-        A, b_lo, b_hi, tv_bound=tv_bound, n_samples=n_samples
+        A, b_lo, b_hi, tv_bound=tv_bound, n_samples=n_samples, normalize=normalize
     )
 
     x_mid = (x_min + x_max) / 2.0
@@ -699,6 +713,7 @@ def unfold_interval_posterior(
             "n_samples": info["n_samples"],
             "sensitivity": info["sensitivity"],
             "residuals": info["residuals"],
+            "normalize": normalize,
         },
         ln_steps=ln_steps,
     )
@@ -825,7 +840,7 @@ def solve_interval_intvalpy(
         x_mid = (x_min + x_max) / 2.0
         total = np.sum(x_mid)
         if total > 0:
-            scale = np.sum(b_mid) / total
+            scale = np.sum(A @ x_mid) / total
             x_min = x_min * scale
             x_max = x_max * scale
 

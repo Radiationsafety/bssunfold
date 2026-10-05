@@ -4736,6 +4736,7 @@ class Detector:
         max_neutron_energy: float | None = None,
         save_result: bool = False,
         n_samples: int = 100,
+        normalize: bool = False,
     ) -> dict[str, Any]:
         """Unfold neutron spectrum using posterior interval analysis.
 
@@ -4758,6 +4759,8 @@ class Detector:
             Save result to history (default: False).
         n_samples : int, optional
             Number of Monte Carlo samples for posterior refinement.
+        normalize : bool, optional
+            If True, normalize the spectrum to match the total fluence.
 
         Returns
         -------
@@ -4769,6 +4772,7 @@ class Detector:
             - ``n_samples`` -- number of samples used
             - ``sensitivity`` -- sensitivity vector
             - ``residuals`` -- residual vector
+            - ``normalize`` -- whether normalization was applied
         """
         mask = self._max_energy_mask(max_neutron_energy)
         result = unfold_interval_posterior_impl(
@@ -4785,6 +4789,7 @@ class Detector:
             tv_bound=tv_bound,
             save_result=save_result,
             n_samples=n_samples,
+            normalize=normalize,
         )
         return self._expand_result(result, mask, readings)
 
