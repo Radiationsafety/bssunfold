@@ -5,9 +5,10 @@
 #   - workflow_dispatch (manual) — publish any branch/tag
 #   - push tags v* — automatic publish on version tags
 #
-# Uses Trusted Publishing (OIDC) — no API token required.
-# Before first use, register a trusted publisher at:
-#   https://test.pypi.org/manage/account/publishing/
+# Uses an API token (secret TESTPYPI_TOKEN) when configured, otherwise
+# Trusted Publishing (OIDC). Both are handled by the publish step below.
+# Token: https://test.pypi.org/manage/account/token/  (scoped to bssunfold)
+# Trusted publisher: https://test.pypi.org/manage/account/publishing/
 #   PyPI Project:  bssunfold
 #   Workflow:      publish-testpypi.yml
 #   Environment:   testpypi
@@ -55,4 +56,38 @@ jobs:
       run: uv build
 
     - name: Publish to TestPyPI
-      run: uv publish --publish-url https://test.pypi.org/legacy/
+      env:
+        TESTPYPI_TOKEN: ${{ secrets.TESTPYPI_TOKEN }}
+        PUBLISH_URL: https://test.pypi.org/legacy/
+        DEPLOY_ENVIRONMENT: ${{ inputs.environment || 'testpypi' }}
+      run: |
+        if [ -n "$TESTPYPI_TOKEN" ]; then
+          echo "Authenticating with TESTPYPI_TOKEN (API token)."
+          export UV_PUBLISH_USERNAME=__token__ UV_PUBLISH_PASSWORD="$TESTPYPI_TOKEN"
+          auth_args=(--trusted-publishing=never)
+        else
+          echo "No TESTPYPI_TOKEN secret set; using Trusted Publishing (OIDC)."
+          auth_args=(--trusted-publishing=always)
+        fi
+
+        # TestPyPI intermittently answers 503 (both the OIDC endpoint and the
+        # upload check), so retry rather than failing the release. --check-url
+        # makes a replay after a partial success skip the files already stored.
+        for attempt in 1 2 3 4 5; do
+          uv publish --publish-url "$PUBLISH_URL" --check-url "$PUBLISH_URL" \
+            "${auth_args[@]}" 2>&1 | tee /tmp/publish.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -eq 0 ]; then
+            echo "Published on attempt $attempt."
+            exit 0
+          fi
+          if grep -qE 'HTTP status client error \(40[13]' /tmp/publish.log; then
+            echo "::error::TestPyPI rejected the credentials: check TESTPYPI_TOKEN," \
+              "or the trusted publisher registered for environment '$DEPLOY_ENVIRONMENT'."
+            exit 1
+          fi
+          echo "Attempt $attempt/5 failed (assuming a TestPyPI 5xx); retrying in 60s."
+          sleep 60
+        done
+        echo "::error::TestPyPI publish failed after 5 attempts; see the log above."
+        exit 1
