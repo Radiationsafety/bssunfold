@@ -46,6 +46,8 @@ def solve_mlem(
     )
     x = np.maximum(x0.copy(), 1e-10)
     AT = A.T
+    # Shepp-Vardi denominator: column sums of A (per-bin sensitivity)
+    sensitivity = np.maximum(AT.sum(axis=1), 1e-10)
 
     try:
         from ._numba_jit import NUMBA_AVAILABLE, _mlem_inner
@@ -63,7 +65,7 @@ def solve_mlem(
         Ax = A @ x
         Ax = np.maximum(Ax, 1e-10)
         ratio = b / Ax
-        correction = AT @ ratio
+        correction = AT @ ratio / sensitivity
         x_new = x * correction
         diff = np.linalg.norm(x_new - x) / (np.linalg.norm(x) + 1e-10)
         x = np.maximum(x_new, 0)

@@ -7,6 +7,22 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Fixed
+
+- **MLEM sensitivity normalization** — the multiplicative updates in
+  `solve_mlem` (Python fallback and the Numba `_mlem_inner` kernel) and in
+  `solve_mlem_stop` omitted the standard Shepp-Vardi denominator, the
+  column sums of the response matrix (per-bin sensitivity).  With unequal
+  column sums the iteration converged to a distorted fixed point rather
+  than the Poisson maximum-likelihood solution.  The correction is now
+  divided by the sensitivity vector, matching the classical Shepp-Vardi
+  formulation and the other EM-family solvers in the package (`osem`,
+  `mapem`, `bsrem`, `ssr`).  Note: published benchmark scores for `mlem`
+  and `mlem_stop` predate this fix.
+
+
 ## [0.29.0] - 2026-10-05
 
 ### Added

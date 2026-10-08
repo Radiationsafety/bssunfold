@@ -71,6 +71,8 @@ def solve_mlem_stop(
 
     x = np.maximum(x0.copy(), 1e-10)
     AT = A.T
+    # Shepp-Vardi denominator: column sums of A (per-bin sensitivity)
+    sensitivity = np.maximum(AT.sum(axis=1), 1e-10)
 
     for i in range(max_iterations):
         Ax = A @ x
@@ -81,7 +83,7 @@ def solve_mlem_stop(
 
         Ax = np.maximum(Ax, 1e-10)
         ratio = b / Ax
-        correction = AT @ ratio
+        correction = AT @ ratio / sensitivity
         x = np.maximum(x * correction, 0)
 
     j_final = calculate_j_factor(b, A @ x)
