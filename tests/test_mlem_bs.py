@@ -78,6 +78,11 @@ def _second_diff_norm(x):
     return float(np.linalg.norm(np.diff(x, 2)))
 
 
+def _n_extrema(x):
+    """Number of interior local extrema (turning points) of a spectrum."""
+    return int(np.count_nonzero(np.diff(np.sign(np.diff(x)))))
+
+
 # ---------------------------------------------------------------------------
 # Basis / penalty / statistic utilities
 # ---------------------------------------------------------------------------
@@ -198,13 +203,25 @@ def test_solve_mlem_bs_length_mismatch(A, E):
 # ---------------------------------------------------------------------------
 
 
-def test_mlem_bs_smoothing_vs_mlem(detector, readings):
-    """The B-spline sieve must suppress noise: much smoother than plain MLEM."""
+def test_mlem_bs_smoothing_vs_mlem(detector, readings, f_true):
+    """The B-spline sieve must suppress noise without losing the data.
+
+    Noise suppression is counted in spurious extrema, not in ``||D^2 x||``: the
+    latter tracks the truth's own sharp structure, not Poisson noise (plain
+    MLEM scores 347637 on noisy readings vs 347887 on noise-free ones).  The
+    amplitude margin is 1.4x, not the 5x it used to be -- 5x was measured
+    against the pre-Shepp-Vardi ``solve_mlem``, whose missing column-sum
+    normalization inflated plain-MLEM roughness ~23x.
+    """
     res_mlem = detector.unfold_mlem(readings, max_iterations=300)
     res_bs = detector.unfold_mlem_bs(readings, max_iterations=500)
     tv_mlem = _second_diff_norm(res_mlem["spectrum"])
     tv_bs = _second_diff_norm(res_bs["spectrum"])
-    assert tv_bs < tv_mlem / 5.0
+    assert tv_bs < tv_mlem / 1.4
+    # noise signature: raw MLEM rings extra oscillations, the sieve does not
+    ext_true = _n_extrema(f_true)
+    assert _n_extrema(res_mlem["spectrum"]) > ext_true
+    assert _n_extrema(res_bs["spectrum"]) <= ext_true
     # without losing the data: residual stays within a few times the MLEM one
     assert np.linalg.norm(res_bs["residual"]) <= 3.0 * np.linalg.norm(
         res_mlem["residual"]

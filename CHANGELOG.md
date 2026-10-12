@@ -7,6 +7,69 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+
+- **CI: Python 3.15 in the cross-platform matrix** —
+  `.github/workflows/cross-platform-tests.yml` now tests `3.11`–`3.15` on
+  Ubuntu, Windows and macOS (15 jobs).  `allow-prereleases` was already enabled, which is what makes 3.15 resolvable
+  while it is still in beta; no binary wheels exist for 3.15 yet, so those
+  jobs compile NumPy/SciPy/cvxpy from source and are the slowest in the
+  matrix.  `pyproject.toml` already
+  carried the `Programming Language :: Python :: 3.15` classifier.
+
+### Changed
+
+- **Test calibration only, no solver behaviour changed** —
+  `tests/test_mlem_bs.py::test_mlem_bs_smoothing_vs_mlem` asserted that
+  MLEM-BS is at least 5x smoother than plain MLEM in
+  `||D^2 x||`.  That margin was measured against the pre-Shepp-Vardi
+  `solve_mlem` fixed in 0.29.1, whose missing column-sum normalization
+  inflated the plain-MLEM roughness by a factor of ~23.  Against a
+  correctly normalized MLEM the requirement is unreachable: the same
+  functional on the *true* spectrum gives 1312804 versus 347637 for
+  MLEM, so being 5x smoother than MLEM would mean being 19x smoother
+  than the physical spectrum.  The test now
+  - bounds `||D^2 x||` by the measured, seed-stable margin (1.4x; the
+    observed ratio is 1.474–1.480 over 200 Poisson seeds) instead of 5x;
+  - asserts noise suppression where it is actually observable — on the
+    count of spurious extrema, not on `||D^2 x||`, which tracks the
+    truth's own sharp structure rather than Poisson noise (plain MLEM
+    scores 347637 on noisy readings versus 347887 on noise-free ones):
+    the sieve must not add oscillations the truth does not have, while
+    unregularized MLEM does (truth 3, MLEM 7, MLEM-BS 2, invariant over
+    all 200 seeds tested).
+
+### Known issues
+
+Two defects in the MLEM-BS penalty term were exposed by the investigation
+above and are **not** fixed here; `unfold_mlem_bs` is otherwise sound, and
+the default solve (`beta = 0`, pure sieve) is unaffected.
+
+- **`beta_relative` is not amplitude-invariant.**  The effective penalty is
+  `beta = beta_relative * mean(RB.sum(axis=0))`, but the likelihood term
+  `RB^T (n / RB b)` is invariant to the overall flux level while the penalty
+  gradient `2 (D^2)^T D^2 b` scales with it.  The dimensionless knob therefore
+  changes meaning with the magnitude of the spectrum: at the flat default
+  start the penalty is inert (relative to the sensitivity, ~1e-19) and by the
+  time the iterate reaches realistic amplitudes it overwhelms the
+  denominator, collapsing the solution (mean coefficient 1.79e5 -> 2.3e4 and
+  residual norm 4543 -> 1.6e6 at `beta_relative=1e-4`).  Consequences:
+  `AUTO_BETA_RELATIVE_GRID` cannot deliver a usable penalty, so the default
+  solve is effectively unpenalized, and
+  `test_penalty_strength_controls_smoothing` is currently green only because
+  a collapsed spectrum has a small `||D^2 x||`.
+- **The one-step-late denominator amplifies oscillations for this prior.**
+  `grad_P` is a signed gradient, so at convex points `denom < s_s` and the
+  multiplicative update exceeds 1, pumping the very zigzag mode the
+  second-difference penalty is meant to suppress.  Spurious extrema grow
+  monotonically with the penalty strength (2 at `beta=0`, 5 at 1e-8, 15 at
+  1e-6, 25 at 1e-3) and the relative error against the truth degrades from
+  0.227 to 0.968.  The existing safeguard clamps only a non-positive
+  denominator.  A majorized quadratic prior (positive/negative split, or a
+  Vajda/Green surrogate) is the likely remedy.
+
 ## [0.29.1] - 2026-10-12
 
 ### Fixed

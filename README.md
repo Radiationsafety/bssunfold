@@ -299,7 +299,7 @@ custom Monte Carlo uncertainty analysis, `max_neutron_energy` cutoff):
 ## 🔧 Technical Requirements
 
 ### Core Requirements
-- Python 3.11+
+- Python 3.11–3.15 (tested in CI on Ubuntu, Windows and macOS)
 - NumPy, SciPy, Pandas, Matplotlib
 
 ### Optional Backends

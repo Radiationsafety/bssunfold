@@ -77,6 +77,28 @@ gradient is measured relative to the MLEM sensitivity.  Exactly one of
 iteration reduces to a pure sieve MLEM on the B-spline
 parameterisation.
 
+.. warning::
+
+   The penalty path is currently **not recommended**, and the default
+   (:math:`\beta = 0`) is the supported configuration.  ``beta_relative``
+   compensates for the scale of :math:`RB` but not for the amplitude of the
+   spectrum: :math:`\partial P/\partial b_s = 2 (D^{(2)})^T D^{(2)} b` grows
+   with the flux level while the MLEM numerator
+   :math:`\sum_i (RB)_{is}\, n_i / (RB\,b)_i` does not, so a given
+   ``beta_relative`` changes meaning with the magnitude of the data.  At
+   realistic amplitudes the penalty dominates the denominator of Eq. 4 and
+   drives the coefficients toward zero instead of smoothing them; a sweep on
+   a Bonner-sphere benchmark saw the residual norm grow by a factor of ~350
+   while :math:`\beta_{rel}` went from 0 to :math:`10^{-4}`.
+   Separately, because :math:`\partial P/\partial b_s` is a *signed* gradient,
+   convex coefficients get a denominator smaller than the sensitivity and an
+   update factor larger than one, so increasing the penalty adds oscillations
+   rather than removing them.  The unpenalized sieve (:math:`\beta = 0`) is
+   the configuration exercised by the examples, and ``auto_params=True``
+   should be read with the same caveat: :math:`K_S` rejects a collapsed
+   iterate, so the penalty scan tends to land back on
+   :math:`\beta_{rel} = 0`.
+
 Automatic parameter selection
 -----------------------------
 
