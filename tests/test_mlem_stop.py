@@ -76,6 +76,26 @@ class TestSolveMlemStop:
         assert conv
 
     def test_high_cps_crossover(self):
+        # Near-zero J threshold on an inconsistent (noisy, overdetermined)
+        # system: the readings can never be reproduced exactly, so the
+        # stopping criterion must not trigger and the budget is exhausted.
+        n_bins, n_det = 5, 12
+        rng = np.random.default_rng(42)
+        A = rng.random((n_det, n_bins)) * 0.1
+        x_true = np.exp(-np.arange(n_bins) / 3)
+        x_true /= x_true.sum()
+        b = A @ x_true + rng.normal(0, 0.01, n_det)
+        x0 = np.ones(n_bins) / n_bins
+
+        sol, iters, conv = solve_mlem_stop(
+            A, b, x0, max_iterations=200, cps_crossover=1e10
+        )
+        assert not conv
+        assert iters == 200
+
+    def test_noiseless_consistent_data_fits_readings(self):
+        # Shepp-Vardi normalization: on noiseless consistent data the MLEM
+        # update drives Ax -> b, so even a near-zero J threshold is reached.
         n_bins, n_det = 10, 3
         rng = np.random.default_rng(42)
         A = rng.random((n_det, n_bins)) * 0.1
@@ -85,9 +105,10 @@ class TestSolveMlemStop:
         x0 = np.ones(n_bins) / n_bins
 
         sol, iters, conv = solve_mlem_stop(
-            A, b, x0, max_iterations=200, cps_crossover=1e10
+            A, b, x0, max_iterations=2000, cps_crossover=1e10
         )
-        assert not conv
+        assert conv
+        assert np.linalg.norm(b - A @ sol) / np.linalg.norm(b) < 1e-4
 
     def test_negative_values(self):
         n_bins, n_det = 10, 3

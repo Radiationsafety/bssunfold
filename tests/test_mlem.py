@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -141,3 +142,60 @@ def test_unfold_mlem_odl_precision(detector, tolerance):
         assert pytest.approx(actual_value, rel=tolerance) == expected_value, (
             f"Несоответствие при точности {tolerance} для {key}"
         )
+
+
+class TestSolveMlemNormalization:
+    """Regression tests for the Shepp-Vardi sensitivity normalization in the
+    pure/Numba MLEM solver (unfold_mlem.solve_mlem).
+
+    The canonical MLEM update is
+        x_j <- x_j * [sum_i A_ij b_i/(Ax)_i] / [sum_i A_ij]
+    i.e. the multiplicative correction must be divided by the per-bin
+    sensitivity (column sums of A).  Omitting that denominator was a bug that
+    made the iteration converge to a distorted fixed point instead of the
+    Poisson maximum-likelihood solution on matrices with unequal column sums.
+    """
+
+    @staticmethod
+    def _poisson_nll(A, b, x):
+        Ax = np.maximum(A @ x, 1e-30)
+        return float(np.sum(Ax - b * np.log(Ax)))
+
+    def _system(self):
+        # Response matrix with strongly unequal column sums -> normalization
+        # matters.  11 detectors, 60 energy bins (LANL-like geometry).
+        rng = np.random.default_rng(1)
+        m, n = 11, 60
+        A = np.abs(rng.normal(size=(m, n))) * np.logspace(-3, 1, n)[None, :]
+        x_true = np.abs(rng.normal(size=n)) + 0.1
+        b = (A @ x_true) * (1 + rng.normal(0, 0.02, m))
+        return A, b, n
+
+    def test_monotone_likelihood_improvement(self):
+        from bssunfold.core.unfold_mlem import solve_mlem
+
+        A, b, n = self._system()
+        x0 = np.ones(n) * 0.5
+        sol, iters, conv = solve_mlem(
+            A, b, x0, max_iterations=2000, tolerance=1e-10
+        )
+        assert sol.shape == (n,)
+        assert np.all(sol >= 0)
+        # Normalized MLEM must reduce the Poisson NLL vs the initial guess.
+        assert self._poisson_nll(A, b, sol) < self._poisson_nll(A, b, x0)
+
+    def test_reaches_ml_stationary_point(self):
+        from bssunfold.core.unfold_mlem import solve_mlem
+
+        A, b, n = self._system()
+        x0 = np.ones(n) * 0.5
+        sol, iters, conv = solve_mlem(
+            A, b, x0, max_iterations=20000, tolerance=1e-12
+        )
+        # At the ML fixed point, for bins with positive solution the normalized
+        # gradient A^T (b/Ax) / sensitivity must equal 1.
+        sensitivity = np.maximum(A.sum(axis=0), 1e-30)
+        Ax = np.maximum(A @ sol, 1e-30)
+        grad = (A.T @ (b / Ax)) / sensitivity
+        active = sol > 1e-12
+        assert np.allclose(grad[active], 1.0, rtol=1e-4)

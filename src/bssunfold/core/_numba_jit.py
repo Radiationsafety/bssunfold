@@ -51,6 +51,14 @@ if NUMBA_AVAILABLE:
         iterations = 0
         eps = 1e-10
 
+        # Shepp-Vardi denominator: column sums of A (per-bin sensitivity)
+        sensitivity = np.zeros(n)
+        for j in range(n):
+            s_j = 0.0
+            for k in range(m):
+                s_j += AT[j, k]
+            sensitivity[j] = max(s_j, eps)
+
         for i in range(max_iterations):
             # Compute Ax = A @ x
             Ax = np.empty(m)
@@ -60,13 +68,13 @@ if NUMBA_AVAILABLE:
                     ax_k += A[k, j] * x[j]
                 Ax[k] = max(ax_k, eps)
 
-            # Compute correction = AT @ (b / Ax)
+            # Compute correction = AT @ (b / Ax) / sensitivity
             correction = np.zeros(n)
             for j in range(n):
                 corr_j = 0.0
                 for k in range(m):
                     corr_j += AT[j, k] * (b[k] / Ax[k])
-                correction[j] = corr_j
+                correction[j] = corr_j / sensitivity[j]
 
             # Update x
             diff_norm = 0.0
