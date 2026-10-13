@@ -1,0 +1,58 @@
+{% set name = "bssunfold" %}
+{% set version = "0.29.1" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://files.pythonhosted.org/packages/source/{{ name[0] }}/{{ name }}/bssunfold-{{ version }}.tar.gz
+  sha256: 7a728f0fcfe3f1e61d30f1671eabbb16613e1965e853b57157eb73ddc837f7c6
+
+build:
+  entry_points:
+    - bssunfold = bssunfold:main
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+
+requirements:
+  host:
+    - python {{ python_min }}
+    - pip
+    - hatchling >=1.26
+  run:
+    - python >={{ python_min }}
+    - numpy >=2.4.1
+    - scipy >=1.16.3
+    - cvxpy >=1.7.5
+    - pandas >=2.2.3
+    - matplotlib-base >=3.10.8
+    - pyzmq >=27.1.0
+
+test:
+  requires:
+    - pip
+    - python {{ python_min }}
+  imports:
+    - bssunfold
+  commands:
+    - pip check
+
+about:
+  home: https://github.com/Radiationsafety/bssunfold
+  license: GPL-3.0-only
+  license_file: LICENSE
+  summary: Python package for neutron spectrum unfolding from measurements obtained with Bonner Sphere Spectrometer (BSS)
+  description: |
+    BSSUnfold is a Python package for neutron spectrum unfolding from measurements obtained with Bonner 
+    Sphere Spectrometers (BSS). The package implements several mathematical algorithms for solving the inverse problem 
+    of unfolding neutron energy spectra from detector readings, with applications in radiation protection, 
+    nuclear physics research, and accelerator facilities.
+  dev_url: https://github.com/Radiationsafety/bssunfold
+  doc_url: https://bssunfold.readthedocs.io/en/latest/
+
+extra:
+  recipe-maintainers:
+    - Radiationsafety
