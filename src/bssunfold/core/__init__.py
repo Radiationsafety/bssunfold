@@ -293,6 +293,7 @@ from .unfold_tikhonov_sobolev_dp import (
 from .unfold_tikhonov_tv import solve_tikhonov_tv, unfold_tikhonov_tv
 from .unfold_tsvd import solve_tsvd, unfold_tsvd
 from .unfold_uno import solve_uno, solve_uno_full, unfold_uno, uno_filter
+from .unfold_vasin import holder_seminorm, solve_vasin, unfold_vasin
 from .unfold_zfit import solve_zfit_unfold, unfold_zfit
 
 # These two solver entry points also carry their solve_* counterpart (and
@@ -344,6 +345,7 @@ __all__ = [
     "solve_cgls",
     "solve_gks",
     "solve_tikhonov_tv",
+    "solve_vasin",
     "solve_tikhonov_sobolev_dp",
     "alpha_finder_generalized_discrepancy",
     "generalized_discrepancy",
@@ -516,6 +518,7 @@ __all__ = [
     "unfold_cgls",
     "unfold_gks",
     "unfold_tikhonov_tv",
+    "unfold_vasin",
     "unfold_tikhonov_sobolev_dp",
     "unfold_sandii",
     "unfold_ssr",
@@ -640,4 +643,6 @@ __all__ = [
     # LOUHI78 helpers (Routti & Sandberg 1980)
     "louhi_covariance",
     "louhi_smoothing_matrix",
+    # Vasin-Serazhitnikova helpers (2010)
+    "holder_seminorm",
 ]

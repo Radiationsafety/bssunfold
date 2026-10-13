@@ -210,6 +210,7 @@ from .unfold_tikhonov_sobolev_dp import (
 from .unfold_tikhonov_tv import unfold_tikhonov_tv as unfold_tikhonov_tv_impl
 from .unfold_tsvd import unfold_tsvd as unfold_tsvd_impl
 from .unfold_uno import unfold_uno as unfold_uno_impl
+from .unfold_vasin import unfold_vasin as unfold_vasin_impl
 from .unfold_zfit import unfold_zfit as unfold_zfit_impl
 
 __all__ = ["Detector"]
@@ -6729,6 +6730,99 @@ class Detector:
             noise_level=noise_level,
             grid_aware=grid_aware,
             calculate_errors=calculate_errors,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_vasin(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        alpha: float = 1e-2,
+        mu: float = 0.1,
+        data_norm: str = "linf",
+        weights: Any = "relative",
+        solver: str = "default",
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum with the Vasin-Serazhitnikova method.
+
+        Tikhonov regularization with the non-differentiable Holder-space
+        stabilizer ``max_ij |x_i - x_j| / |E_i - E_j|^mu`` and a Chebyshev
+        discrepancy (Vasin & Serazhitnikova, 2010), minimized exactly
+        through the epigraph form of the functional.  The stabilizer is
+        almost blind to the frequency of oscillation, so the method keeps
+        sharp spectral structures that smooth-penalty methods smear out.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Not used (provided for API consistency); the functional has no
+            a-priori term.
+        alpha : float, optional
+            Regularization parameter (default: 1e-2).
+        mu : float, optional
+            Holder exponent in ``(0, 1]`` (default: 0.1).
+        data_norm : {"linf", "l2"}, optional
+            Discrepancy norm (default: ``'linf'``).
+        weights : None, "relative" or array-like, optional
+            Per-reading scale of the discrepancy term (default: 'relative').
+        solver : str, optional
+            CVXPY solver name (default: ``'default'``).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_vasin_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
+            initial_spectrum=initial_spectrum,
+            alpha=alpha,
+            mu=mu,
+            data_norm=data_norm,
+            weights=weights,
+            solver=solver,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
             n_montecarlo=n_montecarlo,
             save_result=save_result,
             random_state=random_state,

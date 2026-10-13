@@ -79,6 +79,8 @@ def fig_response_functions() -> Path:
     ax.grid(True, which="minor", ls=":", alpha=0.15)
     out = OUT_DIR / "fig_response_functions.png"
     fig.savefig(str(out), dpi=300, bbox_inches="tight")
+    fig.savefig(str(out.with_suffix(".pdf")), bbox_inches="tight")
+    fig.savefig(str(out.with_suffix(".svg")), bbox_inches="tight")
     plt.close(fig)
     return out
 
@@ -136,6 +138,8 @@ def fig_cf252_combined() -> Path:
     ax.grid(True, which="minor", ls=":", alpha=0.15)
     out = OUT_DIR / "fig_cf252_combined.png"
     fig.savefig(str(out), dpi=300, bbox_inches="tight")
+    fig.savefig(str(out.with_suffix(".pdf")), bbox_inches="tight")
+    fig.savefig(str(out.with_suffix(".svg")), bbox_inches="tight")
     plt.close(fig)
     return out
 
@@ -192,6 +196,8 @@ def fig_tikhonov_convergence() -> Path:
     ax1.grid(True, which="major", ls="--", alpha=0.3)
     out = OUT_DIR / "fig_tikhonov_convergence.png"
     fig.savefig(str(out), dpi=300, bbox_inches="tight")
+    fig.savefig(str(out.with_suffix(".pdf")), bbox_inches="tight")
+    fig.savefig(str(out.with_suffix(".svg")), bbox_inches="tight")
     plt.close(fig)
     return out
 

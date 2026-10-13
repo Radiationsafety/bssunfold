@@ -111,6 +111,7 @@ categories:
         G --> G16["unfold_uno"]
         G --> G17["unfold_interpret"]
         G --> G18["unfold_louhi"]
+        G --> G22["unfold_vasin"]
         G --> G19["unfold_gnowee"]
         G --> G20["unfold_nnqp"]
         G --> G21["unfold_qpmad"]
@@ -850,6 +851,12 @@ Method Reference
      - `reading_uncertainties`, `noise_level`, `tau`, `inflation` (shift/relative), `tv_bound`, `functional` (tol/uss), `inner_box`, `tau_grid`, `smoothing` (none/variation/curvature), `face_slack`
      - —
      - Interval regularization of the point response matrix (Shary 2017 — a Lavrentiev shift in all directions at once): embeds ``A`` into the family ``A +- tau I`` (``inflation="shift"``) or ``A +- tau |a_ij|`` (``"relative"``) and takes the exact LP maximizer of Tol as the regularized spectrum (``spectrum`` is the pseudo-solution); ``tau = 0`` recovers the Chebyshev solution of the point system; widening shrinks the tolerable set and expands the united one; ``tau_grid`` sweeps the reserve/fit trade-off; the argmax is an LP vertex (spiky), so ``smoothing="variation"``/``"curvature"`` replace it by a smooth representative of the same max-Tol face (one extra LP, ``tol_max`` unchanged, ``face_slack`` relaxes the face)
+   * - 109
+     - ``unfold_vasin``
+     - Regularization
+     - `alpha`, `mu` (Holder exponent), `data_norm` (linf/l2), `weights` (relative/None/array), `solver`
+     - —
+     - Holder-space regularization (Vasin & Serazhitnikova 2010): Tikhonov functional with the non-differentiable stabilizer ``1/2 sum_j h_j x_j^2 + ||x||_inf + max_ij |x_i-x_j|/d_ij^mu`` and a Chebyshev discrepancy, minimized exactly through its epigraph (SOC) form; the non-smooth penalty is cheap for jumps, so steep spectral flanks survive where a quadratic penalty smears them; ``mu`` is the shape knob (``mu -> 0`` = oscillation penalty, ``mu = 1`` = Lipschitz) and ``alpha`` is inert while a non-negative exact fit exists
 
 
 

@@ -414,6 +414,7 @@ Notebook                                                         Method
 ``88-interval-pia-iaea.ipynb``                                  :meth:`~bssunfold.Detector.unfold_interval_pia`
 ``89-interval-matrix-iaea.ipynb``                               :meth:`~bssunfold.Detector.unfold_interval_matrix`
 ``90-interval-regularization-iaea.ipynb``                       :meth:`~bssunfold.Detector.unfold_interval_regularization`
+``91-vasin-iaea.ipynb``                                         :meth:`~bssunfold.Detector.unfold_vasin`
 ==============================================================  ============================
 
 Notebook ``81`` additionally demonstrates the CUQIpy quality-analysis

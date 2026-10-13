@@ -132,6 +132,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_louhi.unfold_louhi
 
+.. autofunction:: bssunfold.core.unfold_vasin.unfold_vasin
+
 .. autofunction:: bssunfold.core.unfold_mapem.unfold_mapem
 
 .. autofunction:: bssunfold.core.unfold_bsrem.unfold_bsrem
@@ -344,6 +346,10 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_louhi.louhi_smoothing_matrix
 
 .. autofunction:: bssunfold.core.unfold_louhi.louhi_covariance
+
+.. autofunction:: bssunfold.core.unfold_vasin.solve_vasin
+
+.. autofunction:: bssunfold.core.unfold_vasin.holder_seminorm
 
 .. autofunction:: bssunfold.core.unfold_mapem.solve_mapem
 

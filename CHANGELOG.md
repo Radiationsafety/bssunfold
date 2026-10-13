@@ -7,9 +7,32 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [Unreleased]
+## [0.30.0] - 2026-10-13
 
 ### Added
+
+- **`unfold_vasin` — Hölder-space regularization for discontinuous spectra**
+  (port of Vasin & Serazhitnikova, *Vyčislitel'nye Tekhnologii* 15(2), 2010):
+  a Tikhonov functional whose stabilizer is non-differentiable,
+  `1/2 Σ_j h_j x_j² + ‖x‖_∞ + max_ij |x_i − x_j| / d_ij^μ`, combined with the
+  article's Chebyshev discrepancy (`data_norm='linf'`, relative per-reading
+  weights by default) and explicit non-negativity.  Because the stabilizer is
+  almost blind to the frequency of oscillation, it charges a jump by its height
+  rather than by its slope, so steep flanks survive: on a folded spectrum with an
+  explicit discontinuity the 20-80 % transition spans 4 bins versus 12 for the
+  quadratic penalty.  `mu` is the shape knob (`mu -> 0` degenerates to an
+  oscillation penalty, `mu = 1` is the Lipschitz case); on underdetermined
+  consistent data a non-negative exact fit exists, so `alpha` drops out of the
+  trade-off and only regains influence for inconsistent readings.
+  - New: `core/unfold_vasin.py` (`solve_vasin`, `unfold_vasin`,
+    `holder_seminorm`), `Detector.unfold_vasin`, `tests/test_vasin.py`,
+    `examples/91-vasin-iaea.ipynb`, `docs/vasin.rst`.
+  - The functional is minimized **exactly** through its epigraph (second-order
+    cone) form with CVXPY rather than by the article's prox-method with an inner
+    subgradient/Fejér process: at unfolding sizes that iteration does not come
+    close to the minimizer within any reasonable budget, while the epigraph solve
+    returns the same minimizer in about 30 ms.  The stabilizer, the discrepancy
+    norm and the positivity constraint are the article's.
 
 - **CI: Python 3.15 in the cross-platform matrix** —
   `.github/workflows/cross-platform-tests.yml` now tests `3.11`–`3.15` on
