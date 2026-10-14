@@ -141,6 +141,7 @@ Patch module-level attributes on the installed package path (e.g., `bssunfold.pl
 
 - **Python 3.15** (3.15.0b3, Jun 2026): fully compatible — all 1123 tests pass (with all optional deps: odl, lmfit, qpsolvers, pytikhonov), ruff/flake8 clean.
 - No binary wheels exist yet, so building from source is required. System -dev packages or extracted equivalents are needed for compilation of numpy, scipy, pandas, cvxpy, etc.
+- **CI matrix covers 3.11–3.14 only** (`cross-platform-tests.yml`): a full `uv sync --group dev` on 3.15 still fails — `numba 0.65.1` (via `pymc` → `pytensor`) hard-rejects Python >=3.15, and `uv.lock` has no cp315 wheels for numpy/scipy/pandas/matplotlib/numba/llvmlite/cvxpy/osqp/highspy/pymoo (sdist builds only; scipy needs a system BLAS), while tensorflow/pyqubo/cplex ship no cp315 wheel in any version. The dev-group markers already exclude `pyqubo`/`tensorflow`/`zfit` on >=3.14 and `cplex` on >=3.15. Re-add 3.15 to the matrix after upgrading the lock.
 - The `requires-python = ">=3.11"` constraint remains unchanged.
 - Classifier `"Programming Language :: Python :: 3.15"` has been added.
 
