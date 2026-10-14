@@ -245,7 +245,8 @@ dev = [
     "z3-solver>=4.13.0",
     "pyscipopt>=6.0.0",
     "docplex>=2.28.0",
-    "cplex>=22.1.0",
+    # IBM ships cp311-cp314 wheels only (no sdist): skip where unsupported.
+    "cplex>=22.1.0; python_version < '3.15'",
     "dynapyt>=4.1.0",
     "pip-audit>=2.10.1",
     "bandit>=1.9.4",
@@ -257,10 +258,12 @@ dev = [
     "vulture>=2.14",
     "sphinxcontrib-mermaid>=2.1.0",
     "pymoo>=0.6.2",
-    "zfit>=0.28.0",
-    "pyqubo>=1.5.0",
+    # pyqubo (cp311-cp313) and tensorflow (cp310-cp313) publish no wheels
+    # and no sdist for newer interpreters; zfit is unusable without TF.
+    "zfit>=0.28.0; python_version < '3.14'",
+    "pyqubo>=1.5.0; python_version < '3.14'",
     "dwave-neal>=0.6.0",
-    "tensorflow>=2.21.0",
+    "tensorflow>=2.21.0; python_version < '3.14'",
     "scikit-learn>=1.9.0",
 ]
 
