@@ -36,6 +36,18 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    # .python-version (3.12) иначе перебивает matrix: uv sync/uv run пересоздают
+    # .venv под запрошенную версию, поэтому все job'ы фактически гоняли 3.12.
+    # Фиксируем UV_PYTHON на интерпретаторе, который выше поставил setup-python.
+    - name: Use the matrix interpreter for uv
+      shell: bash
+      run: |
+        if [ -n "$pythonLocation" ]; then
+          echo "UV_PYTHON=$pythonLocation" >> "$GITHUB_ENV"
+        else
+          echo "UV_PYTHON=${{ matrix.python-version }}" >> "$GITHUB_ENV"
+        fi
+
     - name: Install dependencies
       run: uv sync --group dev
 
@@ -61,6 +73,16 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.13"
+
+    # То же перебивание .python-version (3.12), что и в матричном job'е выше.
+    - name: Use the requested interpreter for uv
+      shell: bash
+      run: |
+        if [ -n "$pythonLocation" ]; then
+          echo "UV_PYTHON=$pythonLocation" >> "$GITHUB_ENV"
+        else
+          echo "UV_PYTHON=3.13" >> "$GITHUB_ENV"
+        fi
 
     - name: Install dependencies
       run: uv sync --group dev

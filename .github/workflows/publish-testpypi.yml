@@ -8,10 +8,12 @@
 # Uses an API token (secret TESTPYPI_TOKEN) when configured, otherwise
 # Trusted Publishing (OIDC). Both are handled by the publish step below.
 # Token: https://test.pypi.org/manage/account/token/  (scoped to bssunfold)
-# Trusted publisher: https://test.pypi.org/manage/account/publishing/
+# Trusted publisher: https://test.pypi.org/manage/project/bssunfold/settings/publishing/
 #   PyPI Project:  bssunfold
 #   Workflow:      publish-testpypi.yml
-#   Environment:   testpypi
+#   Environment:   testpypi   <-- the registration is pinned to this
+#                                environment; the job below must declare the
+#                                same one or PyPI rejects the OIDC token.
 # ─────────────────────────────────────────────────────────────
 name: Publish to TestPyPI
 
@@ -36,7 +38,10 @@ permissions:
 jobs:
   test-publish:
     runs-on: ubuntu-latest
-    environment: testpypi
+    # PyPI validates the OIDC "environment" claim against the trusted
+    # publisher registration, which is pinned to environment `testpypi`.
+    # Keep this expression in sync with DEPLOY_ENVIRONMENT below.
+    environment: ${{ inputs.environment || 'testpypi' }}
 
     steps:
     - uses: actions/checkout@v5

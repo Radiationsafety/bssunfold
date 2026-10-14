@@ -12,7 +12,6 @@ IBM CPLEX is installed in the dev environment (Community Edition), so the
 their graceful-failure contracts.
 """
 
-import warnings
 from unittest.mock import patch
 
 import numpy as np
@@ -53,6 +52,20 @@ SOLVE_FUNCS = {
 def _require_cplex():
     if not is_commercial_solver_available("cplex"):
         pytest.skip("CPLEX engine (license required) not available")
+
+
+def _warned_messages(warn_mock):
+    """Return the string messages passed to the mocked ``warnings.warn``.
+
+    Asserting on the mock instead of ``warnings.catch_warnings(record=True)``
+    keeps the check independent of the process-global warning filters and
+    registries, which are racy: third-party code (e.g. dill, pymoo) inserts
+    bare ``filterwarnings("ignore")`` entries and ``catch_warnings`` is not
+    thread-safe, so a background thread can swallow the warning entirely
+    (observed once on windows CI as ``emitted: []`` although the code did
+    call ``warnings.warn``).
+    """
+    return [str(c.args[0]) for c in warn_mock.call_args_list if c.args]
 
 
 @pytest.fixture
@@ -311,31 +324,28 @@ class TestSolveWithCplex:
         b = np.array([5.0, 6.0])
         # Patch both re-export names of the same class: an exception
         # raised anywhere before problem.solve used to be masked by
-        # pytest.warns as "DID NOT WARN" on windows/3.14 CI, so collect
-        # warnings explicitly and surface any escaped exception.
+        # pytest.warns as "DID NOT WARN" on windows/3.14 CI.  The warning
+        # is captured through a warnings.warn mock (see _warned_messages)
+        # rather than the racy global warning filters, and any escaped
+        # exception is surfaced explicitly.
         with patch(
             "cvxpy.problems.problem.Problem.solve",
             side_effect=RuntimeError("no license found"),
         ), patch(
             "cvxpy.Problem.solve",
             side_effect=RuntimeError("no license found"),
-        ):
-            with warnings.catch_warnings(record=True) as rec:
-                warnings.simplefilter("always")
-                try:
-                    x = solve_commercial(A, b, solver="cplex")
-                except Exception as exc:
-                    pytest.fail(
-                        f"solve_commercial raised instead of warning: {exc!r}"
-                    )
+        ), patch("warnings.warn") as warn_mock:
+            try:
+                x = solve_commercial(A, b, solver="cplex")
+            except Exception as exc:
+                pytest.fail(
+                    f"solve_commercial raised instead of warning: {exc!r}"
+                )
         assert x is None, (
             "mocked solver error was not intercepted — the real engine "
             "solved silently (no warning, non-None spectrum)"
         )
-        msgs = [
-            str(w.message) for w in rec
-            if issubclass(w.category, UserWarning)
-        ]
+        msgs = _warned_messages(warn_mock)
         assert any("license" in m for m in msgs), f"emitted: {msgs}"
 
     def test_non_optimal_status_returns_none(self):
@@ -348,20 +358,15 @@ class TestSolveWithCplex:
         ), patch(
             "cvxpy.Problem.solve",
             side_effect=lambda *a, **k: None,
-        ):
-            with warnings.catch_warnings(record=True) as rec:
-                warnings.simplefilter("always")
-                try:
-                    x = solve_commercial(A, b, solver="cplex")
-                except Exception as exc:
-                    pytest.fail(
-                        f"solve_commercial raised instead of warning: {exc!r}"
-                    )
+        ), patch("warnings.warn") as warn_mock:
+            try:
+                x = solve_commercial(A, b, solver="cplex")
+            except Exception as exc:
+                pytest.fail(
+                    f"solve_commercial raised instead of warning: {exc!r}"
+                )
         assert x is None
-        msgs = [
-            str(w.message) for w in rec
-            if issubclass(w.category, UserWarning)
-        ]
+        msgs = _warned_messages(warn_mock)
         assert any(
             "did not find a solution" in m for m in msgs
         ), f"emitted: {msgs}"
