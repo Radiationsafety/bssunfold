@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 106 methods are accessible as instance methods on the
+All 107 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -112,6 +112,7 @@ categories:
         G --> G17["unfold_interpret"]
         G --> G18["unfold_louhi"]
         G --> G22["unfold_vasin"]
+        G --> G23["unfold_fisher_information"]
         G --> G19["unfold_gnowee"]
         G --> G20["unfold_nnqp"]
         G --> G21["unfold_qpmad"]
@@ -857,6 +858,12 @@ Method Reference
      - `alpha`, `mu` (Holder exponent), `data_norm` (linf/l2), `weights` (relative/None/array), `solver`
      - —
      - Holder-space regularization (Vasin & Serazhitnikova 2010): Tikhonov functional with the non-differentiable stabilizer ``1/2 sum_j h_j x_j^2 + ||x||_inf + max_ij |x_i-x_j|/d_ij^mu`` and a Chebyshev discrepancy, minimized exactly through its epigraph (SOC) form; the non-smooth penalty is cheap for jumps, so steep spectral flanks survive where a quadratic penalty smears them; ``mu`` is the shape knob (``mu -> 0`` = oscillation penalty, ``mu = 1`` = Lipschitz) and ``alpha`` is inert while a non-negative exact fit exists
+   * - 110
+     - ``unfold_fisher_information``
+     - Regularization
+     - `alpha`, `derivative_order`, `w_max`, `max_iterations`, `tolerance`, `damping`
+     - —
+     - Minimum Fisher Information (MFI, Miksuta-Michalik et al. 2026, JT-60SA activation study): Tikhonov-form penalty whose operator is the solution-dependent Fisher information matrix ``B^T W B`` with weights ``1/f_i`` capped at ``w_max``; iterated to a fixed point from a positive initial guess (flat default), reporting ``iterations``/``converged``; the ``1/f`` weighting suppresses spurious structure in low-flux bins; ``alpha = 0`` reduces to clipped least squares
 
 
 

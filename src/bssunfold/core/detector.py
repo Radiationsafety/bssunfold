@@ -94,6 +94,9 @@ from .unfold_extragradient import (
     unfold_extragradient as unfold_extragradient_impl,
 )
 from .unfold_ferdor import unfold_ferdor as unfold_ferdor_impl
+from .unfold_fisher import (
+    unfold_fisher_information as unfold_fisher_information_impl,
+)
 from .unfold_fission_ga import unfold_fission_ga as unfold_fission_ga_impl
 from .unfold_fista import unfold_fista as unfold_fista_impl
 from .unfold_frank_wolfe import unfold_frank_wolfe as unfold_frank_wolfe_impl
@@ -6053,6 +6056,104 @@ class Detector:
             form=form,
             q=q,
             n_iterations=n_iterations,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_fisher_information(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        alpha: float = 0.01,
+        derivative_order: int = 1,
+        w_max: float | None = None,
+        max_iterations: int = 50,
+        tolerance: float = 1e-6,
+        damping: float = 1.0,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum using minimum Fisher information (MFI).
+
+        Implements the MFI method of Miksuta-Michalik et al. (2026),
+        eqs. (3)-(6): Tikhonov-form regularization with the Fisher
+        information operator ``L = B^T W B``, ``W = diag(1/f_i)``
+        (capped at ``w_max``), solved by iterating the weights from a
+        positive initial guess (default: flat spectrum).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Positive initial guess (default: flat unit spectrum).
+        alpha : float, optional
+            Regularization strength lambda^2 (default: 0.01).
+        derivative_order : {1, 2}, optional
+            Order of the difference operator B (default: 1).
+        w_max : float, optional
+            Upper bound of the Fisher weights (default: None —
+            adaptive cap at 1e-4 of the current peak flux).
+        max_iterations : int, optional
+            Maximum weight-update iterations (default: 50).
+        tolerance : float, optional
+            Relative-change convergence threshold (default: 1e-6).
+        damping : float, optional
+            Relaxation factor in (0, 1] (default: 1.0).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary, with extra keys ``alpha``,
+            ``derivative_order``, ``w_max``, ``tolerance``,
+            ``damping``, ``iterations`` and ``converged``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_fisher_information_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
+            initial_spectrum=initial_spectrum,
+            alpha=alpha,
+            derivative_order=derivative_order,
+            w_max=w_max,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            damping=damping,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
