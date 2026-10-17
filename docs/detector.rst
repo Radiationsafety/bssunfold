@@ -134,6 +134,8 @@ The following unfolding methods are available through the Detector class:
 
 .. autofunction:: bssunfold.core.unfold_vasin.unfold_vasin
 
+.. autofunction:: bssunfold.core.unfold_nonextensive.unfold_nonextensive
+
 .. autofunction:: bssunfold.core.unfold_mapem.unfold_mapem
 
 .. autofunction:: bssunfold.core.unfold_bsrem.unfold_bsrem
@@ -350,6 +352,12 @@ Underlying solver functions:
 .. autofunction:: bssunfold.core.unfold_vasin.solve_vasin
 
 .. autofunction:: bssunfold.core.unfold_vasin.holder_seminorm
+
+.. autofunction:: bssunfold.core.unfold_nonextensive.solve_nonextensive
+
+.. autofunction:: bssunfold.core.unfold_nonextensive.nonextensive_model
+
+.. autofunction:: bssunfold.core.unfold_nonextensive.fit_model_to_spectrum
 
 .. autofunction:: bssunfold.core.unfold_mapem.solve_mapem
 

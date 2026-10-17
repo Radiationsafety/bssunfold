@@ -137,6 +137,7 @@ categories:
         I --> I9["unfold_express"]
         I --> I10["unfold_fission_ga"]
         I --> I11["unfold_nspline"]
+        I --> I12["unfold_nonextensive"]
         M --> M1["unfold_odl_pdhg"]
         M --> M2["unfold_odl_douglas_rachford"]
          N --> N1["unfold_maeo"]
@@ -857,6 +858,12 @@ Method Reference
      - `alpha`, `mu` (Holder exponent), `data_norm` (linf/l2), `weights` (relative/None/array), `solver`
      - —
      - Holder-space regularization (Vasin & Serazhitnikova 2010): Tikhonov functional with the non-differentiable stabilizer ``1/2 sum_j h_j x_j^2 + ||x||_inf + max_ij |x_i-x_j|/d_ij^mu`` and a Chebyshev discrepancy, minimized exactly through its epigraph (SOC) form; the non-smooth penalty is cheap for jumps, so steep spectral flanks survive where a quadratic penalty smears them; ``mu`` is the shape knob (``mu -> 0`` = oscillation penalty, ``mu = 1`` = Lipschitz) and ``alpha`` is inert while a non-negative exact fit exists
+   * - 110
+     - ``unfold_nonextensive``
+     - Parametric
+     - `initial_params`, `initial_spectrum`, `search` (global/local), `ga_popsize`, `ga_maxiter`, `ga_tol`, `ga_polish`, `lm_max_nfev`, `relative`
+     - —
+     - Non-extensive (Tsallis) parametric unfolding (ZhangSun et al. 2026): a three-component q-exponential spectrum ``C exp_q(-(beta E^{-1/2} + g E)) E^{-n}`` (thermal/intermediate/fast, fifteen parameters, ``E`` in eV) fitted to the readings by minimizing the sum of squared relative deviations; ``search="global"`` runs a differential-evolution search plus a bounded least-squares refinement (the paper's 1stOpt analogue), ``search="local"`` refines only from the start; an ``initial_spectrum`` is first fitted to eq. (8) to provide an informed start; ``q -> 1`` recovers the Boltzmann-Gibbs exponential
 
 
 

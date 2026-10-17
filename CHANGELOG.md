@@ -7,6 +7,45 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [Unreleased]
+
+### Added
+
+- **`unfold_nonextensive` — non-extensive (Tsallis) parametric unfolding**
+  (port of ZhangSun, Li, Su, Li, Guo, Wu & Zhang, *Applied Radiation and
+  Isotopes* 2026, DOI 10.1016/j.apradiso.2026.113015): the reactor spectrum is
+  an open, non-ergodic system described by the Tsallis entropy
+  `S_q = k (1 - Σ p_i^q) / (q - 1)`.  Maximizing it under normalization,
+  particle-number and average-energy constraints yields a **q-exponential**
+  flux density `C exp_q(-u) E^{-n}` with `u = beta E^{-1/2} + g E`
+  (`E` in eV); the reactor spectrum is a superposition of **three** such
+  components (thermal `< 0.5 eV`, intermediate `0.5 eV .. 1e5 eV`, fast
+  `>= 1e5 eV`) carrying **fifteen** free parameters
+  `(C, beta, g, q, n)` per component.  The parameters are fitted by
+  minimizing the sum of squared **relative** deviations of the activation
+  rates (paper eq. (9)); the paper's initial-value-independent 1stOpt global
+  optimizer is replaced by `scipy.optimize.differential_evolution` followed
+  by a bounded `least_squares` refinement (`search="global"`), with a
+  `search="local"` least-squares-only mode.  An a-priori spectrum given via
+  `initial_spectrum` is first fitted to eq. (8) (`fit_model_to_spectrum`) to
+  provide a physically informed starting vector, as recommended in section 4
+  of the paper.
+  - New: `core/unfold_nonextensive.py` (`NONEXTENSIVE_PARAM_NAMES`,
+    `NONEXTENSIVE_PARAM_BOUNDS`, `E_THERMAL_MAX_EV`, `E_FAST_MIN_EV`,
+    `nonextensive_model`, `fit_model_to_spectrum`, `solve_nonextensive`,
+    `unfold_nonextensive`), `Detector.unfold_nonextensive`,
+    `tests/test_nonextensive.py`, `examples/92-nonextensive-iaea.ipynb`.
+  - Numerical notes: the `q -> 1` Boltzmann-Gibbs limit is branched out
+    explicitly (plain exponential), the q-exponential base is clipped so the
+    `q < 1` compact-support branch decays to zero, and amplitudes are
+    parameterized on a `log10(C)` scale.  No new dependencies
+    (NumPy/SciPy only).
+  - Caveat: with the ten Bonner spheres of the built-in GSF set the
+    fifteen-parameter problem is underdetermined (the paper used 33
+    activation channels), so the folded readings are reproduced while the
+    pointwise shape is not unique; supplying an a-priori spectrum anchors
+    the solution.
+
 ## [0.30.0] - 2026-10-13
 
 ### Added
