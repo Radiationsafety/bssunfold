@@ -244,7 +244,7 @@ Methods are grouped into the following categories (all accessible as
 | Dictionary/sparse | `unfold_cs`, `unfold_nnksvd` |
 | Classic codes | `unfold_crystal_ball`, `unfold_rfsp_jul`, `unfold_staysl` |
 | Pipeline & ensemble | `unfold_combined`, `unfold_cascade`, `unfold_composite`, `unfold_ensemble`, `unfold_iterative_refinement`, `unfold_binned`, `unfold_maeo` |
-| Parametric | `unfold_parametric`, `unfold_parametric2`, `unfold_fruit_like`, `unfold_express`, `unfold_fission_ga` |
+| Parametric | `unfold_parametric`, `unfold_parametric2`, `unfold_fruit_like`, `unfold_express`, `unfold_fission_ga`, `unfold_nonextensive` |
 | Advanced proximal | `unfold_odl_pdhg`, `unfold_odl_douglas_rachford` |
 | Regularization | `unfold_tikhonov_tv`, `unfold_tikhonov_sobolev_dp`, `unfold_tikhonov_legendre`, `unfold_lavrentiev`, `unfold_vasin`, `unfold_epic`, `unfold_interpret` |
 | Interval analysis | `unfold_interval`, `unfold_interval_tol`, `unfold_interval_posterior`, `unfold_interval_center`, `unfold_interval_pia`, `unfold_interval_matrix`, `unfold_interval_regularization`, `unfold_interval_intvalpy` |

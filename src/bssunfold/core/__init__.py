@@ -202,6 +202,16 @@ from .unfold_nnksvd import (
     unfold_nnksvd,
 )
 from .unfold_nnqp import solve_nnqp, unfold_nnqp
+from .unfold_nonextensive import (
+    E_FAST_MIN_EV,
+    E_THERMAL_MAX_EV,
+    NONEXTENSIVE_PARAM_BOUNDS,
+    NONEXTENSIVE_PARAM_NAMES,
+    fit_model_to_spectrum,
+    nonextensive_model,
+    solve_nonextensive,
+    unfold_nonextensive,
+)
 from .unfold_nsduaz import (
     builtin_catalogue,
     select_catalogue_initial,
@@ -419,6 +429,14 @@ __all__ = [
     "solve_nsduaz",
     "select_catalogue_initial",
     "builtin_catalogue",
+    # Non-extensive (Tsallis) parameterized spectrum (ZhangSun et al., 2026)
+    "solve_nonextensive",
+    "NONEXTENSIVE_PARAM_NAMES",
+    "NONEXTENSIVE_PARAM_BOUNDS",
+    "nonextensive_model",
+    "fit_model_to_spectrum",
+    "E_THERMAL_MAX_EV",
+    "E_FAST_MIN_EV",
     # N-spline method (Islamgulov & Lartsev, Atomic Energy 104(5) 2008)
     "solve_nspline",
     "solve_nspline_full",
@@ -536,6 +554,7 @@ __all__ = [
     "unfold_rebunki",
     "unfold_nsduaz",
     "unfold_nspline",
+    "unfold_nonextensive",
     "unfold_osem",
     "unfold_osem_anlm",
     "unfold_mapem",
