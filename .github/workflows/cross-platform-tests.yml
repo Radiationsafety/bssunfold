@@ -78,6 +78,11 @@ jobs:
 
     - name: Upload test results (JUnit)
       if: always()
+      # The artifact store (twirp CreateArtifact) intermittently times out on
+      # GitHub-hosted runners (e.g. run 38905057627, macos/3.12). The upload is
+      # diagnostic only — pytest already passed in this step's job — so a lost
+      # JUnit file must not fail the matrix.
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: junit-${{ matrix.os }}-${{ matrix.python-version }}
