@@ -85,7 +85,7 @@ Usage
        readings, alpha=1e-4, initial_spectrum=prior_spectrum,
    )
 
-Examples: ``examples/92-fisher-information-iaea.ipynb`` (method demo
+Examples: ``examples/94-fisher-information-iaea.ipynb`` (method demo
 with an alpha sweep and the paper's TR/MFI/ME/ML comparison panel) and
 ``examples/93-mfi-vs-tr-benchmark.ipynb`` (head-to-head MFI vs
 Tikhonov benchmark with the paper-style per-region error table).

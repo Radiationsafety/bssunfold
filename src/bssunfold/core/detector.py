@@ -166,6 +166,7 @@ from .unfold_mystic import unfold_mystic as unfold_mystic_impl
 from .unfold_mystic import unfold_mystic_hybrid as unfold_mystic_hybrid_impl
 from .unfold_nnksvd import unfold_nnksvd as unfold_nnksvd_impl
 from .unfold_nnqp import unfold_nnqp as unfold_nnqp_impl
+from .unfold_nonextensive import unfold_nonextensive as unfold_nonextensive_impl
 from .unfold_nsduaz import unfold_nsduaz as unfold_nsduaz_impl
 from .unfold_nspline import unfold_nspline as unfold_nspline_impl
 from .unfold_odl_advanced import (
@@ -7977,6 +7978,121 @@ class Detector:
             smoothing=smoothing,
             max_iterations=max_iterations,
             tolerance=tolerance,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_nonextensive(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        initial_params: dict[str, float] | None = None,
+        search: str = "global",
+        ga_popsize: int = 15,
+        ga_maxiter: int = 100,
+        ga_tol: float = 1e-10,
+        ga_polish: bool = True,
+        lm_max_nfev: int = 2000,
+        relative: bool = True,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum with the non-extensive (Tsallis) method.
+
+        Port of the parameterized a-priori spectrum of ZhangSun et al.,
+        Applied Radiation and Isotopes (2026).  The spectrum is a
+        superposition of three q-exponential components (thermal,
+        intermediate, fast; paper eq. (8)) derived by maximizing the
+        Tsallis entropy under normalization, particle-number and
+        average-energy constraints.  Its fifteen parameters are fitted to
+        the measured readings by minimizing the sum of squared relative
+        deviations (paper eq. (9)); the paper solves this with the global
+        optimizer of the 1stOpt software, here replaced by a
+        differential-evolution global search followed by a bounded
+        nonlinear least-squares refinement.
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess (unused by the parametric method).
+        initial_params : Optional[Dict[str, float]], optional
+            Optional starting parameter values (keys of
+            ``NONEXTENSIVE_PARAM_NAMES``).
+        search : {"global", "local"}, optional
+            ``"global"`` (default) runs a stochastic global search and a
+            least-squares refinement; ``"local"`` runs only the
+            least-squares stage from ``initial_params``.
+        ga_popsize : int, optional
+            Differential-evolution population multiplier (default: 15).
+        ga_maxiter : int, optional
+            Maximum differential-evolution generations (default: 100).
+        ga_tol : float, optional
+            Differential-evolution convergence tolerance (default: 1e-10).
+        ga_polish : bool, optional
+            Polish the global result with L-BFGS-B (default: True).
+        lm_max_nfev : int, optional
+            Maximum function evaluations of the least-squares refinement
+            (default: 2000).
+        relative : bool, optional
+            Relative-deviation weighting of the objective (default: True).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : int, optional
+            Random seed for reproducibility.
+        max_neutron_energy : float, optional
+            Truncate the energy grid above this value (MeV).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary with additional keys
+            ``model_params`` (fitted parameters, objective and per-reading
+            relative deviations) and ``energy_nodes_eV``.
+        """
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_nonextensive_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
+            initial_spectrum=initial_spectrum,
+            initial_params=initial_params,
+            search=search,
+            ga_popsize=ga_popsize,
+            ga_maxiter=ga_maxiter,
+            ga_tol=ga_tol,
+            ga_polish=ga_polish,
+            lm_max_nfev=lm_max_nfev,
+            relative=relative,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

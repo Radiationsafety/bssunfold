@@ -41,6 +41,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/unfold_louhi.py` — LOUHI78 unfolding (`unfold_louhi`/`solve_louhi`, Routti & Sandberg 1980): constrained weighted least squares with generalized smoothing solved by Hildreth's iterative coordinate QP; `louhi_smoothing_matrix` / `louhi_covariance` helpers, `auto_smooth=True` golden-section regression of the smoothing weight
 - `core/unfold_vasin.py` — Hölder-space regularization (`unfold_vasin`/`solve_vasin`, Vasin & Serazhitnikova 2010): Tikhonov functional with the non-differentiable stabilizer `1/2 sum_j h_j x_j^2 + ||x||_inf + [x]_{mu,inf}` (Hölder seminorm `max_ij |x_i-x_j|/d_ij^mu`) and a Chebyshev discrepancy; minimized exactly via its epigraph (SOC) form with cvxpy instead of the article's prox/subgradient iteration, which does not converge at unfolding sizes; `holder_seminorm` evaluator, `mu` is the shape knob (`alpha` is inert on the exact-fit face of underdetermined data)
 - `core/unfold_parametric2.py` — public BON95 `solve_parametric2`/`unfold_parametric2`; family logic lives in `core/_bon95.py`
+- `core/unfold_nonextensive.py` — non-extensive (Tsallis) parametric unfolding (`unfold_nonextensive`/`solve_nonextensive`, port of ZhangSun et al., Applied Radiation and Isotopes 2026): three-component q-exponential spectrum `C exp_q(-(beta E^{-1/2} + g E)) E^{-n}` (thermal/intermediate/fast, 15 parameters, `E` in eV) fitted to the readings by minimizing the squared relative deviations; `search="global"` = `differential_evolution` + bounded `least_squares` (the paper's 1stOpt analogue), `search="local"` = least-squares only; `nonextensive_model`, `fit_model_to_spectrum` (fit eq. (8) to an a-priori spectrum for an informed start), `NONEXTENSIVE_PARAM_NAMES`/`NONEXTENSIVE_PARAM_BOUNDS`, `E_THERMAL_MAX_EV`/`E_FAST_MIN_EV`; `q -> 1` recovers the Boltzmann-Gibbs (plain exponential) limit
 - `core/_matrix_utils.py` — SVD, derivative matrix, tikhonov system building
 - `core/_base_unfolder.py`, `core/_montecarlo.py` — internal base class and Monte Carlo uncertainty
 - `core/_solver_backends.py` — shared solver-backend resolution (`_parse_solver_backend`, `_resolve_cvxpy_solvers`, `_resolve_qpsolver_name`)
@@ -81,6 +82,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 | `tests/test_ogorodnikov2024.py` | Ogorodnikov (2024) ports: Fission-model GA+LM (`unfold_fission_ga`) and Tikhonov + generalized discrepancy (`unfold_tikhonov_sobolev_dp`, `alpha_finder_generalized_discrepancy`) — quasi-real GSF experiments, DP property checks, IAEA Compendium data cases |
 | `tests/test_osem_anlm.py` | OSEM-ANLM (`unfold_osem_anlm`/`solve_osem_anlm`, Jamaati et al. 2026): ANLM filter identity/smoothing properties, `estimate_noise_1d`, solver equivalence with plain OSEM for the identity filter, `post`-mode composition, subset variants, validation, Detector wrapper |
 | `tests/test_louhi.py` | LOUHI78 (`unfold_louhi`/`solve_louhi`, Routti & Sandberg 1980): smoothing operators, Hildreth QP core, `auto_smooth` golden-section regression, `louhi_covariance` error propagation, validation, Detector integration |
+| `tests/test_nonextensive.py` | Non-extensive (Tsallis) parametric unfolding (`unfold_nonextensive`/`solve_nonextensive`, ZhangSun et al. 2026): q-exponential and its `q -> 1` Boltzmann-Gibbs limit, 15-parameter layout / component windows / positivity, synthetic recovery, bounds, `relative` weighting, global/local search, seed reproducibility, `initial_params`, `Detector.unfold_nonextensive` (energy masking, Monte-Carlo), IAEA end-to-end |
 | `tests/test_lavrentiev.py` | Lavrentiev regularization with shift (`unfold_lavrentiev`/`solve_lavrentiev`): rectangular/square matrices, shift behaviour, Tikhonov equivalence at zero shift, Detector integration, IAEA end-to-end |
 | `tests/test_fisher_information.py` | Minimum Fisher Information (`unfold_fisher_information`/`solve_fisher_information`, Miksuta-Michalik et al. 2026): validation, `alpha=0` least-squares equivalence, fixed-point stationarity, weight capping at `W_max`, smoothing vs alpha, derivative orders/grid-aware operator, damping, Detector integration + Monte-Carlo |
 | `tests/test_vasin.py` | Hölder-space regularization (`unfold_vasin`/`solve_vasin`, Vasin & Serazhitnikova 2010): seminorm properties (range limit at `mu->0`, Lipschitz growth), independent functional/perturbation optimality checks, the paper's Model-2 box benchmark with the jump-sharpness contrast against Tikhonov, validation and edge cases, Detector integration |
@@ -89,7 +91,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 
 ### IAEA notebooks (`examples/`)
 
-Numbered `NN-<method>-iaea.ipynb` notebooks demonstrate each unfolding method on the IAEA Compendium benchmark spectrum (`t4-14-s.txt_1`): detector setup, reference-spectrum folding, unfolding with parameter sweeps, informed a-priori comparison, baselines (GRAVEL/MLEM) and quality metrics. `82-lavrentiev-iaea.ipynb` covers `unfold_lavrentiev`; `87`–`90` cover the interval family (center, PIA, matrix, regularization); `91-vasin-iaea.ipynb` covers `unfold_vasin`, including the discontinuous-spectrum edge comparison against the quadratic penalty; `92-fisher-information-iaea.ipynb` covers `unfold_fisher_information` (MFI), reproducing the JT-60SA paper's TR/MFI/ME/ML comparison panel and the "average spectrum" averaging; `93-mfi-vs-tr-benchmark.ipynb` benchmarks MFI against Tikhonov regularization (TR) over an alpha grid with per-region quality metrics.
+Numbered `NN-<method>-iaea.ipynb` notebooks demonstrate each unfolding method on the IAEA Compendium benchmark spectrum (`t4-14-s.txt_1`): detector setup, reference-spectrum folding, unfolding with parameter sweeps, informed a-priori comparison, baselines (GRAVEL/MLEM) and quality metrics. `82-lavrentiev-iaea.ipynb` covers `unfold_lavrentiev`; `87`–`90` cover the interval family (center, PIA, matrix, regularization); `91-vasin-iaea.ipynb` covers `unfold_vasin`, including the discontinuous-spectrum edge comparison against the quadratic penalty; `92-nonextensive-iaea.ipynb` covers `unfold_nonextensive` (Tsallis q-exponentials, fitted parameters, relative-deviation chart, no-prior vs informed-prior comparison); `94-fisher-information-iaea.ipynb` covers `unfold_fisher_information` (MFI), reproducing the JT-60SA paper's TR/MFI/ME/ML comparison panel and the "average spectrum" averaging; `93-mfi-vs-tr-benchmark.ipynb` benchmarks MFI against Tikhonov regularization (TR) over an alpha grid with per-region quality metrics.
 
 ### Analysis tools
 
@@ -106,8 +108,12 @@ Numbered `NN-<method>-iaea.ipynb` notebooks demonstrate each unfolding method on
   Run it with tests/ included: a src-only scan flags public methods and helpers
   that are only exercised from tests. Known false positives to ignore: the
   `*args`/`**kwargs` fallback signatures in `_numba_jit.py` (must accept any
-  args before raising ImportError) and the docplex `context.solver.log_output`
-  API attribute. Verify candidate findings with `grep -rn "<name>" src/ tests/`.
+  args before raising ImportError), the docplex `context.solver.log_output`
+  API attribute, and the signature-compatibility parameters `log_steps` in
+  `solve_nonextensive` (the response matrix already carries `d(ln E)`) and the
+  unused `**kwargs` of the `solve_wrapper` closures (they must swallow the
+  engine-supplied `x0`). Verify candidate findings with
+  `grep -rn "<name>" src/ tests/`.
 - **pip-audit** — dependency vulnerability scan. Needs network (OSV). Runs in the
   `security-analysis.yml` CI job, not the unit suite. Current allowlist:
   `CVE-2026-61632` (pymdown-extensions path traversal, dev-only docs tool,

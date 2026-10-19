@@ -176,7 +176,7 @@ class TestAllUnfoldMethodsImported:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_vasin", "unfold_fisher_information",
+        "unfold_vasin", "unfold_fisher_information", "unfold_nonextensive",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress",
         "unfold_interval_center", "unfold_interval_pia", "unfold_interval_matrix",
         "unfold_interval_regularization",
@@ -199,7 +199,7 @@ class TestAllUnfoldMethodsImported:
             "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
             "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
             "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-            "unfold_vasin", "unfold_fisher_information",
+            "unfold_vasin", "unfold_fisher_information", "unfold_nonextensive",
             "unfold_gurobi", "unfold_mosek", "unfold_cplex",
             "unfold_copt", "unfold_xpress",
         }
@@ -237,7 +237,7 @@ class TestMethodSignatureContract:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_vasin", "unfold_fisher_information",
+        "unfold_vasin", "unfold_fisher_information", "unfold_nonextensive",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress",
         "unfold_interval_center", "unfold_interval_pia", "unfold_interval_matrix",
         "unfold_interval_regularization",
@@ -261,7 +261,7 @@ class TestMethodSignatureContract:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_vasin", "unfold_fisher_information",
+        "unfold_vasin", "unfold_fisher_information", "unfold_nonextensive",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_signature_has_common_kwargs(self, method_name: str) -> None:
@@ -311,6 +311,7 @@ SMOKE_KWARGS: dict[str, dict[str, Any]] = {
     "unfold_lavrentiev": dict(),
     "unfold_vasin": dict(),
     "unfold_fisher_information": dict(max_iterations=5),
+    "unfold_nonextensive": dict(search="local"),
     "unfold_ensemble": dict(),
     # commercial engines (license required); short timeouts keep CI fast
     "unfold_gurobi": dict(timeout=5.0),
@@ -509,6 +510,10 @@ class TestParameterAssignment:
             alpha=0.02, derivative_order=2, w_max=1e5, max_iterations=10,
             tolerance=1e-4, damping=0.7,
         ),
+        "unfold_nonextensive": dict(
+            search="global", ga_popsize=5, ga_maxiter=2, ga_tol=1e-6,
+            ga_polish=False, lm_max_nfev=50, relative=False,
+        ),
         "unfold_ensemble": dict(
             methods=None, weights=None, combination="weighted_average",
             trim_fraction=0.1,
@@ -590,7 +595,7 @@ class TestParameterAssignment:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_vasin", "unfold_fisher_information",
+        "unfold_vasin", "unfold_fisher_information", "unfold_nonextensive",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress",
         "unfold_interval_center", "unfold_interval_pia", "unfold_interval_matrix",
         "unfold_interval_regularization",
@@ -617,7 +622,7 @@ class TestParameterAssignment:
         "unfold_odl_douglas_rachford", "unfold_qubo", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_vasin", "unfold_fisher_information",
+        "unfold_vasin", "unfold_fisher_information", "unfold_nonextensive",
         "unfold_gurobi", "unfold_mosek", "unfold_cplex", "unfold_copt", "unfold_xpress"
     ])
     def test_initial_spectrum_kwarg(
@@ -672,7 +677,7 @@ class TestIAEACompendiumEndToEnd:
         "unfold_imaxed", "unfold_nsduaz", "unfold_rebunki",
         "unfold_rfsp_jul", "unfold_scipy_direct_method", "unfold_staysl",
         "unfold_tikhonov_legendre", "unfold_lavrentiev", "unfold_ensemble",
-        "unfold_vasin", "unfold_fisher_information",
+        "unfold_vasin", "unfold_fisher_information", "unfold_nonextensive",
         "unfold_interval_center", "unfold_interval_pia",
         "unfold_interval_regularization",
     ])
@@ -760,8 +765,9 @@ class TestNotebooksExecute:
         "89-interval-matrix-iaea.ipynb": "unfold_interval_matrix",
         "90-interval-regularization-iaea.ipynb": "unfold_interval_regularization",
         "91-vasin-iaea.ipynb": "unfold_vasin",
-        "92-fisher-information-iaea.ipynb": "unfold_fisher_information",
+        "92-nonextensive-iaea.ipynb": "unfold_nonextensive",
         "93-mfi-vs-tr-benchmark.ipynb": "unfold_fisher_information",
+        "94-fisher-information-iaea.ipynb": "unfold_fisher_information",
     }
 
     @pytest.fixture(autouse=True)

@@ -2,7 +2,7 @@ Package Overview
 ================
 
 BSSunfold is a Python package for neutron spectrum unfolding from Bonner Sphere
-Spectrometers (BSS). It provides 106 unfolding algorithms, 41 spectrum
+Spectrometers (BSS). It provides 108 unfolding algorithms, 41 spectrum
 comparison metrics, ICRP-116 dose calculations, and Monte Carlo uncertainty
 quantification. Iterative solvers are accelerated with Numba JIT compilation.
 
@@ -13,7 +13,7 @@ quantification. Iterative solvers are accelerated with Numba JIT compilation.
 Unfolding Methods
 -----------------
 
-All 107 methods are accessible as instance methods on the
+All 108 methods are accessible as instance methods on the
 :class:`bssunfold.Detector` class. They are organised into the following
 categories:
 
@@ -138,6 +138,7 @@ categories:
         I --> I9["unfold_express"]
         I --> I10["unfold_fission_ga"]
         I --> I11["unfold_nspline"]
+        I --> I12["unfold_nonextensive"]
         M --> M1["unfold_odl_pdhg"]
         M --> M2["unfold_odl_douglas_rachford"]
          N --> N1["unfold_maeo"]
@@ -864,6 +865,12 @@ Method Reference
      - `alpha`, `derivative_order`, `w_max`, `max_iterations`, `tolerance`, `damping`
      - —
      - Minimum Fisher Information (MFI, Miksuta-Michalik et al. 2026, JT-60SA activation study): Tikhonov-form penalty whose operator is the solution-dependent Fisher information matrix ``B^T W B`` with weights ``1/f_i`` capped at ``w_max``; iterated to a fixed point from a positive initial guess (flat default), reporting ``iterations``/``converged``; the ``1/f`` weighting suppresses spurious structure in low-flux bins; ``alpha = 0`` reduces to clipped least squares
+   * - 111
+     - ``unfold_nonextensive``
+     - Parametric
+     - `initial_params`, `initial_spectrum`, `search` (global/local), `ga_popsize`, `ga_maxiter`, `ga_tol`, `ga_polish`, `lm_max_nfev`, `relative`
+     - —
+     - Non-extensive (Tsallis) parametric unfolding (ZhangSun et al. 2026): a three-component q-exponential spectrum ``C exp_q(-(beta E^{-1/2} + g E)) E^{-n}`` (thermal/intermediate/fast, fifteen parameters, ``E`` in eV) fitted to the readings by minimizing the sum of squared relative deviations; ``search="global"`` runs a differential-evolution search plus a bounded least-squares refinement (the paper's 1stOpt analogue), ``search="local"`` refines only from the start; an ``initial_spectrum`` is first fitted to eq. (8) to provide an informed start; ``q -> 1`` recovers the Boltzmann-Gibbs exponential
 
 
 
