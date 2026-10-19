@@ -120,6 +120,7 @@ from .unfold_epic import solve_epic, unfold_epic
 from .unfold_express import solve_express, unfold_express
 from .unfold_extragradient import solve_extragradient, unfold_extragradient
 from .unfold_ferdor import solve_ferdor, unfold_ferdor
+from .unfold_fisher import solve_fisher_information, unfold_fisher_information
 from .unfold_fission_ga import (
     ED_EPITHERMAL,
     FISSION_PARAM_BOUNDS,
@@ -425,6 +426,7 @@ __all__ = [
     "solve_bunki",
     "solve_bunkiut",
     "solve_ferdor",
+    "solve_fisher_information",
     "solve_rebunki",
     "solve_nsduaz",
     "select_catalogue_initial",
@@ -551,6 +553,7 @@ __all__ = [
     "unfold_bunki",
     "unfold_bunkiut",
     "unfold_ferdor",
+    "unfold_fisher_information",
     "unfold_rebunki",
     "unfold_nsduaz",
     "unfold_nspline",

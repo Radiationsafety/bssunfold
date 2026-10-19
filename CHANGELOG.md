@@ -7,9 +7,44 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
-## [Unreleased]
+## [0.31.0] - 2026-10-16
 
 ### Added
+
+- **`unfold_fisher_information` — minimum Fisher information (MFI)
+  unfolding** (port of one of the four reconstruction methods of
+  Miksuta-Michalik, Cubi, Fabbri & Di Giacomo, *A feasibility study of
+  neutron spectrum reconstruction using synthetic activation data for
+  JT-60SA*, Plasma Phys. Control. Fusion **68** (2026) 105001,
+  eqs. (3)-(6)): a Tikhonov-form functional whose regularization
+  operator is the solution-dependent **Fisher information matrix**
+  `Bᵀ W B` with weights `W_ii = 1/f_i` for `f_i > 0` and the cap
+  `W_max` otherwise.  The penalty `Σ (Δf)²/f` diverges when flux is
+  moved through nearly-empty bins, so low-flux structure is suppressed
+  while high-flux regions still smooth; the paper's TR/MFI/ME/ML
+  comparison shows the methods err in complementary energy regions.
+  Because `W` depends on the solution the method is iterative: each
+  step solves `(AᵀA + α BᵀWB) x = Aᵀb`, clips to non-negative values,
+  rebuilds the weights and repeats until the relative change falls
+  below `tolerance` (result reports `iterations`/`converged`).
+  `alpha = 0` reduces to the clipped least-squares solution; the
+  derivative operator reuses `create_derivative_matrix` (orders 1/2,
+  optional `ln E` grid-aware rows); `w_max` defaults to an adaptive cap
+  at 1e-4 of the current peak flux; `damping` relaxes the fixed-point
+  update.  The paper's other three methods were already covered
+  (Tikhonov family, MAXED/imaxed, MLEM) and its "average spectrum" by
+  `unfold_ensemble`.
+  - New: `core/unfold_fisher.py` (`solve_fisher_information`,
+    `unfold_fisher_information`), `Detector.unfold_fisher_information`,
+    `tests/test_fisher_information.py`,
+    `examples/94-fisher-information-iaea.ipynb`,
+    `examples/93-mfi-vs-tr-benchmark.ipynb`, `docs/fisher_information.rst`.
+  - The MFI-vs-TR benchmark notebook reproduces the paper's per-region
+    error table on the IAEA Compendium `t4-14-s.txt_1` spectrum: TR
+    wins the full-spectrum amplitude and the 14 MeV peak, MFI wins the
+    0.4-2.5 MeV high-intensity region and the 2.5 MeV peak, and the
+    arithmetic mean of the two best spectra beats both single methods
+    on the full-spectrum error.
 
 - **`unfold_nonextensive` — non-extensive (Tsallis) parametric unfolding**
   (port of ZhangSun, Li, Su, Li, Guo, Wu & Zhang, *Applied Radiation and
