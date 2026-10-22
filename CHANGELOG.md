@@ -7,6 +7,48 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.31.1] - 2026-10-22
+
+### Added
+
+- **Hybrid8 start spectrum for ratio-iteration unfolding** (the a-priori
+  spectrum of the MSANDB code family, Simmer, Mares, Weitzenegger & Rühm,
+  *Radiat. Meas.* **45** (2010) 1-9): `core/unfold_hybrid8.py` provides
+  `hybrid8_start(E_MeV, total_fluence=1.0)` — a smooth parametric analogue
+  of the original multi-group Hybrid8 cosmic-ray spectrum, following the
+  four-region description of Barros, Mares, Bedogni, Reginatto, Esposito,
+  Gonçalves, Vaz & Rühm, *Radiat. Prot. Dosimetry* **161** (2014) 46-52
+  (thermal rise, flat epithermal 1/E plateau, 2 MeV evaporation peak,
+  100 MeV cascade peak, stiff descent towards the GeV range).  The shape is
+  tabulated by 16 anchor points on the `E·Φ` convention (`HYBRID8_ANCHORS`),
+  interpolated linearly in log-log space, converted to the flux-density
+  convention by `Φ(E) = S(E)/E` and normalized so that
+  `Σ Φ_j E_j == total_fluence`; the result is strictly positive on any
+  valid grid, as required by the logarithmic ratio update.
+  - `unfold_sandii` / `Detector.unfold_sandii` accept the new
+    `starting_spectrum` parameter: `"hybrid8"` selects the Hybrid8 start
+    spectrum, `None` (default) keeps the previous flat start.  An
+    explicitly supplied `initial_spectrum` always takes precedence.
+    The start spectrum fixes the first iterate and the trajectory of the
+    iteration — and therefore the amount of implicit regularization
+    introduced by early stopping — but not its fixed point.
+  - New: `core/unfold_hybrid8.py`, `tests/test_hybrid8.py`,
+    `docs/hybrid8.rst` (linked from `docs/index.rst` and the method
+    reference of `docs/overview.rst`).
+
+### Changed
+
+- Docs: the SAND-II ratio-family section of `docs/math_formulation.rst`
+  gained a "Start spectra" subsection; the `unfold_sandii` row of the
+  method reference lists the new `starting_spectrum` parameter; the
+  README documents the Hybrid8 start spectrum with a usage example.
+- Docs: corrected the literature references of the Hybrid8 module
+  docstring (the MSANDB unfolding paper is *Radiat. Meas.* **45** (2010)
+  1-9; the unfolding-code comparison is *Radiat. Prot. Dosimetry* **161**
+  (2014) 46-52) and fixed the broken autodoc targets of the MFI page
+  (`bssunfold.core.unfold_fisher_information` → `bssunfold.core.unfold_fisher`).
+- README: added the BSSUnfold package publication entry.
+
 ## [0.31.0] - 2026-10-16
 
 ### Added
