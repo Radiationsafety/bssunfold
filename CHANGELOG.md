@@ -49,6 +49,13 @@ and this project adheres to [Semantic Versioning].
   (`bssunfold.core.unfold_fisher_information` → `bssunfold.core.unfold_fisher`).
 - README: added the BSSUnfold package publication entry.
 
+### Fixed
+
+- Docs: restored `docs/data_formats.rst` (the "Input Data" / "Output Data" /
+  "Advanced Features" page), which was referenced from the toctree and from
+  the README but had never been committed — the documentation build now
+  completes without warnings.
+
 ## [0.31.0] - 2026-10-16
 
 ### Added
