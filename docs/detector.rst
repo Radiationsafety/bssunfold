@@ -325,6 +325,10 @@ Underlying solver functions:
 
 .. autofunction:: bssunfold.core.unfold_sandii.solve_sandii
 
+.. autofunction:: bssunfold.core.unfold_hybrid8.hybrid8_start
+
+.. autodata:: bssunfold.core.unfold_hybrid8.HYBRID8_ANCHORS
+
 .. autofunction:: bssunfold.core.unfold_crystal_ball.solve_crystal_ball
 
 .. autofunction:: bssunfold.core.unfold_rfsp_jul.solve_rfsp_jul

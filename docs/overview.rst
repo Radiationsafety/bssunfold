@@ -460,9 +460,9 @@ Method Reference
    * - 45
      - ``unfold_sandii``
      - Multi-sphere ratio
-     - `max_iterations`, `tolerance`, `chi_fac` (0/1), `relative_uncertainty`, `noise_level`
+     - `max_iterations`, `tolerance`, `chi_fac` (0/1), `relative_uncertainty`, `noise_level`, `starting_spectrum` (``'hybrid8'``/None)
      - —
-     - SAND-II geometric-mean ratio method (McElroy et al. 1967): chi-square or max-relative-deviation stopping
+     - SAND-II geometric-mean ratio method (McElroy et al. 1967): chi-square or max-relative-deviation stopping; optional Hybrid8 cosmic-ray start spectrum via ``starting_spectrum="hybrid8"``. See :ref:`math-ratio` and :doc:`hybrid8`.
    * - 46
      - ``unfold_bunki``
      - Multi-sphere ratio

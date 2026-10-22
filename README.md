@@ -223,6 +223,23 @@ result = detector.unfold_parametric(
 print(result['doserates'])
 ```
 
+### Hybrid8 Start Spectrum
+
+The SAND-II ratio iteration can start from the physically shaped Hybrid8
+cosmic-ray spectrum (thermal region, flat epithermal 1/E plateau, 2 MeV
+evaporation peak, 100 MeV cascade peak) instead of a flat start:
+
+```python
+# Hybrid8 a-priori start spectrum for the SAND-II ratio iteration
+result = detector.unfold_sandii(readings, starting_spectrum="hybrid8")
+
+# evaluate the shape yourself on any energy grid
+from bssunfold.core import hybrid8_start
+phi0 = hybrid8_start(detector.E_MeV, total_fluence=2.5)
+```
+
+Full description: [docs — Hybrid8 start spectrum](https://bssunfold.readthedocs.io/en/latest/hybrid8.html).
+
 ## ⚙️ Available Unfolding Methods
 
 Methods are grouped into the following categories (all accessible as
@@ -234,7 +251,7 @@ Methods are grouped into the following categories (all accessible as
 | Krylov/hybrid | `unfold_lanczos`, `unfold_gks`, `unfold_cgls`, `unfold_fista`, `unfold_hybrid_gmres`, `unfold_amg` |
 | Iterative | `unfold_landweber`, `unfold_mlem`, `unfold_mlem_stop`, `unfold_gravel`, `unfold_doroshenko`, `unfold_kaczmarz`, `unfold_sart` |
 | EM family | `unfold_osem`, `unfold_mapem`, `unfold_bsrem`, `unfold_osem_anlm`, `unfold_mlem_bs` |
-| Multi-sphere ratio | `unfold_sandii`, `unfold_bunki`, `unfold_bunkiut`, `unfold_rebunki`, `unfold_nsduaz`, `unfold_ferdor` |
+| Multi-sphere ratio | `unfold_sandii` (with `hybrid8_start` a-priori), `unfold_bunki`, `unfold_bunkiut`, `unfold_rebunki`, `unfold_nsduaz`, `unfold_ferdor` |
 | Bayesian | `unfold_bayes`, `unfold_mcmc`, `unfold_cuqi`, `unfold_zfit`, `unfold_eki` |
 | Maximum entropy | `unfold_maxed`, `unfold_imaxed`, `unfold_amaxed`, `unfold_nspline` |
 | Statistical regularization | `unfold_statreg`, `unfold_reconst`, `unfold_ssr`, `unfold_gee`, `unfold_louhi`, `unfold_uno` |
@@ -427,6 +444,7 @@ For questions, bug reports, or feature requests:
 - University "Dubna", School of Big Data Analytics
 
 ## 🎓 Publications
+1. Chizhov, Konstantin, Shirkov, Stepan. BSSUnfold: A python package for neutron spectrum unfolding from Bonner sphere spectrometer measurements.中国科学院科技论文预发布平台.[DOI:10.12074/202610.00098,  ChinaXiv:202610.00098](https://chinaxiv.org/abs/202610.00098?locale=en)
 1. Chizhov A. V., Chizhov K. A. TSVD-Based Iterative Algorithm of Landweber for Neutron Spectra Unfolding by Bonner Multi-Sphere Spectrometer Readings // Phys. Part. Nuclei. 2026. Т. 57. № 4. С. 750–752. https://doi.org/10.1134/S1063779626700735
 1. Чижов К.А., Чижов А.В., Борщев Д.С., Акимочкина М.А. Методы решения обратных задач для обработки результатов измерений на примере восстановления спектра нейтронов, Тридцать третья международная конференция "Математика. Компьютер. Образование, г. Дубна, 26 – 31 января 2026 г., [https://mce.su](https://mce.su/rus/presentations/p507586/)
 1. Chizhov, K., Chizhov, A. Optimization of the Neutron Spectrum Unfolding Algorithm Using Shifted Legendre Polynomials Based on Weighted Tikhonov Regularization. Phys. Part. Nuclei 56, 1395–1399 (2025). https://doi.org/10.1134/S106377962570056X

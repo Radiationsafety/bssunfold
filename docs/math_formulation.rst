@@ -595,6 +595,27 @@ iterative schemes here — display semi-convergence; they are typically
 run for a modest number of iterations with chi-square monitoring
 (Machado, García-Baonza and Vega-Carrillo, 2024).
 
+Start spectra
+^^^^^^^^^^^^^
+
+The trial spectrum :math:`\Phi^{(0)}` enters the ratio update only through
+the weights :math:`W_{ij}`, but it still fixes the first iterate, the
+trajectory of the iteration and — because the iteration is stopped early
+to counter semi-convergence — the effective regularization of the result.
+``unfold_sandii`` therefore accepts a named start spectrum through
+``starting_spectrum``; the value ``"hybrid8"`` selects the Hybrid8
+cosmic-ray start spectrum of the MSANDB code (Simmer, Mares,
+Weitzenegger and Rühm, 2010), i.e. a shape with a thermal region, a flat
+epithermal 1/E region, an evaporation peak at 2 MeV and a cascade peak at
+100 MeV, as described by Barros et al. (2014).  The shape is tabulated by
+anchor points on the :math:`E\,\Phi(E)` convention, interpolated in
+log-log space, converted to the flux-density convention by
+:math:`\Phi(E) = S(E)/E` and normalized so that
+:math:`\sum_j \Phi_j E_j = \mathrm{total\_fluence}`.  An explicitly
+supplied ``initial_spectrum`` always takes precedence over the named
+start.  The full formulation, the anchor table and the caveats are given
+in :doc:`hybrid8`.
+
 .. _math-maxent:
 
 Maximum Entropy and Information Divergence
@@ -970,6 +991,10 @@ References
        technique (SART): a superior implementation of the ART algorithm. *Ultrasonic
        Imaging* **6**, 81-94. `doi:10.1177/016173468400600107
        <https://doi.org/10.1177/016173468400600107>`__
+   * - Barros, S., Mares, V., Bedogni, R., Reginatto, M., Esposito, A., Gonçalves,
+       I. F., Vaz, P., Rühm, W. (2014). Comparison of unfolding codes for neutron
+       spectrometry with Bonner spheres. *Radiat. Prot. Dosimetry* **161**, 46-52.
+       `doi:10.1093/rpd/nct353 <https://doi.org/10.1093/rpd/nct353>`__
    * - Beck, A., Teboulle, M. (2009). A fast iterative shrinkage-thresholding algorithm
        for linear inverse problems. *SIAM J. Imaging Sci.* **2**, 183-202.
        `doi:10.1137/080716542 <https://doi.org/10.1137/080716542>`__
@@ -1123,6 +1148,11 @@ References
    * - Shor, N. Z. (1985). *Minimization Methods for Non-Differentiable Functions*.
        Springer, Berlin. `doi:10.1007/978-3-642-82118-9
        <https://doi.org/10.1007/978-3-642-82118-9>`__
+   * - Simmer, G., Mares, V., Weitzenegger, E., Rühm, W. (2010). Iterative unfolding
+       for Bonner sphere spectrometers using the MSANDB code — Sensitivity analysis
+       and dose calculation. *Radiat. Meas.* **45**, 1-9.
+       `doi:10.1016/j.radmeas.2009.03.023
+       <https://doi.org/10.1016/j.radmeas.2009.03.023>`__
    * - Strohmer, T., Vershynin, R. (2009). A randomized Kaczmarz algorithm with
        exponential convergence. *J. Fourier Anal. Appl.* **15**, 262-278.
        `doi:10.1007/s00041-008-9030-4 <https://doi.org/10.1007/s00041-008-9030-4>`__

@@ -7136,6 +7136,7 @@ class Detector:
         self,
         readings: dict[str, float],
         initial_spectrum: np.ndarray | None = None,
+        starting_spectrum: str | None = None,
         max_iterations: int = 50,
         tolerance: float = 1e-3,
         chi_fac: int = 1,
@@ -7158,7 +7159,14 @@ class Detector:
         readings : Dict[str, float]
             Detector readings.
         initial_spectrum : Optional[np.ndarray], optional
-            Initial spectrum guess. If None, a flat spectrum is used.
+            Initial spectrum guess. If None, the ``starting_spectrum``
+            default (flat spectrum) is used.
+        starting_spectrum : Optional[str], optional
+            Named default start spectrum when ``initial_spectrum`` is None:
+            ``"hybrid8"`` selects the Hybrid8-style cosmic-ray start
+            spectrum used with the MSANDB code (see
+            :func:`bssunfold.core.hybrid8_start`). Default None keeps
+            the flat start.
         max_iterations : int, optional
             Maximum number of iterations (default: 50).
         tolerance : float, optional
@@ -7202,6 +7210,7 @@ class Detector:
                 noise_model=noise_model,
                 measurement_time=measurement_time,
             initial_spectrum=initial_spectrum,
+            starting_spectrum=starting_spectrum,
             max_iterations=max_iterations,
             tolerance=tolerance,
             chi_fac=chi_fac,

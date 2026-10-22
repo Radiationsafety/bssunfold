@@ -23,6 +23,7 @@ from typing import Any
 import numpy as np
 
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from .unfold_hybrid8 import hybrid8_start
 
 __all__ = ["solve_sandii", "unfold_sandii"]
 
@@ -133,6 +134,7 @@ def unfold_sandii(
     readings: dict[str, float],
     ln_steps: np.ndarray | None = None,
     initial_spectrum: np.ndarray | None = None,
+    starting_spectrum: str | None = None,
     max_iterations: int = 50,
     tolerance: float = 1e-3,
     chi_fac: int = 1,
@@ -166,7 +168,13 @@ def unfold_sandii(
     readings : Dict[str, float]
         Detector readings.
     initial_spectrum : Optional[np.ndarray], optional
-        Initial spectrum guess. If None, a flat spectrum is used.
+        Initial spectrum guess. If None, the ``starting_spectrum`` default
+        (flat spectrum) is used.
+    starting_spectrum : Optional[str], optional
+        Named default start spectrum used when ``initial_spectrum`` is None:
+        ``"hybrid8"`` selects the Hybrid8-style cosmic-ray start spectrum
+        (Simmer et al. 2010; see :func:`hybrid8_start`), as used with the
+        MSANDB code. ``None`` (default) keeps the flat start.
     max_iterations : int, optional
         Maximum number of iterations (default: 50).
     tolerance : float, optional
@@ -193,8 +201,16 @@ def unfold_sandii(
     Dict[str, Any]
         Unfolding results dictionary.
     """
-    x0_default = np.ones(n_energy_bins)
-    x0_default[0] = 0.0
+    if starting_spectrum is None:
+        x0_default = np.ones(n_energy_bins)
+        x0_default[0] = 0.0
+    elif starting_spectrum == "hybrid8":
+        x0_default = hybrid8_start(E_MeV)
+    else:
+        raise ValueError(
+            f"Unknown starting_spectrum {starting_spectrum!r}. "
+            "Use 'hybrid8' or None."
+        )
 
     return run_unfolding(
         detector_names=detector_names,
@@ -219,6 +235,7 @@ def unfold_sandii(
         extra_output={
             "chi_fac": int(chi_fac),
             "relative_uncertainty": float(relative_uncertainty),
+            "starting_spectrum": starting_spectrum,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level,

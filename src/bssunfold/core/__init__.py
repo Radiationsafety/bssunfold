@@ -145,6 +145,7 @@ from .unfold_genetic import solve_genetic, unfold_genetic
 from .unfold_gks import solve_gks, unfold_gks
 from .unfold_gnowee import solve_gnowee, unfold_gnowee
 from .unfold_gravel import solve_gravel, unfold_gravel
+from .unfold_hybrid8 import HYBRID8_ANCHORS, hybrid8_start
 from .unfold_hybrid_gmres import unfold_hybrid_gmres
 from .unfold_hybrid_parametric import solve_hybrid_parametric
 from .unfold_imaxed import solve_imaxed, unfold_imaxed
@@ -365,9 +366,11 @@ __all__ = [
     "fission_model",
     "FISSION_PARAM_NAMES",
     "FISSION_PARAM_BOUNDS",
+    "HYBRID8_ANCHORS",
     "T0_THERMAL",
     "ED_EPITHERMAL",
     "solve_sandii",
+    "hybrid8_start",
     "solve_ssr",
     "solve_ssr_full",
     "solve_gee",

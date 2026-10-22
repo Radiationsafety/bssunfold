@@ -95,8 +95,8 @@ API reference
 
 See also :doc:`detector` for the full ``Detector`` API reference.
 
-.. autofunction:: bssunfold.core.unfold_fisher_information.unfold_fisher_information
+.. autofunction:: bssunfold.core.unfold_fisher.unfold_fisher_information
    :no-index:
 
-.. autofunction:: bssunfold.core.unfold_fisher_information.solve_fisher_information
+.. autofunction:: bssunfold.core.unfold_fisher.solve_fisher_information
    :no-index:
