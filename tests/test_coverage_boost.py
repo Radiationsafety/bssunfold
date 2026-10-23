@@ -256,15 +256,19 @@ class TestPlatformCheck:
     def test_get_recommended_solver_no_proxsuite(self):
         import bssunfold.platform_check as pc
 
-        orig_prox = pc.PROXSUITE_AVAILABLE
         orig_win = pc.is_windows
-        pc.PROXSUITE_AVAILABLE = False
-        pc.is_windows = False
-        try:
-            result = pc.get_recommended_solver()
-        finally:
-            pc.PROXSUITE_AVAILABLE = orig_prox
-            pc.is_windows = orig_win
+        # get_recommended_solver() re-checks proxsuite at runtime, so the
+        # availability check itself must be mocked too (AGENTS.md), not
+        # just the module-level constant.
+        with (
+            patch.object(pc, "check_proxsuite_availability", return_value=False),
+            patch.object(pc, "PROXSUITE_AVAILABLE", False),
+        ):
+            pc.is_windows = False
+            try:
+                result = pc.get_recommended_solver()
+            finally:
+                pc.is_windows = orig_win
         assert result == "osqp"
 
     def test_get_recommended_solver_windows(self):
