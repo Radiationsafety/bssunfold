@@ -10,6 +10,7 @@ import numpy as np
 
 from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from .regularization import _discrepancy_target
 
 __all__ = ["solve_landweber", "unfold_landweber"]
 
@@ -20,6 +21,9 @@ def solve_landweber(
     x0: np.ndarray,
     max_iterations: int = 1000,
     tolerance: float = 1e-6,
+    criterion: str = "tolerance",
+    noise_level: float | None = None,
+    tau: float = 1.1,
 ) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using Landweber iteration.
 
@@ -35,13 +39,32 @@ def solve_landweber(
         Maximum iterations (default: 1000).
     tolerance : float, optional
         Convergence tolerance (default: 1e-6).
+    criterion : str, optional
+        Stopping criterion: ``"tolerance"`` (default) stops when the
+        residual norm drops below ``tolerance``; ``"discrepancy"``
+        implements the discrepancy-principle iterative regularization
+        (Tikhonov 1977) and stops when ``||A x - b|| <= tau * delta``.
+    noise_level : float, optional
+        Relative noise level of the readings used by the discrepancy
+        criterion: ``delta = noise_level * ||b||``. If None, the noise
+        level is estimated from the least-squares residual.
+    tau : float, optional
+        Discrepancy safety factor (> 1 recommended, default: 1.1).
 
     Returns
     -------
     Tuple[np.ndarray, int, bool]
-        Tuple of (solution, iterations, converged).
+        Tuple of (solution, iterations, converged). With
+        ``criterion="discrepancy"``, ``converged=True`` means the
+        residual reached the noise level.
     """
     import warnings
+
+    if criterion not in ("tolerance", "discrepancy"):
+        raise ValueError(
+            f"Unknown criterion: {criterion!r}. "
+            "Supported: 'tolerance', 'discrepancy'."
+        )
 
     A, b, x0 = validate_system(
         A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
@@ -52,6 +75,15 @@ def solve_landweber(
     if sigma_max == 0:
         warnings.warn("Response matrix has zero norm. Returning initial guess.")
         return x, 0, False
+
+    # Discrepancy-principle target (disabled = -1)
+    if criterion == "discrepancy":
+        target = _discrepancy_target(A, b, noise_level=noise_level, tau=tau)
+        if np.linalg.norm(A @ x - b) <= target:
+            # Initial guess already fits the data within the noise level.
+            return x, 0, True
+    else:
+        target = -1.0
 
     step_size = 1.0 / (sigma_max**2)
     AT = A.T
@@ -73,6 +105,7 @@ def solve_landweber(
                 step_size,
                 max_iterations,
                 tolerance,
+                target,
             )
     except ImportError:
         pass
@@ -94,7 +127,9 @@ def solve_landweber(
         # Residual norm
         residual_norm = np.linalg.norm(Ax - b)
 
-        if residual_norm < tolerance:
+        if residual_norm < tolerance or (
+            target > 0 and residual_norm <= target
+        ):
             converged = True
             iterations = i
             break
@@ -121,6 +156,8 @@ def unfold_landweber(
     initial_spectrum: np.ndarray | None = None,
     max_iterations: int = 1000,
     tolerance: float = 1e-6,
+    criterion: str = "tolerance",
+    tau: float = 1.1,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -155,10 +192,18 @@ def unfold_landweber(
         Maximum iterations (default: 1000).
     tolerance : float, optional
         Convergence tolerance (default: 1e-6).
+    criterion : str, optional
+        Stopping criterion: ``"tolerance"`` (default) or
+        ``"discrepancy"`` (iterative regularization; stops when the
+        residual reaches the noise level).
+    tau : float, optional
+        Discrepancy safety factor (> 1 recommended, default: 1.1).
     calculate_errors : bool, optional
         Calculate Monte-Carlo errors (default: False).
     noise_level : float, optional
-        Noise level for Monte-Carlo (default: 0.01).
+        Relative noise level of the readings; used both for the Monte-Carlo
+        uncertainty (default: 0.01) and for the discrepancy criterion
+        (``delta = noise_level * ||b||``).
     n_montecarlo : int, optional
         Number of Monte-Carlo samples (default: 100).
     save_result : bool, optional
@@ -188,10 +233,17 @@ def unfold_landweber(
             solve_landweber,
             max_iterations=max_iterations,
             tolerance=tolerance,
+            criterion=criterion,
+            noise_level=noise_level,
+            tau=tau,
         ),
         solve_kwargs={},
         method_name="Landweber",
-        extra_output={},
+        extra_output={
+            "stopping_criterion": criterion,
+            "tau": tau,
+            "noise_level": noise_level,
+        },
         calculate_errors=calculate_errors,
         noise_level=noise_level,
         n_montecarlo=n_montecarlo,

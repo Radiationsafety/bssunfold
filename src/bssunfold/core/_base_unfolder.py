@@ -19,6 +19,7 @@ import numpy as np
 
 from ..logging_config import get_logger
 from ._montecarlo import monte_carlo_uncertainty
+from .conditioning import _attach_conditioning
 
 logger = get_logger("detector")
 
@@ -360,6 +361,10 @@ def _standardize_output(
         "doserates": doserates,
         "dose_coverage_fraction": float(dose_coverage),
     }
+
+    # Conditioning diagnostics of the response matrix (one SVD of a
+    # small dense matrix; not repeated for Monte-Carlo samples).
+    _attach_conditioning(output, A)
 
     if extra:
         output.update(extra)

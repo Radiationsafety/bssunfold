@@ -11,6 +11,11 @@ from ._line_search import (
     dichotomy_minimize,
     golden_section_minimize,
 )
+from .conditioning import (
+    ILL_THRESHOLD,
+    conditioning_diagnostics,
+    conditioning_summary,
+)
 from .detector import Detector
 from .dose_calculation import calculate_dose_rates
 from .regularization import (
@@ -635,6 +640,10 @@ __all__ = [
     "cosine_similarity_selection",
     "compare_regularization_methods",
     "randomization_experiment",
+    # conditioning diagnostics
+    "ILL_THRESHOLD",
+    "conditioning_diagnostics",
+    "conditioning_summary",
     # dose calculation
     "calculate_dose_rates",
     # Optimization-course methods (MIPT OPTIMIZATION-METHODS-COURSE)
