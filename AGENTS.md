@@ -4,7 +4,7 @@
 
 ```bash
 uv sync --group dev          # install all deps including dev
-uv run pytest tests/         # run all ~3160 tests (0 failures as of 0.28.0)
+uv run pytest tests/         # run all ~3750 tests (0 failures as of Oct 2026)
 uv run pytest -v --tb=short  # verbose, short traceback
 uv run pytest tests/test_coverage.py  # primary coverage test file
 uv run pytest --cov=src/bssunfold --cov-report=term-missing --cov-fail-under=95
@@ -26,6 +26,7 @@ Run a single test: `uv run pytest tests/test_coverage.py::TestClass::test_name -
 - `core/unfolding_methods.py` — all `solve_*` functions, ~222 stmts
 - `core/unfold_interval.py` — interval family: `solve_interval` (2n-LP guaranteed bounds), `solve_interval_tol` (Shary's recognizing functional, exact LP `tolprog`, generators/generators_profile, per-reading `weights`, drop_infeasible, uss variant), `solve_interval_posterior` (MC extreme-point envelope), `solve_interval_center` (Askerkin-Sukhanov center + minimal-widening incompatibility LP), `solve_interval_pia` (Rutkowski PIA, Chebyshev/L1 corridor distance), `solve_interval_matrix` (interval response matrix: Rohn tolerable bounds, Belek united set, Khlebnikov inner box), `solve_interval_regularization` (Shary 2017: inflate point A via `_inflation_radius` shift/relative, argmax Tol = regularized spectrum, `tau_grid` sweep, `_smooth_on_max_face` smoothing variation/curvature on the max-Tol face), `interval_sev_variativity` and `interval_compatibility_report` diagnostics, plus `unfold_interval_*` wrappers and `*_intvalpy` backends
 - `core/unfold_qpsolvers.py`, `unfold_cvxpy.py`, `unfold_landweber.py`, `unfold_mlem.py`, `unfold_mlem_odl.py`, `unfold_doroshenko.py`, `unfold_kaczmarz.py`, `unfold_lmfit.py`, `unfold_smt.py`, `unfold_combined.py`, `unfold_ferdor.py`, `unfold_rebunki.py`, `unfold_nsduaz.py` — one file per unfolding algorithm (unfold_smt.py is a port of the Haskell/SBV `linearEqSolver`, backed by optional z3-solver)
+- `core/conditioning.py` — conditioning diagnostics: public `conditioning_diagnostics(A)` (cond_2 via SVD, cond(A^T A) = cond_2^2, effective rank at `rcond`, `ill_conditioned` flag with threshold `ILL_THRESHOLD=1e10`) + `conditioning_summary` renderer. Hooked into every unfolding result via `_base_unfolder._standardize_output` and `Detector._standardize_output` (adds the `conditioning` key + a UserWarning for ill-conditioned/rank-deficient response matrices); `Detector.conditioning_report(detector_names=..., max_neutron_energy=...)` inspects detector subsets **before** unfolding. `unfold_landweber`/`unfold_kaczmarz` additionally support `criterion="discrepancy"` (discrepancy-principle iterative regularization: stop when `||Ax-b|| <= tau * delta`, `delta = noise_level * ||b||` or auto-estimated via `regularization._discrepancy_target`); the numba kernels take an extra `target` argument (<= 0 disables the check).
 - `core/unfold_commercial.py` — license-required commercial QP solvers (`solve_gurobi`/`unfold_gurobi`, mosek, cplex, copt, xpress): five pre-bound wrappers over the general `solve_commercial`/`unfold_commercial`, driven through cvxpy interfaces **without open-source fallback** (missing engine/license → warn + zero spectrum). Shared QP backend in `core/_commercial_qp.py` (`commercial_solver_info`, `is_commercial_solver_available`); aliases match `Detector` methods and `pip install bssunfold[commercial]` extras. Results follow the canonical `solve_qpsolvers` convention (identity OR derivative Tikhonov penalty, never both). Availability is also reported by `platform_check.check_commercial_solvers_availability()`
 - `core/unfold_gee.py` — GEE unfolding (R `gee` 4.13-30 analogue): working-correlation IRLS with Liang-Zeger robust/naive sandwich covariance estimates for the spectrum
 - `core/unfold_uno.py` — Uno-style Lagrange-Newton constrained unfolding (R `Uno` analogue, Vanaret & Leyffer 2024): `filter_sqp` preset (exact Hessian QP sub-solve via scipy nnls + Fletcher-Leyffer filter) and `ipopt_like` (primal-dual interior point, exact/BFGS Hessian)
@@ -59,7 +60,7 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 
 ## Testing
 
-### Test files (71 files, ~3180 tests)
+### Test files (83 files, ~3750 tests)
 
 | File | Focus |
 |------|-------|
@@ -84,6 +85,8 @@ via a `TESTS_DIR` constant, e.g. `uv run python scripts/rank_methods.py`.
 | `tests/test_louhi.py` | LOUHI78 (`unfold_louhi`/`solve_louhi`, Routti & Sandberg 1980): smoothing operators, Hildreth QP core, `auto_smooth` golden-section regression, `louhi_covariance` error propagation, validation, Detector integration |
 | `tests/test_nonextensive.py` | Non-extensive (Tsallis) parametric unfolding (`unfold_nonextensive`/`solve_nonextensive`, ZhangSun et al. 2026): q-exponential and its `q -> 1` Boltzmann-Gibbs limit, 15-parameter layout / component windows / positivity, synthetic recovery, bounds, `relative` weighting, global/local search, seed reproducibility, `initial_params`, `Detector.unfold_nonextensive` (energy masking, Monte-Carlo), IAEA end-to-end |
 | `tests/test_lavrentiev.py` | Lavrentiev regularization with shift (`unfold_lavrentiev`/`solve_lavrentiev`): rectangular/square matrices, shift behaviour, Tikhonov equivalence at zero shift, Detector integration, IAEA end-to-end |
+| `tests/test_conditioning.py` | Conditioning diagnostics (`conditioning_diagnostics`/`conditioning_summary`, `Detector.conditioning_report`): known condition numbers, effective rank/rank deficiency, ill-conditioning warnings, `conditioning` key in unfold results (landweber/kaczmarz/mlem), ill-conditioned-detector warning, MC composition |
+| `tests/test_discrepancy_stopping.py` | Discrepancy-principle stopping (`criterion="discrepancy"` in `solve_landweber`/`solve_kaczmarz`, `regularization._discrepancy_target`): target scaling, early stopping at the noise level, warm starts, invalid params, numba-kernel vs numpy-fallback equivalence, backward compat of the default criterion, Detector/wrapper metadata + MC composition |
 | `tests/test_fisher_information.py` | Minimum Fisher Information (`unfold_fisher_information`/`solve_fisher_information`, Miksuta-Michalik et al. 2026): validation, `alpha=0` least-squares equivalence, fixed-point stationarity, weight capping at `W_max`, smoothing vs alpha, derivative orders/grid-aware operator, damping, Detector integration + Monte-Carlo |
 | `tests/test_vasin.py` | Hölder-space regularization (`unfold_vasin`/`solve_vasin`, Vasin & Serazhitnikova 2010): seminorm properties (range limit at `mu->0`, Lipschitz growth), independent functional/perturbation optimality checks, the paper's Model-2 box benchmark with the jump-sharpness contrast against Tikhonov, validation and edge cases, Detector integration |
 | `tests/test_interval.py` | Interval family (`solve_interval*`/`unfold_interval*`): LP bounds, exact LP Tol (book-example validation + tolsolvty reference fixtures `tests/data/tolsolvty/1..7`), Tol weights/generators_profile, MC posterior envelope, center-of-uncertainty widening/repair, PIA norms, interval response matrix (Rohn/Belek/Khlebnikov inclusions), interval regularization (shift/relative inflation, tau sweep, max-Tol-face smoothing), SEV variativity, compatibility report, Detector wrappers (intvalpy tests skip when optional dep missing) |
@@ -156,7 +159,7 @@ Patch module-level attributes on the installed package path (e.g., `bssunfold.pl
 ## Architecture
 
 - `bssunfold.Detector` is the only public class. Configure with response functions DataFrame or CSV.
-- All `unfold_*` methods return a dict with `'spectrum'`, `'doserates'`, `'readings'`, optional `'spectrum_uncert_mean'`.
+- All `unfold_*` methods return a dict with `'spectrum'`, `'doserates'`, `'readings'`, `'conditioning'` (response-matrix diagnostics, see `core/conditioning.py`), optional `'spectrum_uncert_mean'`.
 - Regularization parameter selection delegates to `pytikhonov` when available, with pure-numpy fallbacks.
 - Response functions follow a standard CSV format: column `E_MeV` + one column per detector sphere.
 - Interpretation (`unfold_interpret`/`interpret_result`) is backed by optional `pyoptexplain`; `Detector.unfold_interpret` returns the standard result dict plus `report` and `interpretation_metrics` keys.

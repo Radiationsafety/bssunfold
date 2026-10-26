@@ -10,6 +10,7 @@ import numpy as np
 
 from ..utils.validators import validate_system
 from ._base_unfolder import make_solve_wrapper, run_unfolding
+from .regularization import _discrepancy_target
 
 __all__ = ["solve_kaczmarz", "unfold_kaczmarz"]
 
@@ -21,6 +22,9 @@ def solve_kaczmarz(
     max_iterations: int = 1000,
     omega: float = 1.0,
     tolerance: float = 1e-6,
+    criterion: str = "tolerance",
+    noise_level: float | None = None,
+    tau: float = 1.1,
 ) -> tuple[np.ndarray, int, bool]:
     """Solve unfolding problem using Kaczmarz algorithm (ART).
 
@@ -38,13 +42,32 @@ def solve_kaczmarz(
         Relaxation parameter (0 < omega <= 2), default: 1.0.
     tolerance : float, optional
         Convergence tolerance (default: 1e-6).
+    criterion : str, optional
+        Stopping criterion: ``"tolerance"`` (default) stops when the
+        change of x between sweeps drops below ``tolerance``;
+        ``"discrepancy"`` stops when ``||A x - b|| <= tau * delta``
+        (checked at the end of each sweep).
+    noise_level : float, optional
+        Relative noise level of the readings used by the discrepancy
+        criterion: ``delta = noise_level * ||b||``. If None, the noise
+        level is estimated from the least-squares residual.
+    tau : float, optional
+        Discrepancy safety factor (> 1 recommended, default: 1.1).
 
     Returns
     -------
     Tuple[np.ndarray, int, bool]
-        Tuple of (solution, iterations, converged).
+        Tuple of (solution, iterations, converged). With
+        ``criterion="discrepancy"``, ``converged=True`` means the
+        residual reached the noise level.
     """
     import warnings
+
+    if criterion not in ("tolerance", "discrepancy"):
+        raise ValueError(
+            f"Unknown criterion: {criterion!r}. "
+            "Supported: 'tolerance', 'discrepancy'."
+        )
 
     A, b, x0 = validate_system(
         A, b, x0=x0, max_iterations=max_iterations, tolerance=tolerance
@@ -57,12 +80,21 @@ def solve_kaczmarz(
 
     row_norms_sq = np.sum(A * A, axis=1)
 
+    # Discrepancy-principle target (disabled = -1)
+    if criterion == "discrepancy":
+        target = _discrepancy_target(A, b, noise_level=noise_level, tau=tau)
+        if np.linalg.norm(A @ x - b) <= target:
+            # Initial guess already fits the data within the noise level.
+            return x, 0, True
+    else:
+        target = -1.0
+
     try:
         from ._numba_jit import NUMBA_AVAILABLE, _kaczmarz_inner
 
         if NUMBA_AVAILABLE:
             return _kaczmarz_inner(
-                A, x, b, row_norms_sq, omega, max_iterations, tolerance
+                A, x, b, row_norms_sq, omega, max_iterations, tolerance, target
             )
     except ImportError:
         pass
@@ -81,6 +113,12 @@ def solve_kaczmarz(
             np.maximum(x, 0, out=x)
 
         if (k + 1) % m == 0:
+            # Discrepancy-principle check on the residual norm
+            if target > 0 and np.linalg.norm(A @ x - b) <= target:
+                converged = True
+                iterations = k + 1
+                break
+
             if np.linalg.norm(x - x_old) < tolerance:
                 converged = True
                 iterations = k + 1
@@ -106,6 +144,8 @@ def unfold_kaczmarz(
     max_iterations: int = 1000,
     omega: float = 1.0,
     tolerance: float = 1e-6,
+    criterion: str = "tolerance",
+    tau: float = 1.1,
     calculate_errors: bool = False,
     noise_level: float = 0.01,
     n_montecarlo: int = 100,
@@ -142,10 +182,18 @@ def unfold_kaczmarz(
         Relaxation parameter (0 < omega <= 2), default: 1.0.
     tolerance : float, optional
         Convergence tolerance for solution change, default: 1e-6.
+    criterion : str, optional
+        Stopping criterion: ``"tolerance"`` (default) or
+        ``"discrepancy"`` (stops when the residual reaches the noise
+        level; checked at the end of each sweep).
+    tau : float, optional
+        Discrepancy safety factor (> 1 recommended, default: 1.1).
     calculate_errors : bool, optional
         Flag to calculate uncertainty via Monte-Carlo, default: False.
     noise_level : float, optional
-        Noise level for Monte-Carlo uncertainty calculation, default: 0.01.
+        Relative noise level of the readings; used both for the Monte-Carlo
+        uncertainty (default: 0.01) and for the discrepancy criterion
+        (``delta = noise_level * ||b||``).
     n_montecarlo : int, optional
         Number of Monte-Carlo samples for error estimation, default: 100.
     save_result : bool, optional
@@ -176,12 +224,17 @@ def unfold_kaczmarz(
             max_iterations=max_iterations,
             omega=omega,
             tolerance=tolerance,
+            criterion=criterion,
+            noise_level=noise_level,
+            tau=tau,
         ),
         solve_kwargs={},
         method_name="Kaczmarz",
         extra_output={
             "tolerance": tolerance,
             "omega": omega,
+            "stopping_criterion": criterion,
+            "tau": tau,
         },
         calculate_errors=calculate_errors,
         noise_level=noise_level,

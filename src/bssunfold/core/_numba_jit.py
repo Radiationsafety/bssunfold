@@ -95,7 +95,7 @@ if NUMBA_AVAILABLE:
 
     @njit(cache=True)
     def _kaczmarz_inner(
-        A, x, b, row_norms_sq, omega, max_iterations, tolerance
+        A, x, b, row_norms_sq, omega, max_iterations, tolerance, target
     ):  # pragma: no cover
         """JIT-compiled Kaczmarz iteration inner loop.
 
@@ -115,6 +115,10 @@ if NUMBA_AVAILABLE:
             Maximum iterations.
         tolerance : float
             Convergence tolerance.
+        target : float
+            Discrepancy-principle stopping target on the residual norm
+            ``||A x - b||`` (checked at the end of each sweep). Values
+            <= 0 disable the discrepancy check.
 
         Returns
         -------
@@ -141,6 +145,20 @@ if NUMBA_AVAILABLE:
                         x[j] = 0.0
 
             if (k + 1) % m == 0:
+                # Discrepancy-principle check on the residual norm
+                if target > 0.0:
+                    residual_norm = 0.0
+                    for i2 in range(m):
+                        s = 0.0
+                        for j in range(n):
+                            s += A[i2, j] * x[j]
+                        d = s - b[i2]
+                        residual_norm += d * d
+                    if np.sqrt(residual_norm) <= target:
+                        converged = True
+                        iterations = k + 1
+                        break
+
                 # Check convergence
                 diff_norm = 0.0
                 for j in range(n):
@@ -443,7 +461,7 @@ if NUMBA_AVAILABLE:
 
     @njit(cache=True)
     def _landweber_inner(
-        A, AT, b, x, ATb, step_size, max_iterations, tolerance
+        A, AT, b, x, ATb, step_size, max_iterations, tolerance, target
     ):  # pragma: no cover
         """JIT-compiled Landweber iteration inner loop.
 
@@ -465,6 +483,9 @@ if NUMBA_AVAILABLE:
             Maximum iterations.
         tolerance : float
             Convergence tolerance.
+        target : float
+            Discrepancy-principle stopping target on the residual norm
+            ``||A x - b||``. Values <= 0 disable the discrepancy check.
 
         Returns
         -------
@@ -502,7 +523,9 @@ if NUMBA_AVAILABLE:
                 residual_norm += d * d
             residual_norm = np.sqrt(residual_norm)
 
-            if residual_norm < tolerance:
+            if residual_norm < tolerance or (
+                target > 0.0 and residual_norm <= target
+            ):
                 converged = True
                 iterations = i
                 break

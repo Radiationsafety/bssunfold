@@ -27,6 +27,56 @@ __all__ = [
 ]
 
 
+def _discrepancy_target(
+    A: np.ndarray,
+    b: np.ndarray,
+    noise_level: float | None = None,
+    tau: float = 1.1,
+) -> float:
+    """Discrepancy-principle stopping target ``tau * delta``.
+
+    Used by iterative regularization schemes (Landweber, Kaczmarz) that
+    stop when the residual norm drops to the noise level of the data.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Response matrix (m x n). Only used when ``noise_level`` is None,
+        to estimate the noise variance from the least-squares residual.
+    b : np.ndarray
+        Measurement vector (m,).
+    noise_level : float, optional
+        Relative noise level of the readings; then
+        ``delta = noise_level * ||b||``. If None, the noise level is
+        estimated from the data as ``delta = sqrt(m * var(residual))``.
+    tau : float, optional
+        Discrepancy safety factor (> 1 recommended, default: 1.1).
+
+    Returns
+    -------
+    float
+        Target residual norm ``tau * delta``.
+
+    Raises
+    ------
+    ValueError
+        If ``noise_level`` is not positive or ``tau`` is not positive.
+    """
+    b = np.asarray(b, dtype=float)
+    m = b.size
+    if noise_level is None:
+        delta = np.sqrt(m * _estimate_noise_variance(A, b))
+    else:
+        nv = float(noise_level)
+        if not (nv > 0):
+            raise ValueError(f"noise_level must be positive, got {noise_level!r}")
+        delta = nv * np.linalg.norm(b)
+    tau_f = float(tau)
+    if not (tau_f > 0):
+        raise ValueError(f"tau must be positive, got {tau!r}")
+    return float(tau_f * delta)
+
+
 def _estimate_noise_variance(
     A: np.ndarray,
     b: np.ndarray,

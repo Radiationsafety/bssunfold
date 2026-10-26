@@ -17,6 +17,12 @@ from ..utils.interpolation import discretize_spectra
 from ..utils.plotting import plot_with_uncertainty
 from ..utils.validators import validate_readings
 from ._base_unfolder import _build_system
+from .conditioning import (
+    ILL_THRESHOLD,
+    _attach_conditioning,
+    conditioning_diagnostics,
+    conditioning_summary,
+)
 from .dose_calculation import (
     INTEGRATION_RULE,
     SPECTRUM_DEFINITION,
@@ -522,6 +528,10 @@ class Detector:
             "doserates": doserates,
             "dose_coverage_fraction": dose_coverage,
         }
+
+        # Conditioning diagnostics of the response matrix.
+        _attach_conditioning(output, A)
+
         output.update(kwargs)
         return output
 
@@ -777,6 +787,65 @@ class Detector:
         )
         return sub
 
+    def conditioning_report(
+        self,
+        detector_names: list[str] | None = None,
+        max_neutron_energy: float | None = None,
+        rcond: float = 1e-12,
+        ill_threshold: float = ILL_THRESHOLD,
+    ) -> dict[str, Any]:
+        """Conditioning diagnostics of the response matrix (no unfolding).
+
+        The conditioning depends only on the detector set (and the energy
+        grid), not on the readings, so this can be used to compare detector
+        subsets before running an unfolding.
+
+        Parameters
+        ----------
+        detector_names : List[str], optional
+            Subset of detectors to use. If None, all detectors of this
+            Detector instance are used.
+        max_neutron_energy : float, optional
+            Upper cutoff on the energy grid (MeV), same semantics as in the
+            ``unfold_*`` methods. If None, the full grid is used.
+        rcond : float, optional
+            Relative singular-value cutoff for the effective rank
+            (default: 1e-12).
+        ill_threshold : float, optional
+            Threshold on ``cond_2`` above which the problem is flagged as
+            ill-conditioned (default: 1e10).
+
+        Returns
+        -------
+        Dict[str, Any]
+            Conditioning diagnostics (see conditioning_diagnostics) plus
+            the ``detector_names`` used and the number of energy bins.
+        """
+        if detector_names is None:
+            selected = list(self.detector_names)
+        else:
+            unknown = [n for n in detector_names if n not in self.sensitivities]
+            if unknown:
+                raise ValueError(f"Unknown detector names: {unknown}")
+            if len(detector_names) == 0:
+                raise ValueError("detector_names must be a non-empty list")
+            selected = list(detector_names)
+
+        mask = self._max_energy_mask(max_neutron_energy)
+        A = np.array(
+            [self.sensitivities[name][mask] for name in selected], dtype=float
+        )
+
+        diag = conditioning_diagnostics(A, rcond=rcond, ill_threshold=ill_threshold)
+        diag["detector_names"] = selected
+        diag["n_energy_bins"] = int(mask.sum())
+        logger.info(
+            "Conditioning report for %d detectors: %s",
+            len(selected),
+            conditioning_summary(diag),
+        )
+        return diag
+
     def _expand_result(
         self,
         result: dict[str, Any],
@@ -950,6 +1019,8 @@ class Detector:
         initial_spectrum: np.ndarray | None = None,
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
+        criterion: str = "tolerance",
+        tau: float = 1.1,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -973,10 +1044,18 @@ class Detector:
             Maximum iterations (default: 1000).
         tolerance : float, optional
             Convergence tolerance (default: 1e-6).
+        criterion : str, optional
+            Stopping criterion: ``"tolerance"`` (default) or
+            ``"discrepancy"`` (iterative regularization; stops when the
+            residual reaches the noise level ``tau * noise_level * ||b||``).
+        tau : float, optional
+            Discrepancy safety factor (> 1 recommended, default: 1.1).
         calculate_errors : bool, optional
             Calculate Monte-Carlo errors (default: False).
         noise_level : float, optional
-            Noise level for Monte-Carlo (default: 0.01).
+            Relative noise level of the readings; used for both the
+            Monte-Carlo uncertainty and the discrepancy criterion
+            (default: 0.01).
         n_montecarlo : int, optional
             Number of Monte-Carlo samples (default: 100).
         save_result : bool, optional
@@ -1007,6 +1086,8 @@ class Detector:
             initial_spectrum=initial_spectrum,
             max_iterations=max_iterations,
             tolerance=tolerance,
+            criterion=criterion,
+            tau=tau,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
@@ -5603,6 +5684,8 @@ class Detector:
         max_iterations: int = 1000,
         omega: float = 1.0,
         tolerance: float = 1e-6,
+        criterion: str = "tolerance",
+        tau: float = 1.1,
         calculate_errors: bool = False,
         noise_level: float = 0.01,
         n_montecarlo: int = 100,
@@ -5628,10 +5711,18 @@ class Detector:
             Relaxation parameter (0 < omega <= 2), default: 1.0
         tolerance : float, optional
             Convergence tolerance for solution change, default: 1e-6
+        criterion : str, optional
+            Stopping criterion: ``"tolerance"`` (default) or
+            ``"discrepancy"`` (stops when the residual reaches the noise
+            level ``tau * noise_level * ||b||``; checked per sweep)
+        tau : float, optional
+            Discrepancy safety factor (> 1 recommended, default: 1.1)
         calculate_errors : bool, optional
             Flag to calculate uncertainty via Monte-Carlo, default: False
         noise_level : float, optional
-            Noise level for Monte-Carlo uncertainty calculation, default: 0.01
+            Relative noise level of the readings; used for both the
+            Monte-Carlo uncertainty and the discrepancy criterion,
+            default: 0.01
         n_montecarlo : int, optional
             Number of Monte-Carlo samples for error estimation, default: 100
         save_result : bool, optional
@@ -5663,6 +5754,8 @@ class Detector:
             max_iterations=max_iterations,
             omega=omega,
             tolerance=tolerance,
+            criterion=criterion,
+            tau=tau,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,
