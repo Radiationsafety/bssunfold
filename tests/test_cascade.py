@@ -173,3 +173,22 @@ def test_unfold_cascade_explicit_coarse_stage():
     assert result["spectrum"] is not None
     assert len(result["spectrum"]) == det.n_energy_bins
 
+
+
+def test_unfold_cascade_accepts_detector_subset():
+    """Readings for part of the detector set must not raise (regression).
+
+    The quality metrics used to be built over every detector of the response
+    matrix while `readings` can name a subset, so a subset raised KeyError.
+    """
+    det, readings = _make_detector_and_readings()
+    subset = {k: readings[k] for k in list(readings)[: max(2, len(readings) // 2)]}
+    assert set(subset) < set(det.detector_names)
+
+    result = unfold_cascade(
+        det, subset, cascade_stages=create_default_cascade("general"), verbose=False
+    )
+    assert result["status"] == "OK"
+    assert result["spectrum"] is not None
+    assert np.all(np.isfinite(result["spectrum"]))
+    assert np.isfinite(result["quality_metrics"]["chi_square"])

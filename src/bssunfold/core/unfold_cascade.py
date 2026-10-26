@@ -40,6 +40,7 @@ from typing import Any
 import numpy as np
 
 from ..logging_config import get_logger
+from ._base_unfolder import _build_system
 from ._multires import build_coarse_detector, prolongate_spectrum
 
 logger = get_logger("cascade")
@@ -293,11 +294,10 @@ def _get_method(detector, name: str):
     return getattr(detector, attr, None)
 
 
-def _build_response_matrix(detector) -> np.ndarray:
+def _build_response_matrix(detector, names: list[str] | None = None) -> np.ndarray:
     """Stack detector sensitivities into a (n_detectors, n_bins) matrix."""
-    return np.array(
-        [detector.sensitivities[d] for d in detector.detector_names]
-    )
+    names = list(detector.detector_names) if names is None else names
+    return np.array([detector.sensitivities[d] for d in names])
 
 
 def unfold_cascade(
@@ -370,10 +370,12 @@ def unfold_cascade(
     convergence_history: list[dict[str, float]] = []
     stages_run = 0
 
-    A = _build_response_matrix(detector)
-    measured_readings_array = np.array(
-        [readings[d] for d in detector.detector_names]
+    # Quality metrics compare the reconstructed readings against the measured
+    # ones, so both must cover exactly the detectors present in `readings`.
+    _, measured_readings_array, selected = _build_system(
+        readings, detector.detector_names, detector.sensitivities
     )
+    A = _build_response_matrix(detector, selected)
 
     coarse_cache: dict[int, Any] = {}
 
