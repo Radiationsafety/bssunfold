@@ -249,7 +249,7 @@ Methods are grouped into the following categories (all accessible as
 |----------|----------|
 | Tikhonov-type | `unfold_cvxpy`, `unfold_qpsolvers`, `unfold_tsvd`, `unfold_tikhonov_legendre`, `unfold_pspline_reml` |
 | Krylov/hybrid | `unfold_lanczos`, `unfold_gks`, `unfold_cgls`, `unfold_fista`, `unfold_hybrid_gmres`, `unfold_amg` |
-| Iterative | `unfold_landweber`, `unfold_mlem`, `unfold_mlem_stop`, `unfold_gravel`, `unfold_doroshenko`, `unfold_kaczmarz`, `unfold_sart` |
+| Iterative | `unfold_landweber`, `unfold_mlem`, `unfold_mlem_stop`, `unfold_gravel`, `unfold_doroshenko`, `unfold_kaczmarz`, `unfold_sart`, `unfold_speckit` |
 | EM family | `unfold_osem`, `unfold_mapem`, `unfold_bsrem`, `unfold_osem_anlm`, `unfold_mlem_bs` |
 | Multi-sphere ratio | `unfold_sandii` (with `hybrid8_start` a-priori), `unfold_bunki`, `unfold_bunkiut`, `unfold_rebunki`, `unfold_nsduaz`, `unfold_ferdor` |
 | Bayesian | `unfold_bayes`, `unfold_mcmc`, `unfold_cuqi`, `unfold_zfit`, `unfold_eki` |
