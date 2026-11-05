@@ -186,7 +186,6 @@ from .unfold_osem_anlm import unfold_osem_anlm as unfold_osem_anlm_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_pgd import unfold_pgd as unfold_pgd_impl
-from .unfold_speckit import unfold_speckit as unfold_speckit_impl
 from .unfold_pspline_reml import (
     unfold_pspline_reml as unfold_pspline_reml_impl,
 )
@@ -206,6 +205,7 @@ from .unfold_scipy_direct_method import (
     unfold_scipy_direct_method as unfold_scipy_direct_impl,
 )
 from .unfold_smt import unfold_smt as unfold_smt_impl
+from .unfold_speckit import unfold_speckit as unfold_speckit_impl
 from .unfold_ssr import unfold_ssr as unfold_ssr_impl
 from .unfold_statreg import unfold_statreg as unfold_statreg_impl
 from .unfold_staysl import unfold_staysl as unfold_staysl_impl
