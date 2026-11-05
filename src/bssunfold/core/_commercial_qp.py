@@ -148,7 +148,10 @@ def _commercial_kwargs(cp, solver, timeout, random_state, x0) -> dict:
     without a portable timeout option (COPT, XPRESS) simply omit it. A
     bare ``timeout=...`` kwarg raises "Unknown parameter" on several of
     the cvxpy interfaces, which previously surfaced masked as a license
-    error.
+    error.  COPT additionally has no random-seed parameter at all: its
+    cvxpy plugin rejects unsupported engine kwargs with AttributeError
+    (not TypeError), which the bare-kwargs retry in
+    ``solve_commercial_qp`` absorbs.
     """
     kwargs: dict[str, Any] = {"solver": solver, "verbose": False}
     if timeout is not None:
@@ -289,7 +292,8 @@ def solve_commercial_qp(
         try:
             problem.solve(**attempt)
             break
-        except (cp.error.SolverError, TypeError, ValueError) as exc:
+        except (cp.error.SolverError, TypeError, ValueError,
+                AttributeError) as exc:
             if attempt is kwargs:
                 logger.debug(
                     "%s: retrying without extended kwargs (%s)", alias, exc

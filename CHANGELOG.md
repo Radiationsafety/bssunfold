@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning].
   full Monte-Carlo uncertainty support.  Adapted from the SpecKit toolkit
   and made more robust than the original heuristic.
 
+### Fixed
+
+- **COPT solves returned zero spectra whenever `random_state` was set**
+  (`core/_commercial_qp.py`): the shared commercial QP backend passes a
+  generic `seed` solver kwarg, which COPT has no equivalent of — and the
+  cvxpy-COPT plugin rejects unknown engine parameters with
+  `AttributeError` instead of `TypeError`, so the bare-kwargs retry never
+  engaged and every `solve_copt`/`unfold_copt` call degraded to the
+  missing-license path.  The retry now also absorbs `AttributeError`;
+  since the QP is strictly convex the seed is irrelevant and the solved
+  spectrum is unchanged.
+
 ## [0.31.1] - 2026-10-22
 
 ### Added

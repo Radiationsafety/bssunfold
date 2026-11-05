@@ -7,9 +7,10 @@ that are importable and licensed on the test machine actually solve; the
 license-required failure paths (missing package, missing license, solver
 error) are exercised via mocks and ``block_import``.
 
-IBM CPLEX is installed in the dev environment (Community Edition), so the
-``cplex`` methods run end-to-end here; the other four are verified through
-their graceful-failure contracts.
+IBM CPLEX is installed in the dev environment (Community Edition) and COPT
+runs license-free in size-limited community mode, so both engines solve
+end-to-end here; the other three are verified through their
+graceful-failure contracts.
 """
 
 from unittest.mock import patch
@@ -52,6 +53,11 @@ SOLVE_FUNCS = {
 def _require_cplex():
     if not is_commercial_solver_available("cplex"):
         pytest.skip("CPLEX engine (license required) not available")
+
+
+def _require_copt():
+    if not is_commercial_solver_available("copt"):
+        pytest.skip("COPT engine not importable (coptpy not installed)")
 
 
 def _warned_messages(warn_mock):
@@ -370,6 +376,44 @@ class TestSolveWithCplex:
         assert any(
             "did not find a solution" in m for m in msgs
         ), f"emitted: {msgs}"
+
+
+class TestSolveWithCopt:
+    """End-to-end numeric behaviour using the size-limited community COPT.
+
+    COPT runs without a license (bounded model size, well above these
+    QPs).  The cvxpy-COPT plugin rejects unsupported engine kwargs with
+    AttributeError rather than TypeError — most notably the generic
+    ``seed`` passed for ``random_state``, which COPT has no equivalent
+    of.  Before the bare-kwargs retry absorbed AttributeError, a forced
+    ``random_state`` made every COPT solve return None (zero spectrum).
+    """
+
+    def test_random_state_does_not_break_solve(self):
+        _require_copt()
+        A = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        b = A @ np.array([1.5, 2.0])
+        x = solve_commercial(A, b, solver="copt", alpha=0.0,
+                             timeout=10.0, random_state=42)
+        assert x is not None, (
+            "COPT solve with random_state returned None — the seed kwarg "
+            "raised AttributeError past the bare-kwargs retry"
+        )
+        assert np.all(x >= -1e-6)
+        assert np.allclose(A @ x, b, atol=1e-2)
+
+    def test_matches_plain_solve(self):
+        _require_copt()
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b = np.array([5.0, 6.0])
+        plain = solve_commercial(A, b, solver="copt", alpha=1e-3,
+                                 timeout=10.0)
+        seeded = solve_commercial(A, b, solver="copt", alpha=1e-3,
+                                  timeout=10.0, random_state=42)
+        assert plain is not None and seeded is not None
+        # The QP is strictly convex; the seed is irrelevant, both runs
+        # must agree to solver tolerance.
+        assert np.abs(np.asarray(seeded) - np.asarray(plain)).max() < 1e-6
 
 
 # ---------------------------------------------------------------------------
