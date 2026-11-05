@@ -671,6 +671,7 @@ class TestDetectorIntegration:
             ("unfold_coordinate_descent", {"max_iterations": 200}),
             ("unfold_subgradient", {"max_iterations": 100}),
             ("unfold_extragradient", {"max_iterations": 100}),
+            ("unfold_speckit", {"max_iterations": 100}),
         ],
     )
     def test_methods_smoke(self, detector, readings, method, kwargs):

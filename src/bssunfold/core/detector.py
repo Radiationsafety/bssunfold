@@ -186,6 +186,7 @@ from .unfold_osem_anlm import unfold_osem_anlm as unfold_osem_anlm_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
 from .unfold_pgd import unfold_pgd as unfold_pgd_impl
+from .unfold_speckit import unfold_speckit as unfold_speckit_impl
 from .unfold_pspline_reml import (
     unfold_pspline_reml as unfold_pspline_reml_impl,
 )
@@ -10672,6 +10673,97 @@ class Detector:
             total_fluence=total_fluence,
             x_max=x_max,
             backtracking=backtracking,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            variance_reduction=variance_reduction,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_speckit(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        max_iterations: int = 1000,
+        tolerance: float = 1e-6,
+        learning_rate: float | None = None,
+        smoothness_lambda: float = 0.01,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        variance_reduction: str = "none",
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
+    ) -> dict[str, Any]:
+        """Unfold neutron spectrum by gradient descent with log-smoothness.
+
+        Minimises a least-squares data term plus a log-smoothness
+        regulariser ``lambda * mean(diff(log x)^2)`` by gradient descent
+        with backtracking line search.  The method is the one used by
+        SpecKit, made a little more robust (full gradient, monotone
+        backtracking, chi-square stopping in the natural sum-of-squares
+        scale).
+
+        Parameters
+        ----------
+        readings : Dict[str, float]
+            Detector readings.
+        initial_spectrum : Optional[np.ndarray], optional
+            Initial spectrum guess.
+        max_iterations : int, optional
+            Maximum number of gradient steps (default: 1000).
+        tolerance : float, optional
+            Relative-change convergence tolerance (default: 1e-6).
+        learning_rate : Optional[float], optional
+            Initial step size; estimated automatically if None.
+        smoothness_lambda : float, optional
+            Weight of the log-smoothness regulariser (default: 0.01).
+        calculate_errors : bool, optional
+            Calculate Monte-Carlo errors (default: False).
+        noise_level : float, optional
+            Noise level for Monte-Carlo (default: 0.01).
+        n_montecarlo : int, optional
+            Number of Monte-Carlo samples (default: 100).
+        variance_reduction : str, optional
+            MC variance reduction: 'none', 'antithetic', 'control', 'both'.
+        save_result : bool, optional
+            Save result to history (default: False).
+        random_state : Optional[int], optional
+            Random seed for reproducibility.
+        max_neutron_energy : Optional[float], optional
+            Restrict the energy grid to bins below this energy.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Unfolding results dictionary.
+        """
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_speckit_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+            reading_uncertainties=reading_uncertainties,
+            reading_covariance=reading_covariance,
+            noise_model=noise_model,
+            measurement_time=measurement_time,
+            initial_spectrum=initial_spectrum,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            learning_rate=learning_rate,
+            smoothness_lambda=smoothness_lambda,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

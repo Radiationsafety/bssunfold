@@ -252,6 +252,7 @@ from .unfold_osem_anlm import (
 from .unfold_parametric import unfold_parametric
 from .unfold_parametric2 import solve_parametric2, unfold_parametric2
 from .unfold_pgd import project_onto_set, solve_pgd, unfold_pgd
+from .unfold_speckit import solve_speckit, unfold_speckit
 from .unfold_pspline_reml import (
     select_lambda_reml,
     solve_pspline_reml,
@@ -650,6 +651,8 @@ __all__ = [
     "solve_pgd",
     "unfold_pgd",
     "project_onto_set",
+    "solve_speckit",
+    "unfold_speckit",
     "solve_frank_wolfe",
     "unfold_frank_wolfe",
     "solve_mirror_descent",

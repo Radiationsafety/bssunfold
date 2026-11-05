@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 
+## [0.32.0] - 2026-11-05
+
+### Added
+
+- **SpecKit-style gradient unfolding with log-smoothness regularisation**
+  (`core/unfold_speckit.py`): `solve_speckit` and `unfold_speckit` /
+  `Detector.unfold_speckit`.  Gradient descent on a least-squares data term
+  plus a log-smoothness regulariser
+  `lambda * mean(diff(log x)^2)`, with backtracking line search, chi-square
+  stopping in the natural sum-of-squares scale, automatic initial scaling and
+  full Monte-Carlo uncertainty support.  Adapted from the SpecKit toolkit
+  and made more robust than the original heuristic.
+
 ## [0.31.1] - 2026-10-22
 
 ### Added
