@@ -24,22 +24,6 @@ and this project adheres to [Semantic Versioning].
   `'global'`, relative-deviation weighting and Monte-Carlo uncertainty.
   Example notebook `examples/96-pfns-parametric-iaea.ipynb`.
 
-## [0.33.0] - 2026-11-09
-
-### Added
-
-- **PFNS parametric unfolding** (`core/unfold_pfns_parametric.py`):
-  `solve_pfns_parametric` and `unfold_pfns_parametric` /
-  `Detector.unfold_pfns_parametric`. Represents the neutron spectrum by one
-  of four analytical prompt-fission neutron spectrum families from
-  Jovančević et al. (2026) -- Maxwellian, Watt, Koçak (Eq. 16
-  of Koçak et al. 2014) and Mannhart-based -- and fits the family
-  parameters to the measured activation readings by nonlinear least squares.
-  Koçak uses `scipy.special.gammainc`; the Mannhart family uses the
-  tabulated 252Cf spectrum `ISO_ref_Cf252` from the IAEA Compendium as its
-  reference (instead of a Watt approximation). Supports `search='local'`/
-  `'global'`, relative-deviation weighting and Monte-Carlo uncertainty.
-  Example notebook `examples/96-pfns-parametric-iaea.ipynb`.
 
 ## [0.32.0] - 2026-11-05
 
