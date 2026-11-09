@@ -185,6 +185,9 @@ from .unfold_osem import unfold_osem as unfold_osem_impl
 from .unfold_osem_anlm import unfold_osem_anlm as unfold_osem_anlm_impl
 from .unfold_parametric import unfold_parametric as unfold_parametric_impl
 from .unfold_parametric2 import unfold_parametric2 as unfold_parametric2_impl
+from .unfold_pfns_parametric import (
+    unfold_pfns_parametric as unfold_pfns_parametric_impl,
+)
 from .unfold_pgd import unfold_pgd as unfold_pgd_impl
 from .unfold_pspline_reml import (
     unfold_pspline_reml as unfold_pspline_reml_impl,
@@ -8196,6 +8199,54 @@ class Detector:
             ga_polish=ga_polish,
             lm_max_nfev=lm_max_nfev,
             relative=relative,
+            calculate_errors=calculate_errors,
+            noise_level=noise_level,
+            n_montecarlo=n_montecarlo,
+            save_result=save_result,
+            random_state=random_state,
+        )
+        return self._expand_result(result, mask, readings)
+
+    def unfold_pfns_parametric(
+        self,
+        readings: dict[str, float],
+        initial_spectrum: np.ndarray | None = None,
+        family: str = "maxwellian",
+        initial_params: dict[str, float] | None = None,
+        search: str = "local",
+        relative: bool = True,
+        max_nfev: int = 2000,
+        calculate_errors: bool = False,
+        noise_level: float = 0.01,
+        n_montecarlo: int = 100,
+        save_result: bool = False,
+        random_state: int | None = None,
+        max_neutron_energy: float | None = None,
+        reading_uncertainties: dict[str, float] | np.ndarray | None = None,
+        reading_covariance: np.ndarray | None = None,
+        noise_model: str = "gaussian",
+        measurement_time: float | None = None,
+    ) -> dict[str, Any]:
+        mask = self._max_energy_mask(max_neutron_energy)
+        result = unfold_pfns_parametric_impl(
+            detector_names=self.detector_names,
+            n_energy_bins=int(mask.sum()),
+            E_MeV=self.E_MeV[mask],
+            sensitivities={k: v[mask] for k, v in self.sensitivities.items()},
+            cc_icrp116={k: v[mask] for k, v in self._get_interpolated_cc().items()},
+            save_result_callback=self._save_result,
+            ln_steps=self.ln_steps[mask],
+            readings=readings,
+                reading_uncertainties=reading_uncertainties,
+                reading_covariance=reading_covariance,
+                noise_model=noise_model,
+                measurement_time=measurement_time,
+            initial_spectrum=initial_spectrum,
+            family=family,
+            initial_params=initial_params,
+            search=search,
+            relative=relative,
+            max_nfev=max_nfev,
             calculate_errors=calculate_errors,
             noise_level=noise_level,
             n_montecarlo=n_montecarlo,

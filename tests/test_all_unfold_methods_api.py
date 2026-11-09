@@ -310,6 +310,7 @@ SMOKE_KWARGS: dict[str, dict[str, Any]] = {
     "unfold_tikhonov_legendre": dict(),
     "unfold_lavrentiev": dict(),
     "unfold_vasin": dict(),
+    "unfold_pfns_parametric": dict(family="watt", search="local"),
     "unfold_fisher_information": dict(max_iterations=5),
     "unfold_nonextensive": dict(search="local"),
     "unfold_ensemble": dict(),
@@ -505,6 +506,9 @@ class TestParameterAssignment:
         ),
         "unfold_vasin": dict(
             alpha=1e-3, mu=0.5, data_norm="l2", weights=None, solver="CLARABEL",
+        ),
+    "unfold_pfns_parametric": dict(
+            family="kocak", search="local", relative=False, max_nfev=50,
         ),
         "unfold_fisher_information": dict(
             alpha=0.02, derivative_order=2, w_max=1e5, max_iterations=10,

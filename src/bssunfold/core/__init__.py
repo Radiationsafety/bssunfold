@@ -251,6 +251,7 @@ from .unfold_osem_anlm import (
 )
 from .unfold_parametric import unfold_parametric
 from .unfold_parametric2 import solve_parametric2, unfold_parametric2
+from .unfold_pfns_parametric import solve_pfns_parametric, unfold_pfns_parametric
 from .unfold_pgd import project_onto_set, solve_pgd, unfold_pgd
 from .unfold_pspline_reml import (
     select_lambda_reml,
@@ -567,6 +568,9 @@ __all__ = [
     "unfold_nsduaz",
     "unfold_nspline",
     "unfold_nonextensive",
+    "solve_pfns_parametric",
+    "solve_pfns_parametric",
+    "unfold_pfns_parametric",
     "unfold_osem",
     "unfold_osem_anlm",
     "unfold_mapem",
