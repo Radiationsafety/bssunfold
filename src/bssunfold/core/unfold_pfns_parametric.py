@@ -313,8 +313,8 @@ def solve_pfns_parametric(
         from ._parametric_shared import _check_fit_quality as _cfq
         resid = A @ spectrum - b
         _cfq(float(np.linalg.norm(resid)), b, "pfns_parametric")
-    except Exception:  # pragma: no cover
-        pass
+    except Exception as exc:  # pragma: no cover
+        logger.debug("fit-quality check failed: %s", exc)
 
     if not message:
         message = "converged" if success else "max evaluations reached"
