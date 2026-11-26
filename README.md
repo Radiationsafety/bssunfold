@@ -22,6 +22,7 @@
 - [Features](#-features)
 - [Installation](#-installation)
 - [Quick start](#-quick-start)
+- [Testing with pytest](#-testing-with-pytest)
 - [Available Unfolding Methods](#-available-unfolding-methods)
 - [Spectrum Comparison](#-spectrum-comparison)
 - [Technical requirements](#-technical-requirements)
@@ -131,7 +132,7 @@ uv add bssunfold[windows]
 
 ## 🎯 Quick Start
 
-Open in interactive notebooks:
+[Open the basic example in Jupyter Notebook Viewer](https://nbviewer.org/github/Radiationsafety/bssunfold/blob/main/examples/01-basic-example.ipynb) — view the notebook directly in your browser, no setup required. To run it interactively, use the Colab or Binder links below:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Radiationsafety/bssunfold/blob/main/examples/01-basic-example.ipynb)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Radiationsafety/bssunfold.git/HEAD?urlpath=%2Fdoc%2Ftree%2Fexamples%2F02-basic-example-for-mybinder.ipynb)
@@ -197,6 +198,9 @@ Full input-format details: [docs — Input Data](https://bssunfold.readthedocs.i
 
 ### Pipeline Example
 
+Chain several unfolding methods in one run: each step's spectrum is passed to
+the next method as an informed starting point.
+
 ```python
 result = detector.unfold_combined(
     readings=readings,
@@ -210,11 +214,15 @@ result = detector.unfold_combined(
 
 ### Parametric Example
 
+Fit a physically motivated three-component spectrum (thermal Maxwellian,
+epithermal 1/E, fast power-law) directly to the readings instead of
+reconstructing a free-form spectrum
+([docs — Parametric Models](https://bssunfold.readthedocs.io/en/latest/math_formulation.html#math-parametric)).
+
 ```python
 # FRUIT-style parametric model (thermal + epithermal + fast)
 result = detector.unfold_parametric(
     readings=readings,
-    parametric_method='thermal+epithermal+fast',
     optimizer='cvxpy',           # or 'lmfit', 'qpsolvers', 'combined'
     solver_backend='cvxpy:ECOS', # or 'qpsolvers:osqp'
     calculate_errors=True,
@@ -239,6 +247,37 @@ phi0 = hybrid8_start(detector.E_MeV, total_fluence=2.5)
 ```
 
 Full description: [docs — Hybrid8 start spectrum](https://bssunfold.readthedocs.io/en/latest/hybrid8.html).
+
+## 🧪 Testing with pytest
+
+The automated test suite lives in `./tests` (about 3,750 tests). Install the
+test dependencies and run the suite from the repository root:
+
+```bash
+# From a clone: full development setup (pytest + pytest-cov)
+uv sync --group dev
+
+# Or install just the test extra
+pip install -e ".[test]"
+
+# Run all tests
+uv run pytest tests/
+# or, without uv:
+pytest tests/
+```
+
+Useful variants:
+
+```bash
+uv run pytest -v --tb=short                                   # verbose, short tracebacks
+uv run pytest tests/test_coverage.py                          # a single file
+uv run pytest tests/test_coverage.py::TestClass::test_name -v # a single test
+uv run pytest -m "not slow"                                   # skip slow tests
+uv run pytest --cov=src/bssunfold --cov-report=term-missing --cov-fail-under=95
+```
+
+The suite runs in CI on Ubuntu, Windows and macOS (see the badges at the top
+of this README). See [CONTRIBUTING.md](CONTRIBUTING.md) before adding tests.
 
 ## ⚙️ Available Unfolding Methods
 
