@@ -1,7 +1,7 @@
 # BSSunfold - Neutron Spectrum Unfolding Package for Bonner Sphere Spectrometers
 [![PyPI - Version](https://img.shields.io/pypi/v/BSSUnfold)](https://pypi.org/project/bssunfold/)
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/bssunfold)](https://anaconda.org/conda-forge/bssunfold)
-[![Python 3.11–3.15](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13%20|%203.14%20|%203.15-blue)](https://www.python.org/downloads/)
+[![Python 3.11.5–3.15](https://img.shields.io/badge/python-3.11.5%20|%203.12%20|%203.13%20|%203.14%20|%203.15-blue)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Documentation](https://img.shields.io/badge/docs-sphinx-blue)](https://bssunfold.readthedocs.io/)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/7dd7cc75ab654b879b80abe8476907f6)](https://app.codacy.com/gh/Radiationsafety/bssunfold/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
@@ -355,7 +355,7 @@ custom Monte Carlo uncertainty analysis, `max_neutron_energy` cutoff):
 ## 🔧 Technical Requirements
 
 ### Core Requirements
-- Python 3.11–3.15 (tested in CI on Ubuntu, Windows and macOS)
+- Python 3.11.5–3.15 (tested in CI on Ubuntu, Windows and macOS)
 - NumPy, SciPy, Pandas, Matplotlib
 
 ### Optional Backends
